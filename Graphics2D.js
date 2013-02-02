@@ -60,7 +60,7 @@ var Graphics2D = (function(window, undefined){
 			var element = null;
 			this.elements.forEach(function(object){
 
-				if( object.isPointIn && object.isPointIn(x,y) )
+				if( object.isPointIn && object.isPointIn( distance(x), distance(y)) )
 					element = object;
 
 			});
@@ -121,16 +121,21 @@ var Graphics2D = (function(window, undefined){
 
 		draw : function(ctx){
 			var a = this._attr;
+
+			if(!a.visible) return;
+			style(ctx, a.style);
 			this.processPath(ctx);
-			ctx.fill();
+			if(a.style.fillStyle) ctx.fill();
+			if(a.style.strokeStyle) ctx.stroke();
+			ctx.restore();
 		}
 
 	});
 
-	Shape.defaults = { visible : true };
 	Shape.attributes = function(){
 		this.matrix = [ 1,0,0,1,0,0 ];
 		this.style  = {};
+		this.visible = true;
 	}
 
 
@@ -140,24 +145,32 @@ var Graphics2D = (function(window, undefined){
 
 		initialize : function(x, y, w, h, fill, stroke, context){
 			var a = this._attr;
-			extend(a, { x:x, y:y, width:w, height:h });
+			if( all(isNumeric, [x, y, w, h]) )
+				extend(a, { x:distance(x), y:distance(y), width:distance(w), height:distance(h) });
+			else
+				attributes(a, x),
+				a.x = distance(x.x),
+				a.y = distance(x.y),
+				a.width = distance(select(x.width, x.w)),
+				a.height = distance(select(x.height, x.h));
+			
 			this.context = context;
 		},
 
 		x : function(v){
-			return this.property('x', v);
+			return this.property('x', distance(v));
 		},
 
 		y : function(v){
-			return this.propert('y', v);
+			return this.property('y', distance(v));
 		},
 
 		width : function(v){
-			return this.property('width', v);
+			return this.property('width', distance(v));
 		},
 
 		height : function(v){
-			return this.property('height', v);
+			return this.property('height', distance(v));
 		},
 
 		processPath : function(ctx){
@@ -167,6 +180,82 @@ var Graphics2D = (function(window, undefined){
 		}
 
 	});
+
+
+	// ctx util
+
+	function attributes(attrs, object){ // в случае передачи хэша парсит общие аргументы
+		if(object.fill)
+			attrs.style.fillStyle = object.fill;
+		if(object.stroke)
+			extend(attrs.style, stroke( object.stroke ));
+	}
+
+	function style(ctx, style){
+		ctx.save();
+		[ 'fillStyle', 'strokeStyle', 'lineWidth',
+		  'lineCap', 'lineJoin', 'miterLimit',
+		  'font', 'textAlign', 'textBaseline',
+		  'globalAlpha', 'globalCompositeOperation',
+		  'shadowColor', 'shadowOffsetX', 'shadowOffsetY',
+		  'shadowBlur' ]
+		    .forEach(function(name){
+
+			if(name in style)
+				ctx[name] = style[name];
+
+		});
+	}
+
+	function stroke(stroke){ // parses string like '2px blue vutt'
+		stroke = stroke.split(' ');
+		var obj = {}, iscap = true;
+		stroke.forEach(function(value){
+
+			if( /^\d*(px|pt|em)?$/.test(value) )
+				obj.lineWidth = distance(value);
+
+			else if( value == 'inset' || value == 'outset' || value == 'middle' )
+				obj.position = value;
+
+			else if( value == 'butt' || value == 'square' )
+				obj.lineCap = value, iscap = false;
+
+			else if( value == 'miter' || value == 'bevel' )
+				obj.lineJoin = value;
+
+			else if( value == 'round' )
+				if(iscap) obj.lineCap = value;
+				else obj.lineJoin = value;
+
+			else
+				obj.strokeStyle = value;
+
+		});
+		return obj;
+	}
+
+	function distance(value){ // parses CSS-like distances (1pt, 0.5cm...)
+		if(isNumber(value) || /^\d*$/.test(value + '')) return value;
+		var div = document.createElement('div');
+		div.style.width = value;
+		document.body.appendChild(div);
+		var w = parseInt(getComputedStyle(div).width.split('.')[0].replace(/[^\d]/gi, ''));
+		document.body.removeChild(div);
+		return w;
+	}
+
+	function angle(angle){
+		var num  = parseFloat( (angle += '').replace(/[^0-9\.\,]*$/, '').split(',').join('.') ),
+			unit = angle.replace(/^[0-9\.\,]*/, '');
+		if(unit == ''){
+			return num / 180 * Math.PI;
+		}
+		else if(unit == 'deg') return num / 180 * Math.PI;
+		else if(unit == 'rad') return num;
+		else if(unit == 'turn') return (num * 360) / 180 * Math.PI;
+		else if(unit == 'grad') return (num / 100 * 90) / 180 * Math.PI;
+	}
 	
 
 	// utilities
@@ -179,10 +268,27 @@ var Graphics2D = (function(window, undefined){
 		return a;
 	}
 
+	function is(a, b){ // array1 == array2 ?..
+		if(a.length != b.length) return false;
+		for(var i = 0, l = a.length; i < l; i++){
+			if(a[i] != b[i])
+				return false;
+		}
+		return true;
+	}
+
 	function select(){
 		for(var i = 0, l = arguments.length; i < l; i++){
 			if(arguments[i] != null) return arguments[i];
 		}
+	}
+
+	function all(func, params){ // isNumeric(a) && isNumeric(b) == all(isNumeric, [a,b]);
+		for(var i = 0, l = params.length; i < l; i++){
+			if(!func(params[i]))
+				return false;
+		}
+		return true;
 	}
 
 	function isString(a){ return Object.prototype.toString.call(a) == '[object String]'; };
