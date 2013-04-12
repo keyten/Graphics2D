@@ -90,11 +90,80 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		// events
-		_checkListeners : emptyFunc,
-		
-		on : emptyFunc,
+		_setupped : false,
+		hoverElement : null,
+		focusElement : null,
+		_checkListeners : function(){
 
-		fire : emptyFunc
+			if(this._setupped) return;
+			this._setupped = true;
+
+			var element = this.canvas,
+				listeners = this.listeners,
+				context = this;
+
+			[ 'click', 'dblclick', 'mousedown',
+			  'mouseup', 'mousemove', 'mouseover', 'mouseout' ].forEach(function(event){
+
+				element.addEventListener(event, function(e){
+
+					var object = context.getObjectInPoint(
+							e.contextX = e.clientX - element.offsetLeft,
+							e.contextY = e.clientY - element.offsetTop
+						);
+
+					if(object && object.fire)
+						e.targetObject = object,
+						object.fire(event, e);
+
+					context.fire(event, e);
+
+				});
+
+			});
+
+			[{ evt:'mousemove', in:'mouseover', out:'mouseout' }, { evt:'mousedown', in:'focus', out:'blur' }].forEach(function(obj, i){
+
+				var id = '_evt' + i;
+
+				context.on(obj.evt, function(e){
+
+					var targ = e.targetObject;
+					if(context[id] != targ && context[id])
+						context[id].fire(obj.out, e)[id] = false;
+
+					if(targ && !targ[id])
+						targ.fire(obj.in, e)[id] = true;
+
+					context[id] = targ;
+
+				});
+
+			});
+
+
+		},
+		
+		on : function(evt, fn){
+
+			this._checkListeners();
+			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
+			return this;
+
+		},
+
+		fire : function(evt, data){
+
+			var listeners = this.listeners[ evt ];
+			if(!listeners) return this;
+
+			var object = this.canvas;
+			listeners.forEach(function(func){
+				func.call(object, data);
+			});
+			return this;
+		
+		}
 
 	};
 
@@ -168,16 +237,25 @@ var Graphics2D = (function(window, undefined){
 
 		cursor : function(cur){
 			var cnv = this.context.canvas,
-				stg = this.context,
-				elm = this,
 				old = cnv.style.cursor;
-			cnv.addEventListener('mousemove', function(e){ // заменить на this.hover(fn1, fn2);
-				var obj = stg.getObjectInPoint(e.clientX - cnv.offsetLeft, e.clientY - cnv.offsetTop);
-				if( obj )
-					cnv.style.cursor = cur;
-				else
-					cnv.style.cursor = old;
-			}, false);
+			return this.on('mouseover', function(){
+				cnv.style.cursor = cur
+			}).on('mouseout', function(){
+				cnv.style.cursor = old;
+			});
+		},
+
+		on : function(event,fn){
+			this.context._checkListeners();
+			(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
+			return this;
+		},
+
+		fire : function(event, data){
+			(this.listeners[ event ] || []).forEach(function(func){
+				func.call(this, data);
+			}.bind(this));
+			return this;
 		},
 
 		draw : function(ctx){
