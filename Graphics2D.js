@@ -822,6 +822,14 @@ var Graphics2D = (function(window, undefined){
 			this._genLines()
 		},
 
+		text : function(text){
+			if(text == null) return this._attr.source;
+			this._attr.source = text;
+			this._genLines();
+			this.context.update();
+			return this;
+		},
+
 		x : function(x){
 			return this.property('x', distance(x));
 		},
