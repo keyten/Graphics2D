@@ -102,7 +102,7 @@ var Graphics2D = (function(window, undefined){
 				listeners = this.listeners,
 				context = this;
 
-			[ 'click', 'dblclick', 'mousedown',
+			[ 'click', 'dblclick', 'mousedown', 'mousewheel', 'DOMMouseScroll', // DOMMouseScroll - mousewheel in firefox
 			  'mouseup', 'mousemove', 'mouseover', 'mouseout' ].forEach(function(event){
 
 				element.addEventListener(event, function(e){
@@ -122,20 +122,21 @@ var Graphics2D = (function(window, undefined){
 
 			});
 
-			[{ evt:'mousemove', in:'mouseover', out:'mouseout' }, { evt:'mousedown', in:'focus', out:'blur' }].forEach(function(obj, i){
+			[{ evt:'mousemove', in:'mouseover', out:'mouseout', name:'hover' },
+             { evt:'mousedown', in:'focus', out:'blur', name:'focus' }].forEach(function(obj, i){
 
-				var id = '_evt' + i;
+				var id = obj.name + 'Element'; // hoverElement, focusElement
 
 				context.on(obj.evt, function(e){
 
 					var targ = e.targetObject;
-					if(context[id] != targ && context[id])
-						context[id].fire(obj.out, e)[id] = false;
+					if(context[ id ] != targ && context[ id ])
+						context[ id ].fire( obj.out, e )[ id ] = false;
 
-					if(targ && !targ[id])
-						targ.fire(obj.in, e)[id] = true;
+					if(targ && !targ[ id ])
+						targ.fire(obj.in, e)[ id ] = true;
 
-					context[id] = targ;
+					context[ id ] = targ;
 
 				});
 
@@ -147,6 +148,8 @@ var Graphics2D = (function(window, undefined){
 		on : function(evt, fn){
 
 			this._checkListeners();
+			if(evt == 'mousewheel') // for firefox
+				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
 			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
 			return this;
 
@@ -247,6 +250,8 @@ var Graphics2D = (function(window, undefined){
 
 		on : function(event,fn){
 			this.context._checkListeners();
+			if(event == 'mousewheel') // for firefox
+				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
 			(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 			return this;
 		},
@@ -328,6 +333,8 @@ var Graphics2D = (function(window, undefined){
 				y : this._attr.y,
 				w : this._attr.width,
 				h : this._attr.height,
+				x2 : this._attr.x + this._attr.width,
+				y2 : this._attr.y + this._attr.height,
 			};
 		},
 
@@ -369,6 +376,18 @@ var Graphics2D = (function(window, undefined){
 		r : function(v){
 			return this.property('r', distance(v));
 		},
+        
+        bounds : function(){
+            var a = this._attr;
+            return {
+                x : a.cx - a.r,
+                y : a.cy - a.r,
+                w : a.r * 2,
+                h : a.r * 2,
+                x2 : a.cx + a.r,
+                y2 : a.cy + a.r
+            };
+        },
 		
 		processPath : function(ctx){
 			var a = this._attr;
@@ -632,6 +651,7 @@ var Graphics2D = (function(window, undefined){
 
 		initialize : function(text, fnt, x, y, fill, stroke, context){ // hash object!
 			var a = this._attr;
+			a.underline = {};
 			if(!isNumeric(y))
 				stroke = fill,
 				fill   = y,
@@ -663,6 +683,10 @@ var Graphics2D = (function(window, undefined){
 			}
 
 			this.context = context;
+		},
+
+		text : function(value){
+			return this.property('text', value);
 		},
 
 		x : function(x){
@@ -717,6 +741,24 @@ var Graphics2D = (function(window, undefined){
 
 		textBaseline : function(baseline){
 			return this.style('textBaseline', baseline);
+		},
+
+		underline : function(val){
+/*			var s = this._attr.underline;
+			if(val == null)
+				return {
+					color : s.strokeStyle,
+					width : s.lineWidth,
+					cap   : s.lineCap,
+					join  : s.lineJoin,
+					dash  : s._lineDash
+				};
+			if(!val) this._attr,underline._show = false;
+			extend(s, stroke(val));
+			s.lineWidth = parseInt( this._attr.font.size / 15 );
+			s._show = true;
+			this.context.update();
+			return this; */
 		},
 
 		width : function(w){
@@ -1065,71 +1107,96 @@ var Graphics2D = (function(window, undefined){
 				ctx.mozDash = style._lineDash;
 		}
 	}
+    
+    var corners = {
+        'left'  : [0, 0.5],
+        'right' : [1, 0.5],
+        'top'   : [0.5, 0],
+        'bottom': [0.5, 1],
+        'left top'    : [0, 0],
+        'top left'    : [0, 0],
+        'left bottom' : [0, 1],
+        'bottom left' : [0, 1],
+        'right top'   : [1, 0],
+        'top right'   : [1, 0],
+        'right bottom': [1, 1],
+        'bottom right': [1, 1]
+    };
+    
+    function corner(corner, bounds){
+        if(isArray(corner)) return corner;
+        if(isObject(corner)) return [corner.x, corner.y];
+        return [bounds.x + bounds.w * corners[corner][0], bounds.y + bounds.h * corners[corner][1] ];
+    }
+
+/*	var corners = {
+		vertical : [ 0,0,0,1 ],
+		horizontal : [ 0,0,1,0 ]
+	}; */
 
 	function fillAndStroke(self, fill, str, ctx){
 		ctx = ctx.context;
 		if(fill) self._attr.style.fillStyle = fill;
 		if(str)  extend(self._attr.style, stroke(str));
 
-		if(isObject(fill)){
-			if('url' in fill || 'image' in fill){
-				// pattern
-			}
-			else {
-		//		self._attr.gradient = { relative : true, stops : fill, angle:angle(fill.angle) || 0 };
-		//		self._attr.gradient.redraw = true;
+		function parseFill(grad){
 
-				// создание градиента
-				var bounds = self.bounds();
-				if( ('x' in fill && 'y' in fill) || 'bounds' in fill ){
-					// absolute
+			var bounds = self.bounds(),
+                gradient, stops, from, to;
+            
+            if( 'from' in grad && 'to' in grad )
+                from = isString(grad.from) ? corner(grad.from, bounds) : grad.from,
+                to   = isString(grad.to)   ? corner(grad.to,   bounds) : grad.to;
+            else if( 'angle' in grad)
+                from = [ (ctg(grad.angle) * bounds.h - bounds.w) / 2, 0 ],
+                to   = [ (ctg(grad.angle) * bounds.h + bounds.w) / 2, 0 ];
+            
+            if( 'stops' in grad || 'colors' in grad )
+                stops = grad.stops || grad.colors;
+            else
+                stops = grad;
+            
+            if( isArray(stops) ){
+                var step = 1 / (stops.length - 1),
+                    temp = {};
+                stops.forEach(function(color, i){
+                    temp[ step * i ] = color;
+                });
+                stops = temp;
+            }
+            
+            gradient = ctx.createLinearGradient( from[0], from[1], to[0], to[1] );
+            for(var i in stops) if(stops.hasOwnProperty(i) && !isNaN(i))
+                    gradient.addColorStop(i, stops[i]);
+            
+            return gradient;
+            
+/*			if( isArray(grad) ){
+				if( grad[0] in corners ){
+					var corner = corners[ grad.shift() ];
+					bounds.x  = bounds.x + bounds.w * corner[0];
+					bounds.y  = bounds.y + bounds.h * corner[1];
+					bounds.x2 = bounds.x + bounds.w * corner[2];
+					bounds.y2 = bounds.y + bounds.h * corner[3];
 				}
-				else {
 
-					var px = fill.padding ? fill.padding[0] || fill.padding : 0,
-						py = fill.padding ? fill.padding[1] || fill.padding[1] || fill.padding : 0,
-						pw = fill.padding ? fill.padding[2] || fill.padding[0] || fill.padding : 0,
-						ph = fill.padding ? fill.padding[3] || fill.padding[1] || fill.padding : 0,
-
-						x  = bounds.x - px,
-						y  = bounds.y - py,
-						xcoef = Math.cos( angle( fill.angle ) ),
-						ycoef = Math.sin( angle( fill.angle ) ),
-						x2 = bounds.x + bounds.w * xcoef,
-						y2 = bounds.y + bounds.h * ycoef,
-
-						grad = self._attr.style.fillStyle = ctx.createLinearGradient( x, y, x2, y2 ),
-						stops = fill.stops || fill;
-console.log(px,py,pw,ph);
-
-					// парсим массив стоп
-					if( isArray(stops) ){
-						var temp = {};
-						for(var i = 0, l = stops.length, step = 1 / (l-1); i < l; i++){
-							temp[ step * i ] = stops[i];
-						}
-						stops = temp;
-					}
-					// устанавливаем стопы
-					Object.keys( stops ).forEach(function(val){
-						if(!isNaN(val))
-							grad.addColorStop( val, stops[val] );
-					});
-
-					grad.stops = stops;
-					grad.padding = [ px,py,pw,ph ];
-					grad.x  = x;
-					grad.y  = y;
-					grad.x2 = x2;
-					grad.y2 = y2;
-					grad.xcoef = xcoef;
-					grad.ycoef = ycoef;
-				}
+				var g = ctx.createLinearGradient( bounds.x, bounds.y, bounds.x2, bounds.y2 ),
+					s = 1 / (grad.length - 1);
+				grad.forEach(function(color, i){
+					g.addColorStop( s * i, color );
+				});
+				return g;
 			}
+			else if( isObject(grad) ){
+				
+			} */
+
 		}
+		if(isArray(fill) || isObject(fill))
+			self._attr.style.fillStyle = parseFill(fill);
 	}
 
-	function stroke(stroke){ // parses string like '2px blue 0.5 butt'
+	function stroke(stroke){ // parses string like '2px blue dash butt'
 		stroke = stroke.split(' ');
 		var obj = {}, opacity, dashes = {
 			shortdash:			[4, 1],
