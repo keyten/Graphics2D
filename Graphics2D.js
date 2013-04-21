@@ -107,9 +107,10 @@ var Graphics2D = (function(window, undefined){
 
 				element.addEventListener(event, function(e){
 
-					var object = context.getObjectInPoint(
-							e.contextX = e.clientX - element.offsetLeft,
-							e.contextY = e.clientY - element.offsetTop
+					var coords = coordsOfElement(element),
+						object = context.getObjectInPoint(
+							e.contextX = e.clientX - coords[0],
+							e.contextY = e.clientY - coords[1]
 						);
 
 					if(object && object.fire)
@@ -1178,7 +1179,16 @@ var Graphics2D = (function(window, undefined){
 	}
 
 
-
+	function coordsOfElement(element){
+		var offsetElement = element, x = 0, y = 0;
+		while(offsetElement){
+			x += offsetElement.offsetLeft;
+			y += offsetElement.offsetTop;
+			offsetElement = offsetElement.offsetParent;
+			// у каждого элемента свойство offsetParent с элементом, от которого отсчитываются offsetTop и offsetLeft и так до body с offsetParent = null
+		}
+		return [x,y]
+	}
 
     
     var corners = {
