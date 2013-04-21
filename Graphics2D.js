@@ -268,6 +268,9 @@ var Graphics2D = (function(window, undefined){
 
 			if(!a.visible) return;
 			style(ctx, a.style);
+			if(a.transforms.length)
+				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
+
 //			if(a.gradient && a.gradient.redraw){
 //				ctx.fillStyle = createGradient(ctx, a.gradient, this.bounds());
 //			}
@@ -281,12 +284,57 @@ var Graphics2D = (function(window, undefined){
 			var ctx = this.context.context;
 			this.processPath( ctx );
 			return ctx.isPointInPath( x, y );
+		},
+
+
+		scale : function(x,y, px,py){
+			if(y == null || !isNumber(y))
+				py = px,
+				px = y,
+				y = x;
+			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
+			return this.transform( x, 0, 0, (y == null ? x : y), 0, 0, pivot );
+		},
+
+		rotate : function(ang, px,py){
+			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
+			ang = angle(ang);
+			return this.transform( Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang), 0, 0, pivot );
+		},
+
+		skew : function(x,y, px,py){
+			if(y == null || !isNumber(y))
+				py = px,
+				px = y,
+				y = x;
+			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
+			return this.transform( 1, Math.tan(angle(y == null ? x : y)), Math.tan(angle(x)), 1, 0, 0, pivot );
+		},
+
+		transform : function(a,b,c,d,e,f, px,py){
+			var pivot = py != null ? [px,py] : px == null ? 'center' : px;
+
+			this._attr.transforms.push({ matrix:[a,b,c,d,e,f], pivot:pivot });
+			transform( this._attr.matrix, [a,b,c,d,e,f], corner(pivot, this.bounds()) );
+			this.context.update();
+			return this;
+		},
+
+		_processMatrix : function(){
+			var matrix = this._attr.matrix = [1,0,0,1,0,0],
+				transforms = this._attr.transforms,
+				bounds = this.bounds();
+			transforms.forEach(function(mt){
+				transform( matrix, mt.matrix, corner(mt.pivot, bounds) );
+			});
+			this.context.update();
 		}
 
 	});
 
 	Shape.attributes = function(){
 		this.matrix = [ 1,0,0,1,0,0 ];
+		this.transforms = [];
 		this.style  = {};
 		this.visible = true;
 	}
@@ -312,11 +360,15 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		x : function(v){
-			return this.property('x', distance(v));
+			this.property('x', distance(v));
+			this._processMatrix();
+			return this;
 		},
 
 		y : function(v){
-			return this.property('y', distance(v));
+			this.property('y', distance(v));
+			this._processMatrix();
+			return this;
 		},
 
 		width : function(v){
@@ -1107,12 +1159,34 @@ var Graphics2D = (function(window, undefined){
 				ctx.mozDash = style._lineDash;
 		}
 	}
+
+	function concat(m1, m2){
+		return [
+			m1[0] * m2[0] + m1[2] * m2[1],
+			m1[1] * m2[0] + m1[3] * m2[1],
+			m1[0] * m2[2] + m1[2] * m2[3],
+			m1[1] * m2[2] + m1[3] * m2[3],
+			m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
+			m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+		];
+	}
+
+	function transform( m1, m2, pivot ){
+		extend( m1, concat( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
+		extend( m1, concat( m1, m2 ) );
+		extend( m1, concat( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
+	}
+
+
+
+
     
     var corners = {
         'left'  : [0, 0.5],
         'right' : [1, 0.5],
         'top'   : [0.5, 0],
         'bottom': [0.5, 1],
+        'center': [0.5, 0.5],
         'left top'    : [0, 0],
         'top left'    : [0, 0],
         'left bottom' : [0, 1],
@@ -1124,6 +1198,7 @@ var Graphics2D = (function(window, undefined){
     };
     
     function corner(corner, bounds){
+    	if(isNumeric(corner)) return [ corner = distance(corner), corner ];
         if(isArray(corner)) return corner;
         if(isObject(corner)) return [corner.x, corner.y];
         return [bounds.x + bounds.w * corners[corner][0], bounds.y + bounds.h * corners[corner][1] ];
@@ -1302,9 +1377,9 @@ var Graphics2D = (function(window, undefined){
 		return g;
 	}
 
-	function angle(angle){
+	function angle(angle,tr){
 		var num  = parseFloat( (angle += '').replace(/[^0-9\.\,]*$/, '').split(',').join('.') ),
-			unit = angle.replace(/^[0-9\.\,]*/, '');
+			unit = angle.replace(/^-?[0-9\.\,]*/, '');
 		if(unit == '' || unit == 'deg') return num / 180 * Math.PI;
 		else if(unit == 'rad')  return num;
 		else if(unit == 'turn') return (num * 360) / 180 * Math.PI;
@@ -1470,7 +1545,7 @@ var Graphics2D = (function(window, undefined){
 	function isObject(a){ return Object.prototype.toString.call(a) == '[object Object]'; }
 	function isNumber(a){ return Object.prototype.toString.call(a) == '[object Number]'; }
 
-	function isNumeric(a){ return isNumber(a) || !isNaN( parseFloat(a) ); }
+	function isNumeric(a){ return isNumber(a) || (!isNaN( parseFloat(a) ) && !isArray(a)); }
 	function isPoint(a){ return isNumeric(a) || typeof a == 'object'; }
 
 
