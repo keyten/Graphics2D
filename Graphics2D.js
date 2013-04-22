@@ -184,19 +184,20 @@ var Graphics2D = (function(window, undefined){
 		},
 
 
-		_set : function(name, value, obj){
+		_set : function(name, value, postfn, obj){
 			if(value == null) return obj[name];
 			obj[name] = value;
+			if(postfn) postfn();
 			this.context.update();
 			return this;
 		},
 
-		property : function(name, value){
-			return this._set(name, value, this._attr)
+		property : function(name, value, postfn){
+			return this._set(name, value, postfn, this._attr)
 		},
 		
-		style : function(name, value){
-			return this._set(name, value, this._attr.style)
+		style : function(name, value, postfn){
+			return this._set(name, value, postfn, this._attr.style)
 		},
 
 
@@ -361,23 +362,19 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		x : function(v){
-			this.property('x', distance(v));
-			this._processMatrix();
-			return this;
+			return this.property('x', distance(v), this._processMatrix.bind(this));
 		},
 
 		y : function(v){
-			this.property('y', distance(v));
-			this._processMatrix();
-			return this;
+			return this.property('y', distance(v), this._processMatrix.bind(this));
 		},
 
 		width : function(v){
-			return this.property('width', distance(v));
+			return this.property('width', distance(v), this._processMatrix.bind(this));
 		},
 
 		height : function(v){
-			return this.property('height', distance(v));
+			return this.property('height', distance(v), this._processMatrix.bind(this));
 		},
 
 		bounds : function(){
@@ -419,15 +416,15 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		cx : function(v){
-			return this.property('cx', distance(v));
+			return this.property('cx', distance(v), this._processMatrix.bind(this));
 		},
 
 		cy : function(v){
-			return this.property('cy', distance(v));
+			return this.property('cy', distance(v), this._processMatrix.bind(this));
 		},
 		
 		r : function(v){
-			return this.property('r', distance(v));
+			return this.property('r', distance(v), this._processMatrix.bind(this));
 		},
         
         bounds : function(){
@@ -680,6 +677,9 @@ var Graphics2D = (function(window, undefined){
 
 			if(!a.visible) return;
 			
+			if(a.transforms.length)
+				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
+
 			var w = a.width  == 'auto' ? a.image.width  * (a.height / a.image.height) : a.width  || a.image.width,
 				h = a.height == 'auto' ? a.image.height * (a.width  / a.image.width ) : a.height || a.image.height;
 			if(a.crop)
@@ -826,36 +826,43 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		isPointIn : function(x,y){
-			var a   = this._attr,
-				ctx = this.context.context,
+			var b = this.bounds();
+			this.context.context.rect( b.x, b.y, b.w, b.h );
+			return this.context.context.isPointInPath(x,y);
+		},
 
-				align = a.style.textAlign || 'left', // left | center | right
-				baseline = a.style.textBaseline || 'alphabetic', // top | middle | bottom | hanging | alphabetic | ideographic
+		bounds : function(){
+			var a = this._attr,
+				align = a.style.textAlign || 'left',
+				baseline = a.style.textBaseline || 'alphabetic',
 				width = this.width(),
-				size = this.fontSize() * 1.15, // line-height from libcanvas :)
+				size = a.font.size * 1.15,
 				x = a.x,
 				y = a.y;
 
-			if( align == 'left' )
-				;
+			if( align == 'left' );
 			else if( align == 'center' )
 				x -= width / 2;
 			else if( align == 'right' )
 				x -= width;
 
-			if( baseline == 'top' )
+			if(baseline == 'top')
 				;
 			else if( baseline == 'middle' )
 				y -= size / 2;
 			else if( baseline == 'bottom' || baseline == 'ideographic' )
 				y -= size;
 			else if( baseline == 'alphabetic' )
-				y -= (size * 0.8);
+				y -= size * 0.8;
 
-
-			ctx.rect( x, y, width, size );
-
-			return ctx.isPointInPath(x,y);
+			return {
+				x : x,
+				y : y,
+				w : width,
+				h : size,
+				x2 : x + width,
+				y2 : y + size
+			};
 		},
 
 		draw : function(ctx){
@@ -864,6 +871,9 @@ var Graphics2D = (function(window, undefined){
 			if(!a.visible) return;
 
 			style(ctx, a.style);
+			if(a.transforms.length)
+				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
+
 			if(a.style.fillStyle)
 				ctx.fillText(a.text, a.x, a.y, this.width());
 			if(a.style.strokeStyle)
@@ -1048,6 +1058,9 @@ var Graphics2D = (function(window, undefined){
 			if(!a.visible) return;
 
 			style(ctx, a.style);
+			if(a.transforms.length)
+				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
+
 			if(a.style.fillStyle)
 				fill = function(t,x,y){
 					ctx.fillText(t,x,y);
