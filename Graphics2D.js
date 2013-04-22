@@ -282,7 +282,14 @@ var Graphics2D = (function(window, undefined){
 			ctx.restore();
 		},
 
-		isPointIn : function(x,y){
+		isPointIn : function(x,y, notransform){
+			// transforms
+			if(!notransform){
+				var matrix = this._attr.matrix;
+				x = x * matrix[0] + y * matrix[2] + matrix[4];
+				y = x * matrix[1] + y * matrix[3] + matrix[5];
+			}
+
 			var ctx = this.context.context;
 			this.processPath( ctx );
 			return ctx.isPointInPath( x, y );
