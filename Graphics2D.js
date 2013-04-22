@@ -124,7 +124,7 @@ var Graphics2D = (function(window, undefined){
 			});
 
 			[{ evt:'mousemove', in:'mouseover', out:'mouseout', name:'hover' },
-             { evt:'mousedown', in:'focus', out:'blur', name:'focus' }].forEach(function(obj, i){
+			 { evt:'mousedown', in:'focus', out:'blur', name:'focus' }].forEach(function(obj, i){
 
 				var id = obj.name + 'Element'; // hoverElement, focusElement
 
@@ -378,14 +378,8 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		bounds : function(){
-			return {
-				x : this._attr.x,
-				y : this._attr.y,
-				w : this._attr.width,
-				h : this._attr.height,
-				x2 : this._attr.x + this._attr.width,
-				y2 : this._attr.y + this._attr.height,
-			};
+			var a = this._attr;
+			return new Bounds( a.x, a.y, a.width, a.height );
 		},
 
 		processPath : function(ctx){
@@ -426,18 +420,11 @@ var Graphics2D = (function(window, undefined){
 		r : function(v){
 			return this.property('r', distance(v), this._processMatrix.bind(this));
 		},
-        
-        bounds : function(){
-            var a = this._attr;
-            return {
-                x : a.cx - a.r,
-                y : a.cy - a.r,
-                w : a.r * 2,
-                h : a.r * 2,
-                x2 : a.cx + a.r,
-                y2 : a.cy + a.r
-            };
-        },
+		
+		bounds : function(){
+			var a = this._attr;
+			return new Bounds( a.cx - a.r, a.cy - a.r, a.r * 2, a.r * 2 );
+		},
 		
 		processPath : function(ctx){
 			var a = this._attr;
@@ -589,7 +576,7 @@ var Graphics2D = (function(window, undefined){
 				y2 = Math.max( y2, a[1], a[3] || y2, a[5] || y2 );
 
 			});
-			return { x:x, y:y, w:x2 - x, h:y2 - y }
+			return new Bounds(x, y, x2 - x, y2 - y);
 		},
 
 		processPath : function(ctx){
@@ -669,6 +656,8 @@ var Graphics2D = (function(window, undefined){
 		y : Rect.prototype.y,
 		width  : Rect.prototype.width,
 		height : Rect.prototype.height,
+
+		bounds : Rect.prototype.bounds,
 
 		processPath : Rect.prototype.processPath,
 
@@ -855,14 +844,7 @@ var Graphics2D = (function(window, undefined){
 			else if( baseline == 'alphabetic' )
 				y -= size * 0.8;
 
-			return {
-				x : x,
-				y : y,
-				w : width,
-				h : size,
-				x2 : x + width,
-				y2 : y + size
-			};
+			return new Bounds(x,y,width,size);
 		},
 
 		draw : function(ctx){
@@ -1203,29 +1185,29 @@ var Graphics2D = (function(window, undefined){
 		return [x,y]
 	}
 
-    
-    var corners = {
-        'left'  : [0, 0.5],
-        'right' : [1, 0.5],
-        'top'   : [0.5, 0],
-        'bottom': [0.5, 1],
-        'center': [0.5, 0.5],
-        'left top'    : [0, 0],
-        'top left'    : [0, 0],
-        'left bottom' : [0, 1],
-        'bottom left' : [0, 1],
-        'right top'   : [1, 0],
-        'top right'   : [1, 0],
-        'right bottom': [1, 1],
-        'bottom right': [1, 1]
-    };
-    
-    function corner(corner, bounds){
-    	if(isNumeric(corner)) return [ corner = distance(corner), corner ];
-        if(isArray(corner)) return corner;
-        if(isObject(corner)) return [corner.x, corner.y];
-        return [bounds.x + bounds.w * corners[corner][0], bounds.y + bounds.h * corners[corner][1] ];
-    }
+	
+	var corners = {
+		'left'  : [0, 0.5],
+		'right' : [1, 0.5],
+		'top'   : [0.5, 0],
+		'bottom': [0.5, 1],
+		'center': [0.5, 0.5],
+		'left top'    : [0, 0],
+		'top left'    : [0, 0],
+		'left bottom' : [0, 1],
+		'bottom left' : [0, 1],
+		'right top'   : [1, 0],
+		'top right'   : [1, 0],
+		'right bottom': [1, 1],
+		'bottom right': [1, 1]
+	};
+	
+	function corner(corner, bounds){
+		if(isNumeric(corner)) return [ corner = distance(corner), corner ];
+		if(isArray(corner)) return corner;
+		if(isObject(corner)) return [corner.x, corner.y];
+		return [bounds.x + bounds.w * corners[corner][0], bounds.y + bounds.h * corners[corner][1] ];
+	}
 
 /*	var corners = {
 		vertical : [ 0,0,0,1 ],
@@ -1240,35 +1222,35 @@ var Graphics2D = (function(window, undefined){
 		function parseFill(grad){
 
 			var bounds = self.bounds(),
-                gradient, stops, from, to;
-            
-            if( 'from' in grad && 'to' in grad )
-                from = isString(grad.from) ? corner(grad.from, bounds) : grad.from,
-                to   = isString(grad.to)   ? corner(grad.to,   bounds) : grad.to;
-            else if( 'angle' in grad)
-                from = [ (ctg(grad.angle) * bounds.h - bounds.w) / 2, 0 ],
-                to   = [ (ctg(grad.angle) * bounds.h + bounds.w) / 2, 0 ];
-            
-            if( 'stops' in grad || 'colors' in grad )
-                stops = grad.stops || grad.colors;
-            else
-                stops = grad;
-            
-            if( isArray(stops) ){
-                var step = 1 / (stops.length - 1),
-                    temp = {};
-                stops.forEach(function(color, i){
-                    temp[ step * i ] = color;
-                });
-                stops = temp;
-            }
-            
-            gradient = ctx.createLinearGradient( from[0], from[1], to[0], to[1] );
-            for(var i in stops) if(stops.hasOwnProperty(i) && !isNaN(i))
-                    gradient.addColorStop(i, stops[i]);
-            
-            return gradient;
-            
+				gradient, stops, from, to;
+			
+			if( 'from' in grad && 'to' in grad )
+				from = isString(grad.from) ? corner(grad.from, bounds) : grad.from,
+				to   = isString(grad.to)   ? corner(grad.to,   bounds) : grad.to;
+			else if( 'angle' in grad)
+				from = [ (ctg(grad.angle) * bounds.h - bounds.w) / 2, 0 ],
+				to   = [ (ctg(grad.angle) * bounds.h + bounds.w) / 2, 0 ];
+			
+			if( 'stops' in grad || 'colors' in grad )
+				stops = grad.stops || grad.colors;
+			else
+				stops = grad;
+			
+			if( isArray(stops) ){
+				var step = 1 / (stops.length - 1),
+					temp = {};
+				stops.forEach(function(color, i){
+					temp[ step * i ] = color;
+				});
+				stops = temp;
+			}
+			
+			gradient = ctx.createLinearGradient( from[0], from[1], to[0], to[1] );
+			for(var i in stops) if(stops.hasOwnProperty(i) && !isNaN(i))
+					gradient.addColorStop(i, stops[i]);
+			
+			return gradient;
+			
 /*			if( isArray(grad) ){
 				if( grad[0] in corners ){
 					var corner = corners[ grad.shift() ];
@@ -1608,6 +1590,17 @@ var Graphics2D = (function(window, undefined){
 
 		return cls;
 
+	}
+
+	function Bounds(x,y,w,h){
+		this.x = this.x1 = x;
+		this.y = this.y1 = y;
+		this.w = this.width  = w;
+		this.h = this.height = h;
+		this.x2 = x + w;
+		this.y2 = y + h;
+		this.cx = x + w / 2;
+		this.cy = y + h / 2;
 	}
 
 
