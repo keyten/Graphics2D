@@ -1010,15 +1010,11 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		lineHeight : function(height){
-			if(height == null) return this._attr.lineHeight || this._attr.font.size;
-			this._attr.lineHeight = height;
-
-			this._attr.lines.forEach(function(line){
-				line.y = height * line.count;
-			});
-
-			this.context.update();
-			return this;
+			return this.property('lineHeight', height, function(){
+				this._attr.lines.forEach(function(line){
+					line.y = height * line.count;
+				});
+			}.bind(this)) || this._attr.font.size;
 		},
 
 		limit : function(l){
