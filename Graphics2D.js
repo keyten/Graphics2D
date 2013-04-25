@@ -879,13 +879,23 @@ var Graphics2D = (function(window, undefined){
 
 		initialize : function(text, fnt, x, y, width, fill, stroke, context){
 			var a = this._attr;
-			if(!isNumeric(width))
-				stroke = fill,
-				fill   = width,
-				width = y,
-				y      = x,
-				x      = fnt,
-				fnt   = '10px sans-serif';
+			if(!isNumeric(width)){
+				if(isNumeric(fnt)){ // haven't font
+					stroke = fill,
+					fill   = width,
+					width  = y,
+					y      = x,
+					x      = fnt,
+					fnt    = '10px sans-serif';
+				}
+				if(!isNumeric(width)) { // haven't width
+					stroke = fill;
+					fill = width;
+					width = 'auto';
+				}
+				console.log(arguments);
+
+			}
 			if(isObject(text)){
 				attributes(a, text);
 
@@ -929,7 +939,17 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		width : function(w){
-			return this.property('width', w, this._genLines.bind(this));
+			w = this.property('width', w, this._genLines.bind(this));
+			if(w == 'auto'){
+				w = 0;
+				var ctx = this.context.context;
+				style(ctx, this._attr.style);
+				this._attr.lines.forEach(function(line){
+					w = Math.max( w, ctx.measureText( line.t ).width );
+				});
+				ctx.restore();
+			}
+			return w;
 		},
 
 		height : function(){
@@ -946,7 +966,7 @@ var Graphics2D = (function(window, undefined){
 				l = a.lines = [],
 				size = a.lineHeight || a.font.size || 10,
 				ctx = this.context.context,
-				w = a.width,
+				w = a.width == 'auto' ? Infinity : a.width,
 				countline = 1,
 				t = a.style.textAlign,
 				x = t == 'center' ? w / 2 : t == 'right' ? w : 0;
@@ -1003,7 +1023,7 @@ var Graphics2D = (function(window, undefined){
 
 		textAlign : function(align){
 			return this.style('textAlign', align, function(){
-				var w = this._attr.width;
+				var w = this.width();
 				if(align == 'left')
 					this._attr.lines.forEach(function(line){ line.x = 0 });
 				else if(align == 'center')
@@ -1059,7 +1079,7 @@ var Graphics2D = (function(window, undefined){
 			var a = this._attr,
 				rx = a.x,
 				ry = a.y,
-				w = a.width,
+				w = this.width(),
 				h = a.lines.length * (a.lineHeight || a.font.size);
 			return x > rx && y > ry && x < rx + w && y < ry + h;
 		}
