@@ -1023,13 +1023,12 @@ var Graphics2D = (function(window, undefined){
 
 		textAlign : function(align){
 			return this.style('textAlign', align, function(){
-				var w = this.width();
-				if(align == 'left')
-					this._attr.lines.forEach(function(line){ line.x = 0 });
-				else if(align == 'center')
-					this._attr.lines.forEach(function(line){ line.x = w / 2 });
-				else if(align == 'right')
-					this._attr.lines.forEach(function(line){ line.x = w });
+				var w = this.width(), f;
+				this._attr.lines.forEach({
+					'left' : function(line){ line.x = 0 },
+					'center' : function(line){ line.x = w / 2 },
+					'right' : function(line){ line.x = w }
+				}[align]);
 			}.bind(this));
 		},
 
