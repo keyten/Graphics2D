@@ -929,11 +929,7 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		width : function(w){
-			if(w == null) return this._attr.width;
-			this._attr.width = w;
-			this._genLines();
-			this.context.update();
-			return this;
+			return this.property('width', w, this._genLines.bind(this));
 		},
 
 		height : function(){
