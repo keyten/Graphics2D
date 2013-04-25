@@ -933,7 +933,11 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		height : function(){
-			return this._attr.font.size * this._attr.lines.length;
+			return (this._attr.font.size || this._attr.lineHeight) * this._attr.lines.length;
+		},
+
+		bounds : function(){
+			return new Bounds( this._attr.x, this._attr.y, this._attr.width, this.height() );
 		},
 
 		_genLines : function(){
