@@ -917,11 +917,7 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		text : function(text){
-			if(text == null) return this._attr.source;
-			this._attr.source = text;
-			this._genLines();
-			this.context.update();
-			return this;
+			return this.property('source', text, this._genLines.bind(this));
 		},
 
 		x : function(x){
