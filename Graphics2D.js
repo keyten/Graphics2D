@@ -998,19 +998,15 @@ var Graphics2D = (function(window, undefined){
 		fontStyle : Text.prototype.fontStyle,
 
 		textAlign : function(align){
-			if(align == null) return this.style('textAlign');
-			this._attr.style.textAlign = align;
-			var w = this._attr.width;
-
-			if(align == 'left')
-				this._attr.lines.forEach(function(line){ line.x = 0 });
-			else if(align == 'center')
-				this._attr.lines.forEach(function(line){ line.x = w / 2 });
-			else if(align == 'right')
-				this._attr.lines.forEach(function(line){ line.x = w });
-
-			this.context.update();
-			return this;
+			return this.style('textAlign', align, function(){
+				var w = this._attr.width;
+				if(align == 'left')
+					this._attr.lines.forEach(function(line){ line.x = 0 });
+				else if(align == 'center')
+					this._attr.lines.forEach(function(line){ line.x = w / 2 });
+				else if(align == 'right')
+					this._attr.lines.forEach(function(line){ line.x = w });
+			}.bind(this));
 		},
 
 		lineHeight : function(height){
