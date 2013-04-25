@@ -610,9 +610,10 @@ var Graphics2D = (function(window, undefined){
 	/* Image
 		base image class */
 
-	Img = Class(Shape, {
+	Img = Class(Rect, {
 
-		initialize : function(image, x, y, w, h, context){
+		__initialize__ : function(image, x, y, w, h, context){
+			Shape.prototype.initialize.call(this);
 			var a = this._attr;
 
 			if( all(isNumeric, [x, y, w, h]) )
@@ -658,15 +659,6 @@ var Graphics2D = (function(window, undefined){
 			this.context = context;
 
 		},
-
-		x : Rect.prototype.x,
-		y : Rect.prototype.y,
-		width  : Rect.prototype.width,
-		height : Rect.prototype.height,
-
-		bounds : Rect.prototype.bounds,
-
-		processPath : Rect.prototype.processPath,
 
 		draw : function(ctx){
 			var a = this._attr;
@@ -893,7 +885,6 @@ var Graphics2D = (function(window, undefined){
 					fill = width;
 					width = 'auto';
 				}
-				console.log(arguments);
 
 			}
 			if(isObject(text)){
