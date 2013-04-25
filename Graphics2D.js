@@ -384,6 +384,24 @@ var Graphics2D = (function(window, undefined){
 			return this.property('height', distance(v), this._processMatrix.bind(this));
 		},
 
+		x1 : function(v){
+			return v == null ? this._attr.x : this.property('width', this._attr.width - (v - this._attr.x)).property('x', v);
+		},
+
+		y1 : function(v){
+			return v == null ? this._attr.y : this.property('height', this._attr.height - (v - this._attr.y)).property('y', v);
+		},
+
+		x2 : function(v){
+			v = this.property('width', distance(v) - this._attr.x, this._processMatrix.bind(this));
+			return isNumber(v) ? v - this._attr.x : v;
+		},
+
+		y2 : function(v){
+			v = this.property('height', distance(v) - this._attr.y, this._processMatrix.bind(this));
+			return isNumber(v) ? v - this._attr.y : v;
+		},
+
 		bounds : function(){
 			var a = this._attr;
 			return new Bounds( a.x, a.y, a.width, a.height );
