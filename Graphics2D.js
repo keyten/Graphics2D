@@ -50,6 +50,10 @@ var Graphics2D = (function(window, undefined){
 		textblock : function(text,font,x,y,w,fill,stroke){
 			return this.push( new TextBlock(text,font,x,y,w,fill,stroke,this) );
 		},
+		
+		gradient : function(type,from,to,colors){
+			return new Gradient(type,from,to,colors);
+		},
 
 
 		push : function(element){
@@ -269,7 +273,7 @@ var Graphics2D = (function(window, undefined){
 			var a = this._attr;
 
 			if(!a.visible) return;
-			style(ctx, a.style);
+			style.call(this, ctx, a.style);
 			if(a.transforms.length)
 				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
 
@@ -359,7 +363,7 @@ var Graphics2D = (function(window, undefined){
 				extend(a, { x:distance(x), y:distance(y), width:distance(w), height:distance(h) }),
 				fillAndStroke(this, fill, stroke, context);
 			else
-				attributes(a, x),
+				attributes.call(this, a, x),
 				a.x = distance(x.x),
 				a.y = distance(x.y),
 				a.width  = distance(select(x.width, x.w)),
@@ -426,7 +430,7 @@ var Graphics2D = (function(window, undefined){
 				extend(a, { cx:distance(cx), cy:distance(cy), r:distance(r) }),
 				fillAndStroke(this, fill, stroke, context);
 			else
-				attributes(a, cx),
+				attributes.call(this, a, cx),
 				a.cx = distance(select(cx.cx, cx.center)),
 				a.cy = distance(select(cx.cy, cx.center)),
 				a.r  = distance(select(cx.r,  cx.radius));
@@ -482,7 +486,7 @@ var Graphics2D = (function(window, undefined){
 				extend(a, { path:path(points), closed:!!closed, x:x, y:y }),
 				fillAndStroke(this, fill, stroke, context);
 			else
-				attributes(a, points),
+				attributes.call(this, a, points),
 				a.path   = path(points.path),
 				a.closed = !!points.closed,
 				a.x      = x,
@@ -651,7 +655,7 @@ var Graphics2D = (function(window, undefined){
 			}
 
 			else {
-				attributes(a, image);
+				attributes.call(this, a, image);
 				if(image.image instanceof Image)
 					a.image = image.image;
 				else if(image.image[0] == '#')
@@ -694,7 +698,7 @@ var Graphics2D = (function(window, undefined){
 				ctx.drawImage(a.image, a.x, a.y, w, h);
 			
 			if(a.style.strokeStyle){
-				style(ctx, a.style);
+				style.call(this, ctx, a.style);
 				ctx.strokeRect(a.x, a.y, w, h);
 				ctx.restore();
 			}
@@ -719,7 +723,7 @@ var Graphics2D = (function(window, undefined){
 				fnt   = '10px sans-serif';
 
 			if(isObject(text)){
-				attributes(a, text);
+				attributes.call(this, a, text);
 				
 				a.text = text.text;
 				
@@ -823,7 +827,7 @@ var Graphics2D = (function(window, undefined){
 		width : function(w){
 			if(w == null && this._attr.width == null){
 				var ctx = this.context.context;
-				style(ctx, this._attr.style);
+				style.call(this, ctx, this._attr.style);
 				var m = ctx.measureText( this._attr.text ).width;
 				ctx.restore();
 				return m;
@@ -869,7 +873,7 @@ var Graphics2D = (function(window, undefined){
 
 			if(!a.visible) return;
 
-			style(ctx, a.style);
+			style.call(this, ctx, a.style);
 			if(a.transforms.length)
 				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
 
@@ -906,7 +910,7 @@ var Graphics2D = (function(window, undefined){
 
 			}
 			if(isObject(text)){
-				attributes(a, text);
+				attributes.call(this, a, text);
 
 				a.source = text.text;
 
@@ -952,7 +956,7 @@ var Graphics2D = (function(window, undefined){
 			if(w == 'auto'){
 				w = 0;
 				var ctx = this.context.context;
-				style(ctx, this._attr.style);
+				style.call(this, ctx, this._attr.style);
 				this._attr.lines.forEach(function(line){
 					w = Math.max( w, ctx.measureText( line.t ).width );
 				});
@@ -980,7 +984,7 @@ var Graphics2D = (function(window, undefined){
 				t = a.style.textAlign,
 				x = t == 'center' ? w / 2 : t == 'right' ? w : 0;
 
-			style(ctx, a.style);
+			style.call(this, ctx, a.style);
 
 			s.split('\n').forEach(function(line,i){
 
@@ -1062,7 +1066,7 @@ var Graphics2D = (function(window, undefined){
 
 			if(!a.visible) return;
 
-			style(ctx, a.style);
+			style.call(this, ctx, a.style);
 			if(a.transforms.length)
 				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
 
@@ -1098,12 +1102,20 @@ var Graphics2D = (function(window, undefined){
 		gradient class */
 	Gradient = Class({
 
-		initialize : function(type, stops){
+		initialize : function(type, from, to, stops){
+			if(to == null && stops == null)
+				stops = from,
+				from = 'left top',
+				to = 'right bottom';
+
 			var a = this._attr = new Gradient.attributes;
-			a.stops = stops;
+			a.type  = type;
+			a.from  = from;
+			a.to    = to;
+			a.stops = isArray(stops) ? Gradient.arrayStops(stops) : stops;
 		},
 
-		getColor : function(t){
+		color : function(t){
 
 			var last,
 				stops = this._attr.stops,
@@ -1111,32 +1123,110 @@ var Graphics2D = (function(window, undefined){
 
 			for(var i = 0, l = keys.length; i < l; i++){
 				if(keys[i] == t)
-					return stops[keys[i]];
+					return color(stops[keys[i]]);
 				else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
-					return blendColors( stops[last], stops[keys[i]], (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
+					return blendColors( color(stops[last]), color(stops[keys[i]]), (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
 				}
 				last = keys[i];
 			};
 		},
 
-		toCanvasGradient : function(bounds, context){
-			var grad  = context.createLinearGradient(bounds.x, bounds.y, bounds.x2, bounds.y2),
-				stops = this._attr.stops;
+		update : function(){
+			var have = [];
+			this._attr.links.forEach(function(object){
+				if(have.indexOf(object.context) > -1) return;
+				have.push(object.context);
+				object.context.update();
+			});
+		},
+		
+		_set : function(name, value, obj){
+			if(value == null) return obj[name];
+			obj[name] = value;
+			this.update();
+			return this;
+		},
+
+		
+		from : function(x,y,r){
+			return this._set('from', y == null ? x : [x,y,r], this._attr);
+		},
+		
+		to : function(x,y,r){
+			return this._set('to', y == null ? x : [x,y,r], this._attr);
+		},
+		
+		// radial
+		radius : function(r){},
+		point : function(){},
+		смещение : function(vector){},
+		
+		
+		stop : function(t, color){
+			return this._set(t, color, this._attr.stops);
+		},
+		
+		stops : function(stops){
+			if(!isArray(stops) && !isObject(stops) && stops != null)
+				stops = Array.prototype.slice.call(arguments);
+			return this._set('stops', isArray(stops) ? Gradient.arrayStops(stops) : stops, this._attr);
+		},
+
+		mirror : function(value){
+			return this._set('mirror', value == null ? null : !!value, this._attr);
+		},
+		
+		noCanvas : true, // flag for style() function
+		
+		toCanvasStyle : function(context, bounds){
+
+			var a = this._attr,
+				grad,
+				from = corner(a.from, bounds),
+				to = corner(a.to, bounds),
+				stops = a.stops;
+			// create gradient
+			if(a.type == 'linear')
+				grad = context.createLinearGradient(from[0], from[1], to[0], to[1]);
+			else if(a.type == 'radial')
+				grad = context.createRadialGradient(from[0], from[1], from[2], to[0], to[1], to[2]);
+			
+			if(a.mirror){
+				var s = {};
+				for(var i in stops){
+					s[ i / 2 ] = stops[i];
+					s[ 1 - i / 2 ] = stops[i];
+				}
+				stops = s;
+			}
 
 			Object.keys( stops ).sort().forEach(function(value){
-				grad.addColorStop(value, 'rgba(' + stops[value].join(',') + ')');
+				grad.addColorStop(value, stops[value]);
 			});
-//			for(var i in stops){
-//				if(stops.hasOwnProperty(i))
-//					grad.addColorStop(i, stops[i]);
-//			}
+
 			return grad;
+
+		},
+		
+		toString : function(){
+			var a = this._attr;
+			return [ 'gradient(', a.type, ', ', a.from, ', ', a.to, ', ', JSON.stringify(a.stops), ')' ].join('');
 		}
 
 	});
 
 	Gradient.attributes = function(){
 		this.colors = [];
+		this.links  = [];
+	}
+	
+	Gradient.arrayStops = function(array){
+		var stops = {},
+			step = 1 / (array.length - 1);
+		array.forEach(function(color, i){
+			stops[ step * i ] = color;
+		});
+		return stops;
 	}
 
 
@@ -1155,6 +1245,11 @@ var Graphics2D = (function(window, undefined){
 			attrs.visible = object.visible;
 		if(object.mask)
 			attrs.mask = object.mask;
+			
+		if(object.fill && object.fill.noCanvas)
+			object.fill._attr.links.push( this );
+		if(object.stroke && object.stroke.strokeStyle.noCanvas)
+			object.stroke.strokeStyle._attr.links.push( this );
 	}
 
 	function style(ctx, style){
@@ -1171,6 +1266,11 @@ var Graphics2D = (function(window, undefined){
 				ctx[name] = style[name];
 
 		});
+		if(style.fillStyle && style.fillStyle.noCanvas)
+			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, this.bounds());
+		if(style.strokeStyle && style.strokeStyle.noCanvas)
+			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, this.bounds());
+		
 		if(style._lineDash){
 			if(ctx.setLineDash) // webkit
 				ctx.setLineDash(style._lineDash);
@@ -1197,7 +1297,7 @@ var Graphics2D = (function(window, undefined){
 	}
 
 
-	function coordsOfElement(element){
+	function coordsOfElement(element){ // returns coords of DOM element
 		var offsetElement = element, x = 0, y = 0;
 		while(offsetElement){
 			x += offsetElement.offsetLeft;
@@ -1242,6 +1342,11 @@ var Graphics2D = (function(window, undefined){
 		if(fill) self._attr.style.fillStyle = fill;
 		if(str)  extend(self._attr.style, stroke(str));
 
+		if(fill && fill.noCanvas)
+			fill._attr.links.push(self);
+		if(str && str.noCanvas)
+			str._attr.links.push(self);
+		
 		function parseFill(grad){
 
 			var bounds = self.bounds(),
@@ -1295,8 +1400,8 @@ var Graphics2D = (function(window, undefined){
 			} */
 
 		}
-		if(isArray(fill) || isObject(fill))
-			self._attr.style.fillStyle = parseFill(fill);
+//		if(isArray(fill) || isObject(fill))
+	//		self._attr.style.fillStyle = parseFill(fill);
 	}
 
 	function stroke(stroke){ // parses string like '2px blue dash butt'
@@ -1354,7 +1459,7 @@ var Graphics2D = (function(window, undefined){
 		document.body.removeChild(div);
 		return w;
 	}
-
+	
 	function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 		if(value === undefined) return;
 		if(!value) return 0;
