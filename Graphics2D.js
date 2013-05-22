@@ -1189,7 +1189,7 @@ var Graphics2D = (function(window, undefined){
 			if(a.type == 'linear')
 				grad = context.createLinearGradient(from[0], from[1], to[0], to[1]);
 			else if(a.type == 'radial')
-				grad = context.createRadialGradient(from[0], from[1], from[2], to[0], to[1], to[2]);
+				grad = context.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] == null ? Math.max(bounds.w, bounds.h)/2 : to[2]);
 			
 			if(a.mirror){
 				var s = {};
