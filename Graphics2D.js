@@ -1103,10 +1103,13 @@ var Graphics2D = (function(window, undefined){
 	Gradient = Class({
 
 		initialize : function(type, from, to, stops){
-			if(to == null && stops == null)
-				stops = from,
-				from = 'left top',
-				to = 'right bottom';
+			if(to == null && stops == null){
+				stops = from;
+				if(type == 'linear')
+					from = 'left top', to = 'right bottom';
+				else
+					from = 'center', to = 'center';
+			}
 
 			var a = this._attr = new Gradient.attributes;
 			a.type  = type;
@@ -1149,17 +1152,64 @@ var Graphics2D = (function(window, undefined){
 
 		
 		from : function(x,y,r){
-			return this._set('from', y == null ? x : [x,y,r], this._attr);
+			return this._point('from', y == null ? x : [x,y,r]);
 		},
 		
 		to : function(x,y,r){
-			return this._set('to', y == null ? x : [x,y,r], this._attr);
+			return this._point('to', y == null ? x : [x,y,r]);
 		},
 		
 		// radial
-		radius : function(r){},
-		point : function(){},
-		смещение : function(vector){},
+		destination : function(x,y){
+			return this._param('destination', y == null ? x : [x,y]);
+		},
+		radius : function(r){
+			return this._param('radius', r);
+		},
+		startRadius : function(r){
+			return this._param('startRadius', r);
+		},
+		center : function(x,y){
+			return this._param('center', y == null ? x : [x,y]);
+		},
+		hilite : function(x,y){
+			return this._param('hilite', y == null ? x : [x,y]);
+		},
+
+		_point : function(name, val){
+			var a = this._attr;
+			if(a.radius){
+				// destination is not supported
+				a.from = [a.center[0] + a.hilite[0], a.center[1] + a.hilite[1], a.startRadius];
+				a.to   = [a.center[0], a.center[1], a.radius];
+
+				a.destination = a.radius = a.startRadius = a.center = a.hilite = null;
+			}
+			if(!a.from)
+				a.from = [0,0];
+			if(!a.to)
+				a.to = [0,0];
+			return this._set(name, val, this._attr);
+		},
+		_param : function(name, val){
+			var a = this._attr;
+			if(a.from){
+				a.startRadius = isString(a.from) ? 0 : a.from[2];
+				a.radius = isString(a.to) ? null : a.to[2];
+				a.center = isString(a.to) ? a.to : a.to.slice(0,2);
+				if(a.from[0] != a.to[0] || a.from[1] != a.to[1])
+					a.hilite = [ a.to[0] - a.from[0], a.to[1] - a.from[1] ];
+				a.from = a.to = null;
+			}
+			if(!a.startRadius)
+				a.startRadius = 0;
+			if(!a.center)
+				a.center = [0,0];
+			if(!a.hilite)
+				a.hilite = [0,0];
+
+			return this._set(name, val, this._attr);
+		},
 		
 		
 		stop : function(t, color){
@@ -1182,14 +1232,32 @@ var Graphics2D = (function(window, undefined){
 
 			var a = this._attr,
 				grad,
-				from = corner(a.from, bounds),
-				to = corner(a.to, bounds),
+				from = a.from ? corner(a.from, bounds) : null,
+				to = a.to ? corner(a.to, bounds) : null,
 				stops = a.stops;
 			// create gradient
 			if(a.type == 'linear')
 				grad = context.createLinearGradient(from[0], from[1], to[0], to[1]);
-			else if(a.type == 'radial')
-				grad = context.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] == null ? Math.max(bounds.w, bounds.h)/2 : to[2]);
+			else if(a.type == 'radial'){
+				if(from && to)
+					grad = context.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] == null ? Math.max(bounds.w, bounds.h)/2 : to[2]);
+				else {
+					// center && hilite && startRadius && (radius || destination)
+					var center = corner(a.center, bounds),
+						hilite = a.hilite || center,
+						radius = a.radius,
+						startRadius = a.startRadius,
+						destination = a.destination ? corner(a.destination, bounds) : null;
+
+					if(destination)
+						radius = Math.abs(Math.sqrt( Math.pow(bounds.cx - destination[0],2) + Math.pow(bounds.cy - destination[1],2) ));
+
+					from = [center[0] + hilite[0], center[1] + hilite[1], startRadius];
+					to   = [center[0], center[1], radius || Math.max(bounds.w, bounds.h)/2];
+
+					grad = context.createRadialGradient.apply(context, from.concat(to));
+				}
+			}
 			
 			if(a.mirror){
 				var s = {};
@@ -1216,7 +1284,6 @@ var Graphics2D = (function(window, undefined){
 	});
 
 	Gradient.attributes = function(){
-		this.colors = [];
 		this.links  = [];
 	}
 	
