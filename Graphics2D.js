@@ -1,60 +1,64 @@
-/*! Graphics2D
+/*! Graphics2D 1.0
  * 
  *  Author: Keyten aka Dmitriy Miroshnichenko
  *
- *  10.09.12 / 23:11
+ *  Started in: 10.09.12 / 23:11
+ *  Ended in: 14.09.14 / 14:49
  */
-
 var Graphics2D = (function(window, undefined){
 
+	// Classes
 	var Context,
 
-		// shapes
-		Shape, Rect, Circle, Path,
+		Shape, Rect, Circle, Path, Img, Text, TextBlock,
 
-		emptyFunc = function(){};
+		Gradient, Pattern, Anim, Bounds;
+
+	// Local variables
+	var emptyFunc = function(){},
+		_ = {},
+		toString = Object.prototype.toString;
 
 
+	// The main context
 	Context = function(canvas){
-
 		this.context   = canvas.getContext('2d');
 		this.canvas    = canvas;
 		this.elements  = [];
 		this.listeners = {};
-
 	}
 
 	Context.prototype = {
 
-		// shapes
-		rect : function(x,y,w,h,fill,stroke){
-			return this.push( new Rect(x,y,w,h,fill,stroke,this) );
+		// CLasses
+
+		rect : function(x, y, w, h, fill, stroke){
+			return this.push(new Rect(x, y, w, h, fill, stroke, this));
+		},
+		circle : function(cx, cy, r, fill, stroke){
+			return this.push(new Circle(cx, cy, r, fill, stroke, this));
+		},
+		path : function(points, x, y, fill, stroke){
+			return this.push(new Path(points, x, y, fill, stroke, this));
+		},
+		image : function(img, x, y, w, h){
+			return this.push(new Img(img, x, y, w, h, this));
+		},
+		text : function(text, font, x, y, fill, stroke){
+			return this.push(new Text(text, font, x, y, fill, stroke, this));
+		},
+		textblock : function(text, font, x, y, w, fill, stroke){
+			return this.push(new TextBlock(text, font, x, y, w, fill, stroke, this));
+		},
+		gradient : function(type, from, to, colors){
+			return new Gradient(type, from, to, colors, this);
+		},
+		pattern : function(image, repeat){
+			return new Pattern(image, repeat, this);
 		},
 
-		circle : function(x,y,r,fill,stroke){
-			return this.push( new Circle(x,y,r,fill,stroke,this) );
-		},
 
-		path : function(path,x,y,closed,fill,stroke){
-			return this.push( new Path(path,x,y,closed,fill,stroke,this) );
-		},
-
-		image : function(image,x,y,w,h){
-			return this.push( new Img(image,x,y,w,h,this) );
-		},
-
-		text : function(text,font,x,y,fill,stroke){
-			return this.push( new Text(text,font,x,y,fill,stroke,this) );
-		},
-
-		textblock : function(text,font,x,y,w,fill,stroke){
-			return this.push( new TextBlock(text,font,x,y,w,fill,stroke,this) );
-		},
-		
-		gradient : function(type,from,to,colors){
-			return new Gradient(type,from,to,colors);
-		},
-
+		// Methods
 
 		push : function(element){
 			this.elements.push(element);
@@ -62,106 +66,98 @@ var Graphics2D = (function(window, undefined){
 				element.draw(this.context);
 			return element;
 		},
-
-
-		// methods
 		update : function(){
-
 			var ctx = this.context;
-			ctx.clearRect( 0, 0, this.canvas.width, this.canvas.height );
+			ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			this.elements.forEach(function(object){
-
 				object.draw(ctx);
-
 			});
 			this.fire('update');
-
 		},
+		getObjectInPoint : function(x, y){
+			var elements = this.elements,
+				i = elements.length;
 
-		getObjectInPoint : function(x,y){
-			var element = null,
-				elements = this.elements;
-			
-			var i = elements.length;
 			while(i--){
-				if( elements[i].isPointIn && elements[i].isPointIn( distance(x), distance(y)) ){
-					element = elements[i];
+				if( elements[i].isPointIn && elements[i].isPointIn(x,y) && elements[i]._visible )
 					return elements[i];
-					break;
-				}
 			}
-			return element;
+			return null;
 		},
 
-		// events
-		_setupped : false,
+
+		// Events
 		hoverElement : null,
 		focusElement : null,
-		_checkListeners : function(){
+		_setListener : function(event, repeat){
+			if(this.listeners[event])
+				return;
 
-			if(this._setupped) return;
-			this._setupped = true;
+			var canvas = this.canvas;
+			canvas.addEventListener(event, function(e){
+				var coords = _.coordsOfElement(canvas),
+					object = this.getObjectInPoint(
+						e.contextX = e.clientX - coords[0],
+						e.contextY = e.clientY - coords[1]
+					);
 
-			var element = this.canvas,
-				listeners = this.listeners,
-				context = this;
+				if(event == 'mouseout')
+					object = this.hoverElement,
+					this.hoverElement = null;
 
-			[ 'click', 'dblclick', 'mousedown', 'mousewheel', 'DOMMouseScroll', // DOMMouseScroll - mousewheel in firefox
-			  'mouseup', 'mousemove', 'mouseover', 'mouseout' ].forEach(function(event){
+				e.targetObject = object,
+				object && object.fire && object.fire(event, e);
+				this.fire(event, e);
 
-				element.addEventListener(event, function(e){
+			}.bind(this));
 
-					var coords = coordsOfElement(element),
-						object = context.getObjectInPoint(
-							e.contextX = e.clientX - coords[0],
-							e.contextY = e.clientY - coords[1]
-						);
+			this.listeners[event] = [];
 
-					if(object && object.fire)
-						e.targetObject = object,
-						object.fire(event, e);
+			if(event == 'mouseover' || event == 'mouseout')
+				this._setSpecialListener('mouseover', 'mouseout', 'hover', 'mousemove'),
+				this._setListener(event == 'mouseover' ? 'mouseout' : 'mouseover'); // от бесконечной рекурсии спасает первое условие функции
+			else if(event == 'focus' || event == 'blur')
+				this._setSpecialListener('focus', 'blur', 'focus', 'mousedown');
+			else if(event == 'mousewheel') // firefox
+				this._setListener('DOMMouseScroll');
 
-					context.fire(event, e);
-
-				});
-
-			});
-
-			[{ evt:'mousemove', in:'mouseover', out:'mouseout', name:'hover' },
-			 { evt:'mousedown', in:'focus', out:'blur', name:'focus' }].forEach(function(obj, i){
-
-				var id = obj.name + 'Element'; // hoverElement, focusElement
-
-				context.on(obj.evt, function(e){
-
-					var targ = e.targetObject;
-					if(context[ id ] != targ && context[ id ])
-						context[ id ].fire( obj.out, e )[ id ] = false;
-
-					if(targ && !targ[ id ])
-						targ.fire(obj.in, e)[ id ] = true;
-
-					context[ id ] = targ;
-
-				});
-
-			});
-
-
+			return this.listeners[event];
 		},
-		
-		on : function(evt, fn){
+		_setSpecialListener : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
+			// mouseover, mouseout, hover, mousemove
+			// focus, blur, focus, mousedown
+			name += 'Element';
+			this.on(baseevent, function(e){
+				var current = e.targetObject,
+					last = this[name];
 
-			this._checkListeners();
-			if(evt == 'mousewheel') // for firefox
-				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
-			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
+				if(last != current){
+					last    && last.fire    && last.fire(out, e);
+					current && current.fire && current.fire(over, e);
+					this[name] = current;
+				}
+
+			}.bind(this));
 			return this;
-
 		},
+		on : function(evt, fn){
+			if(evt == 'mousewheel') // for firefox
+				(this.listeners[ 'DOMMouseScroll' ] || this._setListener('DOMMouseScroll')).push(fn);
+			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
+			return this;
+		},
+		off : function(evt, fn){
+			if(evt == 'mousewheel')
+				this.off('DOMMouseScroll');
 
+			if(!fn)
+				this.listeners[evt] = [];
+
+			var index = this.listeners[evt].indexOf(fn);
+			this.listeners = this.listeners.slice(0, index).concat( this.listeners.slice(index+1) );
+			return this;
+		},
 		fire : function(evt, data){
-
 			var listeners = this.listeners[ evt ];
 			if(!listeners) return this;
 
@@ -170,1585 +166,1549 @@ var Graphics2D = (function(window, undefined){
 				func.call(object, data);
 			});
 			return this;
-		
 		}
 
 	};
 
 
-	/* Shape
-		abstract class for inheriting shapes */
-
+	// Базовый класс объектов
 	Shape = Class({
 
 		initialize : function(){
-			this._attr = extend(new Shape.attributes, this.constructor.defaults || {});
-			this.data = {};
 			this.listeners = {};
+			this._style = {};
 		},
 
+		// внутренние функции обработки
+		_attributes : function(object){
+			var s = this._style;
+			if(object.opacity)
+				s.globalAlpha = object.opacity;
+			if(object.composite)
+				s.globalCompositeOperation = object.composite;
+			if(object.visible)
+				this._visible = object.visible;
+			if(object.mask)
+				this._mask = object.mask;
 
-		_set : function(name, value, postfn, obj){
-			if(value == null) return obj[name];
-			obj[name] = value;
-			if(postfn) postfn();
-			this.context.update();
-			return this;
+			this._fillAndStroke(object.fill, object.stroke, this.context.context);
+		},
+		_fillAndStroke : function(fill, stroke, ctx){
+			if(fill)
+				this._style.fillStyle = fill;
+			if(stroke){
+				extend(this._style, this._parseStroke(stroke));
+			}
+
+			if(fill instanceof Gradient || fill instanceof Pattern)
+				return;
+
+			if(isHash(fill) && fill.colors)
+				this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
+
+			if(fill && fill.indexOf){
+				if(fill.indexOf('http://') == 0 || fill.indexOf('.') == 0 || (isHash(fill) && fill.image))
+					this._style.fillStyle = new Pattern(fill, null, this.context);
+			}
+
+			// в будущих версиях обязательно появится градиентная обводка
+		},
+		_applyStyle : function(){
+			var ctx = this.context.context;
+			ctx.save();
+			for(var i in this._style){
+				if(Object.prototype.hasOwnProperty.call(this._style, i))
+					ctx[i] = this._style[i];
+			}
+			if(this._mask)
+				this._mask.processPath(ctx),
+				ctx.clip();
+			if(this._matrix)
+				ctx.transform.apply(ctx, this._matrix);
+			if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle)
+				ctx.fillStyle = this._style.fillStyle.toCanvasStyle(ctx, this);
+			if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle)
+				ctx.strokeStyle = this._style.strokeStyle.toCanvasStyle(ctx, this);
+			if(this._style._lineDash){
+				if(ctx.setLineDash) // webkit
+					ctx.setLineDash(this._style._lineDash);
+				else // gecko
+					ctx.mozDash = this._style._lineDash;
+			}
+		},
+		_parseStroke : function(stroke){
+			if(isHash(stroke)){
+				var obj = {};
+				stroke.color && (obj.strokeStyle = stroke.color)
+				stroke.width && (obj.lineWidth   = stroke.width)
+				stroke.cap   && (obj.lineCap     = stroke.cap  )
+				stroke.join  && (obj.lineJoin    = stroke.join )
+				stroke.dash  && (obj._lineDash   = isString(stroke.dash) ? _.dashes[stroke.dash] : stroke.dash)
+				return obj;
+			}
+// TODO: this.stroke({ color: 'black' }) -- меняются все параметры, а не один... это нехорошо
+
+			if(!isString(stroke)) return {};
+			var obj = {}, opacity;
+			stroke.split(' ').forEach(function(val){
+				if(/^\d*\.\d+$/.test(val))
+					opacity = parseFloat(val);
+				else if(val[0] == '[')
+					obj._lineDash = val.substring(1, val.length-1).split(',')
+				else if(isNumber(val))
+					obj.lineWidth = _.distance(val);
+				else if(val == 'miter' || val == 'bevel')
+					obj.lineJoin = val;
+				else if(val == 'butt' || val == 'square')
+					obj.lineCap = val;
+				else if(val == 'round')
+					obj.lineJoin = obj.lineJoin || val,
+					obj.lineCap  = obj.lineCap  || val;
+				else if(val in _.dashes)
+					obj._lineDash = _.dashes[val];
+				else
+					obj.strokeStyle = val;
+			});
+			if(opacity){
+				var cl = _.color(obj.strokeStyle);
+				cl[3] *= opacity;
+				obj.strokeStyle = 'rgba(' + cl.join(',') + ')';
+			}
+			return obj;
+		},
+		draw : function(ctx){
+			if(!this._visible)
+				return;
+			this._applyStyle();
+			this.processPath(ctx);
+			if(this._style.fillStyle)
+				ctx.fill();
+			if(this._style.strokeStyle)
+				ctx.stroke();
+			ctx.restore();
+		},
+		update : function(){
+			return this.context.update(), this;
 		},
 
-		property : function(name, value, postfn){
-			return this._set(name, value, postfn, this._attr)
+		// параметры
+		_property : function(name, value){ // TODO: мб, стоит добавить постфункцию. Перед обновлением
+			if(value === undefined)
+				return this['_' + name];
+			this['_' + name] = value;
+			return this.update();
 		},
-		
-		style : function(name, value, postfn){
-			return this._set(name, value, postfn, this._attr.style)
+		_setstyle : function(name, value){
+			if(value === undefined)
+				return this._style[name];
+			this._style[name] = value;
+			return this.update();
 		},
-
-
-		fill : function(color){
-			return this.style('fillStyle', color);
+		z : function(z){
+			if(z == null)
+				return this._z;
+			this.context.elements = _.move.call(this.context.elements, this._z, z);
+			this._z = z;
+			return this.update();
 		},
-		
-		opacity : function(opacity){
-			return this.style('globalAlpha', opacity);
+		mask : function(mask, a, b, c){
+			if(!mask) return this._mask;
+			if(mask.processPath)
+				this._mask = mask;
+			else if(c != undefined)
+				this._mask = new Rect(mask, a, b, c, null, null, {elements:[]});
+			else if(b != undefined)
+				this._mask = new Circle(mask, a, b, null, null, {elements:[]});
+			else
+				this._mask = new Path(mask);
+			return this.update();
 		},
-		
-		composite : function(composite){
-			return this.style('globalCompositeOperation', composite);
+		remove : function(){
+			this.context.elements = this.context.elements.slice(0, this._z).concat(this.context.elements.slice(this._z+1));
+			return this.update();
 		},
-		
+		fill : function(fill){
+			if(isHash(fill) && fill.colors){
+				this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
+				return this.update();
+			}
+			else if(fill && fill.indexOf){
+				if(fill.indexOf('http://') == 0 || fill.indexOf('.') == 0 || (isHash(fill) && fill.image)){
+					this._style.fillStyle = new Pattern(fill, null, this.context);
+					return this.update();
+				}
+			}
+			return this._setstyle('fillStyle', fill);
+		},
 		stroke : function(str){
-			var s = this._attr.style;
+			// element.stroke() => { fill : 'black', width:2 }
+			// element.stroke({ fill:'black', width:3 });
+			// element.stroke('black 4pt');
+			var s = this._style;
 			if(str == null)
 				return {
-					color : s.strokeStyle,
+					color : s.strokeStyle, // todo: наставить дефолтных значений?
 					width : s.lineWidth,
 					cap   : s.lineCap,
 					join  : s.lineJoin,
 					dash  : s._lineDash
 				};
-			extend(s, stroke(str));
-			this.context.update();
-			return this;
+			if(str === false)
+				delete this._style.strokeStyle;
+			extend(this._style, this._parseStroke(str));
+			return this.update();
 		},
-
-		mask : function(shape){
-			return this.property('mask', shape);
+		opacity : function(opacity){
+			return this._setstyle('globalAlpha', opacity);
 		},
-		
+		composite : function(composite){
+			return this._setstyle('globalCompositeOperation', composite);
+		},
 		hide : function(){
-			return this.property('visible', false);
+			return this._property('visible', false);
 		},
-		
 		show : function(){
-			return this.property('visible', true);
+			return this._property('visible', true);
 		},
-
 		cursor : function(cur){
 			var cnv = this.context.canvas,
 				old = cnv.style.cursor;
 			return this.on('mouseover', function(){
-				cnv.style.cursor = cur
+				cnv.style.cursor = cur;
 			}).on('mouseout', function(){
 				cnv.style.cursor = old;
 			});
 		},
 
-		on : function(event,fn){
-			this.context._checkListeners();
-			if(event == 'mousewheel') // for firefox
+		// события
+		on : function(evt, fn){
+			this.context._setListener(evt);
+			if(evt == 'mousewheel') // for firefox
 				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
-			(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
+			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
+			return this;
+
+		},
+		off : function(evt, fn){
+			if(evt == 'mousewheel')
+				this.off('DOMMouseScroll');
+			if(!fn)
+				this.listeners[evt] = [];
+
+			this.listeners[evt][this.listeners[evt].indexOf(fn)] = emptyFunc;
 			return this;
 		},
-
-		fire : function(event, data){
-			(this.listeners[ event ] || []).forEach(function(func){
+		fire : function(evt, data){
+			(this.listeners[ evt ] || []).forEach(function(func){
 				func.call(this, data);
 			}.bind(this));
 			return this;
-		},
-
-		draw : function(ctx){
-			var a = this._attr;
-
-			if(!a.visible) return;
-			style.call(this, ctx, a.style);
-			if(a.transforms.length)
-				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
-
-//			if(a.gradient && a.gradient.redraw){
-//				ctx.fillStyle = createGradient(ctx, a.gradient, this.bounds());
-//			}
+},
+		isPointIn : function(x, y){
+			var ctx = this.context.context;
+			ctx.save();
+			if(this._matrix)
+				ctx.transform.apply(ctx, this._matrix);
 			this.processPath(ctx);
-			if(a.style.fillStyle) ctx.fill();
-			if(a.style.strokeStyle) ctx.stroke();
-			ctx.restore();
+			try { return ctx.isPointInPath(x, y); }
+			finally { ctx.restore(); }
 		},
 
-		isPointIn : function(x,y, notransform){
-			// transforms
-			if(!notransform){
-				var matrix = this._attr.matrix;
-				x = x * matrix[0] + y * matrix[2] + matrix[4];
-				y = x * matrix[1] + y * matrix[3] + matrix[5];
+		// трансформации
+		transform : function(a, b, c, d, e, f, pivot){
+			if(!this._matrix)
+				this._matrix = [1,0,0,1,0,0];
+			_.transform(this._matrix, [a, b, c, d, e, f], _.corner(pivot, this.bounds()));
+			return this.update();
+		},
+		scale : function(x, y, pivot){
+			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			// да-да, я знаю, что это страшная конструкция. привыкайте, тут везде так
+		},
+		rotate : function(angle, pivot){
+			angle = angle * Math.PI / 180;
+			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
+		},
+		skew : function(x, y, pivot){
+			return this.transform( 1, Math.tan((y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
+		},
+		translate : function(x, y){
+			return this.transform(1, 0, 0, 1, x, y);
+		},
+
+		// анимация
+		animate : function(params, value, dur, easing, after){
+			//	r.animate(param, value, dur, easing, after);
+			//	r.animate(params, dur, easing, after);
+			//	r.animate(param, value, options);
+			//	r.animate(params, options);
+
+			if(isString(params)){
+				var obj = {};
+				obj[params] = value;
+				params = obj;
+
+				if(isHash(dur)){
+					after  = dur.after;
+					easing = dur.easing;
+					dur    = dur.duration;
+				}
+			}
+			else {
+				if(isHash(value)){
+					after  = value.after;
+					easing = value.easing;
+					dur    = value.duration;
+				}
+				else {
+					after = easing,
+					easing = dur,
+					dur = value;
+				}
 			}
 
-			var ctx = this.context.context;
-			this.processPath( ctx );
-			return ctx.isPointInPath( x, y );
-		},
+			var a = new Anim(0, 1, dur, easing), i;
+			for(i in params)
+				_.animStart[i].call(this, a, i, params[i]);
 
+			a.start(function(step){
 
-		scale : function(x,y, px,py){
-			if(y == null || !isNumber(y))
-				py = px,
-				px = y,
-				y = x;
-			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
-			return this.transform( x, 0, 0, (y == null ? x : y), 0, 0, pivot );
-		},
+				for(i in params)
+					_.animProcess[i].call(this, a, i, params[i], step);
+					// animObject, endValue, step, parameter
 
-		rotate : function(ang, px,py){
-			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
-			ang = angle(ang);
-			return this.transform( Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang), 0, 0, pivot );
-		},
+				this.update();
 
-		skew : function(x,y, px,py){
-			if(y == null || !isNumber(y))
-				py = px,
-				px = y,
-				y = x;
-			var pivot = py == null ? (px == null ? 'center' : px) : [px,py];
-			return this.transform( 1, Math.tan(angle(y == null ? x : y)), Math.tan(angle(x)), 1, 0, 0, pivot );
-		},
+			}.bind(this));
 
-		transform : function(a,b,c,d,e,f, px,py){
-			var pivot = py != null ? [px,py] : px == null ? 'center' : px;
+			if(after)
+				setTimeout(after.bind(this), dur || 500);
 
-			this._attr.transforms.push({ matrix:[a,b,c,d,e,f], pivot:pivot });
-			transform( this._attr.matrix, [a,b,c,d,e,f], corner(pivot, this.bounds()) );
-			this.context.update();
 			return this;
 		},
 
-		_processMatrix : function(){
-			var matrix = this._attr.matrix = [1,0,0,1,0,0],
-				transforms = this._attr.transforms,
-				bounds = this.bounds();
-			transforms.forEach(function(mt){
-				transform( matrix, mt.matrix, corner(mt.pivot, bounds) );
-			});
-			this.context.update();
-		}
-
+		// стандартные значения параметров
+		_visible : true
 	});
 
-	Shape.attributes = function(){
-		this.matrix = [ 1,0,0,1,0,0 ];
-		this.transforms = [];
-		this.style  = {};
-		this.visible = true;
-	}
+	// сокращения для событий
+	['click', 'dblclick', 'mousedown', 'mousewheel',
+		'mouseup', 'mousemove', 'mouseover',
+		'mouseout', 'focus', 'blur'].forEach(function(event){
+			Shape.prototype[event] = Context.prototype[event] = function(fn){
+				if(fn)
+					return this.on(event, fn);
+				else
+					return this.fire(event);
+			}
+		});
 
-
-	/* Rect
-		base rect class */
 	Rect = Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
-			var a = this._attr;
-			if( all(isNumeric, [x, y, w, h]) )
-				extend(a, { x:distance(x), y:distance(y), width:distance(w), height:distance(h) }),
-				fillAndStroke(this, fill, stroke, context);
-			else
-				attributes.call(this, a, x),
-				a.x = distance(x.x),
-				a.y = distance(x.y),
-				a.width  = distance(select(x.width, x.w)),
-				a.height = distance(select(x.height, x.h));
-			
+			this._z = context.elements.length;
 			this.context = context;
+			if(isHash(x)){
+				this._x = x.x;
+				this._y = x.y;
+				this._width = x.width;
+				this._height = x.height;
+				this._attributes(x);
+			}
+			else {
+				this._x = x;
+				this._y = y;
+				this._width = w;
+				this._height = h;
+				this._fillAndStroke(fill, stroke, context.context);
+			}
 		},
 
-		x : function(v){
-			return this.property('x', distance(v), this._processMatrix.bind(this));
+		// параметры
+		x : function(x){
+			return this._property('x', x);
 		},
-
-		y : function(v){
-			return this.property('y', distance(v), this._processMatrix.bind(this));
+		y : function(y){
+			return this._property('y', y);
 		},
-
-		width : function(v){
-			return this.property('width', distance(v), this._processMatrix.bind(this));
+		width : function(w){
+			return this._property('width', w);
 		},
-
-		height : function(v){
-			return this.property('height', distance(v), this._processMatrix.bind(this));
+		height : function(h){
+			return this._property('height', h);
 		},
-
-		x1 : function(v){
-			return v == null ? this._attr.x : this.property('width', this._attr.width - (v - this._attr.x)).property('x', v);
+		x1 : function(x){
+			return x == null ?
+				this._x :
+				this._property('width', this._width - x + this._x).
+				     _property('x', x);
 		},
-
-		y1 : function(v){
-			return v == null ? this._attr.y : this.property('height', this._attr.height - (v - this._attr.y)).property('y', v);
+		y1 : function(y){
+			return y == null ?
+				this._y :
+				this._property('height', this._height - y + this._y).
+				     _property('y', y);
 		},
-
-		x2 : function(v){
-			v = this.property('width', distance(v) - this._attr.x, this._processMatrix.bind(this));
-			return isNumber(v) ? v - this._attr.x : v;
+		x2 : function(x){
+			return x == null ?
+				this._x + this._width :
+				this._property('width', x - this._x);
 		},
-
-		y2 : function(v){
-			v = this.property('height', distance(v) - this._attr.y, this._processMatrix.bind(this));
-			return isNumber(v) ? v - this._attr.y : v;
+		y2 : function(y){
+			return y == null ?
+				this._y + this._height :
+				this._property('height', y - this._y);
 		},
 
 		bounds : function(){
-			var a = this._attr;
-			return new Bounds( a.x, a.y, a.width, a.height );
+			return new Bounds(this._x, this._y, this._width, this._height);
 		},
-
 		processPath : function(ctx){
-			var a = this._attr;
 			ctx.beginPath();
-			ctx.rect( a.x, a.y, a.width, a.height );
-		}
+			ctx.rect(this._x, this._y, this._width, this._height);
+		},
 
 	});
 
-	/* Circle
-		base circle / ellipse class */
+
 
 	Circle = Class(Shape, {
 
-		initialize : function(cx, cy, r, fill, stroke, context){
-			var a = this._attr;
-			if( all(isNumeric, [cx, cy, r]) )
-				extend(a, { cx:distance(cx), cy:distance(cy), r:distance(r) }),
-				fillAndStroke(this, fill, stroke, context);
-			else
-				attributes.call(this, a, cx),
-				a.cx = distance(select(cx.cx, cx.center)),
-				a.cy = distance(select(cx.cy, cx.center)),
-				a.r  = distance(select(cx.r,  cx.radius));
-			
+		initialize : function(cx, cy, radius, fill, stroke, context){
+			this._z = context.elements.length;
 			this.context = context;
+			if(isHash(cx)){
+				this._cx = x.cx || x.x;
+				this._cy = x.cy || x.y;
+				this._radius = x.radius;
+				this._attributes(x);
+			}
+			else {
+				this._cx = cx;
+				this._cy = cy;
+				this._radius = radius;
+				this._fillAndStroke(fill, stroke, context.context);
+			}
+},
+
+		// параметры
+		cx : function(cx){
+			return this._property('cx', cx);
+		},
+		cy : function(cy){
+			return this._property('cy', cy);
+		},
+		radius : function(r){
+			return this._property('radius', r);
 		},
 
-		cx : function(v){
-			return this.property('cx', distance(v), this._processMatrix.bind(this));
-		},
-
-		cy : function(v){
-			return this.property('cy', distance(v), this._processMatrix.bind(this));
-		},
-		
-		r : function(v){
-			return this.property('r', distance(v), this._processMatrix.bind(this));
-		},
-		
 		bounds : function(){
-			var a = this._attr;
-			return new Bounds( a.cx - a.r, a.cy - a.r, a.r * 2, a.r * 2 );
+			return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
 		},
-		
 		processPath : function(ctx){
-			var a = this._attr;
 			ctx.beginPath();
-			ctx.arc(a.cx, a.cy, a.r, 0, Math.PI * 2, true);
-		}
+			ctx.arc(this._cx, this._cy, this._radius, 0, Math.PI*2, true);
+		},
 
 	});
 
-	/* Path
-		base path class */
+
 
 	Path = Class(Shape, {
 
-		initialize : function(points, x,y, closed, fill, stroke, context){
-			if(!all(isNumeric, [x,y])) // если отсутствуют x & y
-				stroke = closed,
-				fill   = y,
-				closed = x,
-				x = y = 0;
-
-			if(isString(closed) || closed == null) // если отсутствует closed
-				stroke  = fill,
-				fill    = closed,
-				closed  = false;
-
-			var a = this._attr;
-
-			if( isString(points) || isArray(points) )
-				extend(a, { path:path(points), closed:!!closed, x:x, y:y }),
-				fillAndStroke(this, fill, stroke, context);
-			else
-				attributes.call(this, a, points),
-				a.path   = path(points.path),
-				a.closed = !!points.closed,
-				a.x      = x,
-				a.y      = y;
-			
+		initialize : function(points, x, y, fill, stroke, context){
+			this._z = context.elements.length;
 			this.context = context;
+			if(isHash(points)){
+				this._points = this._readPath(points.points);
+				this._x = points.x;
+				this._y = points.y;
+				this._attributes(points);
+			}
+			else {
+				this._points = this._readPath(points);
+				this._x = x;
+				this._y = y;
+				this._fillAndStroke(fill, stroke, context.context);
+			}
 		},
 
+		// параметры
 		x : function(x){
-			return this.property('x', x);
+			return this._property('x', x);
 		},
-
 		y : function(y){
-			return this.property('y', y);
+			return this._property('y', y);
+		},
+		closed : function(v){
+			if(v == null) return !!this._closed;
+			return this._property('closed', !!v);
 		},
 
-		close : function(v){
-			return this.property('closed', v == null ? !this._attr.closed : !!v);
+		// манипулируем точками
+		point : function(index, value){
+			if(value == null)
+				return _.point(this._points[index]);
+			this._points = this._points.slice(0, index).concat(this._readPath(value).concat(this._points.slice(index+1)));
+			return this.update();
 		},
-
-		point : function(index, cmd){
+/*		point : function(index, cmd){
 			function slice(index1, index2, segments){
 				var arr = [];
 				segments.forEach(function(seg, i){
-					arr = arr.concat( path(seg) );
-				});
-				attr.path = points.slice(0, index1).concat( arr.concat( points.slice(index2) ) );
-				this.context.update();
-			} // .bind(this)
+					arr = arr.concat( this._readPath(seg) );
+				}.bind(this));
+				this._points = this._points.slice(0, index1).concat( arr.concat(this._points.slice(index2)) );
+				this.update();
+			}
 
-			var attr = this._attr,
-				points = attr.path,
-				seg = Array.prototype.slice.call(arguments, 1),
-				funcs = {
+			var funcs = {
+					'get' : function(i){
+						return _.point(this._points[i]); // TODO: добавить параметры
+					},
+					'replace' : function(index, segments){
+						slice.call(this, index, index+1, segments);
+					},
+					'after' : function(index, segments){
+						slice.call(this, index+1, index+1, segments)
+					},
+					'before' : function(index, segments){
+						funcs.after.call(this, index ? index-1 : 0, segments)
+					},
+					'remove' : function(index){
+						this._points = this._points.slice(0, index).concat( this._points.slice(index+1) );
+						this.update();
+					}
+				},
+				seg = Array.prototype.slice.call(arguments, 1);
 
-				'get' : function(index){
-					return point( points[index] );
-				},
-				'replace' : function(index, segments){
-					slice.call(this, index, index+1, segments)
-				},
-				'after' : function(index, segments){
-					slice.call(this, index+1, index+1, segments)
-				},
-				'before' : function(index, segments){
-					funcs.after.call(this, index ? index-1 : 0, segments)
-				},
-				'delete' : function(index){
-					attr.path = points.slice(0, index).concat( points.slice(index+1) );
-					this.context.update();
-				}
-
-			};
-
-			// ищем команду
 			if(cmd in funcs)
 				seg = seg.slice(1);
 			else if(arguments.length == 1)
 				cmd = 'get';
-			else cmd = 'replace';
+			else
+				cmd = 'replace';
 
 			return funcs[cmd].call(this, index, seg) || this;
+		}, */
+
+		before : function(index, points){
+			this._points = this._points.slice(0, index).concat(this._readPath(points).concat(this._points.slice(index)));
+			return this.update();
+		},
+		after : function(index, points){
+			return this.before(index+1, points);
+		},
+		remove : function(index){
+			if(index == null)
+				return Shape.prototype.remove.call(this);
+			this._points = this._points.slice(0, index).concat( this._points.slice(index+1) );
+			return this.update();
 		},
 
 		points : function(points){
-			if(points == null)
-				return this._attr.path.map(function(value){
-					return point(value);
+			if(points == null){
+				return this._points.map(function(value){
+					return _.point(value);
 				});
-			this._attr.path = path( points );
-			this.context.update();
-			return this;
+			}
+			this._points = this._readPath(points);
+			return this.update();
 		},
 
 		add : function(f, arg){
-			this._attr.path.push({ f:f, arg:arg });
-			this.context.update();
-			return this;
+			this._points.push({ f:f, arg:arg });
+			return this.update();
+		},
+		moveTo : function(x, y){
+			return this.add('moveTo', [x, y]);
+		},
+		lineTo : function(x, y){
+			return this.add('lineTo', [x, y]);
+		},
+		quadraticCurveTo : function(x, y, hx, hy){
+			return this.add('quadraticCurveTo', [hx, hy, x, y]);
+		},
+		bezierCurveTo : function(x, y, h1x, h1y, h2x, h2){
+			return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
+		},
+		arcTo : function(x1, y1, x2, y2, radius, clockwise){
+			return this.add('arcTo', [x1, y1, x2, y2, radius, clockwise]);
+		},
+		arc : function(x, y, radius, start, end, clockwise){
+			return this.add('arc', [x, y, radius, start, end, clockwise]);
+		},
+		close : function(){
+			return this._property('closed', true);
 		},
 
-		moveTo : function(x,y){
-			return this.add('moveTo', [x,y]);
+		// трансформации
+		allPoints : function(fn){
+			// path.allPoints() => [[0,0], [10,10]]
+			// path.allPoints(function(func, arg){ return [0,0] })
+			var allPoints = [],
+				returnData, temp;
+			if(!fn){
+				fn = function(x,y){
+					allPoints.push([x,y]);
+					return false;
+				}
+				returnData = true;
+			}
+			this._points.forEach(function(func){
+				var arg = func.arg;
+				if( temp = fn(parseInt(arg[0]), parseInt(arg[1])) ){
+					arg[0] = temp[0];
+					arg[1] = temp[1];
+				}
+				if( arg.length > 3 && func.f != 'arc' && (temp = fn(parseInt(arg[2]), parseInt(arg[3]))) ){
+					arg[2] = temp[0];
+					arg[3] = temp[1];
+				}
+				if( func.f == 'bezierCurveTo' && (temp = fn(parseInt(arg[4]), parseInt(arg[5]))) ){
+					arg[4] = temp[0];
+					arg[5] = temp[1];
+				}
+			});
+			return returnData ? allPoints : this.update();
+		},
+		transformPoints : function(a,b,c,d,e,f, pivot){
+			var funcs = {
+					'translate' : function(){
+						// 'translate', x, y
+						e = b;
+						f = c;
+						a = d = 1;
+						b = c = 0;
+					},
+					'scale' : function(){
+						// 'scale', x, y, pivot
+						// 'scale', size, pivot
+						if(!isNumber(c))
+							d = c,
+							c = b;
+						pivot = d;
+						a = b;
+						d = c;
+						b = c = e = f = 0;
+					},
+					'rotate' : function(){
+						// 'rotate', angle, pivot
+						pivot = c;
+						//cos, sin, -sin, cos
+						a = d = Math.cos( b * Math.PI / 180 );
+						b = Math.sin( b * Math.PI / 180 );
+						c = -b;
+						e = f = 0;
+					},
+					'skew' : function(){
+						// 'skew', x, y, pivot
+						// 'skew', size, pivot
+						if(!isNumber(c))
+							d = c,
+							c = b;
+						pivot = d;
+						// 1, tan y, tan x, 1
+						a = d = 1;
+						e = b;
+						b = Math.tan( c * Math.PI / 180 );
+						c = Math.tan( e * Math.PI / 180 );
+						e = f = 0;
+					}
+				},
+				m  = [1,0,0,1,0,0], m2;
+
+			// if (a in _.transformFunctions)
+			// 	   [a, b, c, d, e, f] = _.transformFunctions.apply(null, arguments);
+			// как-то так хочу
+			// называется "вначале кодишь, а потом думаешь"
+
+
+			if(a in funcs)
+				funcs[a]();
+			m2 = [a,b,c,d,e,f]
+
+			_.transform(m, m2, _.corner(pivot, this.bounds()));
+			return this.allPoints(function(x, y){
+				return _.transformPoint(x, y, m);
+			});
 		},
 
-		lineTo : function(x,y){
-			return this.add('lineTo', [x,y]);
-		},
-
-		quadraticCurveTo : function(x,y,hx,hy){
-			return this.add('quadraticCurveTo', [hx,hy,x,y]);
-		},
-
-		bezierCurveTo : function(x,y,h1x,h1y,h2x,h2y){
-			return this.add('bezierCurveTo', [h1x,h1y,h2x,h2y,x,y]);
-		},
-
-		arcTo : function(x1,y1,x2,y2,radius,clockwise){
-			return this.add('arcTo', [x1,y1,x2,y2,radius,clockwise]);
-		},
-
-		arc : function(x,y,radius,start,end,clockwise){
-			return this.add('arc', [x,y,radius,start,end,clockwise]);
-		},
 
 		bounds : function(){
-			var p = this._attr.path,
-				x  =  Infinity,
+			var x  =  Infinity,
 				y  =  Infinity,
 				x2 = -Infinity,
 				y2 = -Infinity;
-			p.forEach(function(point){
-				var a = point.arg;
+			this._points.forEach(function(point){
+				var a = point.arg; // только вот если a[2] будет 0, то это не очень получится...
 				x  = Math.min( x,  a[0], a[2] || x,  a[4] || x  );
 				y  = Math.min( y,  a[1], a[3] || y,  a[5] || y  );
 				x2 = Math.max( x2, a[0], a[2] || x2, a[4] || x2 );
 				y2 = Math.max( y2, a[1], a[3] || y2, a[5] || y2 );
-
 			});
 			return new Bounds(x, y, x2 - x, y2 - y);
 		},
-
 		processPath : function(ctx){
-			var a = this._attr,
-				x = a.x,
-				y = a.y;
-
-			ctx.translate(x,y);
-
+			ctx.save();
+			if(this._x || this._y)
+				ctx.translate(this._x || 0, this._y || 0);
 			ctx.beginPath();
-			a.path.forEach(function(seg){
-
-				ctx[ seg.f ].apply( ctx, seg.arg);
+			this._points.forEach(function(point){
+				ctx[ point.f ].apply(ctx, point.arg);
 			});
-			if(a.closed)
+			if(this._closed)
 				ctx.closePath();
-			
-			ctx.translate(-x,-y);
-		}
-
-	});
-
-
-	/* Image
-		base image class */
-
-	Img = Class(Rect, {
-
-		__initialize__ : function(image, x, y, w, h, context){
-			Shape.prototype.initialize.call(this);
-			var a = this._attr;
-
-			if( all(isNumeric, [x, y, w, h]) )
-				extend(a, { x:distance(x), y:distance(y), width:w == 'auto' ? 'auto' : distance(w), height:h == 'auto' ? 'auto' : distance(h) });
-			else if( all(isNumeric, [x, y]) )
-				extend(a, { x:distance(x), y:distance(y) });
-
-			if(image instanceof Image)
-				a.image = image;
-
-			else if(isString(image)){
-				if(image[0] == '#')
-					a.image = document.getElementById(image.substring(1));
-				else
-					a.image = new Image,
-					a.image.src = image;
+			ctx.restore();
+		},
+		_readPath : function(path){
+			if(!path) return [];
+			if(isArray(path)){
+				if(isArray(path[0])){ // [[0,0], [10,10], [100,100]]
+					path[0] = { f:'moveTo', arg:path[0] };
+					path.forEach(function(value, i){
+						if(!i) return; // first segment
+						if(value == true)
+							return path[i] = { f:'closePath', arg:[] }
+						path[i] = {};
+						switch(value.length){
+							// case undefined: path[i] = { f:'closeTo', arg:[] }; break;
+							case 2: path[i] = { f:'lineTo', arg:value }; break;
+							case 4: path[i] = { f:'quadraticCurveTo', arg:[ value[2], value[3], value[0], value[1] ] }; break;
+							case 6: path[i] = { f:'bezierCurveTo',arg:[ value[2], value[3], value[4], value[5], value[0], value[1] ] }; break;
+						}
+					});
+				}
+				else { // [{ f:'moveTo', x:0, y:0 }, { f:'lineTo', x:10, y:10 }]
+					var a = {
+						'moveTo' : [ 'x', 'y' ],
+						'lineTo' : [ 'x', 'y' ],
+						'quadraticCurveTo' : [ 'hx', 'hy', 'x', 'y' ],
+						'bezierCurveTo' : ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
+						'arc' : ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
+						'arcTo' : ['x1', 'y1', 'x2', 'y2', 'radius', 'anticlockwise'],
+						'closePath' : []
+					};
+					path.forEach(function(fn){
+						if(!fn.arg)
+							set(fn, a[fn.f]);
+					});
+					function set(fn, names){
+						fn.arg = [];
+						for(var i = 0, l = names.length; i < l; i++)
+							fn.arg.push( fn[ names[i] ] );
+					}
+				}
 			}
-
 			else {
-				attributes.call(this, a, image);
-				if(image.image instanceof Image)
-					a.image = image.image;
-				else if(image.image[0] == '#')
-					a.image = document.getElementById(image.image.substring(1));
-				else
-					a.image = new Image,
-					a.image.src = image.image;
-				
-				a.x = distance(image.x);
-				a.y = distance(image.y);
-				a.width  = select(image.width,  image.w);
-				a.width  = a.width  == 'auto' ? 'auto' : distance(a.width);
-				a.height = select(image.height, image.h);
-				a.height = a.height == 'auto' ? 'auto' : distance(a.height);
-				a.crop = image.crop;
+				var str  = (path + '').toUpperCase(),
+					path = [];
+				str.match(/([a-z][0-9]*,[0-9]*(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?)/gi).forEach(function(value,i){
+					path[i] = {
+						f : _.pathStrFunctions[ value[0] ],
+						arg : value.substr(1).split(',')
+					};
+				});
+				if(str.indexOf('Z') > -1)
+					path.push({ f:'closePath', arg:[] });
 			}
-
-			a.image.onload = function(){
-				context.update();
-			}
-
-
-			this.context = context;
-
+			return path;
 		},
-
-		draw : function(ctx){
-			var a = this._attr;
-
-			if(!a.visible) return;
-			
-			if(a.transforms.length)
-				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
-
-			var w = a.width  == 'auto' ? a.image.width  * (a.height / a.image.height) : a.width  || a.image.width,
-				h = a.height == 'auto' ? a.image.height * (a.width  / a.image.width ) : a.height || a.image.height;
-			if(a.crop)
-				ctx.drawImage(a.image, a.crop[0], a.crop[1], a.crop[2], a.crop[3], a.x, a.y, w, h);
-			else
-				ctx.drawImage(a.image, a.x, a.y, w, h);
-			
-			if(a.style.strokeStyle){
-				style.call(this, ctx, a.style);
-				ctx.strokeRect(a.x, a.y, w, h);
-				ctx.restore();
-			}
-		}
 
 	});
 
-	
-	/* Text
-		base text class */
 
-	Text = Class(Shape, {
 
-		initialize : function(text, fnt, x, y, fill, stroke, context){ // hash object!
-			var a = this._attr;
-			a.underline = {};
-			if(!isNumeric(y))
-				stroke = fill,
-				fill   = y,
-				y      = x,
-				x      = fnt,
-				fnt   = '10px sans-serif';
+	Img = Class(Shape, {
 
-			if(isObject(text)){
-				attributes.call(this, a, text);
-				
-				a.text = text.text;
-				
-				a.x = distance(text.x);
-				a.y = distance(text.y);
-				a.font = font(text.font);
-				extend(a.style, a.font[1]);
-				a.font = a.font[0];
-				a.style.textAlign = select(text.align, text.textAlign);
-				a.style.textBaseline = select(text.baseline, text.textBaseline);
-				a.width = select(text.minWidth, text.width)
-			} else {
-				a.text = text;
-				a.x = x; // distance
-				a.y = y;
-				fnt = font(fnt);
-				a.font = fnt[0];
-				extend(a.style, fnt[1]);
-				fillAndStroke(this, fill, stroke, context);
-			}
-
+		initialize : function(image, x, y, width, height, context){
+			this._z = context.elements.length;
 			this.context = context;
-		},
 
-		text : function(value){
-			return this.property('text', value);
-		},
-
-		x : function(x){
-			return this.property('x', distance(x));
-		},
-
-		y : function(y){
-			return this.property('y', distance(y));
-		},
-
-		font : function(fnt){
-			if(fnt == null) return this._attr.font;
-			extend(this._attr.font, font(fnt)[0]);
-			return this._genFont();
-		},
-
-		_font : function(name, arg){
-			if(arg == null) return this._attr.font[name];
-			this._attr.font[name] = arg;
-			return this._genFont();
-		},
-
-		_genFont : function(){
-			var str = '',
-				font = this._attr.font;
-
-			if(font.italic) str += 'italic ';
-			if(font.bold)   str += 'bold ';
-
-			return this.style('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
-		},
-
-		fontFamily : function(family){
-			return this._font('family', family);
-		},
-
-		fontSize : function(size){
-			return this._font('size', distance(size));
-		},
-		
-		fontWeight : function(weight){
-			return this._font('bold', !!weight);
-		},
-		
-		fontStyle : function(style){
-			return this._font('italic', !!style);
-		},
-
-		textAlign : function(align){
-			return this.style('textAlign', align);
-		},
-
-		textBaseline : function(baseline){
-			return this.style('textBaseline', baseline);
-		},
-
-		underline : function(val){
-/*			var s = this._attr.underline;
-			if(val == null)
-				return {
-					color : s.strokeStyle,
-					width : s.lineWidth,
-					cap   : s.lineCap,
-					join  : s.lineJoin,
-					dash  : s._lineDash
-				};
-			if(!val) this._attr,underline._show = false;
-			extend(s, stroke(val));
-			s.lineWidth = parseInt( this._attr.font.size / 15 );
-			s._show = true;
-			this.context.update();
-			return this; */
-		},
-
-		width : function(w){
-			if(w == null && this._attr.width == null){
-				var ctx = this.context.context;
-				style.call(this, ctx, this._attr.style);
-				var m = ctx.measureText( this._attr.text ).width;
-				ctx.restore();
-				return m;
+			if(x == null){
+				this._image = image.image;
+				this._x = image.x;
+				this._y = image.y;
+				this._width = image.width;
+				this._height = image.height;
+				this._crop = image.crop;
+				this._attributes(image);
 			}
-			return this.property('width', w);
+			else {
+				this._image = image;
+				this._x = x;
+				this._y = y;
+				this._width = width;
+				this._height = height;
+			}
+
+			if(isString(this._image)){
+				if(this._image[0] == '#')
+					this._image = document.getElementById( this._image.substr(1) );
+				else {
+					x = new Image;
+					x.src = this._image;
+					this._image = x;
+				}
+			}
+			this._image.onload = this.update.bind(this);
 		},
 
-		isPointIn : function(x,y){
-			var b = this.bounds();
-			this.context.context.rect( b.x, b.y, b.w, b.h );
-			return this.context.context.isPointInPath(x,y);
+		x  : Rect.prototype.x,
+		y  : Rect.prototype.y,
+		x1 : Rect.prototype.x1,
+		y1 : Rect.prototype.y1,
+		x2 : Rect.prototype.x2,
+		y2 : Rect.prototype.y2,
+		width  : function(v){
+			if(v == null) return this._width || this._image.width;
+			return this._property('width', v);
+		},
+		height : function(v){
+			if(v == null) return this._height || this._image.height;
+			return this._property('height', w);
 		},
 
-		bounds : function(){
-			var a = this._attr,
-				align = a.style.textAlign || 'left',
-				baseline = a.style.textBaseline || 'alphabetic',
-				width = this.width(),
-				size = a.font.size * 1.15,
-				x = a.x,
-				y = a.y;
-
-			if( align == 'left' );
-			else if( align == 'center' )
-				x -= width / 2;
-			else if( align == 'right' )
-				x -= width;
-
-			if(baseline == 'top')
-				;
-			else if( baseline == 'middle' )
-				y -= size / 2;
-			else if( baseline == 'bottom' || baseline == 'ideographic' )
-				y -= size;
-			else if( baseline == 'alphabetic' )
-				y -= size * 0.8;
-
-			return new Bounds(x,y,width,size);
+		crop : function(arr){
+			if(arguments.length == 0)
+				return this._crop;
+			if(arguments.length > 1)
+				this._crop = Array.prototype.slice.call(arguments, 0);
+			else this._crop = arr;
+			return this.update();
 		},
 
 		draw : function(ctx){
-			var a = this._attr;
+			if(!this._visible)
+				return;
+			this._applyStyle();
 
-			if(!a.visible) return;
+			var w = this._width  || this._image.width,
+				h = this._height || this._image.height;
+			if(w == 'auto')
+				w = this._image.width  * (this._height / this._image.height);
+			else if(h == 'auto')
+				h = this._image.height * (this._width  / this._image.width );
+				// и почему в английском ширина и длина разного размера...
 
-			style.call(this, ctx, a.style);
-			if(a.transforms.length)
-				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
+			if(this._crop)
+				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
+			else
+				ctx.drawImage(this._image, this._x, this._y, w, h);
 
-			if(a.style.fillStyle)
-				ctx.fillText(a.text, a.x, a.y, this.width());
-			if(a.style.strokeStyle)
-				ctx.strokeText(a.text, a.x, a.y, this.width());
-
+			if(this._strokeStyle)
+				ctx.strokeRect(this._x, this._y, w, h);
 			ctx.restore();
 		}
 
 	});
 
-	/* TextBlock
-		base text block class */
-	TextBlock = Class(Shape, {
 
-		initialize : function(text, fnt, x, y, width, fill, stroke, context){
-			var a = this._attr;
-			if(!isNumeric(width)){
-				if(isNumeric(fnt)){ // haven't font
-					stroke = fill,
-					fill   = width,
-					width  = y,
-					y      = x,
-					x      = fnt,
-					fnt    = '10px sans-serif';
-				}
-				if(!isNumeric(width)) { // haven't width
-					stroke = fill;
-					fill = width;
-					width = 'auto';
-				}
 
-			}
-			if(isObject(text)){
-				attributes.call(this, a, text);
+	Text = Class(Shape, {
 
-				a.source = text.text;
+		initialize : function(text, font, x, y, fill, stroke, context){
+			// text, [font], x, y, [fill], [stroke]
+			this._z = context.elements.length;
+			this.context = context;
+			this._style.textBaseline = 'top';
 
-				a.x = distance(text.x);
-				a.y = distance(text.y);
-				a.width = text.width;
-				a.font = font(text.font);
-				extend(a.style, a.font[1]);
-				a.font = a.font[0];
-				a.style.textAlign = select(text.align, text.textAlign);
-				a.lineHeight = text.lineHeight;
-				a.limit = text.limit;
+			if(isHash(text)){
+				this._text  = text.text;
+				this._x     = text.x;
+				this._y     = text.y;
+				this._font  = this._parseFont(text.font || '10px sans-serif');
+				text.baseline ? (this._style.textBaseline = text.baseline) : 0;
+				text.align ? (this._style.textAlign = text.align) : 0;
+				this._genFont();
+				this._width = text.width;
+				this._attributes(text);
 			}
 			else {
-				a.source = text;
-				a.x = x;
-				a.y = y;
-				fnt = font(fnt);
-				a.font = fnt[0];
-				extend(a.style, fnt[1]);
-				a.width  = width;
-				fillAndStroke(this, fill, stroke, context);
+			// "ABC", "10px", "20pt", "20pt", "black"
+				this._text = text;
+				if(!isNumber(y))
+					stroke = fill,
+					fill = y,
+					y = x,
+					x = font,
+					font = '10px sans-serif';
+				this._font = this._parseFont(font);
+				this._genFont();
+				this._x = x;
+				this._y = y;
+				this._fillAndStroke(fill, stroke, context.context);
+			}
+		},
+
+		// параметры
+		text : function(t){
+			return this._property('text', t);
+		},
+		x : function(x){
+			return this._property('x', x);
+		},
+		y : function(y){
+			return this._property('y', y);
+		},
+		font : function(font){
+			if(font == null) return this._style.font;
+			if(font === true) return this._font;
+			extend(this._font, this._parseFont(font));
+			return this._genFont();
+		},
+		_setfont : function(name, value){ // да-да, я знаю, camelCase
+			if(value == null) return this._font[name];
+			this._font[name] = value;
+			return this._genFont();
+		},
+		_genFont : function(){
+			var str = '',
+				font = this._font;
+			font.italic && (str += 'italic ');
+			font.bold && (str += 'bold ');
+			return this._setstyle('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
+		},
+		_parseFont : function(font){
+			if(isHash(font)){
+				font.size = _.distance(font.size);
+				return font;
 			}
 
-			this.context = context;
-			this._genLines()
+			var obj = {family:''};
+			font.split(' ').forEach(function(val){
+				if(val == 'bold')
+					obj.bold = true;
+				else if(val == 'italic')
+					obj.italic = true;
+				else if(/^\d+(px|pt)?/.test(val))
+					obj.size = _.distance(val);
+//				else if(val == 'left' || val == 'center' || val == 'right')
+//					obj.align = val;
+//				else if(val == 'alphabetic' || val == 'ideographic' || val == 'middle' || val == 'top' || val == 'bottom')
+//					obj.baseline = val;
+				else
+					obj.family += ' ' + val;
+			});
+            if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) == '' )
+                delete obj.family;
+			return obj;
 		},
-
-		text : function(text){
-			return this.property('source', text, this._genLines.bind(this));
+		family : function(f){
+			return this._setfont('family', f);
 		},
-
-		x : function(x){
-			return this.property('x', distance(x));
+		size : function(s){
+			return this._setfont('size', s == null ? undefined : _.distance(s));
 		},
-
-		y : function(y){
-			return this.property('y', distance(y));
+		bold : function(b){
+			return this._setfont('bold', b == null ? null : !!b) || false;
 		},
-
+		italic : function(i){
+			return this._setfont('italic', i == null ? null : !!i) || false;
+		},
+		align : function(a){
+			return this._setstyle('textAlign', a);
+		},
+		baseline : function(b){
+			return this._setstyle('textBaseline', b);
+		},
+		underline : function(val){
+			if(val == null)
+				return [this._underlineHeight, this._underlineColor];
+			if(val == true || val == false)
+				this._underline = val;
+			// '2px red'
+			if(isString(val)){
+				var test;
+				if(test = val.match(/(\d+(px|pt))/))
+					this._underlineHeight = _.distance(test[1]);
+				if(test = val.replace(/(\d+(px|pt))/, '').replace(/^\s*/, '').replace(/\s*$/, ''))
+					this._underlineColor = test;
+				this._underline = true;
+			}
+			return this.update();
+		},
 		width : function(w){
-			w = this.property('width', w, this._genLines.bind(this));
-			if(w == 'auto'){
-				w = 0;
+            if(w == null && this._width == null){
+                var ctx = this.context.context;
+                this._applyStyle();
+                var m = ctx.measureText( this._text ).width;
+                ctx.restore();
+                return m;
+            }
+            return this._property('width', w);
+		},
+
+		// text.font('2px')
+
+		// text.family('Arial');
+		// text.size(10);
+		// text.weight(true)
+		// text.baseline(0)
+
+		isPointIn : function(x, y){
+			var b = this.bounds();
+			return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
+		},
+		bounds : function(){
+			var align = this._style.textAlign || 'left',
+				baseline = this._style.textBaseline || 'top',
+				width = this.width(),
+				size = parseInt(this._font.size) * 1.15, // не помню, откуда это число взялось. вроде привет LibCanvas?)
+				x = this._x,
+				y = this._y;
+
+			if(align == 'left'); // пусть для порядка висит
+			else if(align == 'center')
+				x -= width/2;
+			else if(align == 'right')
+				x -= width;
+
+			if(baseline == 'top');
+			else if(baseline == 'middle')
+				y -= size/2;
+			else if(baseline == 'bottom' || baseline == 'ideographic')
+				y -= size;
+			else if(baseline == 'alphabetic')
+				y -= size * 0.8;
+			return new Bounds(x, y, width, size);
+		},
+		draw : function(ctx){
+			if(!this._visible)
+				return;
+			this._applyStyle();
+			var params = [this._text, this._x, this._y];
+			if(this._width)
+				params.push(this.width());
+			if(this._style.fillStyle)
+				ctx.fillText.apply(ctx, params);
+			if(this._style.strokeStyle)
+				ctx.strokeText.apply(ctx, params);
+
+			// underline
+			if(this._underline){
+				var b = this.bounds();
+				ctx.beginPath();
+				var a = Math.round(this._font.size / 5) // 3.2
+				ctx.moveTo(b.x, b.y + b.h - a);
+				ctx.lineTo(b.x + b.w, b.y + b.h - a);
+				this._underlineColor  ? (ctx.strokeStyle = this._underlineColor ) : (ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle);
+				this._underlineHeight ? (ctx.lineWidth   = this._underlineHeight) : (ctx.lineWidth   = Math.round(this._font.size / 15));
+				ctx.stroke();
+			}
+			ctx.restore();
+		},
+	// TODO: mozPathText; mozTextAlongPath
+	// https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
+	});
+
+
+
+	TextBlock = Class(Shape, {
+
+		initialize : function(text, font, x, y, width, fill, stroke, context){
+			// text, [font], x, y, [width], [fill], [stroke]
+			this._z = context.elements.length;
+			this.context = context;
+		//	this._style.textBaseline = 'top';
+			if(isHash(text)){
+				this._text  = text.text;
+				this._x     = text.x;
+				this._y     = text.y;
+				this._font  = this._parseFont(text.font);
+//				text.baseline ? (this._style.textBaseline = text.baseline) : 0;
+				text.align ? (this._style.textAlign = text.align) : 0;
+				this._genFont();
+				this._width = text.width || 'auto'; // 0?
+				text.limit != null && (this._limit = text.limit);
+				this._attributes(text);
+			}
+			else {
+			// "ABC", "10px", "20pt", "20pt", "black"
+
+			// text, font, x, y, width
+			// text, font, x, y
+			// text, x, y, width
+			// text, x, y
+				this._text = text;
+				if(!isNumber(width)){
+					if(isNumber(font)) // но ведь там может быть и просто-размер
+						stroke = fill,
+						fill = width,
+						width = y,
+						y = x,
+						x = font,
+						font = '10px sans-serif';
+					if(!isNumber(width))
+						stroke = fill,
+						fill = width,
+						width = 'auto';
+				}
+				this._font = this._parseFont(font);
+				this._genFont();
+				this._x = x;
+				this._y = y;
+				this._width = width;
+				this._fillAndStroke(fill, stroke, context.context);
+			}
+			this._genLines();
+		},
+
+		// параметры
+		text : function(v){
+			if(v == null) return this._text;
+			this._text = v;
+			this._genLines();
+			return this.update();
+		//	v = this._property('text', v);
+		//	if(!isString(v)) return this._genLines().update();
+		//	return v;
+		},
+		x : Text.prototype.x,
+		y : Text.prototype.y, // можно сделать общий класс, от которого наследуется Text и TextBlock...
+		font : Text.prototype.font,
+		_setfont : Text.prototype._setfont,
+		_genFont : function(){
+			var str = '',
+				font = this._font;
+			font.italic && (str += 'italic ');
+			font.bold && (str += 'bold ');
+			this._style.font = str + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
+			return this._genLines().update();
+		},
+		_parseFont : Text.prototype._parseFont,
+		family : Text.prototype.family,
+		size : Text.prototype.size,
+		bold : Text.prototype.bold,
+		italic : Text.prototype.italic,
+		align : function(align){
+			if(align == null)
+				return this._style.textAlign;
+			this._style.textAlign = align;
+			var w = this.width();
+			this._lines.forEach({
+				'left' : function(line){ line.x = 0 },
+				'center' : function(line){ line.x = w / 2 },
+				'right' : function(line){ line.x = w }
+			}[align]);
+			return this.update();
+		},
+	//	baseline : Text.prototype.baseline,
+		underline : Text.prototype.underline,
+
+		// параметры блока
+		width : function(v){
+			v = this._property('width', v);
+			if(v == 'auto'){
+				v = 0;
 				var ctx = this.context.context;
-				style.call(this, ctx, this._attr.style);
-				this._attr.lines.forEach(function(line){
-					w = Math.max( w, ctx.measureText( line.t ).width );
+				this._applyStyle();
+				this._lines.forEach(function(line){
+					v = Math.max(ctx.measureText(line.text).width, v);
 				});
 				ctx.restore();
+				return v;
 			}
-			return w;
+			if(v == this) this._genLines().update();
+			return v;
 		},
-
 		height : function(){
-			return (this._attr.font.size || this._attr.lineHeight) * this._attr.lines.length;
+			return (this._lineHeight || this._font.size) * this._lines.length;
 		},
-
-		bounds : function(){
-			return new Bounds( this._attr.x, this._attr.y, this._attr.width, this.height() );
-		},
-
 		_genLines : function(){
-			var a = this._attr,
-				s = a.source,
-				l = a.lines = [],
-				size = a.lineHeight || a.font.size || 10,
+			var text = this._text,
+				lines = this._lines = [],
+				size = this._lineHeight || this._font.size || 10,
 				ctx = this.context.context,
-				w = a.width == 'auto' ? Infinity : a.width,
+				width = this._width == 'auto' ? Infinity : this._width,
 				countline = 1,
-				t = a.style.textAlign,
-				x = t == 'center' ? w / 2 : t == 'right' ? w : 0;
+				align = this._style.textAlign,
+				x = (align == 'center') ? (width/2) : ((width == 'right') ? width : 0);
 
-			style.call(this, ctx, a.style);
+			this._applyStyle();
 
-			s.split('\n').forEach(function(line,i){
-
-				if( ctx.measureText(line).width > w ){
+			text.split('\n').forEach(function(line, i){
+				if(ctx.measureText(line).width > width){ // нужно ли разбивать строку на строки
 					var words = line.split(' '),
 						useline = '',
 						testline, i, len;
 
 					for(i = 0, len = words.length; i < len; i++){
-						testline = useline + words[i] + ' '; // прибавляем к временной переменной новое слово
+						testline = useline + words[i] + ' ';
 
-						if( ctx.measureText(testline).width > w ){ // если ширина получившейся строки больше ширины блока
-							// то мы вставляем новую строку
-							l.push({ t:useline, x:x, y:size * countline, count:countline++ });
-							// а последнее слово вставляем для следующей строки
+						if(ctx.measureText(testline).width > width){
+							lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
 							useline = words[i] + ' ';
 						}
-						else
+						else {
 							useline = testline;
+						}
 					}
-					l.push({ t:useline, x:x, y:size * countline, count:countline++ });
+					lines.push({ text:useline, x:x, y:size * countline, count:countline++ })
 				}
 				else
-					l.push({ t:line, x:x, y:size * countline, count:countline++ });
+					lines.push({ text:line, x:x, y:size * countline, count:countline++ });
 
 			});
-
 			ctx.restore();
-		},
-
-		font : Text.prototype.font,
-
-		_font : Text.prototype._font,
-
-		_genFont : function(){
-			Text.prototype._genFont.call(this);
-			this._genLines();
-			this.context.update();
 			return this;
 		},
-
-		fontFamily : Text.prototype.fontFamily,
-
-		fontSize : Text.prototype.fontSize,
-		
-		fontWeight : Text.prototype.fontWeight,
-		
-		fontStyle : Text.prototype.fontStyle,
-
-		textAlign : function(align){
-			return this.style('textAlign', align, function(){
-				var w = this.width(), f;
-				this._attr.lines.forEach({
-					'left' : function(line){ line.x = 0 },
-					'center' : function(line){ line.x = w / 2 },
-					'right' : function(line){ line.x = w }
-				}[align]);
-			}.bind(this));
-		},
-
 		lineHeight : function(height){
-			return this.property('lineHeight', height, function(){
-				this._attr.lines.forEach(function(line){
-					line.y = height * line.count;
-				});
-			}.bind(this)) || this._attr.font.size;
+			if(height == null)
+				return this._lineHeight == null ? this._font.size : this._lineHeight;
+			if(height === false)
+				height = this._font.size;
+			this._lineHeight = height;
+			this._lines.forEach(function(line){
+				line.y = height * line.count;
+			});
+			return this.update();
+		},
+		limit : function(v){
+			return this._property('value', v);
 		},
 
-		limit : function(l){
-			return this.property('limit', l);
-		},
 
+		isPointIn : Text.prototype.isPointIn,
+		bounds : function(){
+			var h = this.height();
+			return new Bounds( this._x, this._y + h/5, this.width(), h );
+		},
 		draw : function(ctx){
-			var a = this._attr,
-				fill   = emptyFunc,
-				stroke = emptyFunc,
-				x = a.x,
-				y = a.y;
+			var fill = this._style.fillStyle ? ctx.fillText.bind(ctx) : emptyFunc,
+				stroke = this._style.strokeStyle ? ctx.strokeText.bind(ctx) : emptyFunc,
+				x = this._x,
+				y = this._y,
+				i, l, line;
 
-			if(!a.visible) return;
+			if(!this._visible)
+				return;
+			this._applyStyle();
 
-			style.call(this, ctx, a.style);
-			if(a.transforms.length)
-				ctx.transform( a.matrix[0], a.matrix[1], a.matrix[2], a.matrix[3], a.matrix[4], a.matrix[5] );
-
-			if(a.style.fillStyle)
-				fill = function(t,x,y){
-					ctx.fillText(t,x,y);
-				}
-			if(a.style.strokeStyle)
-				stroke = function(t,x,y){
-					ctx.strokeText(t,x,y);
-				}
-			for(var i = 0, l = a.lines.length, l = Math.min(l, a.limit || l); i < l; i++){
-				var line = a.lines[i];
-				fill  (line.t, x + line.x, y + line.y);
-				stroke(line.t, x + line.x, y + line.y);
+			for(i = 0, l = Math.min(this._lines.length, this._limit); i < l; i++){
+				line = this._lines[i];
+				fill(line.text, x + line.x, y + line.y);
+				stroke(line.text, x + line.x, y + line.y);
 			}
 
 			ctx.restore();
+
 		},
 
-		isPointIn : function(x,y){
-			var a = this._attr,
-				rx = a.x,
-				ry = a.y,
-				w = this.width(),
-				h = a.lines.length * (a.lineHeight || a.font.size);
-			return x > rx && y > ry && x < rx + w && y < ry + h;
-		}
-
+		_limit : Infinity,
+		_lineHeight : null
 	});
 
-	/* Gradient
-		gradient class */
+
+
 	Gradient = Class({
 
-		initialize : function(type, from, to, stops){
-			if(to == null && stops == null){
-				stops = from;
-				if(type == 'linear')
-					from = 'left top', to = 'right bottom';
-				else
-					from = 'center', to = 'center';
-			}
+		initialize : function(type, colors, from, to, context){
+			if(isHash(type)){
+				this._type = type.type || 'linear';
+				this._from = type.from;
+				this._to = type.to;
+				this._colors = isArray(type.colors) ? this._parseColors(type.colors) : type.colors;
 
-			var a = this._attr = new Gradient.attributes;
-			a.type  = type;
-			a.from  = from;
-			a.to    = to;
-			a.stops = isArray(stops) ? Gradient.arrayStops(stops) : stops;
+				// radial
+				this._destination = type.destination;
+				this._radius = type.radius;
+				this._startRadius = type.startRadius;
+				this._center = type.center;
+				this._hilite = type.hilite;
+			}
+			else {
+				if(to == null)
+					to = from,
+					from = colors,
+					colors = type,
+					type = 'linear';
+				this._type = type || 'linear';
+				this._colors = isArray(colors) ? this._parseColors(colors) : colors;
+				this._from = from;
+				this._to = to;
+			}
+//			this._links = []; // без надобности
+			this.context = context;
 		},
 
-		color : function(t){
+		_parseColors : function(colors){
+			var stops = {},
+				step = 1 / (colors.length - 1);
+			colors.forEach(function(color, i){
+				stops[ step * i ] = color;
+			});
+			return stops;
+		},
 
+		colorMix : function(t){
 			var last,
-				stops = this._attr.stops,
+				stops = this._colors,
 				keys  = Object.keys( stops ).sort();
 
 			for(var i = 0, l = keys.length; i < l; i++){
 				if(keys[i] == t)
-					return color(stops[keys[i]]);
+					return _.color(stops[keys[i]]);
 				else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
-					return blendColors( color(stops[last]), color(stops[keys[i]]), (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
+					return _.interpolate( _.color(stops[last]), _.color(stops[keys[i]]), (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
 				}
 				last = keys[i];
 			};
+
+		},
+		color : function(i, color){
+			if(!color)
+				return this._colors[i];
+			this._colors[i] = color;
+			return this.update();
+		},
+		colors : function(colors){
+			if(!colors) return this._colors;
+			this._colors = colors;
+			return this.update();
+		},
+		mirror : function(val){
+			if(val === undefined) return !!this._mirror;
+			this._mirror = val;
+			return this.update();
 		},
 
-		update : function(){
-			var have = [];
-			this._attr.links.forEach(function(object){
-				if(have.indexOf(object.context) > -1) return;
-				have.push(object.context);
-				object.context.update();
-			});
-		},
-		
-		_set : function(name, value, obj){
-			if(value == null) return obj[name];
-			obj[name] = value;
-			this.update();
-			return this;
-		},
-
-		
+		// общее
 		from : function(x,y,r){
-			return this._point('from', y == null ? x : [x,y,r]);
+			return this._point('_from', y == null ? x : [x,y,r]);
 		},
-		
 		to : function(x,y,r){
-			return this._point('to', y == null ? x : [x,y,r]);
+			return this._point('_to', y == null ? x : [x,y,r]);
 		},
-		
-		// radial
+
+		// радиальный град
 		destination : function(x,y){
-			return this._param('destination', y == null ? x : [x,y]);
+			return this._param('_destination', y == null ? x : [x,y]);
 		},
 		radius : function(r){
-			return this._param('radius', r);
+			return this._param('_radius', r);
 		},
 		startRadius : function(r){
-			return this._param('startRadius', r);
+			return this._param('_startRadius', r);
 		},
 		center : function(x,y){
-			return this._param('center', y == null ? x : [x,y]);
+			return this._param('_center', y == null ? x : [x,y]);
 		},
 		hilite : function(x,y){
-			return this._param('hilite', y == null ? x : [x,y]);
+			return this._param('_hilite', y == null ? x : [x,y]);
 		},
 
-		_point : function(name, val){
-			var a = this._attr;
-			if(a.radius){
-				// destination is not supported
-				a.from = [a.center[0] + a.hilite[0], a.center[1] + a.hilite[1], a.startRadius];
-				a.to   = [a.center[0], a.center[1], a.radius];
-
-				a.destination = a.radius = a.startRadius = a.center = a.hilite = null;
+		// радиал град
+		_point : function(prop, val){
+			if(this._radius){
+				this._from = [this._center[0] + this._hilite[0], this._center[1] + this._hilite[1], this._startRadius];
+				this._to = [this._center[0], this._center[1], this._radius];
 			}
-			if(!a.from)
-				a.from = [0,0];
-			if(!a.to)
-				a.to = [0,0];
-			return this._set(name, val, this._attr);
+			if(!this._from)
+				this._from = [0,0];
+			if(!this._to)
+				this._to = [0,0];
+
+			if(!val)
+				return this[prop];
+			this[prop] = val;
+			return this.update();
 		},
-		_param : function(name, val){
-			var a = this._attr;
-			if(a.from){
-				a.startRadius = isString(a.from) ? 0 : a.from[2];
-				a.radius = isString(a.to) ? null : a.to[2];
-				a.center = isString(a.to) ? a.to : a.to.slice(0,2);
-				if(a.from[0] != a.to[0] || a.from[1] != a.to[1])
-					a.hilite = [ a.to[0] - a.from[0], a.to[1] - a.from[1] ];
-				a.from = a.to = null;
+		_param : function(prop, val){
+			if(this._from){
+				this._startRadius = isString(this._from) ? 0 : this._from[2];
+				this._radius = isString(this._to) ? null : this._to[2];
+				this._center = isString(this._to) ? this._to : this._to.slice(0,2);
+				if(this._from[0] != this._to[0] || this._from[1] != this._to[1])
+					this._hilite = [this._to[0] - this._from[0], this._to[1] - this._from[1]];
+				this._from = this._to = null;
 			}
-			if(!a.startRadius)
-				a.startRadius = 0;
-			if(!a.center)
-				a.center = [0,0];
-			if(!a.hilite)
-				a.hilite = [0,0];
-
-			return this._set(name, val, this._attr);
-		},
-		
-		
-		stop : function(t, color){
-			return this._set(t, color, this._attr.stops);
-		},
-		
-		stops : function(stops){
-			if(!isArray(stops) && !isObject(stops) && stops != null)
-				stops = Array.prototype.slice.call(arguments);
-			return this._set('stops', isArray(stops) ? Gradient.arrayStops(stops) : stops, this._attr);
+			if(!this._startRadius)
+				this._startRadius = 0;
+			if(!this._center)
+				this._center = [0,0];
+			if(!this._hilite)
+				this._hilite = [0,0];
+			if(!val)
+				return this[prop];
+			this[prop] = val;
+			return this.update();
 		},
 
-		mirror : function(value){
-			return this._set('mirror', value == null ? null : !!value, this._attr);
+		// отрисовка + _set
+		update : function(){
+			this.context.update();
+			return this;
 		},
-		
-		noCanvas : true, // flag for style() function
-		
-		toCanvasStyle : function(context, bounds){
+		toCanvasStyle : function(ctx, element){
+			var grad,
+				from = this._from,
+				to = this._to,
+				bounds;
 
-			var a = this._attr,
-				grad,
-				from = a.from ? corner(a.from, bounds) : null,
-				to = a.to ? corner(a.to, bounds) : null,
-				stops = a.stops;
-			// create gradient
-			if(a.type == 'linear')
-				grad = context.createLinearGradient(from[0], from[1], to[0], to[1]);
-			else if(a.type == 'radial'){
+			// для углов типа 'top left' и т.п.
+			if(isString(from)){
+				if(/^\d+(px|pt)?/.test(from))
+					this._from = from = _.distance(from);
+				else
+					from = _.corner(from, bounds = element.bounds());
+			}
+			if(isString(to)){
+				if(/^\d+(px|pt)?/.test(to))
+					this._to = to = _.distance(to);
+				else
+					to = _.corner(to, bounds || (bounds = element.bounds()));
+			}
+
+			if(this._type == 'linear')
+				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
+			else {
 				if(from && to)
-					grad = context.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] == null ? Math.max(bounds.w, bounds.h)/2 : to[2]);
+					grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2]);
 				else {
-					// center && hilite && startRadius && (radius || destination)
-					var center = corner(a.center, bounds),
-						hilite = a.hilite || center,
-						radius = a.radius,
-						startRadius = a.startRadius,
-						destination = a.destination ? corner(a.destination, bounds) : null;
+					var center = this._center,
+						hilite = this._hilite,
+						radius = this._radius,
+						startRadius = this._startRadius || 0,
+						destination = this._destination;
 
-					if(destination)
-						radius = Math.abs(Math.sqrt( Math.pow(bounds.cx - destination[0],2) + Math.pow(bounds.cy - destination[1],2) ));
+					if(isString(center)){
+						if(/^\d+(px|pt)?/.test(center))
+							this._center = center = _.distance(center);
+						else
+							center = _.corner(center, bounds = element.bounds());
+					}
+					if(isString(hilite)){
+						if(/^\d+(px|pt)?/.test(hilite))
+							this._hilite = hilite = _.distance(hilite);
+						else
+							hilite = _.corner(hilite, bounds = element.bounds());
+					}
+					else if(!hilite)
+						hilite = [0,0];
+
+					// destination?
 
 					from = [center[0] + hilite[0], center[1] + hilite[1], startRadius];
-					to   = [center[0], center[1], radius || Math.max(bounds.w, bounds.h)/2];
+					to   = [center[0], center[1], radius];
 
-					grad = context.createRadialGradient.apply(context, from.concat(to));
+
+
+					grad = ctx.createRadialGradient.apply(ctx, from.concat(to));
 				}
 			}
-			
-			if(a.mirror){
-				var s = {};
-				for(var i in stops){
-					s[ i / 2 ] = stops[i];
-					s[ 1 - i / 2 ] = stops[i];
-				}
-				stops = s;
+			for(var offset in this._colors){
+				grad.addColorStop( offset, this._colors[offset] );
 			}
-
-			Object.keys( stops ).sort().forEach(function(value){
-				grad.addColorStop(value, stops[value]);
-			});
-
 			return grad;
-
-		},
-		
-		toString : function(){
-			var a = this._attr;
-			return [ 'gradient(', a.type, ', ', a.from, ', ', a.to, ', ', JSON.stringify(a.stops), ')' ].join('');
 		}
 
 	});
 
-	Gradient.attributes = function(){
-		this.links  = [];
-	}
-	
-	Gradient.arrayStops = function(array){
-		var stops = {},
-			step = 1 / (array.length - 1);
-		array.forEach(function(color, i){
-			stops[ step * i ] = color;
-		});
-		return stops;
-	}
 
 
-	// ctx util
+	Pattern = Class({
 
-	function attributes(attrs, object){ // в случае передачи хэша парсит общие аргументы
-		if(object.fill)
-			attrs.style.fillStyle = object.fill;
-		if(object.stroke)
-			extend(attrs.style, stroke( object.stroke ));
-		if(object.opacity)
-			attrs.style.globalAlpha = object.opacity;
-		if(object.composite)
-			attrs.style.globalCompositeOperation = object.composite;
-		if(object.visible)
-			attrs.visible = object.visible;
-		if(object.mask)
-			attrs.mask = object.mask;
-			
-		if(object.fill && object.fill.noCanvas)
-			object.fill._attr.links.push( this );
-		if(object.stroke && object.stroke.strokeStyle.noCanvas)
-			object.stroke.strokeStyle._attr.links.push( this );
-	}
+		initialize : function(image, repeat, context){
+			this._repeat = (!!repeat === repeat ? (repeat ? "repeat" : "no-repeat") : (isString(repeat) ? "repeat-" + repeat : "repeat"));
 
-	function style(ctx, style){
-		ctx.save();
-		[ 'fillStyle', 'strokeStyle', 'lineWidth',
-		  'lineCap', 'lineJoin', 'miterLimit',
-		  'font', 'textAlign', 'textBaseline',
-		  'globalAlpha', 'globalCompositeOperation',
-		  'shadowColor', 'shadowOffsetX', 'shadowOffsetY',
-		  'shadowBlur' ]
-			.forEach(function(name){
+			if(image instanceof Image)
+				this._image = image;
 
-			if(name in style)
-				ctx[name] = style[name];
-
-		});
-		if(style.fillStyle && style.fillStyle.noCanvas)
-			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, this.bounds());
-		if(style.strokeStyle && style.strokeStyle.noCanvas)
-			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, this.bounds());
-		
-		if(style._lineDash){
-			if(ctx.setLineDash) // webkit
-				ctx.setLineDash(style._lineDash);
-			else // gecko
-				ctx.mozDash = style._lineDash;
-		}
-	}
-
-	function concat(m1, m2){
-		return [
-			m1[0] * m2[0] + m1[2] * m2[1],
-			m1[1] * m2[0] + m1[3] * m2[1],
-			m1[0] * m2[2] + m1[2] * m2[3],
-			m1[1] * m2[2] + m1[3] * m2[3],
-			m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
-			m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
-		];
-	}
-
-	function transform( m1, m2, pivot ){
-		extend( m1, concat( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
-		extend( m1, concat( m1, m2 ) );
-		extend( m1, concat( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
-	}
-
-
-	function coordsOfElement(element){ // returns coords of DOM element
-		var offsetElement = element, x = 0, y = 0;
-		while(offsetElement){
-			x += offsetElement.offsetLeft;
-			y += offsetElement.offsetTop;
-			offsetElement = offsetElement.offsetParent;
-			// у каждого элемента свойство offsetParent с элементом, от которого отсчитываются offsetTop и offsetLeft и так до body с offsetParent = null
-		}
-		return [x,y]
-	}
-
-	
-	var corners = {
-		'left'  : [0, 0.5],
-		'right' : [1, 0.5],
-		'top'   : [0.5, 0],
-		'bottom': [0.5, 1],
-		'center': [0.5, 0.5],
-		'left top'    : [0, 0],
-		'top left'    : [0, 0],
-		'left bottom' : [0, 1],
-		'bottom left' : [0, 1],
-		'right top'   : [1, 0],
-		'top right'   : [1, 0],
-		'right bottom': [1, 1],
-		'bottom right': [1, 1]
-	};
-	
-	function corner(corner, bounds){
-		if(isNumeric(corner)) return [ corner = distance(corner), corner ];
-		if(isArray(corner)) return corner;
-		if(isObject(corner)) return [corner.x, corner.y];
-		return [bounds.x + bounds.w * corners[corner][0], bounds.y + bounds.h * corners[corner][1] ];
-	}
-
-/*	var corners = {
-		vertical : [ 0,0,0,1 ],
-		horizontal : [ 0,0,1,0 ]
-	}; */
-
-	function fillAndStroke(self, fill, str, ctx){
-		ctx = ctx.context;
-		if(fill) self._attr.style.fillStyle = fill;
-		if(str)  extend(self._attr.style, stroke(str));
-
-		if(fill && fill.noCanvas)
-			fill._attr.links.push(self);
-		if(str && str.noCanvas)
-			str._attr.links.push(self);
-		
-		function parseFill(grad){
-
-			var bounds = self.bounds(),
-				gradient, stops, from, to;
-			
-			if( 'from' in grad && 'to' in grad )
-				from = isString(grad.from) ? corner(grad.from, bounds) : grad.from,
-				to   = isString(grad.to)   ? corner(grad.to,   bounds) : grad.to;
-			else if( 'angle' in grad)
-				from = [ (ctg(grad.angle) * bounds.h - bounds.w) / 2, 0 ],
-				to   = [ (ctg(grad.angle) * bounds.h + bounds.w) / 2, 0 ];
-			
-			if( 'stops' in grad || 'colors' in grad )
-				stops = grad.stops || grad.colors;
-			else
-				stops = grad;
-			
-			if( isArray(stops) ){
-				var step = 1 / (stops.length - 1),
-					temp = {};
-				stops.forEach(function(color, i){
-					temp[ step * i ] = color;
-				});
-				stops = temp;
-			}
-			
-			gradient = ctx.createLinearGradient( from[0], from[1], to[0], to[1] );
-			for(var i in stops) if(stops.hasOwnProperty(i) && !isNaN(i))
-					gradient.addColorStop(i, stops[i]);
-			
-			return gradient;
-			
-/*			if( isArray(grad) ){
-				if( grad[0] in corners ){
-					var corner = corners[ grad.shift() ];
-					bounds.x  = bounds.x + bounds.w * corner[0];
-					bounds.y  = bounds.y + bounds.h * corner[1];
-					bounds.x2 = bounds.x + bounds.w * corner[2];
-					bounds.y2 = bounds.y + bounds.h * corner[3];
-				}
-
-				var g = ctx.createLinearGradient( bounds.x, bounds.y, bounds.x2, bounds.y2 ),
-					s = 1 / (grad.length - 1);
-				grad.forEach(function(color, i){
-					g.addColorStop( s * i, color );
-				});
-				return g;
-			}
-			else if( isObject(grad) ){
-				
-			} */
-
-		}
-//		if(isArray(fill) || isObject(fill))
-	//		self._attr.style.fillStyle = parseFill(fill);
-	}
-
-	function stroke(stroke){ // parses string like '2px blue dash butt'
-		stroke = stroke.split(' ');
-		var obj = {}, opacity, dashes = {
-			shortdash:			[4, 1],
-			shortdot:			[1, 1],
-			shortdashdot:		[4, 1, 1, 1],
-			shortdashdotdot:	[4, 1, 1, 1, 1, 1],
-			dot:				[1, 3],
-			dash:				[4, 3],
-			longdash:			[8, 3],
-			dashdot:			[4, 3, 1, 3],
-			longdashdot:		[8, 3, 1, 3],
-			longdashdotdot:		[8, 3, 1, 3, 1, 3]
-		};
-		stroke.forEach(function(value){
-
-			if( /^\d*(\.\d*)?(px|pt|em|ex|cm)?$/.test(value) )
-				obj.lineWidth = distance(value);
-
-			else if( /^\d*\.\d+$/.test(value) )
-				opacity = value;
-
-			else if( value == 'butt' || value == 'square' )
-				obj.lineCap = value;
-
-			else if( value == 'miter' || value == 'bevel' )
-				obj.lineJoin = value;
-
-			else if( value == 'round' )
-				obj.lineCap = obj.lineCap || value,
-				obj.lineJoin = obj.lineJoin || value;
-
-			else if( value in dashes )
-				obj._lineDash = dashes[ value ];
-			else if( value[0] == '[' && value[value.length-1] == ']')
-				obj._lineDash = value.substring(1, value.length-1).split(',');
-
-			else
-				obj.strokeStyle = value;
-
-		});
-		return obj;
-	}
-
-	function distance(value){ // parses CSS-like distances (1pt, 0.5cm...)
-		if(value === undefined) return;
-		if(!value) return 0;
-		if(isNumber(value) || /^\d*$/.test(value + '')) return value;
-		var div = document.createElement('div');
-		div.style.width = value;
-		document.body.appendChild(div);
-		var w = parseInt(getComputedStyle(div).width.split('.')[0].replace(/[^\d]/gi, ''));
-		document.body.removeChild(div);
-		return w;
-	}
-	
-	function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
-		if(value === undefined) return;
-		if(!value) return 0;
-
-		var div = document.createElement('div');
-		div.style.color = value;
-		document.body.appendChild(div);
-		var c = getComputedStyle(div).color.split('(')[1].split(', ').map(function(v){ return parseFloat(v) });
-		document.body.removeChild(div);
-		if(c.length == 3)
-			c.push(1);
-		return c;
-	}
-
-
-	function blendColors(color1, color2, t){
-		return [
-			color1[0] + (color2[0] - color1[0]) * t,
-			color1[1] + (color2[1] - color1[1]) * t,
-			color1[2] + (color2[2] - color1[2]) * t,
-			color1[3] + (color2[3] - color1[3]) * t
-		];
-	}
-
-	function createGradient(ctx, grad, bounds){
-		var g;
-//		временно
-		bounds.x2 = bounds.x + bounds.w;
-		bounds.y2 = bounds.y + bounds.h;
-
-		if(grad.relative){ // angle
-			var x  = bounds.x,
-				y  = bounds.y,
-				x2 = bounds.x2,
-				y2 = bounds.y2,
-				a  = grad.angle,
-				xcoef = Math.cos(a),
-				ycoef = Math.sin(a);
-
-			g = ctx.createLinearGradient( x, y, bounds.x + bounds.w * xcoef, bounds.y + bounds.h * ycoef );
-		}
-		else
-			g = ctx.createLinearGradient( grad.x, grad.y, grad.x2, grad.y2 );
-		Object.keys( grad.stops ).forEach(function(val){
-			if(!isNaN(val))
-				g.addColorStop( val, grad.stops[val] )
-		});
-		return g;
-	}
-
-	function angle(angle,tr){
-		var num  = parseFloat( (angle += '').replace(/[^0-9\.\,]*$/, '').split(',').join('.') ),
-			unit = angle.replace(/^-?[0-9\.\,]*/, '');
-		if(unit == '' || unit == 'deg') return num / 180 * Math.PI;
-		else if(unit == 'rad')  return num;
-		else if(unit == 'turn') return (num * 360) / 180 * Math.PI;
-		else if(unit == 'grad') return (num / 100 * 90) / 180 * Math.PI;
-	}
-
-	function path(path){
-		// TODO [ ['moveTo', x,y], ['lineTo', x,y] ]
-
-		if(!path) return [];
-		if(isArray(path)){ 
-			if(isArray(path[0])){
-				path[0] = { f:'moveTo', arg:path[0] };
-				path.forEach(function(value, i){
-					if(!i) return; // first segment
-					path[i] = {};
-					switch(value.length){
-						case 2: path[i] = { f:'lineTo', arg:value }; break;
-						case 4: path[i] = { f:'quadraticCurveTo', arg:[ value[2], value[3], value[0], value[1] ] }; break;
-						case 5: path[i] = { f:'bezierCurveTo',arg:[ value[2], value[3], value[4], value[5], value[0], value[1] ] }; break;
-						case 6: path[i] = { f:'arcTo', arg:value }; break;
-					}
-				});
-			} else {
-				var a = {
-					'moveTo' : [ 'x', 'y' ],
-					'lineTo' : [ 'x', 'y' ],
-					'quadraticCurveTo' : [ 'hx', 'hy', 'x', 'y' ],
-					'bezierCurveTo' : ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
-					'arc' : ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
-					'arcTo' : ['x1', 'y1', 'x2', 'y2', 'radius', 'anticlockwise'],
-					'closePath' : []
-				};
-				path.forEach(function(fn){
-					if(!fn.arg)
-						set(fn, a[fn.f]);
-				});
-
-				function set(fn, names){
-					fn.arg = [];
-					for(var i = 0, l = names.length; i < l; i++)
-						fn.arg.push( fn[ names[i] ] );
-				}
-			}
-		} else { // SVG-like
-			var str  = (path + '').toUpperCase().match(/([a-z][0-9]*,[0-9]*(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?)/gi),
-				path = [], f;
-
-			str.forEach(function(value, i){
-				path[i] = {
-					f : {
-						'M' : 'moveTo',
-						'L' : 'lineTo',
-						'B' : 'bezierCurveTo',
-						'Q' : 'quadraticCurveTo',
-						'R' : 'rect',
-						'A' : 'arc',
-						'Z' : 'closePath' // fix bug
-					}[ value[0] ],
-
-					arg : value.substr(1).split(',')
-				};
-			});
-
-		}
-		return path;
-	}
-
-	function point(point){
-		function args(){
-			for(var i = 0, l = arguments.length; i < l; i++)
-				point[ arguments[i] ] = point.arg[i];
-		}
-		switch(point.f){
-			case 'moveTo':
-			case 'lineTo':
-				args('x', 'y');
-				break;
-			case 'quadraticCurveTo':
-				args('hx', 'hy', 'x', 'y');
-				break;
-			case 'bezierCurveTo':
-				args('h1x', 'h1y', 'h2x', 'h2y', 'x', 'y');
-				break;
-			case 'arcTo':
-				args('x1', 'y1', 'x2', 'y2', 'radius', 'clockwise');
-				break;
-			case 'arc':
-				args('x', 'y', 'radius', 'start', 'end', 'anti');
-		}
-		return point;
-	}
-
-	function font(font){
-		if(isString(font)){
-			font = font.split(' ');
-			var obj = { family:'' };
-			font.forEach(function(value){
-
-				if( /^\d*(px|pt|em)?$/.test(value) )
-					obj.size = distance(value);
-
-				else if( value == 'bold' )
-					obj.bold = true;
-
-				else if( value == 'italic' )
-					obj.italic = true;
-
+			else if(isString(image)){
+				if(image[0] == '#')
+					this._image = document.getElementById(image.substr(1));
 				else
-					obj.family = obj.family + ' ' + value;
+					this._image = new Image,
+					this._image.src = image;
+			}
+			this._image.onload = this.update.bind(this);
 
-			});
-			if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) == '' )
-				delete obj.family;
+			this.context = context;
+		},
+
+		// параметры
+		repeat : function(repeat){
+			if(repeat == null)
+				return {
+					'repeat' : true,
+					'no-repeat' : false,
+					'repeat-x' : 'x',
+					'repeat-y' : 'y'
+				}[this._repeat];
+			this._repeat = (!!repeat === repeat ? (repeat ? "repeat" : "no-repeat") : (isString(repeat) ? "repeat-" + repeat : "repeat"));
+			return this.update();
+		},
+
+		// отрисовка
+		update : Gradient.prototype.update,
+		toCanvasStyle : function(context){
+			return context.createPattern(this._image, this._repeat);
+		},
+
+
+	});
+
+
+
+	Anim = Class({
+
+		initialize : function(from, to, dur, easing){
+			this.from = from;
+			this.delta = to - from;
+			this.dur = dur || 500;
+			this.ease = easing || 'linear';
+		},
+
+		start : function(fn, fps){
+			var delta = this.delta,
+				from  = this.from,
+				dur   = this.dur,
+				ease  = Anim.easing[this.ease] || function(x){return x},
+				start = +new Date,
+				finish = start + dur,
+				interval, time, frame;
+
+			interval = this.interval = setInterval(function(){ // fixme! requestAnimationFrame -- посмотреть, что там, а то фигня какая-то с ним получается
+				time = +new Date;
+				frame = ease( time > finish ? 1 : (time - start) / dur );
+				fn(from + delta * frame, frame);
+
+				if(time > finish)
+					clearInterval(interval);
+			}, fps || 10); // fixme или можно 1000 / fps, так точнее будет... реально fps
+
+			return this;
+		},
+		stop : function(){
+			clearInterval(this.interval);
+			return this;
 		}
-		else {
-			var obj = font;
-			if(obj.size)
-				obj.size = distance(obj.size);
-		}
-		var str = '';
-		if(obj.italic) str += 'italic ';
-		if(obj.bold)   str += 'bold ';
-		return [ obj, {font : str + (obj.size || 10) + 'px ' + (obj.family || 'sans-serif')} ];
+
+	});
+
+	Anim.easing = {
+		linear : function(x){ return x },
+		easeIn : function(x){ return x * x },
+		easeOut : function(x){ return Math.sin(x * Math.PI / 2) }
+	};
+
+
+
+	function Bounds(x,y,w,h){
+		this.x = this.x1 = x;
+		this.y = this.y1 = y;
+		this.w = this.width  = w;
+		this.h = this.height = h;
+		this.x2 = x + w;
+		this.y2 = y + h;
+		this.cx = x + w / 2;
+		this.cy = y + h / 2;
 	}
-	
-
-	// utilities
-
-	function extend(a,b){
-		for(var i in b){
-			if(Object.prototype.hasOwnProperty.call(b,i))
-				a[i] = b[i];
-		}
-		return a;
-	}
-
-	function is(a, b){ // array1 == array2 ?..
-		if(a.length != b.length) return false;
-		for(var i = 0, l = a.length; i < l; i++){
-			if(a[i] != b[i])
-				return false;
-		}
-		return true;
-	}
-
-	function select(){
-		for(var i = 0, l = arguments.length; i < l; i++){
-			if(arguments[i] != null) return arguments[i];
-		}
-	}
-
-	function all(func, params){ // isNumeric(a) && isNumeric(b) == all(isNumeric, [a,b]);
-		for(var i = 0, l = params.length; i < l; i++){
-			if(!func(params[i]))
-				return false;
-		}
-		return true;
-	}
-
-	function isString(a){ return Object.prototype.toString.call(a) == '[object String]'; };
-	function isArray(a) { return Object.prototype.toString.call(a) == '[object Array]' ; }
-	function isObject(a){ return Object.prototype.toString.call(a) == '[object Object]'; }
-	function isNumber(a){ return Object.prototype.toString.call(a) == '[object Number]'; }
-
-	function isNumeric(a){ return isNumber(a) || (!isNaN( parseFloat(a) ) && !isArray(a)); }
-	function isPoint(a){ return isNumeric(a) || typeof a == 'object'; }
 
 
+
+	// Утилиты
 	function Class(parent, properties){
 
 		if(!properties) properties = parent, parent = null;
@@ -1787,30 +1747,562 @@ var Graphics2D = (function(window, undefined){
 
 	}
 
-	function Bounds(x,y,w,h){
-		this.x = this.x1 = x;
-		this.y = this.y1 = y;
-		this.w = this.width  = w;
-		this.h = this.height = h;
-		this.x2 = x + w;
-		this.y2 = y + h;
-		this.cx = x + w / 2;
-		this.cy = y + h / 2;
+
+	function extend(a,b){
+		for(var i in b){
+			if(Object.prototype.hasOwnProperty.call(b,i))
+				a[i] = b[i];
+		}
+		return a;
+	}
+
+	// typeofs
+	function isString(a){
+		return toString.call(a) == '[object String]';
+	};
+	function isArray(a) {
+		return toString.call(a) == '[object Array]';
+	}
+	function isHash(a){
+		try {
+			JSON.stringify(a); // а вот так можно оставить только хэши
+			return toString.call(a) == '[object Object]';
+		}
+		catch(e){
+			return false;
+		}
+	}
+	function isNumber(value){
+		if(toString.call(value) == '[object Number]')
+			return true;
+		if( isString(value) && /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/.test(value) )
+			return true;
+		return false;
+	}
+//	function isPoint(a){
+//		return isNumber(a) || typeof a == 'object';
+//	}
+
+
+	// constants
+
+	_.dashes = {
+		shortdash:			[4, 1],
+		shortdot:			[1, 1],
+		shortdashdot:		[4, 1, 1, 1],
+		shortdashdotdot:	[4, 1, 1, 1, 1, 1],
+		dot:				[1, 3],
+		dash:				[4, 3],
+		longdash:			[8, 3],
+		dashdot:			[4, 3, 1, 3],
+		longdashdot:		[8, 3, 1, 3],
+		longdashdotdot:		[8, 3, 1, 3, 1, 3]
+	};
+
+	_.reg = {
+//		decimal : /^\d*\.\d+$/,
+//		distance : /^\d*(\.\d*)?(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
+//		number : /^\d*$/,
+//		distanceValue : /[^\d]*/
+	};
+
+	_.corners = {
+		'left'  : [0, 0.5],
+		'right' : [1, 0.5],
+		'top'   : [0.5, 0],
+		'bottom': [0.5, 1],
+		'center': [0.5, 0.5],
+		'left top'    : [0, 0],
+		'top left'    : [0, 0],
+		'left bottom' : [0, 1],
+		'bottom left' : [0, 1],
+		'right top'   : [1, 0],
+		'top right'   : [1, 0],
+		'right bottom': [1, 1],
+		'bottom right': [1, 1],
+
+		'lt'	: [0, 0],
+		'tl'	: [0, 0],
+		'lb'	: [0, 1],
+		'bl'	: [0, 1],
+		'rt'	: [1, 0],
+		'tr'	: [1, 0],
+		'rb'	: [1, 1],
+		'br'	: [1, 1],
+	};
+
+	_.pathStrFunctions = {
+		'M' : 'moveTo',
+		'L' : 'lineTo',
+		'B' : 'bezierCurveTo',
+		'Q' : 'quadraticCurveTo',
+		'R' : 'rect',
+		'A' : 'arc',
+//		'Z' : 'closePath' // не проходит по регулярке
+	}
+
+	_.colors = { // http://www.w3.org/TR/css3-color/#svg-color
+		"aliceblue": "f0f8ff",
+		"antiquewhite": "faebd7",
+		"aqua": "0ff",
+		"aquamarine": "7fffd4",
+		"azure": "f0ffff",
+		"beige": "f5f5dc",
+		"bisque": "ffe4c4",
+		"black": "000",
+		"blanchedalmond": "ffebcd",
+		"blue": "00f",
+		"blueviolet": "8a2be2",
+		"brown": "a52a2a",
+		"burlywood": "deb887",
+		"burntsienna": "ea7e5d",
+		"cadetblue": "5f9ea0",
+		"chartreuse": "7fff00",
+		"chocolate": "d2691e",
+		"coral": "ff7f50",
+		"cornflowerblue": "6495ed",
+		"cornsilk": "fff8dc",
+		"crimson": "dc143c",
+		"cyan": "0ff",
+		"darkblue": "00008b",
+		"darkcyan": "008b8b",
+		"darkgoldenrod": "b8860b",
+		"darkgray": "a9a9a9",
+		"darkgreen": "006400",
+		"darkgrey": "a9a9a9",
+		"darkkhaki": "bdb76b",
+		"darkmagenta": "8b008b",
+		"darkolivegreen": "556b2f",
+		"darkorange": "ff8c00",
+		"darkorchid": "9932cc",
+		"darkred": "8b0000",
+		"darksalmon": "e9967a",
+		"darkseagreen": "8fbc8f",
+		"darkslateblue": "483d8b",
+		"darkslategray": "2f4f4f",
+		"darkslategrey": "2f4f4f",
+		"darkturquoise": "00ced1",
+		"darkviolet": "9400d3",
+		"deeppink": "ff1493",
+		"deepskyblue": "00bfff",
+		"dimgray": "696969",
+		"dimgrey": "696969",
+		"dodgerblue": "1e90ff",
+		"firebrick": "b22222",
+		"floralwhite": "fffaf0",
+		"forestgreen": "228b22",
+		"fuchsia": "f0f",
+		"gainsboro": "dcdcdc",
+		"ghostwhite": "f8f8ff",
+		"gold": "ffd700",
+		"goldenrod": "daa520",
+		"gray": "808080",
+		"green": "008000",
+		"greenyellow": "adff2f",
+		"grey": "808080",
+		"honeydew": "f0fff0",
+		"hotpink": "ff69b4",
+		"indianred": "cd5c5c",
+		"indigo": "4b0082",
+		"ivory": "fffff0",
+		"khaki": "f0e68c",
+		"lavender": "e6e6fa",
+		"lavenderblush": "fff0f5",
+		"lawngreen": "7cfc00",
+		"lemonchiffon": "fffacd",
+		"lightblue": "add8e6",
+		"lightcoral": "f08080",
+		"lightcyan": "e0ffff",
+		"lightgoldenrodyellow": "fafad2",
+		"lightgray": "d3d3d3",
+		"lightgreen": "90ee90",
+		"lightgrey": "d3d3d3",
+		"lightpink": "ffb6c1",
+		"lightsalmon": "ffa07a",
+		"lightseagreen": "20b2aa",
+		"lightskyblue": "87cefa",
+		"lightslategray": "789",
+		"lightslategrey": "789",
+		"lightsteelblue": "b0c4de",
+		"lightyellow": "ffffe0",
+		"lime": "0f0",
+		"limegreen": "32cd32",
+		"linen": "faf0e6",
+		"magenta": "f0f",
+		"maroon": "800000",
+		"mediumaquamarine": "66cdaa",
+		"mediumblue": "0000cd",
+		"mediumorchid": "ba55d3",
+		"mediumpurple": "9370db",
+		"mediumseagreen": "3cb371",
+		"mediumslateblue": "7b68ee",
+		"mediumspringgreen": "00fa9a",
+		"mediumturquoise": "48d1cc",
+		"mediumvioletred": "c71585",
+		"midnightblue": "191970",
+		"mintcream": "f5fffa",
+		"mistyrose": "ffe4e1",
+		"moccasin": "ffe4b5",
+		"navajowhite": "ffdead",
+		"navy": "000080",
+		"oldlace": "fdf5e6",
+		"olive": "808000",
+		"olivedrab": "6b8e23",
+		"orange": "ffa500",
+		"orangered": "ff4500",
+		"orchid": "da70d6",
+		"palegoldenrod": "eee8aa",
+		"palegreen": "98fb98",
+		"paleturquoise": "afeeee",
+		"palevioletred": "db7093",
+		"papayawhip": "ffefd5",
+		"peachpuff": "ffdab9",
+		"peru": "cd853f",
+		"pink": "ffc0cb",
+		"plum": "dda0dd",
+		"powderblue": "b0e0e6",
+		"purple": "800080",
+		"red": "f00",
+		"rosybrown": "bc8f8f",
+		"royalblue": "4169e1",
+		"saddlebrown": "8b4513",
+		"salmon": "fa8072",
+		"sandybrown": "f4a460",
+		"seagreen": "2e8b57",
+		"seashell": "fff5ee",
+		"sienna": "a0522d",
+		"silver": "c0c0c0",
+		"skyblue": "87ceeb",
+		"slateblue": "6a5acd",
+		"slategray": "708090",
+		"slategrey": "708090",
+		"snow": "fffafa",
+		"springgreen": "00ff7f",
+		"steelblue": "4682b4",
+		"tan": "d2b48c",
+		"teal": "008080",
+		"thistle": "d8bfd8",
+		"tomato": "ff6347",
+		"turquoise": "40e0d0",
+		"violet": "ee82ee",
+		"wheat": "f5deb3",
+		"white": "fff",
+		"whitesmoke": "f5f5f5",
+		"yellow": "ff0",
+		"yellowgreen": "9acd32"
+	};
+
+
+	// Clear functions
+	_.move = function(from, to){ // moves an element of array
+		if(from < to) to++; // учёт того, что с перемещением элемента массив сам изменяется. и изменяются координаты
+		var first = this.slice(0,to),
+			last  = this.slice(to),
+			res = first.concat([this[from]]).concat(last);
+		if(from > to) from++;
+		first = res.slice(0,from);
+		last  = res.slice(from+1);
+		return first.concat(last);
+	}
+
+	_.multiply = function(m1, m2){ // multiplies two matrixes
+		return [
+			m1[0] * m2[0] + m1[2] * m2[1],
+			m1[1] * m2[0] + m1[3] * m2[1],
+			m1[0] * m2[2] + m1[2] * m2[3],
+			m1[1] * m2[2] + m1[3] * m2[3],
+			m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
+			m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+		];
+	}
+
+	_.interpolate = function(from, to, t){ // for example: interpolate(0, 5, 0.5) => 2.5
+		return from + (to - from) * t;
+	}
+
+	_.transformPoint = function(x,y, m){
+		return [x * m[0] + y * m[2] + m[4], x * m[1] + y * m[3] + m[5]];
 	}
 
 
 
+
+	// Сокращения
+	_.transform = function( m1, m2, pivot ){ // transforms the matrix with a pivot
+		extend( m1, _.multiply( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
+		extend( m1, _.multiply( m1, m2 ) );
+		extend( m1, _.multiply( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
+	}
+
+
+	// DOM
+	_.coordsOfElement = function(element){ // returns coords of DOM element
+		var offsetElement = element, x = 0, y = 0;
+		while(offsetElement){
+			x += offsetElement.offsetLeft;
+			y += offsetElement.offsetTop;
+			offsetElement = offsetElement.offsetParent;
+			// у каждого элемента свойство offsetParent с элементом, от которого отсчитываются offsetTop и offsetLeft и так до body с offsetParent = null
+		}
+		return [x,y]
+	}
+
+	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+//		if(value === undefined) return;
+//		if(!value) return 0;
+
+		var test;
+		if(value in _.colors)
+			return _.color('#' + _.colors[value])
+		if(test = value.match(/^rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\)/))
+			return [parseInt(test[1]), parseInt(test[2]), parseInt(test[3]), parseFloat(test[5] || 1)];
+		if(test = value.match(/^rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\)/))
+			return [ Math.round(parseInt(test[1]) * 2.55), Math.round(parseInt(test[2]) * 2.55), Math.round(parseInt(test[3]) * 2.55), parseFloat(test[5] || 1) ];
+		if(test = value.match(/^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i))
+			return [parseInt(test[1], 16), parseInt(test[2], 16), parseInt(test[3], 16), 1];
+		if(test = value.match(/^\#([0-9a-f])([0-9a-f])([0-9a-f])/i))
+			return [parseInt(test[1] + test[1], 16), parseInt(test[2] + test[2], 16), parseInt(test[3] + test[3], 16), 1];
+		if(value == 'rand')
+			return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), Number(Math.random().toFixed(2))];
+
+		return [0,0,0,0];
+		// ну ещё можно добавить hsl, hsv, 0xff0000 и т.д. при желании можно даже cmyk и lab ).
+	}
+
+	_.distance = function(value){
+		if(value === undefined) return;
+		if(!value) return 0;
+		if(toString.call(value) == '[object Number]') // isNumber не подходит :)
+			return value;
+
+		if((value + '').indexOf('px') == (value + '').length-2)
+			return parseInt((value + '').replace(/[^\d]*/, ''));
+
+		if(!_.units){
+			var div = document.createElement('div');
+			document.body.appendChild(div); // в некоторых браузерах это не нужно... в FF вроде
+			_.units = {};
+			['em', 'ex', 'ch', 'rem', 'vw',
+			 'vh', 'vmin', 'vmax', 'cm',
+			 'mm', 'in', 'pt', 'pc'].forEach(function(unit){
+				div.style.width = '1' + unit;
+				_.units[unit] = parseFloat(getComputedStyle(div).width);
+			});
+			document.body.removeChild(div);
+		}
+
+		var unit = value.replace(/\d+?/gi, '');
+		value = value.replace(/[^\d]+?/gi, '');
+		return Math.round(_.units[unit] * value);
+	}
+
+	_.corner = function(corner, bounds){
+		if(isArray(corner))
+			return corner;
+		if(isHash(corner))
+			return [corner.x, corner.y];
+		if(!corner)
+			corner = 'center';
+		return [bounds.x + bounds.w * _.corners[corner][0], bounds.y + bounds.h * _.corners[corner][1] ];
+	}
+
+	_.point = function(point){
+		function args(){
+			for(var i = 0, l = arguments.length; i < l; i++)
+				point[arguments[i]] = point.arg[i];
+		}
+		switch(point.f){ // а нужен ли тут break?.. вот так вот я умудряюсь не до конца знать операторы языка...
+			case 'moveTo': case 'lineTo':
+				args('x', 'y');
+				break;
+			case 'quadraticCurveTo':
+				args('hx', 'hy', 'x', 'y');
+				break;
+			case 'bezierCurveTo':
+				args('h1x', 'h1y', 'h2x', 'h2y', 'x', 'y');
+				break;
+			case 'arcTo':
+				args('x1', 'y1', 'x2', 'y2', 'radius', 'clockwise');
+				break;
+			case 'arc':
+				args('x', 'y', 'radius', 'start', 'end', 'anti'); // TODO: что это за anti такое?
+				break;
+		}
+		return point;
+	}
+
+
+	// Animation
+	_.animStart = {
+
+		fill : function(animObject, param, endValue){
+			animObject.fillStyle = _.color(this._style.fillStyle);
+			animObject.fillStyleEnd = _.color(endValue);
+		},
+
+		stroke : function(animObject, param, endValue){
+			// TODO: написать тут свой парсер, так быстрее ) наверное
+			animObject.strokeEnd = Shape.prototype._parseStroke(endValue);
+			if( this._style.lineJoin != animObject.strokeEnd.lineJoin )
+				this._style.lineJoin = animObject.strokeEnd.lineJoin;
+			if( this._style.lineCap  != animObject.strokeEnd.lineCap  )
+				this._style.lineCap  = animObject.strokeEnd.lineCap;
+
+			animObject.strokeStyle = _.color(this._style.strokeStyle);
+			animObject.strokeStyleEnd = _.color(animObject.strokeEnd.strokeStyle);
+		},
+
+		opacity : function(animObject){
+			animObject.opacity = this._style.globalAlpha == null ? 1 : this._style.globalAlpha;
+		},
+
+		crop : emptyFunc
+	};
+	_.animProcess = {
+		opacity : function(animObject, param, end, step){
+			var start = animObject.opacity;
+			this._style.globalAlpha = _.interpolate(start, end, step);
+		},
+
+		fill : function(animObject, param, endValue, step){
+			var start = animObject.fillStyle,
+				end = animObject.fillStyleEnd;
+			this._style.fillStyle = [
+				'rgba(',
+				_.interpolate(start[0], end[0], step).toFixed(0), ',',
+				_.interpolate(start[1], end[1], step).toFixed(0), ',',
+				_.interpolate(start[2], end[2], step).toFixed(0), ',',
+				_.interpolate(start[3], end[3], step),
+				')'].join(''); // а приводить к красивому виду потом буду :)
+
+		},
+		stroke : function(animObject, param, endValue, step){
+			if(animObject.strokeEnd.lineWidth != null)
+				this._style.lineWidth = _.interpolate(this._style.lineWidth, animObject.strokeEnd.lineWidth, step);
+			if(animObject.strokeEnd.strokeStyle != null){
+				var start = animObject.strokeStyle,
+					end = animObject.strokeStyleEnd;
+				this._style.strokeStyle = [
+					'rgba(',
+					_.interpolate(start[0], end[0], step).toFixed(0), ',',
+					_.interpolate(start[1], end[1], step).toFixed(0), ',',
+					_.interpolate(start[2], end[2], step).toFixed(0), ',',
+					_.interpolate(start[3], end[3], step),
+					')'].join('');
+			}
+		},
+		crop : function(animObject, param, end, step){
+			var start = this._crop;
+			this._crop = [
+				_.interpolate(start[0], end[0], step),
+				_.interpolate(start[1], end[1], step),
+				_.interpolate(start[2], end[2], step),
+				_.interpolate(start[3], end[3], step)
+			]
+		}
+	};
+	_.animFunctions = {
+		numberStart : function(animObject, param, endValue){
+			animObject[param] = this['_' + param];
+
+			if(this instanceof Text && param == 'width' && this._width == null)
+				animObject.width = this.width();
+		},
+		transformStart : function(animObject, param, endValue){
+			this._matrix || (this._matrix = [1,0,0,1,0,0]);
+			animObject.startMatrix = this._matrix;
+			animObject.currentMatrix = [1,0,0,1,0,0];
+			animObject.currentMatrix.step = 0;
+		},
+
+
+		numberProcess : function(animObject, param, endValue, step){
+			this['_' + param] = _.interpolate(animObject[param], endValue, step);
+		},
+		transformProcessFunction : function(fn){
+			return function(animObject, param, endValue, step){
+				if(animObject.currentMatrix.step != step)
+					animObject.currentMatrix = [1,0,0,1,0,0],
+					animObject.currentMatrix.step = step;
+
+				var cur = _.interpolate(_.animTransformConstants[param], endValue, step);
+				_.transform(animObject.currentMatrix, fn(cur), _.corner('center', this.bounds()));
+				this._matrix = _.multiply(animObject.startMatrix, animObject.currentMatrix);
+			}
+		}
+		// каждый "такт" формируем матрицу заново на основе новых параметров
+	};
+	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
+		_.animStart[name] = _.animFunctions.numberStart;
+		_.animProcess[name] = _.animFunctions.numberProcess;
+	});
+	['rotate', 'scale', 'scaleX', 'scaleY', 'skew', 'skewX', 'skewY', 'translate', 'translateX', 'translateY'].forEach(function(name){
+		_.animStart[name] = _.animFunctions.transformStart;
+	});
+	_.animProcess.rotate = _.animFunctions.transformProcessFunction(function(cur){
+		cur *= Math.PI / 180
+		return [Math.cos(cur), Math.sin(cur), -Math.sin(cur), Math.cos(cur), 0, 0];
+	});
+	_.animProcess.scale  = _.animFunctions.transformProcessFunction(function(cur){ return [cur, 0, 0, cur, 0, 0]; });
+	_.animProcess.scaleX = _.animFunctions.transformProcessFunction(function(cur){ return [cur, 0, 0, 1  , 0, 0]; });
+	_.animProcess.scaleY = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, cur  , 0, 0]; });
+	_.animProcess.skew   = _.animFunctions.transformProcessFunction(function(cur){
+		cur *= Math.PI / 180;
+		return [1, Math.tan(cur), Math.tan(cur), 1, 0, 0];
+	});
+	_.animProcess.skewX  = _.animFunctions.transformProcessFunction(function(cur){
+		cur *= Math.PI / 180;
+		return [1, 0, Math.tan(cur), 1, 0, 0];
+	});
+	_.animProcess.skewY  = _.animFunctions.transformProcessFunction(function(cur){
+		cur *= Math.PI / 180;
+		return [1, Math.tan(cur), 0, 1, 0, 0];
+	});
+	_.animProcess.translate  = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, cur, cur]; });
+	_.animProcess.translateX = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, cur, 0  ]; });
+	_.animProcess.translateY = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, 0,   cur]; });
+	// ...
+
+	_.animTransformConstants = {
+		rotate : 0,
+		scale : 1,
+		scaleX : 1,
+		scaleY : 1,
+		skew : 0,
+		skewX : 0,
+		skewY : 0,
+		translate : 0,
+		translateX : 0,
+		translateY : 0
+	};
+
+
 	return {
 
-		version:0.1,
-		
-		Context : Context,
-		Shape : Shape,
+//		version : Math.PI * 0.01,
+// ШТО? o_O оставлю для истории
 
-		start: function(element){
-			return new Context( isString(element) ? document.getElementById(element) : element.canvas ? element.canvas : element );
+		version : Math.PI / Math.PI, // а хотя почему бы и нет
+		util : _,
+
+		Shape : Shape,
+		Rect : Rect,
+		Circle : Circle,
+		Path : Path,
+		Image : Img,
+		Text : Text,
+		TextBlock : TextBlock,
+
+		Gradient : Gradient,
+		Pattern : Pattern,
+		Anim : Anim,
+
+		query : function(query, index, element){
+			return new Context( isString(query) ? (element || document).querySelectorAll(query)[element || 0] : query.canvas || query );
+		},
+		id : function(id){
+			return new Context( document.getElementById(id) );
 		}
 
 	};
-
 })(window);
