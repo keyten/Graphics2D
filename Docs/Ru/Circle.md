@@ -6,8 +6,8 @@
 ### Создание
 ```js
 // cx, cy, radius, [fill], [stroke]
-ctx.rect(300, 300, 100, 'black')
-ctx.rect({
+ctx.circle(300, 300, 100, 'black')
+ctx.circle({
   cx: 300,
   cy: 300,
   radius: 200,
