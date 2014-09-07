@@ -67,6 +67,14 @@ var Graphics2D = (function(window, undefined){
 			return element;
 		},
 		update : function(){
+			if(this.__timer)
+				return;
+			this.__timer = setTimeout(function(){
+				this.__update();
+				this.__timer = false;
+			}.bind(this), 1);
+		},
+		__update : function(){
 			var ctx = this.context;
 			ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			this.elements.forEach(function(object){
