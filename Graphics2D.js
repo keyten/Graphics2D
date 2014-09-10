@@ -154,6 +154,15 @@ var Graphics2D = (function(window, undefined){
 			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
 			return this;
 		},
+		once : function(evt, fn){ // not works with .off
+			if(evt == 'mousewheel')
+				this.once('DOMMouseScroll', fn);
+			var proxy;
+			this.on(evt, proxy = function(e){
+				fn.call(this, e);
+				this.off(evt, proxy);
+			}.bind(this));
+		},
 		off : function(evt, fn){
 			if(evt == 'mousewheel')
 				this.off('DOMMouseScroll');
@@ -162,17 +171,16 @@ var Graphics2D = (function(window, undefined){
 				this.listeners[evt] = [];
 
 			var index = this.listeners[evt].indexOf(fn);
-			this.listeners = this.listeners.slice(0, index).concat( this.listeners.slice(index+1) );
+			this.listeners = this.listeners[evt].slice(0, index).concat( this.listeners[evt].slice(index+1) );
 			return this;
 		},
 		fire : function(evt, data){
 			var listeners = this.listeners[ evt ];
 			if(!listeners) return this;
 
-			var object = this.canvas;
 			listeners.forEach(function(func){
-				func.call(object, data);
-			});
+				func.call(this, data);
+			}.bind(this));
 			return this;
 		}
 
@@ -396,6 +404,15 @@ var Graphics2D = (function(window, undefined){
 			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
 			return this;
 
+		},
+		once : function(evt, fn){
+			if(evt == 'mousewheel')
+				this.once('DOMMouseScroll', fn);
+			var proxy;
+			this.on(evt, proxy = function(e){
+				fn.call(this, e);
+				this.off(evt, proxy);
+			}.bind(this));
 		},
 		off : function(evt, fn){
 			if(evt == 'mousewheel')
