@@ -149,6 +149,9 @@ var Graphics2D = (function(window, undefined){
 			return this;
 		},
 		on : function(evt, fn){
+			if(toString.call(evt) == '[object Number]')
+				return window.setTimeout(fn.bind(this), evt), this;
+
 			if(evt == 'mousewheel') // for firefox
 				(this.listeners[ 'DOMMouseScroll' ] || this._setListener('DOMMouseScroll')).push(fn);
 			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
@@ -398,6 +401,9 @@ var Graphics2D = (function(window, undefined){
 
 		// события
 		on : function(evt, fn){
+			if(toString.call(evt) == '[object Number]')
+				return window.setTimeout(fn.bind(this), evt), this;
+
 			this.context._setListener(evt);
 			if(evt == 'mousewheel') // for firefox
 				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
