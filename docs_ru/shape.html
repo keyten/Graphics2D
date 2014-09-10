@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset='utf-8'>
+	<meta http-equiv="X-UA-Compatible" content="chrome=1">
+	<meta name="description" content="Graphics2D : JavaScript canvas library">
+
+	<link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
+
+    <script>
+      if(localStorage['lang'] != 'Ru')
+        ;//location.href = 'http://keyten.github.io/Graphics2D/docs/shape.html';
+    </script>
+	<title>Shape : Graphics2D</title>
+  </head>
+
+  <body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+		  <a id="forkme_banner" href="https://github.com/keyten/Graphics2D">View on GitHub</a>
+
+		  <h1 id="project_title">Graphics2D</h1>
+		  <h2 id="project_tagline">JavaScript canvas library</span></h2>
+
+			<section id="downloads">
+			  <a class="zip_download_link" href="https://github.com/keyten/Graphics2D/zipball/master">Download this project as a .zip file</a>
+			  <a class="tar_download_link" href="https://github.com/keyten/Graphics2D/tarball/master">Download this project as a tar.gz file</a>
+			</section>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+	  <section id="main_content" class="inner">
+<p style="float:right;font-size:14pt;font-weight:bold;cursor:pointer"><span onclick="localStorage['lang'] = 'En'; location.href = 'http://keyten.github.io/Graphics2D/docs/shape.html'">En</span> / <span style="color:#0af">Ru</span></p>
+
+	  <h2>Shape</h2>
+	  <p>Все рисуемые объекты наследуются от одного - <code>Shape</code>. У него есть общие для них свойства, методы, кроме того, разберём прочие похожие моменты.</p>
+	  <pre><code>ctx.rect(10, 10, 200, 200, 'black', '2px blue round');</code></pre>
+	  <p>Всегда сначала передаются параметры самой фигуры, затем - заливка и обводка. О них позже.</p>
+	  <p>Кроме того, мы можем передать функции объект, а с ним и дополнительные параметры.</p>
+	  <pre><code>ctx.rect({
+  x: 10,
+  y: 10,
+  width: 200,
+  height: 200,
+
+  fill: 'black',
+  opacity: 0.8,
+  composite: 'xor'
+});</code></pre>
+		<p>Возможные общие параметры: <code>fill</code>, <code>stroke</code>, <code>opacity</code>, <code>composite</code>, <code>visible</code>, <code>mask</code>.</p>
+		<p>И кстати, большинство параметров умеют принимать css-координаты:</p>
+		<pre><code>ctx.rect('10pt', '10pt', '0.5em', '1em');</code></pre>
+		<p>Да, можно создавать объекты без заливки и обводки. Они не будут отрисовываться, но <!-- Польша стронг! --><strong style="color:red">(!!!)</strong> будут реагировать на события мыши (и блокировать события нижележащим элементам). Чтобы такого не происходило, нужно ставить <code>visible: false</code>, либо скрывать методом <code>hide</code>.</p>
+
+		<h3>Методы</h3>
+		<h4>fill</h4>
+		<p>Возвращает заливку объекта, либо изменяет (если передан параметр).</p>
+		<pre><code>rect.fill('red');
+rect.fill(); // -> 'red'</code></pre>
+		<p>Кроме этого... мы можем нарисовать сразу градиент:</p>
+		<pre><code>rect.fill({ colors:['red', 'green', 'black'], from:'top', to:'bottom' });
+rect.fill().from(); // -> 'top'</code></pre>
+		<p>Ну и, конечно же, текстуру:</p>
+		<pre><code>rect.fill('./image.png');</code></pre>
+		<p>Адрес текстуры должен начинаться с <code>http://</code>, либо с точки <code>.</code> Также можно передать объект с параметром <code>image</code> (и, по желанию, <code>repeat</code>).</p>
+		<p>За параметрами градиентов и текстур - в соотв. разделы.</p>
+
+		<h4>stroke</h4>
+		<p>Обводка. Возвращает / изменяет.</p>
+		<pre><code>rect.stroke();
+// -> {color, width, cap, join, dash}
+
+rect.stroke('2px red');
+rect.stroke('5px'); // меняются лишь указанные параметры
+rect.stroke();
+// -> { color:'red', width:5 } -- css-ширина конвертируется в число</code></pre>
+		<p>Возможные параметры:</p>
+		<ul>
+			<li><code>width</code> / ширина - <code>2px</code>, <code>.5em</code>, <code>8</code> и т.д. <em>Просто-float, без единиц, воспримет как прозрачность.</em></li>
+			<li><code>color</code> / цвет - <code>#f00</code>, <code>green</code>, <code>rgb(0,0,0)</code> и т.д. Пробелы использовать нельзя.</li>
+			<li><code>join</code> / соединения - <code>miter</code>, <code>bevel</code>, <code>round</code>.</li>
+			<li><code>cap</code> / скругления - <code>butt</code>, <code>square</code>, <code>round</code>. <em>Если указан только один <code>round</code>, то он будет применен и к join, и к cap.</em></li>
+			<li><code>dash</code> / пунктир - массив <code>[1,2,2]</code>, либо же значения: <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.</li>
+			<li>Прозрачность - <code>0.5</code>, <code>.3</code> и т.п. Только float, только в текстовом формате, вычисляется сразу же. Сделано для удобства: например, <code>green 0.5</code> вместо <code>rgba(0,128,0,0.5)</code>.</li>
+		</ul>
+<pre><code>rect.stroke('0.5em round square [1,2] green 0.5');
+rect.stroke({
+  color: 'black',
+  width: '4px',
+  cap:   'butt',
+  join:  'round',
+  dash:  'dot'
+});</code></pre>
+			<h4>opacity</h4>
+			<p>Прозрачность, число (float) от 0 до 1, возвращает / изменяет.</p>
+			<h4>composite</h4>
+			<p>Функция наложения на нижележащие объекты.</p>
+			<p>Варианты: <code>source-over</code>, <code>source-atop</code>, <code>source-in</code>, <code>source-out</code>, <code>destination-over</code>, <code>destination-atop</code>, <code>destination-in</code>, <code>destination-out</code>, <code>lighter</code>, <code>darker</code>, <code>copy</code>, <code>xor</code>.</p>
+			<p>Другие варианты (поддерживаются не везде!): <code>normal</code>, <code>multiply</code>, <code>screen</code>, <code>overlay</code>, <code>darken</code>, <code>lighten</code>, <code>color-dodge</code>, <code>color-burn</code>, <code>hard-light</code>, <code>soft-light</code>, <code>difference</code>, <code>exclusion</code>, <code>hue</code>, <code>saturation</code>, <code>color</code>, <code>luminosity</code>.</p>
+			<p>Стандарт: <a href="http://dev.w3.org/fxtf/compositing-1" target="_blank">http://dev.w3.org/fxtf/compositing-1</a></p>
+			<h4>show / hide</h4>
+			<p>Делают элемент видимым / невидимым + реагирующим / не реагирующим на события.</p>
+			<h4>cursor</h4>
+			<p>Ставит курсор при наведении на объект.</p>
+			<pre><code>rect.cursor('pointer');</code></pre>
+			<h4>z</h4>
+			<p>Возвращает, либо изменяет z-index элемента.</p>
+			<p>Z-index в понятии Graphics2D - просто индекс элемента в массиве всех элементов. А, соответственно, и каким по счёту отрисовывается. 2 элементов с одинаковыми индексами быть не может.</p>
+			<pre><code>var a = ctx.rect(10, 10, 200, 200);
+var b = ctx.circle(100, 100, 50);
+a.z(); // -> 0
+b.z(); // -> 1
+
+b.z(0);
+b.z(); // -> 0
+a.z(); // -> 1</code></pre>
+			<h4>isPointIn</h4>
+			<p>Возвращает <code>true</code>, если точка с переданными координатами (2 параметра - x, y) находится внутри объекта.</p>
+			<pre><code>if(rect.isPointIn(50, 50));</code></pre>
+			<h4>bounds</h4>
+			<p>Возвращает прямоугольник (хитбокс) объекта. Содержит координаты левой верхней точки (<code>x</code>, <code>y</code> / <code>x1</code>, <code>y1</code>), правой нижней (<code>x2</code>, <code>y2</code>), ширину и высоту (<code>width</code>, <code>height</code> / <code>w</code>, <code>h</code>), координаты центра (<code>cx</code>, <code>cy</code>).</p>
+	  </section>
+	</div>
+
+	<!-- FOOTER  -->
+	<div id="footer_wrap" class="outer">
+	  <footer class="inner">
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">keyten</a></p>
+		<p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+	  </footer>
+	</div>
+
+	
+
+  </body>
+</html>

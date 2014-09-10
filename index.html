@@ -7,7 +7,10 @@
     <meta name="description" content="Graphics2D : JavaScript canvas library">
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-
+    <script>
+      if(localStorage['lang'] == 'Ru')
+        location.href = 'http://keyten.github.io/Graphics2D/ru.html';
+    </script>
     <title>Graphics2D</title>
   </head>
 
@@ -19,11 +22,11 @@
           <a id="forkme_banner" href="https://github.com/keyten/Graphics2D">View on GitHub</a>
 
           <h1 id="project_title">Graphics2D</h1>
-          <h2 id="project_tagline">JavaScript canvas library</h2>
+          <h2 id="project_tagline">JavaScript canvas library</span></h2>
 
             <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/keyten/Graphics2D/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/keyten/Graphics2D/tarball/master">Download this project as a tar.gz file</a>
+              <a class="zip_download_link" href="https://github.com/keyten/Graphics2D/zipball/master">Download Graphics2D as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/keyten/Graphics2D/tarball/master">Download Graphics2D as a tar.gz file</a>
             </section>
         </header>
     </div>
@@ -31,10 +34,30 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <h2>
-<a name="graphics2d-javascript-library" class="anchor" href="#graphics2d-javascript-library"><span class="octicon octicon-link"></span></a>Graphics2D JavaScript Library</h2>
+<p style="float:right;font-size:14pt;font-weight:bold;cursor:pointer"><span style="color:#0af">En</span> / <span onclick="localStorage['lang'] = 'Ru'; location.href = 'http://keyten.github.io/Graphics2D/ru.html'">Ru</span></p>
+<p><em>Graphics2D</em> is available under <a href="http://www.gnu.org/copyleft/lgpl.html">LGPL</a> / <a href="http://opensource.org/licenses/mit-license.php">MIT</a> License.</p>
 
-<p><em>Graphics2D</em> is a free javascript library, available under <a href="http://www.gnu.org/copyleft/lgpl.html">LGPL</a> / <a href="http://opensource.org/licenses/mit-license.php">MIT</a> License.</p>
+      <h2>Features</h2>
+      <ul>
+        <li>Object-oriented.</li>
+        <li>Mouse events.</li>
+        <li>Animation.</li>
+        <li>And other...</li>
+      </ul>
+      <h2>Examples</h2>
+      <ul>
+        <li>Space Parallax.</li>
+        <li>Ninja.</li>
+      </ul>
+      <h2>Documentation</h2>
+      <ul>
+        <li><a href="docs/context.html">Context.</a></li>
+        <li><a href="docs/shape.html">Shape.</a></li>
+        <li><a href="docs/rci.html">Rect, Circle, Image.</a></li>
+        <li><a href="docs/path.html">Path.</a></li>
+        <li><a href="docs/text.html">Text.</a></li>
+        <li><a href="docs/filling.html">Gradient, Pattern.</a></li>
+      </ul>
       </section>
     </div>
 
