@@ -401,6 +401,14 @@ var Graphics2D = (function(window, undefined){
 
 		// события
 		on : function(evt, fn){
+			if(isString(fn)){
+				var command = fn,
+					args = Array.prototype.slice.call(arguments, 2);
+				fn = function(e){
+					this[command].apply(this, args);
+				}
+				// [fn, proxy] = [proxy, fn];
+			}
 			if(toString.call(evt) == '[object Number]')
 				return window.setTimeout(fn.bind(this), evt), this;
 
