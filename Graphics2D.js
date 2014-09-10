@@ -190,6 +190,27 @@ var Graphics2D = (function(window, undefined){
 	};
 
 
+	// Анимация трансформаций
+	var trStart = function(anim, end, param){
+			if(!this._matrix)
+				this._matrix = [1,0,0,1,0,0];
+			anim.object.matrixStart = this._matrix;
+			anim.object.matrixCur = [1,0,0,1,0,0];
+			anim.object.matrixCur.step = 0;
+		},
+		trProcess = function(fn){
+			return function(anim, end, step, param){
+				// если матрица с прошлого "тика" - мы её обнуляем
+				if(anim.object.matrixCur.step != step)
+					anim.object.matrixCur = [1,0,0,1,0,0],
+					anim.object.matrixCur.step = step;
+
+				var cur = _.interpolate(_.animTransformConstants[param], end, step);
+				_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
+				this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
+			}
+		};
+
 	// Базовый класс объектов
 	Shape = Class({
 
@@ -476,6 +497,155 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		// анимация
+		_anim : {
+			fill : {
+				start : function(anim, end){
+					anim.object.fill = _.color(this._style.fillStyle);
+					if(end == 'transparent') // красивая анимация к прозрачности
+						anim.object.fillEnd = [anim.object.fill[0], anim.object.fill[1], anim.object.fill[2], 0];
+					else
+						anim.object.fillEnd = _.color(end);
+				},
+				process : function(anim, end, step){
+					var start = anim.object.fill,
+						end = anim.object.fillEnd;
+					this._style.fillStyle = [
+						'rgba(',
+						Math.round(_.interpolate(start[0], end[0], step)), ',',
+						Math.round(_.interpolate(start[1], end[1], step)), ',',
+						Math.round(_.interpolate(start[2], end[2], step)), ',',
+						_.interpolate(start[3], end[3], step), ')'				
+					].join('');
+				}
+			},
+			stroke : {
+				start : function(anim, end){
+					anim.object.strokeWidth = this._style.lineWidth;
+					anim.object.strokeColor = _.color(this._style.strokeStyle);					
+					if(isHash(end))
+						anim.object.strokeWidthEnd = _.distance(end.width),
+						anim.object.strokeColorEnd =
+							end.color == 'transparent' ? [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0]
+							: _.color(end.color);
+					else {
+						anim.object.strokeWidthEnd = _.distance((end.replace(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/, '').match(/(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?/) || [])[0]);
+						if(end.indexOf('transparent') > -1)
+							anim.object.strokeColorEnd = [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0];
+						else
+							anim.object.strokeColorEnd = _.color((end.match(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/) || end.match(new RegExp(Object.keys(_.colors).join('|'))) || [])[0]);
+						// монструозненько
+					}
+				},
+				process : function(anim, end, step){
+					if(anim.object.strokeWidthEnd != null)
+						this._style.lineWidth = _.interpolate(anim.object.strokeWidth, anim.object.strokeWidthEnd, step);
+					if(anim.object.strokeColorEnd != null){
+						var start = anim.object.strokeColor,
+							end = anim.object.strokeColorEnd;
+						this._style.strokeStyle = [
+							'rgba(',
+							Math.round(_.interpolate(start[0], end[0], step)), ',',
+							Math.round(_.interpolate(start[1], end[1], step)), ',',
+							Math.round(_.interpolate(start[2], end[2], step)), ',',
+							_.interpolate(start[3], end[3], step), ')'				
+						].join('');
+					}
+				}
+			},
+			opacity : {
+				start : function(anim, end){
+					anim.object.opacity = this._style.globalAlpha == null ? 1 : this._style.globalAlpha;
+				},
+				process : function(anim, end, step){
+					this._style.globalAlpha = _.interpolate(anim.object.opacity, end, step);
+				}
+			},
+			crop : {
+				start : function(anim){
+					anim.object.crop = this._crop;
+				},
+				process :function(anim, end, step){
+					var start = anim.object.crop;
+					this._crop = [
+						_.interpolate(start[0], end[0], step),
+						_.interpolate(start[1], end[1], step),
+						_.interpolate(start[2], end[2], step),
+						_.interpolate(start[3], end[3], step)
+					];
+				}
+			},
+
+			number : {
+				start: function(anim, end, param){
+					anim[param] = this['_' + param];
+				},
+				process: function(anim, end, step, param){
+					this['_' + param] = _.interpolate(anim[param], end, step);
+				}
+			},
+
+			rotate : {
+				start : trStart,
+				process : trProcess(function(ang){
+					return [Math.cos(ang = ang*Math.PI/180), Math.sin(ang), -Math.sin(ang), Math.cos(ang), 0, 0];
+				})
+			},
+			scale : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [cur, 0, 0, cur, 0, 0];
+				})
+			},
+			scaleX : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [cur, 0, 0, 1, 0, 0];
+				})
+			},
+			scaleY : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [1, 0, 0, cur, 0, 0];
+				})
+			},
+			skew : {
+				start : trStart,
+				process : trProcess(function(ang){
+					return [1, Math.tan(ang = ang*Math.PI/180), Math.tan(ang), 1, 0, 0];
+				})
+			},
+			skewX : {
+				start : trStart,
+				process : trProcess(function(ang){
+					return [1, 0, Math.tan(ang * Math.PI / 180), 1, 0, 0];
+				})
+			},
+			skewY : {
+				start : trStart,
+				process : trProcess(function(ang){
+					return [1, Math.tan(ang * Math.PI / 180), 0, 1, 0, 0];
+				})
+			},
+			translate : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [1, 0, 0, 1, cur, cur];
+				})
+			},
+			translateX : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [1, 0, 0, 1, cur, 0];
+				})
+			},
+			translateY : {
+				start : trStart,
+				process : trProcess(function(cur){
+					return [1, 0, 0, 1, 0, cur];
+				})
+			},
+
+		},
 		animate : function(params, value, dur, easing, after){
 			//	r.animate(param, value, dur, easing, after);
 			//	r.animate(params, dur, easing, after);
@@ -506,14 +676,15 @@ var Graphics2D = (function(window, undefined){
 				}
 			}
 
-			var a = new Anim(0, 1, dur, easing), i;
-			for(i in params)
-				_.animStart[i].call(this, a, i, params[i]);
+			var anim = new Anim(0, 1, dur, easing), i;
+			anim.object = {};
+			for(param in params)
+				(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
 
-			a.start(function(step){
+			anim.start(function(step){
 
-				for(i in params)
-					_.animProcess[i].call(this, a, i, params[i], step);
+				for(param in params)
+					this._anim[param].process.call(this, anim, params[param], step, param);
 					// animObject, endValue, step, parameter
 
 				this.update();
@@ -541,6 +712,12 @@ var Graphics2D = (function(window, undefined){
 					return this.fire(event);
 			}
 		});
+
+	// сокращения для анимаций
+	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
+		Shape.prototype._anim[name] = Shape.prototype._anim['number'];
+	});
+
 
 	Rect = Class(Shape, {
 
@@ -2087,8 +2264,7 @@ var Graphics2D = (function(window, undefined){
 	}
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
-//		if(value === undefined) return;
-//		if(!value) return 0;
+		if(value == null) return;
 
 		var test;
 		if(value in _.colors)
@@ -2109,7 +2285,7 @@ var Graphics2D = (function(window, undefined){
 	}
 
 	_.distance = function(value){
-		if(value === undefined) return;
+		if(value == null) return;
 		if(!value) return 0;
 		if(toString.call(value) == '[object Number]') // isNumber не подходит :)
 			return value;
@@ -2172,136 +2348,6 @@ var Graphics2D = (function(window, undefined){
 
 
 	// Animation
-	_.animStart = {
-
-		fill : function(animObject, param, endValue){
-			animObject.fillStyle = _.color(this._style.fillStyle);
-			animObject.fillStyleEnd = _.color(endValue);
-		},
-
-		stroke : function(animObject, param, endValue){
-			// TODO: написать тут свой парсер, так быстрее ) наверное
-			animObject.strokeEnd = Shape.prototype._parseStroke(endValue);
-			if( this._style.lineJoin != animObject.strokeEnd.lineJoin )
-				this._style.lineJoin = animObject.strokeEnd.lineJoin;
-			if( this._style.lineCap  != animObject.strokeEnd.lineCap  )
-				this._style.lineCap  = animObject.strokeEnd.lineCap;
-
-			animObject.strokeStyle = _.color(this._style.strokeStyle);
-			animObject.strokeStyleEnd = _.color(animObject.strokeEnd.strokeStyle);
-		},
-
-		opacity : function(animObject){
-			animObject.opacity = this._style.globalAlpha == null ? 1 : this._style.globalAlpha;
-		},
-
-		crop : emptyFunc
-	};
-	_.animProcess = {
-		opacity : function(animObject, param, end, step){
-			var start = animObject.opacity;
-			this._style.globalAlpha = _.interpolate(start, end, step);
-		},
-
-		fill : function(animObject, param, endValue, step){
-			var start = animObject.fillStyle,
-				end = animObject.fillStyleEnd;
-			this._style.fillStyle = [
-				'rgba(',
-				_.interpolate(start[0], end[0], step).toFixed(0), ',',
-				_.interpolate(start[1], end[1], step).toFixed(0), ',',
-				_.interpolate(start[2], end[2], step).toFixed(0), ',',
-				_.interpolate(start[3], end[3], step),
-				')'].join(''); // а приводить к красивому виду потом буду :)
-
-		},
-		stroke : function(animObject, param, endValue, step){
-			if(animObject.strokeEnd.lineWidth != null)
-				this._style.lineWidth = _.interpolate(this._style.lineWidth, animObject.strokeEnd.lineWidth, step);
-			if(animObject.strokeEnd.strokeStyle != null){
-				var start = animObject.strokeStyle,
-					end = animObject.strokeStyleEnd;
-				this._style.strokeStyle = [
-					'rgba(',
-					_.interpolate(start[0], end[0], step).toFixed(0), ',',
-					_.interpolate(start[1], end[1], step).toFixed(0), ',',
-					_.interpolate(start[2], end[2], step).toFixed(0), ',',
-					_.interpolate(start[3], end[3], step),
-					')'].join('');
-			}
-		},
-		crop : function(animObject, param, end, step){
-			var start = this._crop;
-			this._crop = [
-				_.interpolate(start[0], end[0], step),
-				_.interpolate(start[1], end[1], step),
-				_.interpolate(start[2], end[2], step),
-				_.interpolate(start[3], end[3], step)
-			]
-		}
-	};
-	_.animFunctions = {
-		numberStart : function(animObject, param, endValue){
-			animObject[param] = this['_' + param];
-
-			if(this instanceof Text && param == 'width' && this._width == null)
-				animObject.width = this.width();
-		},
-		transformStart : function(animObject, param, endValue){
-			this._matrix || (this._matrix = [1,0,0,1,0,0]);
-			animObject.startMatrix = this._matrix;
-			animObject.currentMatrix = [1,0,0,1,0,0];
-			animObject.currentMatrix.step = 0;
-		},
-
-
-		numberProcess : function(animObject, param, endValue, step){
-			this['_' + param] = _.interpolate(animObject[param], endValue, step);
-		},
-		transformProcessFunction : function(fn){
-			return function(animObject, param, endValue, step){
-				if(animObject.currentMatrix.step != step)
-					animObject.currentMatrix = [1,0,0,1,0,0],
-					animObject.currentMatrix.step = step;
-
-				var cur = _.interpolate(_.animTransformConstants[param], endValue, step);
-				_.transform(animObject.currentMatrix, fn(cur), _.corner('center', this.bounds()));
-				this._matrix = _.multiply(animObject.startMatrix, animObject.currentMatrix);
-			}
-		}
-		// каждый "такт" формируем матрицу заново на основе новых параметров
-	};
-	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
-		_.animStart[name] = _.animFunctions.numberStart;
-		_.animProcess[name] = _.animFunctions.numberProcess;
-	});
-	['rotate', 'scale', 'scaleX', 'scaleY', 'skew', 'skewX', 'skewY', 'translate', 'translateX', 'translateY'].forEach(function(name){
-		_.animStart[name] = _.animFunctions.transformStart;
-	});
-	_.animProcess.rotate = _.animFunctions.transformProcessFunction(function(cur){
-		cur *= Math.PI / 180
-		return [Math.cos(cur), Math.sin(cur), -Math.sin(cur), Math.cos(cur), 0, 0];
-	});
-	_.animProcess.scale  = _.animFunctions.transformProcessFunction(function(cur){ return [cur, 0, 0, cur, 0, 0]; });
-	_.animProcess.scaleX = _.animFunctions.transformProcessFunction(function(cur){ return [cur, 0, 0, 1  , 0, 0]; });
-	_.animProcess.scaleY = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, cur  , 0, 0]; });
-	_.animProcess.skew   = _.animFunctions.transformProcessFunction(function(cur){
-		cur *= Math.PI / 180;
-		return [1, Math.tan(cur), Math.tan(cur), 1, 0, 0];
-	});
-	_.animProcess.skewX  = _.animFunctions.transformProcessFunction(function(cur){
-		cur *= Math.PI / 180;
-		return [1, 0, Math.tan(cur), 1, 0, 0];
-	});
-	_.animProcess.skewY  = _.animFunctions.transformProcessFunction(function(cur){
-		cur *= Math.PI / 180;
-		return [1, Math.tan(cur), 0, 1, 0, 0];
-	});
-	_.animProcess.translate  = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, cur, cur]; });
-	_.animProcess.translateX = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, cur, 0  ]; });
-	_.animProcess.translateY = _.animFunctions.transformProcessFunction(function(cur){ return [1, 0, 0, 1, 0,   cur]; });
-	// ...
-
 	_.animTransformConstants = {
 		rotate : 0,
 		scale : 1,
