@@ -124,6 +124,92 @@ a.z(); // -> 1</code></pre>
 			<pre><code>if(rect.isPointIn(50, 50));</code></pre>
 			<h4>bounds</h4>
 			<p>Возвращает прямоугольник (хитбокс) объекта. Содержит координаты левой верхней точки (<code>x</code>, <code>y</code> / <code>x1</code>, <code>y1</code>), правой нижней (<code>x2</code>, <code>y2</code>), ширину и высоту (<code>width</code>, <code>height</code> / <code>w</code>, <code>h</code>), координаты центра (<code>cx</code>, <code>cy</code>).</p>
+
+			<h3>События</h3>
+			<h4>on</h4>
+			<p>Ставит на функцию обработчик события:</p>
+			<pre><code>rect.on('click', function(e){
+	this.fill('red');
+});</code></pre>
+			<p>В <code>this</code> передаётся сам объект.</p>
+			<h4>off</h4>
+			<p>Убирает:</p>
+			<pre><code>var anyfunc = function(){
+	this.off('mouseover', anyfunc);
+	this.opacity(0.5);
+	// эта функция сработает только один раз
+};
+rect.on('mouseover', anyfunc);</code></pre>
+			<p>Можно убрать все обработчики определённого события:</p>
+			<pre><code>rect.off('click');</code></pre>
+			<h4>fire</h4>
+			<p>И вызвать все обработчики:</p>
+			<pre><code>rect.on('click', function(e){ alert(e.which) });
+rect.fire('click', { which: 'Hi, world' });</code></pre>
+			<p>Второй параметр можно не указывать, кстати.</p>
+			<h4>Алиасы</h4>
+			<p>Короткие функции:</p>
+			<pre><code>rect.click(function(){}); // = rect.on('click', function(){});
+rect.click(); // = rect.fire('click');</code></pre>
+			<p>Все возможные варианты: <code>click</code>, <code>dblclick</code>, <code>mousedown</code>, <code>mouseup</code>, <code>mousemove</code>, <code>mouseover</code>, <code>mouseout</code>, <code>mousewheel</code>, <code>focus</code>, <code>blur</code>.</p>
+			<h3>Трансформации</h3>
+			<p>Все трансформации (кроме <code>translate</code>) принимают параметр <code>pivot</code> -- центр трансформации (например, в случае с <code>rotate</code> -- вокруг какой точки происходит вращение). Можно передать как абсолютные координаты (<code>[0,0]</code>, <code>{x:10, y:10}</code>), так и одну из точек фигуры: <code>left</code>, <code>right</code>, <code>top</code>, <code>bottom</code>, <code>left top</code> / <code>top left</code> / <code>lt</code> / <code>tl</code> и т.д.</p>
+			<p>По умолчанию точка -- центр фигуры.</p>
+			<h4>scale</h4>
+			<pre><code>rect.scale(2);
+rect.scale(0.5, 0.5);
+rect.scale(2, 'left top');
+rect.scale(0.5, 0.5, 'center');</code></pre>
+<p>Увеличивает фигуру, можно передать как по x, y разные размеры, так и один одинаковый.</p>
+			<h4>rotate</h4>
+			<pre><code>rect.rotate(45);
+rect.rotate(10, 'left');</code></pre>
+<p>Поворачивает фигуру, указываются градусы (можно перевести градусы в радианы как <code>degree / 180 * Math.PI</code>, а налогично наоборот <code>rad / Math.PI * 180</code>).</p>
+			<h4>skew</h4>
+			<pre><code>rect.skew(10, 0);
+rect.skew(5);
+rect.skew(-10, 0, 'left');
+rect.skew(-5, 'top');</code></pre>
+<p>"Сдвигает" фигуру. Указываются градусы.</p>
+			<h4>translate</h4>
+			<pre><code>rect.translate(10, 10);</code></pre>
+<p>Сдвигает фигуру по осям координат. Полезно, когда мы по-разному трансформировали фигуру, у неё смещаются оси координат, и простое изменение её координат даст нам немного неожиданное поведение.</p>
+			<h4>transform</h4>
+			<pre><code>rect.transform(2, 0, 0, 1.5, 0, 0); // вокруг центра
+rect.transform(0.5, 0, 0, 0.75, 0, 0, 'top');</code></pre>
+<p>Трансформирует фигуру.</p><p>Как это делается, можно почитать, например, <a href="http://www.intuit.ru/studies/courses/1063/210/lecture/5434?page=5" target="_blank">здесь</a>.</p>
+			<h3>Анимация</h3>
+<p>Функция <code>animate</code>:</p>
+<pre><code>rect.animate('width', '2em');
+// param, value, duration, easing, after
+rect.animate('width', 200,  3000, 'bounceOut', function(){ this.fill('blue'); });
+
+rect.animate({ width:200, x:0 }, 3000, 'bounceOut', afterfunc);
+rect.animate({ fill: 'red', stroke:'4px' }, {
+ duration: 1000,
+ easing: function(x){ return Math.pow(x, 4) },
+ after: function(){ this.hide() }
+});</code></pre>
+<p>Вроде бы всё понятно. Доступные параметры для анимирования:</p>
+
+<ul>
+<li><code>opacity</code></li>
+<li>
+<code>fill</code> (без поддержки градиентов и текстур)</li>
+<li>
+<code>stroke</code> (только цвет и ширина)</li>
+<li>
+<code>crop</code> -- для изображений</li>
+<li>
+<code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, <code>cx</code>, <code>cy</code>, <code>radius</code> -- параметры фигур</li>
+<li>
+<code>rotate</code>, <code>scale</code>, <code>scaleX</code>, <code>scaleY</code>, <code>skew</code>, <code>skewX</code>, <code>skewY</code>, <code>translate</code>, <code>translateX</code>, <code>translateY</code> -- трансформации. Все только вокруг центра фигуры, по-другому пока никак. Вот так: <code>skew:[10,3]</code> писать нельзя (пока что), нужно так: <code>skewX:10, skewY:3</code>.</li>
+</ul><p>Можно добавить свои...</p>
+
+
+
+
+
 	  </section>
 	</div>
 

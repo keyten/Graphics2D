@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset='utf-8'>
+	<meta http-equiv="X-UA-Compatible" content="chrome=1">
+	<meta name="description" content="Graphics2D : JavaScript canvas library">
+
+	<link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
+
+    <script>
+      if(localStorage['lang'] != 'Ru')
+    //    location.href = 'index.html';
+    </script>
+	<title>Features : Graphics2D</title>
+  </head>
+
+  <body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+		  <a id="forkme_banner" href="https://github.com/keyten/Graphics2D">View on GitHub</a>
+
+		  <h1 id="project_title">Graphics2D</h1>
+		  <h2 id="project_tagline">JavaScript canvas library</span></h2>
+
+			<section id="downloads">
+			  <a class="zip_download_link" href="https://github.com/keyten/Graphics2D/zipball/master">Download this project as a .zip file</a>
+			  <a class="tar_download_link" href="https://github.com/keyten/Graphics2D/tarball/master">Download this project as a tar.gz file</a>
+			</section>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+	  <section id="main_content" class="inner">
+<p style="float:right;font-size:14pt;font-weight:bold;cursor:pointer"><span onclick="localStorage['lang'] = 'En'; location.href = 'index.html'">En</span> / <span style="color:#0af">Ru</span></p>
+
+	  <h2>XXX особенностей Graphics2D</h2>
+	  <h4>Объектно-ориентированное рисование</h4>
+	  <p>Вам не нужно задумываться, как хранить список нарисованных объектов, как их заново отрисовывать и т.п., как это происходит с обычным canvas-ом. Graphics2D предоставляет вам простые объекты, которые сразу же перерисуются при изменении их свойств.</p>
+	  <pre><code>var lol = ctx.rect(10, 10, 200, 200, 'red');
+lol.fill('blue');
+lol.stroke('2px green 0.5');
+lol.animate('opacity', 0.5);</code></pre>
+		<p>Такой подход гораздо проще обычного, и позволяет не задумываться над ненужными нам моментами.</p>
+	  <h4>Простая события мыши</h4>
+	  <p>Обычный canvas имеет некоторые сложности с обработкой событий мыши: нам нужно ставить обработчики, ловить событие, определять, находится ли в этой точке объект... В Graphics2D всё традиционно проще: ставьте функцию, остальное он сделает сам:</p>
+	  <pre><code>rect.on('click', function(e){
+   this.x(e.contextX)
+       .y(e.contextY);
+});</code></pre>
+	  <h4>Одинаковый подход к разным объектам</h4>
+	  <p>Большинство объектов наследуются от абстрактного класса <code>Shape</code>, в котором и заключено большинство их методов и функций. Таким образом, вы можете использовать разные объекты одинаково, не задумываясь, прямоугольник перед вами, или картинка.</p>
+	  <h4>Быстрые вызовы</h4>
+	  <em>Беспощадно утащенная из <a href="http://ru.rightjs.org/tutorials/top-features" target="_blank">RightJS</a> идея.</em>
+	  <p>Не всегда нужно писать функцию для обработки события. Мы привыкли делать так:</p>
+<pre><code>rect.on('click', function(){
+  this.fill('blue');
+});</code></pre>
+		<p>Это громоздко и неудобно. Давайте писать вот так:</p>
+		<pre><code>rect.on('click', 'fill', 'blue');</code></pre>
+		<br/>
+		<p>А ещё есть вызовы по таймеру. Фактически, тот же window.setTimeout, только привязанный к нашему объекту:</p>
+		<pre><code>rect.on(1000, 'hide');
+// объект rect исчезнет через 1 секунду (1000 мс).</code></pre>
+	  <h4>CSS-координаты</h4>
+	  <em>Не спрашивайте, зачем это нужно, я сам не знаю.</em>
+	  <p>Везде (ну почти) можно указывать координаты в CSS-единицах:</p>
+	  <pre><code>ctx.rect('10px', '10px', '0.2em', '30pt', '#ff0');</code></pre>
+	  <h4>jQuery-подход</h4>
+	  <p>Сразу несколько пунктов в одном... Во-первых, это цепочки вызовов (каждый метод возвращает this, если не требуется иного):</p>
+	  <pre><code>rect.x(10);
+    .y(10)
+    .fill('red')
+    .animate('stroke', 'green')
+    .on(3000, 'animate', 'stroke', 'yellow');</code></pre>
+    	<p>Второе - это использование одних и тех же методов для получения и изменения данных. Ну и не только...</p>
+    	<pre><code>rect.x(); // -> 10
+rect.x(100);
+rect.x(); // -> 100
+
+rect.animate('fill', 'red');
+rect.animate({ fill:'red', opacity:0.5 });</code></pre>
+		<h4>Кстати...</h4>
+		<p>Помнится, таким подходом славился ExtJS, но вообще он применяется много где. А именно: мы можем вместо обычного указания параметров, передать объект, указав там ещё и дополнительные параметры. Ну например...</p>
+		<pre><code>ctx.rect({
+  x: 10,
+  y: 10,
+  width: 200,
+  height: 200,
+
+  fill: 'cyan',
+  stroke: '2px round black',
+  opacity: 0.7,
+  composite: 'xor'
+});
+
+// а в обычном виде это выглядит так:
+ctx.rect(10, 10, 200, 200, 'cyan', '2px round black').opacity(0.7).composite('xor');</code></pre>
+		<h4>И т.д.</h4>
+		<p>Ну я ещё что-нибудь сюда придумаю.</p>
+
+	  </section>
+	</div>
+
+	<!-- FOOTER  -->
+	<div id="footer_wrap" class="outer">
+	  <footer class="inner">
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">keyten</a></p>
+		<p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+	  </footer>
+	</div>
+
+	
+
+  </body>
+</html>

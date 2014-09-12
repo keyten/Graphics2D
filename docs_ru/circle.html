@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset='utf-8'>
+	<meta http-equiv="X-UA-Compatible" content="chrome=1">
+	<meta name="description" content="Graphics2D : JavaScript canvas library">
+
+	<link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
+
+    <script>
+      if(localStorage['lang'] != 'Ru')
+   //     location.href = 'http://keyten.github.io/Graphics2D/docs/rci.html';
+    </script>
+	<title>Circle : Graphics2D</title>
+  </head>
+
+  <body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+		  <a id="forkme_banner" href="https://github.com/keyten/Graphics2D">View on GitHub</a>
+
+		  <h1 id="project_title">Graphics2D</h1>
+		  <h2 id="project_tagline">JavaScript canvas library</span></h2>
+
+			<section id="downloads">
+			  <a class="zip_download_link" href="https://github.com/keyten/Graphics2D/zipball/master">Download this project as a .zip file</a>
+			  <a class="tar_download_link" href="https://github.com/keyten/Graphics2D/tarball/master">Download this project as a tar.gz file</a>
+			</section>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+	  <section id="main_content" class="inner">
+<p style="float:right;font-size:14pt;font-weight:bold;cursor:pointer"><span onclick="localStorage['lang'] = 'En'; location.href = 'http://keyten.github.io/Graphics2D/docs/rci.html'">En</span> / <span style="color:#0af">Ru</span></p>
+
+		<h2>Circle</h2>
+		<p>Круг. Параметры: <code>cx</code>, <code>cy</code> (координаты центра) и <code>radius</code> (радиус).</p>
+		<pre><code>var circ = ctx.circle(200, 200, 50, null, '4pt round black');
+// fill=null
+
+var cir2 = ctx.circle({
+	cx: 200,
+	cy: 200,
+	radius: 25
+});</code></pre>
+		<h3>Методы</h3>
+		<h4>cx, cy, radius</h4>
+		<p>Параметры: при вызове без аргумента - возвращают значение, с - изменяют.</p>
+		<pre><code>circ.cx(); // -> 200
+circ.radius(); // -> 50
+circ.radius(150);
+circ.radius(); // -> 150</code></pre>
+
+	  </section>
+	</div>
+
+	<!-- FOOTER  -->
+	<div id="footer_wrap" class="outer">
+	  <footer class="inner">
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">keyten</a></p>
+		<p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+	  </footer>
+	</div>
+
+	
+
+  </body>
+</html>

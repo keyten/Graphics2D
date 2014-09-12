@@ -10,7 +10,7 @@
 
     <script>
       if(localStorage['lang'] != 'Ru')
-        location.href = 'http://keyten.github.io/Graphics2D/docs/rci.html';
+     //   location.href = 'http://keyten.github.io/Graphics2D/docs/image.html';
     </script>
 	<title>Rect, Circle, Image : Graphics2D</title>
   </head>
@@ -37,17 +37,35 @@
 	  <section id="main_content" class="inner">
 <p style="float:right;font-size:14pt;font-weight:bold;cursor:pointer"><span onclick="localStorage['lang'] = 'En'; location.href = 'http://keyten.github.io/Graphics2D/docs/rci.html'">En</span> / <span style="color:#0af">Ru</span></p>
 
-	  <h2>Context</h2>
-	  <p>This function returns the G2D context for your canvas:</p>
-	  <pre><code>&lt;canvas&gt;&lt;/canvas&gt;
-&lt;script&gt;
-  var ctx = Graphics2D.query('canvas', 0); // the first element
-&lt;/script&gt;</code></pre></p>
-<p>		You can also use <code>Graphics2D.id</code>.</p>
+	  <h2>Image</h2>
+	  <p>Изображение. Параметры: <code>image</code>, <code>x</code>, <code>y</code> (координаты левого верхнего угла), <code>width</code>, <code>height</code> (необязательные ширина и длина).</p>
+	  <pre><code>// image, x, y, [width], [height]
+ctx.image('./image.jpg', 10, 10);
 
-		<h3>Methods</h3>
-		<p>All methods returns the context (If method is not returns other).</p>
-		...
+// document.getElementById('img')
+ctx.image('#img', 10, 10, 200, 200);
+
+var i = new Image;
+i.src = 'abc';
+ctx.image({
+  image:i,
+  x:10,
+  y:10,
+  width: 'auto', // сохраняются пропорции
+  height:200,
+  crop: [0,0,50,50] // обрезка в координатах картинки
+});</code></pre>
+		<h3>Методы</h3>
+		<h4>x / y / width / height</h4>
+		<h4>x1 / y1 / x2 / y2</h4>
+		<p>Работают аналогично аналогичным методам <a href="http://keyten.github.io/Graphics2D/docs_ru/rect.html">прямоугольника</a>. Только width и height ещё умеют возвращать размеры самой картинки.</p>
+		<h4>crop</h4>
+		<p>Обрезается картинка по прямоугольнику (используются координаты самой картинки).</p>
+		<pre><code>image.crop(); // -> [0,0,10,10]
+image.crop(10, 10, 200, 200);
+image.crop([10, 10, 200, 200]);</code></pre>
+
+
 	  </section>
 	</div>
 
