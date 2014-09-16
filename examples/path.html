@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>G</title>
+<meta charset="UTF-8"/>
+<script src="../graphics2d.js"></script>
+</head>
+<body onload="load();">
+<!--<table id="main">
+	<tr>
+		<td>
+			<textarea></textarea>
+		</td>
+		<td> -->
+			<canvas id="ctx" style="background:#fefefe;border:solid 1px #eee;margin-left:0;position:absolute;left:0;top:0;cursor:crosshair" width="900" height="400"></canvas>
+<!--		</td>
+	</tr>
+</table> -->
+<script>
+	function load(){
+//		var main = document.getElementById('main');
+//		main.style.width = document.body.offsetWidth + 'px';
+//		main.style.height = document.body.scrollHeight - 20 + 'px';
+	}
+
+	var ctx = Graphics2D.id('ctx'),
+		rect = ctx.rect(0,0,900,400,'#eee'),
+		path = ctx.path([], 0, 0, null, 'black 3px'),
+
+		state = 0,
+		x1, y1, x2, y2, x3, y3, x4, y4,
+		oldx1, oldy1, oldx2, oldy2;
+	ctx.mousedown(function(e){
+		if(path.points().length == 0){
+			x1 = e.contextX;
+			y1 = e.contextY;
+		}
+		else {
+			x3 = e.contextX;
+			y3 = e.contextY;
+		}
+	});
+	ctx.mouseup(function(e){
+		if(path.points().length == 0){
+			x2 = e.contextX;
+			y2 = e.contextY;
+			path.moveTo(x1, y1);
+		}
+		else {
+			x4 = e.contextX;
+			y4 = e.contextY;
+			if(state == 1)
+				x2 = x3-(oldx2-oldx1),
+				y2 = y3-(oldy2-oldy1);
+			path.bezierCurveTo(x3, y3, x2, y2, x4, y4);
+			oldx1 = x3;
+			oldy1 = y3;
+			oldx2 = x4;
+			oldy2 = y4;
+			state = 1;
+		}
+	});
+
+/*	ctx.on('mousedown', function(e){
+		downx = e.contextX;
+		downy = e.contextY;
+	});
+	ctx.on('mouseup', function(e){
+		if(isfirstclick){
+			path.moveTo(e.contextX, e.contextY);
+			isfirstclick = false;
+			downx = downy = null;
+			return;
+		}
+
+		if(e.contextX == downx && e.contextY == downy){
+			path.lineTo(e.contextX, e.contextY);
+		}
+		else {
+
+		}
+	}); */
+</script>
+</body>
+</html>
