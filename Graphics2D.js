@@ -949,10 +949,10 @@ var Graphics2D = (function(window, undefined){
 		lineTo : function(x, y){
 			return this.add('lineTo', [x, y]);
 		},
-		quadraticCurveTo : function(x, y, hx, hy){
+		quadraticCurveTo : function(hx, hy, x, y){
 			return this.add('quadraticCurveTo', [hx, hy, x, y]);
 		},
-		bezierCurveTo : function(x, y, h1x, h1y, h2x, h2y){
+		bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
 			return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 		},
 		arcTo : function(x1, y1, x2, y2, radius, clockwise){
