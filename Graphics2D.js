@@ -1219,7 +1219,7 @@ var Graphics2D = (function(window, undefined){
 			else
 				ctx.drawImage(this._image, this._x, this._y, w, h);
 
-			if(this._strokeStyle)
+			if(this._style.strokeStyle)
 				ctx.strokeRect(this._x, this._y, w, h);
 			ctx.restore();
 		}
