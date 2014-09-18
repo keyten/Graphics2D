@@ -1173,11 +1173,11 @@ var Graphics2D = (function(window, undefined){
 					this._image = x;
 				}
 			}
-			this._width = this._image.width;
-			this._height = this._image.height;
+			this._width = this._width || this._image.width;
+			this._height = this._height || this._image.height;
 			this._image.onload = function(){
-				this._width = this._image.width;
-				this._height = this._image.height;
+				this._width = this._width || this._image.width;
+				this._height = this._height || this._image.height;
 				this.update();
 			}.bind(this);
 
