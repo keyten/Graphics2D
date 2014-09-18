@@ -505,6 +505,9 @@ var Graphics2D = (function(window, undefined){
 						anim.object.fillEnd = [anim.object.fill[0], anim.object.fill[1], anim.object.fill[2], 0];
 					else
 						anim.object.fillEnd = _.color(end);
+
+					if(this._style.fillStyle == 'transparent')
+						anim.object.fill = [anim.object.fillEnd[0], anim.object.fillEnd[1], anim.object.fillEnd[2], 0];
 				},
 				process : function(anim, end, step){
 					var start = anim.object.fill,
@@ -522,11 +525,13 @@ var Graphics2D = (function(window, undefined){
 				start : function(anim, end){
 					anim.object.strokeWidth = this._style.lineWidth;
 					anim.object.strokeColor = _.color(this._style.strokeStyle);					
-					if(isHash(end))
-						anim.object.strokeWidthEnd = _.distance(end.width),
-						anim.object.strokeColorEnd =
-							end.color == 'transparent' ? [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0]
-							: _.color(end.color);
+					if(isHash(end)){
+						anim.object.strokeWidthEnd = _.distance(end.width);
+						if(end.color == 'transparent')
+							anim.object.strokeColorEnd = [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0];
+						else
+							anim.object.strokeColorEnd = _.color(end.color);
+					}
 					else {
 						anim.object.strokeWidthEnd = _.distance((end.replace(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/, '').match(/(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?/) || [])[0]);
 						if(end.indexOf('transparent') > -1)
@@ -535,6 +540,8 @@ var Graphics2D = (function(window, undefined){
 							anim.object.strokeColorEnd = _.color((end.match(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/) || end.match(new RegExp(Object.keys(_.colors).join('|'))) || [])[0]);
 						// монструозненько
 					}
+					if(this._style.strokeStyle == 'transparent')
+						anim.object.strokeColor = [anim.object.strokeColorEnd[0], anim.object.strokeColorEnd[1], anim.object.strokeColorEnd[2], 0];
 				},
 				process : function(anim, end, step){
 					if(anim.object.strokeWidthEnd != null)
