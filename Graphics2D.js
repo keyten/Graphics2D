@@ -974,7 +974,6 @@ var Graphics2D = (function(window, undefined){
 			if(!fn){
 				fn = function(x,y){
 					allPoints.push([x,y]);
-					return false;
 				}
 				returnData = true;
 			}
