@@ -228,7 +228,7 @@
 <br/><br/>
 
 	  <h2 id="shape">Shape</h2>
-	  <p>Все рисуемые объекты наследуются от одного - <code>Shape</code>. У него есть общие для них свойства, методы, кроме того, разберём прочие похожие моменты.</p>
+	  <p>Все рисуемые объекты наследуются от абстрактного класса <code>Shape</code>. У него есть общие для них свойства, методы, кроме того, разберём прочие похожие моменты.</p>
 <div class="highlight highlight-js"><pre><span class="nx">ctx</span><span class="p">.</span><span class="nx">rect</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="s1">'black'</span><span class="p">,</span> <span class="s1">'2px blue round'</span><span class="p">);</span>
 </pre></div>
 	  <p>Всегда сначала передаются параметры самой фигуры, затем - заливка и обводка. О них позже.</p>
@@ -440,7 +440,7 @@
 <span class="nx">rect</span><span class="p">.</span><span class="nx">x</span><span class="p">();</span> <span class="c1">// -&gt; 100</span>
 </pre></div>
 		<h4>x1, y1, x2, y2</h4>
-		<p>Немного другой принцип: 1 точка - левый верхний угол прямоугольника, 2 - правый нижний. Мы можем получать их координаты и менять (<strong>причём: при изменении первой, координаты второй точки меняться не будут!</strong>)</p>
+		<p>Немного другой принцип: 1 точка - левый верхний угол прямоугольника, 2 - правый нижний. Мы можем получать их координаты и менять (<strong>причём: при изменении одной, координаты другой точки меняться не будут!</strong>)</p>
 <div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">rect</span> <span class="o">=</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">rect</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">);</span>
 <span class="nx">rect</span><span class="p">.</span><span class="nx">x1</span><span class="p">();</span> <span class="c1">// -&gt; 10</span>
 <span class="nx">rect</span><span class="p">.</span><span class="nx">x2</span><span class="p">();</span> <span class="c1">// -&gt; 210</span>
@@ -571,7 +571,7 @@
 <span class="nx">p</span><span class="p">.</span><span class="nx">points</span><span class="p">([</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">]</span> <span class="p">])</span>
 </pre></div>
 <h4>before</h4>
-<p>Вставляет новые точки перед точкой с индексом index.</p>
+<p>Вставляет новые точки перед точкой с указанным индексом.</p>
 <div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">p</span> <span class="o">=</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">path</span><span class="p">(</span><span class="s1">'M10,10 L0,0'</span><span class="p">);</span>
 <span class="nx">p</span><span class="p">.</span><span class="nx">before</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">'L0,10'</span><span class="p">);</span>
 <span class="c1">// M10,10 L0,10 L0,0</span>
