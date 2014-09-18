@@ -1173,7 +1173,14 @@ var Graphics2D = (function(window, undefined){
 					this._image = x;
 				}
 			}
-			this._image.onload = this.update.bind(this);
+			this._width = this._image.width;
+			this._height = this._image.height;
+			this._image.onload = function(){
+				this._width = this._image.width;
+				this._height = this._image.height;
+				this.update();
+			}.bind(this);
+
 		},
 
 		x  : Rect.prototype.x,
@@ -1182,14 +1189,8 @@ var Graphics2D = (function(window, undefined){
 		y1 : Rect.prototype.y1,
 		x2 : Rect.prototype.x2,
 		y2 : Rect.prototype.y2,
-		width  : function(v){
-			if(v == null) return this._width || this._image.width;
-			return this._property('width', v);
-		},
-		height : function(v){
-			if(v == null) return this._height || this._image.height;
-			return this._property('height', w);
-		},
+		width  : Rect.prototype.width,
+		height : Rect.prototype.height,
 
 		crop : function(arr){
 			if(arguments.length == 0)
@@ -1205,8 +1206,8 @@ var Graphics2D = (function(window, undefined){
 				return;
 			this._applyStyle();
 
-			var w = this._width  || this._image.width,
-				h = this._height || this._image.height;
+			var w = this._width,
+				h = this._height;
 			if(w == 'auto')
 				w = this._image.width  * (this._height / this._image.height);
 			else if(h == 'auto')
