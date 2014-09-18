@@ -1173,11 +1173,11 @@ var Graphics2D = (function(window, undefined){
 					this._image = x;
 				}
 			}
-			this._width = this._width || this._image.width;
-			this._height = this._height || this._image.height;
+			this._width = this._width === undefined ? this._image.width : this._width;
+			this._height = this._height === undefined ? this._image.height : this._height;
 			this._image.onload = function(){
-				this._width = this._width || this._image.width;
-				this._height = this._height || this._image.height;
+				this._width = this._width === undefined ? this._image.width : this._width;
+				this._height = this._height === undefined ? this._image.height : this._height;
 				this.update();
 			}.bind(this);
 
@@ -1208,9 +1208,9 @@ var Graphics2D = (function(window, undefined){
 
 			var w = this._width,
 				h = this._height;
-			if(w == 'auto')
+			if(w === null)
 				w = this._image.width  * (this._height / this._image.height);
-			else if(h == 'auto')
+			else if(h === null)
 				h = this._image.height * (this._width  / this._image.width );
 				// и почему в английском ширина и длина разного размера...
 
