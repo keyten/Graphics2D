@@ -511,7 +511,7 @@
 <h4>close</h4>
 <p>Просто закрывает.</p>
 <h4>allPoints</h4>
-<p>Возвращает все точки фигуры (например, у bezier - 3 точки), либо - если передана функция - работает как [].map. Может возвратить новые координаты (тогда координаты будут изменены), либо false - тогда ничего не будет.</p>
+<p>Возвращает все точки фигуры (например, у bezier - 3 точки), либо - если передана функция - работает как [].map. Может возвратить новые координаты для точки.</p>
 <div class="highlight highlight-js"><pre><span class="nx">path</span><span class="p">.</span><span class="nx">allPoints</span><span class="p">();</span> <span class="c1">// -&gt; [[0,0], [10,10], ...]</span>
 <span class="nx">path</span><span class="p">.</span><span class="nx">allPoints</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">){</span>
   <span class="k">if</span><span class="p">(</span><span class="nx">x</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nx">y</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
@@ -544,12 +544,11 @@
 <p><code>pivot</code> - центр трансформации (напр. центр вращения), можно указывать как и в обычных функциях трансформации (<code>top left</code>, <code>[10,10]</code> и т.д.).
 <p>В <code>skew</code> и <code>rotate</code> - градусы.</p>
 <h3>Функции рисования</h3>
-<em>Примечание: немного нарушен стандартный порядок параметров <code>quadratic</code> и <code>bezier</code>. Например, если в обычном canvas - <code>hx, hy, x, y</code>, то здесь <code>x, y, hx, hy</code>.</em>
 <ul>
 	<li><code>moveTo(x, y)</code></li>
 	<li><code>lineTo(x, y)</code></li>
-	<li><code>quadraticCurveTo(x, y, hx, hy)</code></li>
-	<li><code>bezierCurveTo(x, y, h1x, h1y, h2x, h2y)</code></li>
+	<li><code>quadraticCurveTo(hx, hy, x, y)</code></li>
+	<li><code>bezierCurveTo(h1x, h1y, h2x, h2y, x, y)</code></li>
 	<li><code>arcTo(x1, y1, x2, y2, radius, clockwise)</code></li>
 	<li><code>arc(x, y, radius, start, end, clockwise)</code></li>
 </ul>
@@ -701,7 +700,7 @@
   <span class="nx">image</span><span class="o">:</span><span class="nx">i</span><span class="p">,</span>
   <span class="nx">x</span><span class="o">:</span><span class="mi">10</span><span class="p">,</span>
   <span class="nx">y</span><span class="o">:</span><span class="mi">10</span><span class="p">,</span>
-  <span class="nx">width</span><span class="o">:</span> <span class="s1">'auto'</span><span class="p">,</span> <span class="c1">// сохраняются пропорции</span>
+  <span class="nx">width</span><span class="o">:</span> <span class="s1">null</span><span class="p">,</span> <span class="c1">// сохраняются пропорции</span>
   <span class="nx">height</span><span class="o">:</span><span class="mi">200</span><span class="p">,</span>
   <span class="nx">crop</span><span class="o">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">50</span><span class="p">]</span> <span class="c1">// обрезка в координатах картинки</span>
 <span class="p">});</span>
