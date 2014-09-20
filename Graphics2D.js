@@ -222,11 +222,11 @@ var Graphics2D = (function(window, undefined){
 		// внутренние функции обработки
 		_attributes : function(object){
 			var s = this._style;
-			if(object.opacity)
+			if(object.opacity != null)
 				s.globalAlpha = object.opacity;
 			if(object.composite)
 				s.globalCompositeOperation = object.composite;
-			if(object.visible)
+			if(object.visible != null)
 				this._visible = object.visible;
 			if(object.mask)
 				this._mask = object.mask;
