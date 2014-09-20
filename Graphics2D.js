@@ -2376,6 +2376,7 @@ var Graphics2D = (function(window, undefined){
 
 		version : Math.PI / Math.PI, // а хотя почему бы и нет
 		util : _,
+		Class : Class,
 
 		Shape : Shape,
 		Rect : Rect,
