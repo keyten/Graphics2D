@@ -2006,6 +2006,12 @@ var Graphics2D = (function(window, undefined){
 //		return isNumber(a) || typeof a == 'object';
 //	}
 
+	_.Bounds = Bounds;
+	_.extend = extend;
+	_.isString = isString;
+	_.isArray = isArray;
+	_.isHash = isHash;
+	_.isNumber = isNumber;
 
 	// constants
 
@@ -2378,6 +2384,7 @@ var Graphics2D = (function(window, undefined){
 		util : _,
 		Class : Class,
 
+		Context : Context,
 		Shape : Shape,
 		Rect : Rect,
 		Circle : Circle,
