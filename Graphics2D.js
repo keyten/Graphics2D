@@ -1191,6 +1191,7 @@ var Graphics2D = (function(window, undefined){
 		y2 : Rect.prototype.y2,
 		width  : Rect.prototype.width,
 		height : Rect.prototype.height,
+		bounds : Rect.prototype.bounds,
 
 		crop : function(arr){
 			if(arguments.length == 0)
