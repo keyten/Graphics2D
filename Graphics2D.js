@@ -211,7 +211,6 @@ var Graphics2D = (function(window, undefined){
 			}
 		};
 
-	// Базовый класс объектов
 	Shape = Class({
 
 		initialize : function(){
@@ -219,7 +218,6 @@ var Graphics2D = (function(window, undefined){
 			this._style = {};
 		},
 
-		// внутренние функции обработки
 		_attributes : function(object){
 			var s = this._style;
 			if(object.opacity != null)
@@ -236,9 +234,8 @@ var Graphics2D = (function(window, undefined){
 		_fillAndStroke : function(fill, stroke, ctx){
 			if(fill)
 				this._style.fillStyle = fill;
-			if(stroke){
+			if(stroke)
 				extend(this._style, this._parseStroke(stroke));
-			}
 
 			if(fill instanceof Gradient || fill instanceof Pattern)
 				return;
@@ -332,7 +329,7 @@ var Graphics2D = (function(window, undefined){
 		},
 
 		// параметры
-		_property : function(name, value){ // TODO: мб, стоит добавить постфункцию. Перед обновлением
+		_property : function(name, value){
 			if(value === undefined)
 				return this['_' + name];
 			this['_' + name] = value;
@@ -345,22 +342,26 @@ var Graphics2D = (function(window, undefined){
 			return this.update();
 		},
 		z : function(z){
-			if(z == null)
+			if(z === undefined)
 				return this._z;
 			this.context.elements = _.move.call(this.context.elements, this._z, z);
 			this._z = z;
 			return this.update();
 		},
 		mask : function(mask, a, b, c){
-			if(!mask) return this._mask;
+			if(mask === undefined)
+				return this._mask;
+			if(mask === null)
+				delete this._mask;
+
 			if(mask.processPath)
 				this._mask = mask;
 			else if(c != undefined)
-				this._mask = new Rect(mask, a, b, c, null, null, {elements:[]});
+				this._mask = new Rect(mask, a, b, c, null, null, this.context);
 			else if(b != undefined)
-				this._mask = new Circle(mask, a, b, null, null, {elements:[]});
+				this._mask = new Circle(mask, a, b, null, null, this.context);
 			else
-				this._mask = new Path(mask);
+				this._mask = new Path(mask, 0, 0, null, null, this.context);
 			return this.update();
 		},
 		remove : function(){
@@ -385,7 +386,7 @@ var Graphics2D = (function(window, undefined){
 			// element.stroke({ fill:'black', width:3 });
 			// element.stroke('black 4pt');
 			var s = this._style;
-			if(str == null)
+			if(str === undefined)
 				return {
 					color : s.strokeStyle, // todo: наставить дефолтных значений?
 					width : s.lineWidth,
@@ -393,8 +394,13 @@ var Graphics2D = (function(window, undefined){
 					join  : s.lineJoin,
 					dash  : s._lineDash
 				};
-			if(str === false)
+			if(str === null){
 				delete this._style.strokeStyle;
+				delete this._style.lineWidth;
+				delete this._style.lineCap;
+				delete this._style.lineJoin;
+				delete this._style._lineDash;
+			}
 			extend(this._style, this._parseStroke(str));
 			return this.update();
 		},
@@ -463,7 +469,7 @@ var Graphics2D = (function(window, undefined){
 				func.call(this, data);
 			}.bind(this));
 			return this;
-},
+		},
 		isPointIn : function(x, y){
 			var ctx = this.context.context;
 			ctx.save();
@@ -501,7 +507,7 @@ var Graphics2D = (function(window, undefined){
 			fill : {
 				start : function(anim, end){
 					anim.object.fill = _.color(this._style.fillStyle);
-					if(end == 'transparent') // красивая анимация к прозрачности
+					if(end == 'transparent')
 						anim.object.fillEnd = [anim.object.fill[0], anim.object.fill[1], anim.object.fill[2], 0];
 					else
 						anim.object.fillEnd = _.color(end);
@@ -713,10 +719,10 @@ var Graphics2D = (function(window, undefined){
 		'mouseup', 'mousemove', 'mouseover',
 		'mouseout', 'focus', 'blur'].forEach(function(event){
 			Shape.prototype[event] = Context.prototype[event] = function(fn){
-				if(fn)
-					return this.on(event, fn);
+				if(typeof fn == 'function' || isString(fn))
+					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
 				else
-					return this.fire(event);
+					return this.fire.apply(this, arguments);
 			}
 		});
 
