@@ -276,14 +276,20 @@ var Graphics2D = (function(window, undefined){
 		_parseStroke : function(stroke){
 			if(isHash(stroke)){
 				var obj = {};
-				stroke.color && (obj.strokeStyle = stroke.color)
-				stroke.width && (obj.lineWidth   = stroke.width)
-				stroke.cap   && (obj.lineCap     = stroke.cap  )
-				stroke.join  && (obj.lineJoin    = stroke.join )
-				stroke.dash  && (obj._lineDash   = isString(stroke.dash) ? _.dashes[stroke.dash] : stroke.dash)
+				stroke.width !== undefined
+					&& (obj.lineWidth   = stroke.width);
+				stroke.color
+					&& (obj.strokeStyle = stroke.color);
+				stroke.cap
+					&& (obj.lineCap     = stroke.cap  );
+				stroke.join
+					&& (obj.lineJoin    = stroke.join );
+				stroke.dash
+					&& (obj._lineDash   = isString(stroke.dash)
+						&& _.dashes[stroke.dash]
+						|| stroke.dash);
 				return obj;
 			}
-// TODO: this.stroke({ color: 'black' }) -- меняются все параметры, а не один... это нехорошо
 
 			if(!isString(stroke)) return {};
 			var obj = {}, opacity;
@@ -767,24 +773,24 @@ var Graphics2D = (function(window, undefined){
 			return this._property('height', h);
 		},
 		x1 : function(x){
-			return x == null ?
+			return x === undefined ?
 				this._x :
 				this._property('width', this._width - x + this._x).
 				     _property('x', x);
 		},
 		y1 : function(y){
-			return y == null ?
+			return y === undefined ?
 				this._y :
 				this._property('height', this._height - y + this._y).
 				     _property('y', y);
 		},
 		x2 : function(x){
-			return x == null ?
+			return x === undefined ?
 				this._x + this._width :
 				this._property('width', x - this._x);
 		},
 		y2 : function(y){
-			return y == null ?
+			return y === undefined ?
 				this._y + this._height :
 				this._property('height', y - this._y);
 		},
@@ -818,7 +824,7 @@ var Graphics2D = (function(window, undefined){
 				this._radius = radius;
 				this._fillAndStroke(fill, stroke, context.context);
 			}
-},
+		},
 
 		// параметры
 		cx : function(cx){
@@ -870,57 +876,18 @@ var Graphics2D = (function(window, undefined){
 			return this._property('y', y);
 		},
 		closed : function(v){
-			if(v == null) return !!this._closed;
+			if(v === undefined)
+				return !!this._closed;
 			return this._property('closed', !!v);
 		},
 
 		// манипулируем точками
 		point : function(index, value){
-			if(value == null)
+			if(value === undefined)
 				return _.point(this._points[index]);
 			this._points = this._points.slice(0, index).concat(this._readPath(value).concat(this._points.slice(index+1)));
 			return this.update();
 		},
-/*		point : function(index, cmd){
-			function slice(index1, index2, segments){
-				var arr = [];
-				segments.forEach(function(seg, i){
-					arr = arr.concat( this._readPath(seg) );
-				}.bind(this));
-				this._points = this._points.slice(0, index1).concat( arr.concat(this._points.slice(index2)) );
-				this.update();
-			}
-
-			var funcs = {
-					'get' : function(i){
-						return _.point(this._points[i]); // TODO: добавить параметры
-					},
-					'replace' : function(index, segments){
-						slice.call(this, index, index+1, segments);
-					},
-					'after' : function(index, segments){
-						slice.call(this, index+1, index+1, segments)
-					},
-					'before' : function(index, segments){
-						funcs.after.call(this, index ? index-1 : 0, segments)
-					},
-					'remove' : function(index){
-						this._points = this._points.slice(0, index).concat( this._points.slice(index+1) );
-						this.update();
-					}
-				},
-				seg = Array.prototype.slice.call(arguments, 1);
-
-			if(cmd in funcs)
-				seg = seg.slice(1);
-			else if(arguments.length == 1)
-				cmd = 'get';
-			else
-				cmd = 'replace';
-
-			return funcs[cmd].call(this, index, seg) || this;
-		}, */
-
 		before : function(index, points){
 			this._points = this._points.slice(0, index).concat(this._readPath(points).concat(this._points.slice(index)));
 			return this.update();
@@ -929,14 +896,14 @@ var Graphics2D = (function(window, undefined){
 			return this.before(index+1, points);
 		},
 		remove : function(index){
-			if(index == null)
+			if(index === undefined)
 				return Shape.prototype.remove.call(this);
 			this._points = this._points.slice(0, index).concat( this._points.slice(index+1) );
 			return this.update();
 		},
 
 		points : function(points){
-			if(points == null){
+			if(points === undefined){
 				return this._points.map(function(value){
 					return _.point(value);
 				});
@@ -977,7 +944,7 @@ var Graphics2D = (function(window, undefined){
 			// path.allPoints(function(func, arg){ return [0,0] })
 			var allPoints = [],
 				returnData, temp;
-			if(!fn){
+			if(fn === undefined){
 				fn = function(x,y){
 					allPoints.push([x,y]);
 				}
@@ -1095,12 +1062,13 @@ var Graphics2D = (function(window, undefined){
 				if(isArray(path[0])){ // [[0,0], [10,10], [100,100]]
 					path[0] = { f:'moveTo', arg:path[0] };
 					path.forEach(function(value, i){
-						if(!i) return; // first segment
-						if(value == true)
+						if(i == 0)
+							return; // first segment
+
+						if(value === true)
 							return path[i] = { f:'closePath', arg:[] }
 						path[i] = {};
 						switch(value.length){
-							// case undefined: path[i] = { f:'closeTo', arg:[] }; break;
 							case 2: path[i] = { f:'lineTo', arg:value }; break;
 							case 4: path[i] = { f:'quadraticCurveTo', arg:[ value[2], value[3], value[0], value[1] ] }; break;
 							case 6: path[i] = { f:'bezierCurveTo',arg:[ value[2], value[3], value[4], value[5], value[0], value[1] ] }; break;
@@ -1153,7 +1121,7 @@ var Graphics2D = (function(window, undefined){
 			this._z = context.elements.length;
 			this.context = context;
 
-			if(x == null){
+			if(x === undefined){
 				this._image = image.image;
 				this._x = image.x;
 				this._y = image.y;
@@ -1219,14 +1187,13 @@ var Graphics2D = (function(window, undefined){
 				w = this._image.width  * (this._height / this._image.height);
 			else if(h === null)
 				h = this._image.height * (this._width  / this._image.width );
-				// и почему в английском ширина и длина разного размера...
 
-			if(this._crop)
+			if(this._crop != null)
 				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
 			else
 				ctx.drawImage(this._image, this._x, this._y, w, h);
 
-			if(this._style.strokeStyle)
+			if(this._style.strokeStyle != null)
 				ctx.strokeRect(this._x, this._y, w, h);
 			ctx.restore();
 		}
@@ -1248,8 +1215,10 @@ var Graphics2D = (function(window, undefined){
 				this._x     = text.x;
 				this._y     = text.y;
 				this._font  = this._parseFont(text.font || '10px sans-serif');
-				text.baseline ? (this._style.textBaseline = text.baseline) : 0;
-				text.align ? (this._style.textAlign = text.align) : 0;
+				text.baseline !== undefined
+					&& (this._style.textBaseline = text.baseline);
+				text.align !== undefined
+					&& (this._style.textAlign = text.align);
 				this._genFont();
 				this._width = text.width;
 				this._attributes(text);
@@ -1282,13 +1251,16 @@ var Graphics2D = (function(window, undefined){
 			return this._property('y', y);
 		},
 		font : function(font){
-			if(font == null) return this._style.font;
-			if(font === true) return this._font;
+			if(font === undefined)
+				return this._style.font;
+			if(font === true)
+				return this._font;
 			extend(this._font, this._parseFont(font));
 			return this._genFont();
 		},
 		_setfont : function(name, value){ // да-да, я знаю, camelCase
-			if(value == null) return this._font[name];
+			if(value === undefined)
+				return this._font[name];
 			this._font[name] = value;
 			return this._genFont();
 		},
@@ -1343,9 +1315,9 @@ var Graphics2D = (function(window, undefined){
 			return this._setstyle('textBaseline', b);
 		},
 		underline : function(val){
-			if(val == null)
+			if(val === undefined)
 				return [this._underlineHeight, this._underlineColor];
-			if(val == true || val == false)
+			if(val === true || val === false)
 				this._underline = val;
 			// '2px red'
 			if(isString(val)){
@@ -1359,7 +1331,7 @@ var Graphics2D = (function(window, undefined){
 			return this.update();
 		},
 		width : function(w){
-            if(w == null && this._width == null){
+            if(w === undefined && this._width === undefined){
                 var ctx = this.context.context;
                 this._applyStyle();
                 var m = ctx.measureText( this._text ).width;
@@ -1388,14 +1360,12 @@ var Graphics2D = (function(window, undefined){
 				x = this._x,
 				y = this._y;
 
-			if(align == 'left'); // пусть для порядка висит
-			else if(align == 'center')
+			if(align == 'center')
 				x -= width/2;
 			else if(align == 'right')
 				x -= width;
 
-			if(baseline == 'top');
-			else if(baseline == 'middle')
+			if(baseline == 'middle')
 				y -= size/2;
 			else if(baseline == 'bottom' || baseline == 'ideographic')
 				y -= size;
@@ -1440,17 +1410,17 @@ var Graphics2D = (function(window, undefined){
 			// text, [font], x, y, [width], [fill], [stroke]
 			this._z = context.elements.length;
 			this.context = context;
-		//	this._style.textBaseline = 'top';
 			if(isHash(text)){
 				this._text  = text.text;
 				this._x     = text.x;
 				this._y     = text.y;
 				this._font  = this._parseFont(text.font);
-//				text.baseline ? (this._style.textBaseline = text.baseline) : 0;
-				text.align ? (this._style.textAlign = text.align) : 0;
+				text.align
+					&& (this._style.textAlign = text.align);
 				this._genFont();
-				this._width = text.width || 'auto'; // 0?
-				text.limit != null && (this._limit = text.limit);
+				this._width = text.width === undefined ? 'auto' : text.width;
+				text.limit !== undefined
+					&& (this._limit = text.limit);
 				this._attributes(text);
 			}
 			else {
@@ -1486,23 +1456,22 @@ var Graphics2D = (function(window, undefined){
 
 		// параметры
 		text : function(v){
-			if(v == null) return this._text;
+			if(v === undefined) return this._text;
 			this._text = v;
 			this._genLines();
 			return this.update();
-		//	v = this._property('text', v);
-		//	if(!isString(v)) return this._genLines().update();
-		//	return v;
 		},
 		x : Text.prototype.x,
-		y : Text.prototype.y, // можно сделать общий класс, от которого наследуется Text и TextBlock...
+		y : Text.prototype.y,
 		font : Text.prototype.font,
 		_setfont : Text.prototype._setfont,
 		_genFont : function(){
 			var str = '',
 				font = this._font;
-			font.italic && (str += 'italic ');
-			font.bold && (str += 'bold ');
+			font.italic !== undefined
+				&& (str += 'italic ');
+			font.bold !== undefined
+				&& (str += 'bold ');
 			this._style.font = str + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 			return this._genLines().update();
 		},
@@ -1512,7 +1481,7 @@ var Graphics2D = (function(window, undefined){
 		bold : Text.prototype.bold,
 		italic : Text.prototype.italic,
 		align : function(align){
-			if(align == null)
+			if(align === undefined)
 				return this._style.textAlign;
 			this._style.textAlign = align;
 			var w = this.width();
@@ -1523,13 +1492,12 @@ var Graphics2D = (function(window, undefined){
 			}[align]);
 			return this.update();
 		},
-	//	baseline : Text.prototype.baseline,
 		underline : Text.prototype.underline,
 
-		// параметры блока
+		// block parameters
 		width : function(v){
 			v = this._property('width', v);
-			if(v == 'auto'){
+			if(v == 'auto'){ // fixme
 				v = 0;
 				var ctx = this.context.context;
 				this._applyStyle();
@@ -1584,7 +1552,7 @@ var Graphics2D = (function(window, undefined){
 			return this;
 		},
 		lineHeight : function(height){
-			if(height == null)
+			if(height === undefined)
 				return this._lineHeight == null ? this._font.size : this._lineHeight;
 			if(height === false)
 				height = this._font.size;
@@ -1658,7 +1626,6 @@ var Graphics2D = (function(window, undefined){
 				this._from = from;
 				this._to = to;
 			}
-//			this._links = []; // без надобности
 			this.context = context;
 		},
 
@@ -1687,33 +1654,35 @@ var Graphics2D = (function(window, undefined){
 
 		},
 		color : function(i, color){
-			if(!color)
+			if(color === undefined)
 				return this._colors[i];
 			this._colors[i] = color;
 			return this.update();
 		},
 		colors : function(colors){
-			if(!colors) return this._colors;
+			if(colors === undefined)
+				return this._colors;
 			this._colors = colors;
 			return this.update();
 		},
 		mirror : function(val){
-			if(val === undefined) return !!this._mirror;
+			if(val === undefined)
+				return !!this._mirror;
 			this._mirror = val;
 			return this.update();
 		},
 
-		// общее
+		// general
 		from : function(x,y,r){
-			return this._point('_from', y == null ? x : [x,y,r]);
+			return this._point('_from', y === undefined ? x : [x,y,r]);
 		},
 		to : function(x,y,r){
-			return this._point('_to', y == null ? x : [x,y,r]);
+			return this._point('_to', y === undefined ? x : [x,y,r]);
 		},
 
-		// радиальный град
+		// radial
 		destination : function(x,y){
-			return this._param('_destination', y == null ? x : [x,y]);
+			return this._param('_destination', y === undefined ? x : [x,y]);
 		},
 		radius : function(r){
 			return this._param('_radius', r);
@@ -1728,7 +1697,7 @@ var Graphics2D = (function(window, undefined){
 			return this._param('_hilite', y == null ? x : [x,y]);
 		},
 
-		// радиал град
+		// radial
 		_point : function(prop, val){
 			if(this._radius){
 				this._from = [this._center[0] + this._hilite[0], this._center[1] + this._hilite[1], this._startRadius];
@@ -1765,7 +1734,7 @@ var Graphics2D = (function(window, undefined){
 			return this.update();
 		},
 
-		// отрисовка + _set
+		// drawing and _set
 		update : function(){
 			this.context.update();
 			return this;
@@ -1859,7 +1828,7 @@ var Graphics2D = (function(window, undefined){
 
 		// параметры
 		repeat : function(repeat){
-			if(repeat == null)
+			if(repeat === undefined)
 				return {
 					'repeat' : true,
 					'no-repeat' : false,
@@ -1900,7 +1869,7 @@ var Graphics2D = (function(window, undefined){
 				interval, time, frame;
 
 			interval = this.interval = setInterval(function(){ // fixme! requestAnimationFrame -- посмотреть, что там, а то фигня какая-то с ним получается
-				time = +new Date;
+				if(time == (time = +new Date)) return;
 				frame = ease( time > finish ? 1 : (time - start) / dur );
 				fn(from + delta * frame, frame);
 
@@ -1938,7 +1907,6 @@ var Graphics2D = (function(window, undefined){
 
 
 
-	// Утилиты
 	function Class(parent, properties){
 
 		if(!properties) properties = parent, parent = null;
@@ -1946,7 +1914,7 @@ var Graphics2D = (function(window, undefined){
 		var cls = function(){ return (cls.prototype.initialize || emptyFunc).apply(this,arguments) }
 		if(parent){
 
-			// переход в parent
+			// go to the parent
 			cls = function(){
 
 				if(cls.prototype.__initialize__)
@@ -1963,7 +1931,7 @@ var Graphics2D = (function(window, undefined){
 			}
 
 
-			// наследование прототипа
+			// prototype inheriting
 			var sklass = function(){}
 			sklass.prototype = parent.prototype;
 			cls.prototype = new sklass;
@@ -1995,7 +1963,7 @@ var Graphics2D = (function(window, undefined){
 	}
 	function isHash(a){
 		try {
-			JSON.stringify(a); // а вот так можно оставить только хэши
+			JSON.stringify(a); // only hashes
 			return toString.call(a) == '[object Object]';
 		}
 		catch(e){
@@ -2074,7 +2042,6 @@ var Graphics2D = (function(window, undefined){
 		'Q' : 'quadraticCurveTo',
 		'R' : 'rect',
 		'A' : 'arc',
-//		'Z' : 'closePath' // не проходит по регулярке
 	}
 
 	_.colors = { // http://www.w3.org/TR/css3-color/#svg-color
@@ -2278,13 +2245,12 @@ var Graphics2D = (function(window, undefined){
 			x += offsetElement.offsetLeft;
 			y += offsetElement.offsetTop;
 			offsetElement = offsetElement.offsetParent;
-			// у каждого элемента свойство offsetParent с элементом, от которого отсчитываются offsetTop и offsetLeft и так до body с offsetParent = null
 		}
 		return [x,y]
 	}
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
-		if(value == null) return;
+		if(value === undefined) return;
 
 		var test;
 		if(value in _.colors)
@@ -2301,13 +2267,12 @@ var Graphics2D = (function(window, undefined){
 			return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), Number(Math.random().toFixed(2))];
 
 		return [0,0,0,0];
-		// ну ещё можно добавить hsl, hsv, 0xff0000 и т.д. при желании можно даже cmyk и lab ).
 	}
 
 	_.distance = function(value){
-		if(value == null) return;
+		if(value === undefined) return;
 		if(!value) return 0;
-		if(toString.call(value) == '[object Number]') // isNumber не подходит :)
+		if(toString.call(value) == '[object Number]') // not isNumber :(
 			return value;
 
 		if((value + '').indexOf('px') == (value + '').length-2)
@@ -2315,7 +2280,7 @@ var Graphics2D = (function(window, undefined){
 
 		if(!_.units){
 			var div = document.createElement('div');
-			document.body.appendChild(div); // в некоторых браузерах это не нужно... в FF вроде
+			document.body.appendChild(div); // FF don't need this :)
 			_.units = {};
 			['em', 'ex', 'ch', 'rem', 'vw',
 			 'vh', 'vmin', 'vmax', 'cm',
