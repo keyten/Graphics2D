@@ -1165,7 +1165,21 @@ var Graphics2D = (function(window, undefined){
 		y2 : Rect.prototype.y2,
 		width  : Rect.prototype.width,
 		height : Rect.prototype.height,
-		bounds : Rect.prototype.bounds,
+		bounds : function(){
+			var w = this._width,
+				h = this._height;
+			if(w === null)
+				w = this._image.width  * (this._height / this._image.height);
+			else if(h === null)
+				h = this._image.height * (this._width  / this._image.width );
+
+			if(w === undefined && h == undefined){
+				w = this._image.width;
+				h = this._image.height;
+			}
+
+			return new Bounds(this._x, this._y, w, h);
+		},
 
 		crop : function(arr){
 			if(arguments.length == 0)
@@ -1468,9 +1482,9 @@ var Graphics2D = (function(window, undefined){
 		_genFont : function(){
 			var str = '',
 				font = this._font;
-			font.italic !== undefined
+			font.italic
 				&& (str += 'italic ');
-			font.bold !== undefined
+			font.bold
 				&& (str += 'bold ');
 			this._style.font = str + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 			return this._genLines().update();
