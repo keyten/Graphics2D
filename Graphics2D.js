@@ -662,7 +662,7 @@ var Graphics2D = (function(window, undefined){
 				process : trProcess(function(cur){
 					return [1, 0, 0, 1, 0, cur];
 				})
-			},
+			}
 
 		},
 		animate : function(params, value, dur, easing, after){
@@ -801,7 +801,7 @@ var Graphics2D = (function(window, undefined){
 		processPath : function(ctx){
 			ctx.beginPath();
 			ctx.rect(this._x, this._y, this._width, this._height);
-		},
+		}
 
 	});
 
@@ -843,7 +843,7 @@ var Graphics2D = (function(window, undefined){
 		processPath : function(ctx){
 			ctx.beginPath();
 			ctx.arc(this._cx, this._cy, this._radius, 0, Math.PI*2, true);
-		},
+		}
 
 	});
 
@@ -1109,7 +1109,7 @@ var Graphics2D = (function(window, undefined){
 					path.push({ f:'closePath', arg:[] });
 			}
 			return path;
-		},
+		}
 
 	});
 
@@ -1411,7 +1411,7 @@ var Graphics2D = (function(window, undefined){
 				ctx.stroke();
 			}
 			ctx.restore();
-		},
+		}
 	// TODO: mozPathText; mozTextAlongPath
 	// https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 	});
@@ -1857,7 +1857,7 @@ var Graphics2D = (function(window, undefined){
 		update : Gradient.prototype.update,
 		toCanvasStyle : function(context){
 			return context.createPattern(this._image, this._repeat);
-		},
+		}
 
 
 	});
@@ -1929,7 +1929,7 @@ var Graphics2D = (function(window, undefined){
 		},
 		elastic : function(t, v){
 			return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3)
-		},
+		}
 	};
 	['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 		Anim.easing[name] = function(t){ return Math.pow(t, i+2) }
@@ -2087,7 +2087,7 @@ var Graphics2D = (function(window, undefined){
 		'rt'	: [1, 0],
 		'tr'	: [1, 0],
 		'rb'	: [1, 1],
-		'br'	: [1, 1],
+		'br'	: [1, 1]
 	};
 
 	_.pathStrFunctions = {
@@ -2096,7 +2096,7 @@ var Graphics2D = (function(window, undefined){
 		'B' : 'bezierCurveTo',
 		'Q' : 'quadraticCurveTo',
 		'R' : 'rect',
-		'A' : 'arc',
+		'A' : 'arc'
 	}
 
 	_.colors = { // http://www.w3.org/TR/css3-color/#svg-color
