@@ -1900,11 +1900,52 @@ var Graphics2D = (function(window, undefined){
 
 	});
 
+	// Mootools :)
 	Anim.easing = {
 		linear : function(x){ return x },
-		easeIn : function(x){ return x * x },
-		easeOut : function(x){ return Math.sin(x * Math.PI / 2) }
+		half : function(x){ return Math.sqrt(x); },
+		pow : function(t, v){
+			return Math.pow(t, v || 6);
+		},
+		expo : function(t, v){
+			return Math.pow(v || 2, 8 * (t-1));
+		},
+		circ : function(t){
+			return 1 - Math.sin(Math.acos(t));
+		},
+		sine : function(t){
+			return 1 - Math.cos(t * Math.PI / 2);
+		},
+		back : function(t, v){
+			v = v || 1.618;
+			return Math.pow(t, 2) * ((v + 1) * t - v)
+		},
+		bounce : function(t){
+			for(var a = 0, b = 1; 1; a += b, b /= 2){
+				if(t >= (7 - 4 * a) / 11){
+					return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
+				}
+			}
+		},
+		elastic : function(t, v){
+			return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3)
+		},
 	};
+	['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
+		Anim.easing[name] = function(t){ return Math.pow(t, i+2) }
+	});
+
+	for(var i in Anim.easing){
+		(function(func){
+			Anim.easing[i + "In"] = func;
+			Anim.easing[i + "Out"] = function(t){
+				return 1 - func(1 - t);
+			}
+			Anim.easing[i + "InOut"] = function(t){
+				return t <= 0.5 ? func(2 * t) : (2 - func(2 * (1 - t))) / 2;
+			}
+		})(Anim.easing[i]);
+	}
 
 
 
