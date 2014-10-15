@@ -1147,8 +1147,11 @@ var Graphics2D = (function(window, undefined){
 					this._image = x;
 				}
 			}
-			this._width = this._width === undefined ? this._image.width : this._width;
-			this._height = this._height === undefined ? this._image.height : this._height;
+
+			if(this._image.complete && this._width === this._height === undefined){
+				this._width = this._width === undefined ? this._image.width : this._width;
+				this._height = this._height === undefined ? this._image.height : this._height
+			}
 			this._image.onload = function(){
 				this._width = this._width === undefined ? this._image.width : this._width;
 				this._height = this._height === undefined ? this._image.height : this._height;
