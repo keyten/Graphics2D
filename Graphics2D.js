@@ -1153,6 +1153,7 @@ var Graphics2D = (function(window, undefined){
 				this._height = this._height === undefined ? this._image.height : this._height
 			}
 			this._image.onload = function(){
+				this.fire('load');
 				this._width = this._width === undefined ? this._image.width : this._width;
 				this._height = this._height === undefined ? this._image.height : this._height;
 				this.update();
