@@ -30,7 +30,7 @@ var Graphics2D = (function(window, undefined){
 
 	Context.prototype = {
 
-		// CLasses
+		// Classes
 
 		rect : function(x, y, w, h, fill, stroke){
 			return this.push(new Rect(x, y, w, h, fill, stroke, this));
@@ -55,6 +55,22 @@ var Graphics2D = (function(window, undefined){
 		},
 		pattern : function(image, repeat){
 			return new Pattern(image, repeat, this);
+		},
+
+
+		// Path slices
+
+		line : function(fx, fy, tx, ty, stroke){
+			return this.push(new Path([[fx, fy], [tx, ty]], 0, 0, null, stroke, this));
+		},
+		quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
+			return this.push(new Path([[fx, fy], [tx, ty, hx, hy]], 0, 0, null, stroke, this));
+		},
+		bezier : function(fx, fy, tx, ty, h1x, h1y, h2x, h2y, stroke){
+			return this.push(new Path([[fx, fy], [tx, ty, h1x, h1y, h2x, h2y]], 0, 0, null, stroke, this));
+		},
+		arcTo : function(fx, fy, tx, ty, radius, clockwise, stroke){
+			return this.push(new Path([{ f:'moveTo', arg:[fx, fy] }, { f:'arcTo', arg:[fx, fy, tx, ty, radius, clockwise] }], 0, 0, null, stroke, this));
 		},
 
 
@@ -95,6 +111,7 @@ var Graphics2D = (function(window, undefined){
 
 
 		// Events
+
 		hoverElement : null,
 		focusElement : null,
 		_setListener : function(event, repeat){
@@ -190,15 +207,15 @@ var Graphics2D = (function(window, undefined){
 	};
 
 
-	// Анимация трансформаций
+	// Transform animation
 	var trStart = function(anim, end, param){
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
 			anim.object.matrixStart = this._matrix;
 			anim.object.matrixCur = [1,0,0,1,0,0];
 			anim.object.matrixCur.step = 0;
-		},
-		trProcess = function(fn){
+		};
+	var trProcess = function(fn){
 			return function(anim, end, step, param){
 				// если матрица с прошлого "тика" - мы её обнуляем
 				if(anim.object.matrixCur.step != step)
@@ -247,8 +264,11 @@ var Graphics2D = (function(window, undefined){
 				if(fill.indexOf('http://') == 0 || fill.indexOf('.') == 0 || (isHash(fill) && fill.image))
 					this._style.fillStyle = new Pattern(fill, null, this.context);
 			}
+			if(fill instanceof Image){
+				this._style.fillStyle = new Pattern(fill, null, this.context);
+			}
 
-			// в будущих версиях обязательно появится градиентная обводка
+			// TODO: gradient stroke
 		},
 		_applyStyle : function(){
 			var ctx = this.context.context;
@@ -486,7 +506,7 @@ var Graphics2D = (function(window, undefined){
 			finally { ctx.restore(); }
 		},
 
-		// трансформации
+		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
@@ -716,7 +736,7 @@ var Graphics2D = (function(window, undefined){
 			return this;
 		},
 
-		// стандартные значения параметров
+		// defaults
 		_visible : true
 	});
 
@@ -1076,6 +1096,12 @@ var Graphics2D = (function(window, undefined){
 					});
 				}
 				else { // [{ f:'moveTo', x:0, y:0 }, { f:'lineTo', x:10, y:10 }]
+					function set(fn, names){
+						fn.arg = [];
+						for(var i = 0, l = names.length; i < l; i++)
+							fn.arg.push( fn[ names[i] ] );
+					}
+
 					var a = {
 						'moveTo' : [ 'x', 'y' ],
 						'lineTo' : [ 'x', 'y' ],
@@ -1089,11 +1115,6 @@ var Graphics2D = (function(window, undefined){
 						if(!fn.arg)
 							set(fn, a[fn.f]);
 					});
-					function set(fn, names){
-						fn.arg = [];
-						for(var i = 0, l = names.length; i < l; i++)
-							fn.arg.push( fn[ names[i] ] );
-					}
 				}
 			}
 			else {
