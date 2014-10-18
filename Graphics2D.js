@@ -1148,17 +1148,44 @@ var Graphics2D = (function(window, undefined){
 				}
 			}
 
-			if(this._image.complete && this._width === this._height === undefined){
-				this._width = this._width === undefined ? this._image.width : this._width;
-				this._height = this._height === undefined ? this._image.height : this._height
+			var s;
+
+			// image already loaded
+			if(this._image.complete){
+				s = this._computeSize(this._width, this._height, this._image);
+				this._width = s[0];
+				this._height = s[1];
 			}
+			
 			this._image.onload = function(){
 				this.fire('load');
-				this._width = this._width === undefined ? this._image.width : this._width;
-				this._height = this._height === undefined ? this._image.height : this._height;
+				s = this._computeSize(this._width, this._height, this._image);
+				this._width = s[0];
+				this._height = s[1];
 				this.update();
 			}.bind(this);
 
+		},
+		
+		_computeSize : function(w, h, image){
+			// num, num
+			if(isNumber(w) && isNumber(h))
+				return [w, h];
+
+			// 'native', 'native' or 'auto', 'auto'
+			// and undefined, undefined
+			if((isString(w) && isString(h)) || (w === undefined && h === undefined))
+				return [image.width, image.height];
+
+			// native
+			if(w === 'native' || h === 'native')
+				return [w === 'native' ? image.width : w,
+						h === 'native' ? image.height : h];
+		
+			// auto
+			if(w === 'auto' || h === 'auto')
+				return [w === 'auto' ? image.width * (h / image.height) : w,
+						h === 'auto' ? image.height * (w / image.width) : h];
 		},
 
 		x  : Rect.prototype.x,
@@ -1167,22 +1194,16 @@ var Graphics2D = (function(window, undefined){
 		y1 : Rect.prototype.y1,
 		x2 : Rect.prototype.x2,
 		y2 : Rect.prototype.y2,
-		width  : Rect.prototype.width,
-		height : Rect.prototype.height,
+		width : function(w){
+			if(w === undefined) return this._width;
+			return this._property('width', this._computeSize(w, this._height, this._image)[0]);
+		},
+		height : function(h){
+			if(h === undefined) return this._height;
+			return this._property('height', this._computeSize(this._width, h, this._image)[1]);
+		},
 		bounds : function(){
-			var w = this._width,
-				h = this._height;
-			if(w === null)
-				w = this._image.width  * (this._height / this._image.height);
-			else if(h === null)
-				h = this._image.height * (this._width  / this._image.width );
-
-			if(w === undefined && h == undefined){
-				w = this._image.width;
-				h = this._image.height;
-			}
-
-			return new Bounds(this._x, this._y, w, h);
+			return new Bounds(this._x, this._y, this._width, this._height);
 		},
 
 		crop : function(arr){
@@ -1199,17 +1220,17 @@ var Graphics2D = (function(window, undefined){
 				return;
 			this._applyStyle();
 
-			var w = this._width,
+/*			var w = this._width,
 				h = this._height;
 			if(w === null)
 				w = this._image.width  * (this._height / this._image.height);
 			else if(h === null)
-				h = this._image.height * (this._width  / this._image.width );
+				h = this._image.height * (this._width  / this._image.width ); */
 
 			if(this._crop != null)
-				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
+				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
 			else
-				ctx.drawImage(this._image, this._x, this._y, w, h);
+				ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
 
 			if(this._style.strokeStyle != null)
 				ctx.strokeRect(this._x, this._y, w, h);
