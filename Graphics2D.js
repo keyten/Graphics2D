@@ -243,8 +243,8 @@ var Graphics2D = (function(window, undefined){
 				s.globalCompositeOperation = object.composite;
 			if(object.visible != null)
 				this._visible = object.visible;
-			if(object.mask)
-				this._mask = object.mask;
+			if(object.clip)
+				this._clip = object.clip;
 
 			this._fillAndStroke(object.fill, object.stroke, this.context.context);
 		},
@@ -277,8 +277,8 @@ var Graphics2D = (function(window, undefined){
 				if(Object.prototype.hasOwnProperty.call(this._style, i))
 					ctx[i] = this._style[i];
 			}
-			if(this._mask)
-				this._mask.processPath(ctx),
+			if(this._clip)
+				this._clip.processPath(ctx),
 				ctx.clip();
 			if(this._matrix)
 				ctx.transform.apply(ctx, this._matrix);
@@ -374,20 +374,20 @@ var Graphics2D = (function(window, undefined){
 			this._z = z;
 			return this.update();
 		},
-		mask : function(mask, a, b, c){
-			if(mask === undefined)
-				return this._mask;
-			if(mask === null)
-				delete this._mask;
+		clip : function(clip, a, b, c){
+			if(clip === undefined)
+				return this._clip;
+			if(clip === null)
+				delete this._clip;
 
-			if(mask.processPath)
-				this._mask = mask;
+			if(clip.processPath)
+				this._clip = clip;
 			else if(c != undefined)
-				this._mask = new Rect(mask, a, b, c, null, null, this.context);
+				this._clip = new Rect(clip, a, b, c, null, null, this.context);
 			else if(b != undefined)
-				this._mask = new Circle(mask, a, b, null, null, this.context);
+				this._clip = new Circle(clip, a, b, null, null, this.context);
 			else
-				this._mask = new Path(mask, 0, 0, null, null, this.context);
+				this._clip = new Path(clip, 0, 0, null, null, this.context);
 			return this.update();
 		},
 		remove : function(){
