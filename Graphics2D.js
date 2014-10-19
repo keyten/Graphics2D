@@ -1225,9 +1225,7 @@ var Graphics2D = (function(window, undefined){
 			if(h === undefined) return this._height;
 			return this._property('height', this._computeSize(this._width, h, this._image)[1]);
 		},
-		bounds : function(){
-			return new Bounds(this._x, this._y, this._width, this._height);
-		},
+		bounds : Rect.prototype.bounds,
 
 		crop : function(arr){
 			if(arguments.length == 0)
@@ -1242,13 +1240,6 @@ var Graphics2D = (function(window, undefined){
 			if(!this._visible)
 				return;
 			this._applyStyle();
-
-/*			var w = this._width,
-				h = this._height;
-			if(w === null)
-				w = this._image.width  * (this._height / this._image.height);
-			else if(h === null)
-				h = this._image.height * (this._width  / this._image.width ); */
 
 			if(this._crop != null)
 				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
