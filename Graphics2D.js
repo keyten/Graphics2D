@@ -1256,7 +1256,7 @@ var Graphics2D = (function(window, undefined){
 				ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
 
 			if(this._style.strokeStyle != null)
-				ctx.strokeRect(this._x, this._y, w, h);
+				ctx.strokeRect(this._x, this._y, this._width, this._height);
 			ctx.restore();
 		}
 
