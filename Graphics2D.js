@@ -1654,14 +1654,14 @@ var Graphics2D = (function(window, undefined){
 				this._colors = isArray(type.colors) ? this._parseColors(type.colors) : type.colors;
 
 				// radial
-				this._destination = type.destination;
-				this._radius = type.radius;
-				this._startRadius = type.startRadius;
-				this._center = type.center;
-				this._hilite = type.hilite;
+//				this._destination = type.destination;
+//				this._radius = type.radius;
+//				this._startRadius = type.startRadius;
+//				this._center = type.center;
+//				this._hilite = type.hilite;
 			}
 			else {
-				if(to == null)
+				if(to === undefined)
 					to = from,
 					from = colors,
 					colors = type,
@@ -1710,72 +1710,88 @@ var Graphics2D = (function(window, undefined){
 			this._colors = colors;
 			return this.update();
 		},
-		mirror : function(val){
-			if(val === undefined)
-				return !!this._mirror;
-			this._mirror = val;
-			return this.update();
-		},
 
 		// general
 		from : function(x,y,r){
-			return this._point('_from', y === undefined ? x : [x,y,r]);
-		},
-		to : function(x,y,r){
-			return this._point('_to', y === undefined ? x : [x,y,r]);
-		},
-
-		// radial
-		destination : function(x,y){
-			return this._param('_destination', y === undefined ? x : [x,y]);
-		},
-		radius : function(r){
-			return this._param('_radius', r);
-		},
-		startRadius : function(r){
-			return this._param('_startRadius', r);
-		},
-		center : function(x,y){
-			return this._param('_center', y == null ? x : [x,y]);
-		},
-		hilite : function(x,y){
-			return this._param('_hilite', y == null ? x : [x,y]);
-		},
-
-		// radial
-		_point : function(prop, val){
-			if(this._radius){
-				this._from = [this._center[0] + this._hilite[0], this._center[1] + this._hilite[1], this._startRadius];
-				this._to = [this._center[0], this._center[1], this._radius];
-			}
-			if(!this._from)
-				this._from = [0,0];
-			if(!this._to)
-				this._to = [0,0];
-
-			if(!val)
-				return this[prop];
-			this[prop] = val;
+			if(isArray(x)){
+				r = x[2];
+				y = x[1];
+				x = x[0];
+			} // we can use gradient.from(null, 10);
+			if(x != null) this._from[0] = x;
+			if(y != null) this._from[1] = y;
+			if(r != null) this._from[2] = r;
 			return this.update();
 		},
-		_param : function(prop, val){
-			if(this._from){
-				this._startRadius = isString(this._from) ? 0 : this._from[2];
-				this._radius = isString(this._to) ? null : this._to[2];
-				this._center = isString(this._to) ? this._to : this._to.slice(0,2);
-				if(this._from[0] != this._to[0] || this._from[1] != this._to[1])
-					this._hilite = [this._to[0] - this._from[0], this._to[1] - this._from[1]];
-				this._from = this._to = null;
+		to : function(x,y,r){
+			if(isArray(x)){
+				r = x[2];
+				y = x[1];
+				x = x[0];
 			}
-			if(!this._startRadius)
-				this._startRadius = 0;
-			if(!this._center)
-				this._center = [0,0];
-			if(!this._hilite)
-				this._hilite = [0,0];
-			if(!val)
-				return this[prop];
-			this[prop] = val;
+			if(x != null) this._to[0] = x;
+			if(y != null) this._to[1] = y;
+			if(r != null) this._to[2] = r;
+			return this.update();
+		},
+
+		// radial
+		radius : function(radius, y){
+			if(radius === undefined)
+				return this._to[2];
+
+			if(y !== undefined)
+				radius = [radius, y];
+
+			if(!isNumber(radius)){
+				var vx = this._to[0] - radius[0];
+				var vy = this._to[1] - radius[1];
+
+				this._to[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
+			}
+			else {
+				this._to[2] = _.distance(radius);
+			}
+			return this.update();
+		},
+		startRadius : function(radius, y){
+			if(radius === undefined)
+				return this._from[2];
+
+			if(y !== undefined)
+				radius = [radius, y];
+
+			if(!isNumber(radius)){
+				var vx = this._to[0] - radius[0];
+				var vy = this._to[1] - radius[1];
+
+				this._from[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
+			}
+			else {
+				this._from[2] = _.distance(radius);
+			}
+			return this.update();
+		},
+		center : function(x, y){
+			if(x === undefined)
+				return this._to.slice(0, 2);
+			if(y === undefined){
+				y = x[1];
+				x = x[0];
+			}
+			this._to[0] = x;
+			this._to[1] = y;
+			return this.update();
+		},
+		hilite : function(x, y){
+			if(x === undefined)
+				return [this._from[0] - this._to[0], this._from[1] - this._to[1]];
+			if(y === undefined){
+				y = x[1];
+				x = x[0];
+			}
+			this._from[0] = this._to[0] + x;
+			this._from[1] = this._to[1] + y;
 			return this.update();
 		},
 
@@ -1790,7 +1806,7 @@ var Graphics2D = (function(window, undefined){
 				to = this._to,
 				bounds;
 
-			// для углов типа 'top left' и т.п.
+			// for corners like 'top left'
 			if(isString(from)){
 				if(/^\d+(px|pt)?/.test(from))
 					this._from = from = _.distance(from);
@@ -1806,41 +1822,9 @@ var Graphics2D = (function(window, undefined){
 
 			if(this._type == 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
-			else {
-				if(from && to)
-					grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2]);
-				else {
-					var center = this._center,
-						hilite = this._hilite,
-						radius = this._radius,
-						startRadius = this._startRadius || 0,
-						destination = this._destination;
+			else 
+				grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || (bounds || (bounds = element.bounds())).height);
 
-					if(isString(center)){
-						if(/^\d+(px|pt)?/.test(center))
-							this._center = center = _.distance(center);
-						else
-							center = _.corner(center, bounds = element.bounds());
-					}
-					if(isString(hilite)){
-						if(/^\d+(px|pt)?/.test(hilite))
-							this._hilite = hilite = _.distance(hilite);
-						else
-							hilite = _.corner(hilite, bounds = element.bounds());
-					}
-					else if(!hilite)
-						hilite = [0,0];
-
-					// destination?
-
-					from = [center[0] + hilite[0], center[1] + hilite[1], startRadius];
-					to   = [center[0], center[1], radius];
-
-
-
-					grad = ctx.createRadialGradient.apply(ctx, from.concat(to));
-				}
-			}
 			for(var offset in this._colors){
 				grad.addColorStop( offset, this._colors[offset] );
 			}
