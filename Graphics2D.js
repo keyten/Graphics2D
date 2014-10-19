@@ -1649,16 +1649,32 @@ var Graphics2D = (function(window, undefined){
 		initialize : function(type, colors, from, to, context){
 			if(isHash(type)){
 				this._type = type.type || 'linear';
-				this._from = type.from;
-				this._to = type.to;
 				this._colors = isArray(type.colors) ? this._parseColors(type.colors) : type.colors;
 
+				this._from = type.from || [];
+				this._to = type.to || [];
+
 				// radial
-//				this._destination = type.destination;
-//				this._radius = type.radius;
-//				this._startRadius = type.startRadius;
-//				this._center = type.center;
-//				this._hilite = type.hilite;
+				if(type.center)
+					this._to[0] = type.center[0], // TODO: distance
+					this._to[1] = type.center[1];
+
+				if(type.hilite)
+					this._from[0] = this._to[0] + type.hilite[0],
+					this._from[1] = this._to[1] + type.hilite[1];
+				else if(!type.from)
+					this._from[0] = this._to[0],
+					this._from[1] = this._to[1];
+
+				if(isNumber(type.radius))
+					this._to[2] = _.distance(type.radius);
+				else if(isArray(type.radius))
+					this._to[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.radius[0], 2) + Math.pow(this._to[1] - type.radius[1], 2) ));
+				
+				if(isNumber(type.startRadius))
+					this._from[2] = _.distance(type.startRadius);
+				else if(isArray(type.startRadius))
+					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.startRadius[0], 2) + Math.pow(this._to[1] - type.startRadius[1], 2) ));
 			}
 			else {
 				if(to === undefined)
@@ -1718,7 +1734,7 @@ var Graphics2D = (function(window, undefined){
 				y = x[1];
 				x = x[0];
 			} // we can use gradient.from(null, 10);
-			if(x != null) this._from[0] = x;
+			if(x != null) this._from[0] = x; // TODO: distance ?
 			if(y != null) this._from[1] = y;
 			if(r != null) this._from[2] = r;
 			return this.update();
