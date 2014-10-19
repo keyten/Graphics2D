@@ -277,9 +277,17 @@ var Graphics2D = (function(window, undefined){
 				if(Object.prototype.hasOwnProperty.call(this._style, i))
 					ctx[i] = this._style[i];
 			}
-			if(this._clip)
-				this._clip.processPath(ctx),
+			if(this._clip){
+				if(this._clip._matrix){
+					ctx.save();
+					ctx.transform.apply(ctx, this._clip._matrix);
+					this._clip.processPath(ctx);
+					ctx.restore();
+				}
+				else
+					this._clip.processPath(ctx);
 				ctx.clip();
+			}
 			if(this._matrix)
 				ctx.transform.apply(ctx, this._matrix);
 			if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle)
