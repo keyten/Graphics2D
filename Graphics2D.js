@@ -1312,14 +1312,14 @@ var Graphics2D = (function(window, undefined){
 			return this._property('y', y);
 		},
 		font : function(font){
-			if(font === undefined)
-				return this._style.font;
 			if(font === true)
+				return this._style.font;
+			if(font === undefined)
 				return this._font;
 			extend(this._font, this._parseFont(font));
 			return this._genFont();
 		},
-		_setfont : function(name, value){ // да-да, я знаю, camelCase
+		_setFont : function(name, value){
 			if(value === undefined)
 				return this._font[name];
 			this._font[name] = value;
@@ -1346,28 +1346,24 @@ var Graphics2D = (function(window, undefined){
 					obj.italic = true;
 				else if(/^\d+(px|pt)?/.test(val))
 					obj.size = _.distance(val);
-//				else if(val == 'left' || val == 'center' || val == 'right')
-//					obj.align = val;
-//				else if(val == 'alphabetic' || val == 'ideographic' || val == 'middle' || val == 'top' || val == 'bottom')
-//					obj.baseline = val;
 				else
 					obj.family += ' ' + val;
 			});
-            if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) == '' )
+            if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) === '' )
                 delete obj.family;
 			return obj;
 		},
 		family : function(f){
-			return this._setfont('family', f);
+			return this._setFont('family', f);
 		},
 		size : function(s){
-			return this._setfont('size', s == null ? undefined : _.distance(s));
+			return this._setFont('size', s === undefined ? undefined : _.distance(s));
 		},
 		bold : function(b){
-			return this._setfont('bold', b == null ? null : !!b) || false;
+			return this._setFont('bold', b === undefined ? undefined : !!b) || false;
 		},
 		italic : function(i){
-			return this._setfont('italic', i == null ? null : !!i) || false;
+			return this._setFont('italic', i === undefined ? undefined : !!i) || false;
 		},
 		align : function(a){
 			return this._setstyle('textAlign', a);
@@ -1377,19 +1373,8 @@ var Graphics2D = (function(window, undefined){
 		},
 		underline : function(val){
 			if(val === undefined)
-				return [this._underlineHeight, this._underlineColor];
-			if(val === true || val === false)
-				this._underline = val;
-			// '2px red'
-			if(isString(val)){
-				var test;
-				if(test = val.match(/(\d+(px|pt))/))
-					this._underlineHeight = _.distance(test[1]);
-				if(test = val.replace(/(\d+(px|pt))/, '').replace(/^\s*/, '').replace(/\s*$/, ''))
-					this._underlineColor = test;
-				this._underline = true;
-			}
-			return this.update();
+				return !!this._underline;
+			return this._property('underline', !!val);
 		},
 		width : function(w){
             if(w === undefined && this._width === undefined){
@@ -1450,11 +1435,11 @@ var Graphics2D = (function(window, undefined){
 			if(this._underline){
 				var b = this.bounds();
 				ctx.beginPath();
-				var a = Math.round(this._font.size / 5) // 3.2
-				ctx.moveTo(b.x, b.y + b.h - a);
-				ctx.lineTo(b.x + b.w, b.y + b.h - a);
-				this._underlineColor  ? (ctx.strokeStyle = this._underlineColor ) : (ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle);
-				this._underlineHeight ? (ctx.lineWidth   = this._underlineHeight) : (ctx.lineWidth   = Math.round(this._font.size / 15));
+				var height = Math.round(this._font.size / 5)
+				ctx.moveTo(b.x, b.y + b.h - height);
+				ctx.lineTo(b.x + b.w, b.y + b.h - height);
+				ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
+				ctx.lineWidth   = Math.round(this._font.size / 15);
 				ctx.stroke();
 			}
 			ctx.restore();
@@ -1525,7 +1510,7 @@ var Graphics2D = (function(window, undefined){
 		x : Text.prototype.x,
 		y : Text.prototype.y,
 		font : Text.prototype.font,
-		_setfont : Text.prototype._setfont,
+		_setFont : Text.prototype._setFont,
 		_genFont : function(){
 			var str = '',
 				font = this._font;
@@ -1553,7 +1538,6 @@ var Graphics2D = (function(window, undefined){
 			}[align]);
 			return this.update();
 		},
-		underline : Text.prototype.underline,
 
 		// block parameters
 		width : function(v){
