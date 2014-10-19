@@ -497,6 +497,8 @@ var Graphics2D = (function(window, undefined){
 			return this;
 		},
 		isPointIn : function(x, y){
+			if(!this.processPath)
+				return false;
 			var ctx = this.context.context;
 			ctx.save();
 			if(this._matrix)
