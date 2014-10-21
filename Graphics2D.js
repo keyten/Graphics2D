@@ -38,8 +38,8 @@ var Graphics2D = (function(window, undefined){
 		circle : function(cx, cy, r, fill, stroke){
 			return this.push(new Circle(cx, cy, r, fill, stroke, this));
 		},
-		path : function(points, x, y, fill, stroke){
-			return this.push(new Path(points, x, y, fill, stroke, this));
+		path : function(points, fill, stroke){
+			return this.push(new Path(points, fill, stroke, this));
 		},
 		image : function(img, x, y, w, h){
 			return this.push(new Img(img, x, y, w, h, this));
@@ -881,30 +881,19 @@ var Graphics2D = (function(window, undefined){
 
 	Path = Class(Shape, {
 
-		initialize : function(points, x, y, fill, stroke, context){
+		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;
 			this.context = context;
 			if(isHash(points)){
 				this._points = this._readPath(points.points);
-				this._x = points.x;
-				this._y = points.y;
 				this._attributes(points);
 			}
 			else {
 				this._points = this._readPath(points);
-				this._x = x;
-				this._y = y;
 				this._fillAndStroke(fill, stroke, context.context);
 			}
 		},
 
-		// параметры
-		x : function(x){
-			return this._property('x', x);
-		},
-		y : function(y){
-			return this._property('y', y);
-		},
 		closed : function(v){
 			if(v === undefined)
 				return !!this._closed;
@@ -1076,8 +1065,6 @@ var Graphics2D = (function(window, undefined){
 		},
 		processPath : function(ctx){
 			ctx.save();
-			if(this._x || this._y)
-				ctx.translate(this._x || 0, this._y || 0);
 			ctx.beginPath();
 			this._points.forEach(function(point){
 				ctx[ point.f ].apply(ctx, point.arg);
