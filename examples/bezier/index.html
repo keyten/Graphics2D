@@ -42,8 +42,8 @@
 		button.mouseover(over).mouseout(out).mousedown(down).mouseup(up);
 		text.mouseover(over).mouseout(out).mousedown(down).mouseup(up);
 	}
-	button("Arrow", 10, function(){
-		tool("arrow");
+	button("Select", 10, function(){
+		tool("select");
 	});
 	button("Bezier", 50, function(){
 		tool("path");
@@ -97,7 +97,7 @@
 		return 'rgb(' + [rand(0,255), rand(0,255), rand(0,255)].join(',') + ')';
 	}
 </script>
-<script src="http://keyten.github.io/Graphics2D/examples/bezier/Arrow.js"></script>
+<script src="http://keyten.github.io/Graphics2D/examples/bezier/Select.js"></script>
 <script src="http://keyten.github.io/Graphics2D/examples/bezier/Path.js"></script>
 <script>
 	Tools.selected = Tools.path;
