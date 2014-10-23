@@ -61,16 +61,16 @@ var Graphics2D = (function(window, undefined){
 		// Path slices
 
 		line : function(fx, fy, tx, ty, stroke){
-			return this.push(new Path([[fx, fy], [tx, ty]], 0, 0, null, stroke, this));
+			return this.push(new Path([[fx, fy], [tx, ty]], null, stroke, this));
 		},
 		quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
-			return this.push(new Path([[fx, fy], [tx, ty, hx, hy]], 0, 0, null, stroke, this));
+			return this.push(new Path([[fx, fy], [tx, ty, hx, hy]], null, stroke, this));
 		},
 		bezier : function(fx, fy, tx, ty, h1x, h1y, h2x, h2y, stroke){
-			return this.push(new Path([[fx, fy], [tx, ty, h1x, h1y, h2x, h2y]], 0, 0, null, stroke, this));
+			return this.push(new Path([[fx, fy], [tx, ty, h1x, h1y, h2x, h2y]], null, stroke, this));
 		},
 		arcTo : function(fx, fy, tx, ty, radius, clockwise, stroke){
-			return this.push(new Path([{ f:'moveTo', arg:[fx, fy] }, { f:'arcTo', arg:[fx, fy, tx, ty, radius, clockwise] }], 0, 0, null, stroke, this));
+			return this.push(new Path([{ f:'moveTo', arg:[fx, fy] }, { f:'arcTo', arg:[fx, fy, tx, ty, radius, clockwise] }], null, stroke, this));
 		},
 
 
