@@ -1980,7 +1980,7 @@ var Graphics2D = (function(window, undefined){
 
 
 
-	function Class(parent, properties){
+	function Class(parent, properties, base){
 
 		if(!properties) properties = parent, parent = null;
 
@@ -2012,6 +2012,9 @@ var Graphics2D = (function(window, undefined){
 			cls.prototype.constructor = cls;
 
 		}
+		if(base)
+			extend(cls, base);
+
 		extend(cls.prototype, properties)
 
 		return cls;
