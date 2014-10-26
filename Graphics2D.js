@@ -235,7 +235,7 @@ var Graphics2D = (function(window, undefined){
 			this._style = {};
 		},
 
-		_attributes : function(object){
+		_parseHash : function(object){
 			var s = this._style;
 			if(object.opacity != null)
 				s.globalAlpha = object.opacity;
@@ -246,9 +246,9 @@ var Graphics2D = (function(window, undefined){
 			if(object.clip)
 				this._clip = object.clip;
 
-			this._fillAndStroke(object.fill, object.stroke, this.context.context);
+			this._processStyle(object.fill, object.stroke, this.context.context);
 		},
-		_fillAndStroke : function(fill, stroke, ctx){
+		_processStyle : function(fill, stroke, ctx){
 			if(fill)
 				this._style.fillStyle = fill;
 			if(stroke)
@@ -778,14 +778,14 @@ var Graphics2D = (function(window, undefined){
 				this._y = x.y;
 				this._width = x.width;
 				this._height = x.height;
-				this._attributes(x);
+				this._parseHash(x);
 			}
 			else {
 				this._x = x;
 				this._y = y;
 				this._width = w;
 				this._height = h;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -846,13 +846,13 @@ var Graphics2D = (function(window, undefined){
 				this._cx = x.cx || x.x;
 				this._cy = x.cy || x.y;
 				this._radius = x.radius;
-				this._attributes(x);
+				this._parseHash(x);
 			}
 			else {
 				this._cx = cx;
 				this._cy = cy;
 				this._radius = radius;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -886,11 +886,11 @@ var Graphics2D = (function(window, undefined){
 			this.context = context;
 			if(isHash(points)){
 				this._points = this._readPath(points.points);
-				this._attributes(points);
+				this._parseHash(points);
 			}
 			else {
 				this._points = this._readPath(points);
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -1146,7 +1146,7 @@ var Graphics2D = (function(window, undefined){
 				this._width = image.width;
 				this._height = image.height;
 				this._crop = image.crop;
-				this._attributes(image);
+				this._parseHash(image);
 			}
 			else {
 				this._image = image;
@@ -1269,7 +1269,7 @@ var Graphics2D = (function(window, undefined){
 					&& (this._style.textAlign = text.align);
 				this._genFont();
 				this._width = text.width;
-				this._attributes(text);
+				this._parseHash(text);
 			}
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
@@ -1284,7 +1284,7 @@ var Graphics2D = (function(window, undefined){
 				this._genFont();
 				this._x = x;
 				this._y = y;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -1454,7 +1454,7 @@ var Graphics2D = (function(window, undefined){
 				this._width = text.width === undefined ? 'auto' : text.width;
 				text.limit !== undefined
 					&& (this._limit = text.limit);
-				this._attributes(text);
+				this._parseHash(text);
 			}
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
@@ -1482,7 +1482,7 @@ var Graphics2D = (function(window, undefined){
 				this._x = x;
 				this._y = y;
 				this._width = width;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 			this._genLines();
 		},
