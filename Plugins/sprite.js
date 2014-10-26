@@ -79,6 +79,12 @@
 				callback = loop,
 				loop = true;
 
+			if(loop === undefined)
+				loop = true;
+
+			if(callback === undefined)
+				callback = emptyFunc;
+
 			var i = 0;
 			if(fps < 0){
 				i = sequence.length-1;
@@ -105,5 +111,7 @@
 		_visible : false
 	});
 
+
+	function emptyFunc(){}
 
 })(window, Graphics2D);
