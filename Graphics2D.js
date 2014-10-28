@@ -2424,8 +2424,7 @@ var Graphics2D = (function(window, undefined){
 		rotate : function(angle, unit){
 			if(unit !== 'rad')
 				angle = angle * Math.PI / 180;
-			angle = -angle;
-			return [Math.cos(angle), -Math.sin(angle), Math.sin(angle), Math.cos(angle), 0, 0];
+			return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0];
 		},
 		skew : function(x, y){
 			if(isArray(x)){
