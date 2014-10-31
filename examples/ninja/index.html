@@ -151,28 +151,28 @@
 <script>
 
 	var ctx = Graphics2D.id('ctx');
-	var bg = ctx.image("BG-armory.png",0,0);
+	var bg = ctx.image("http://keyten.github.io/Graphics2D/examples/ninja/BG-armory.png",0,0);
 	var position = [350, 255]
-	var stand = ctx.sprite('stand.png', position[0], position[1], 98, 156);
+	var stand = ctx.sprite('http://keyten.github.io/Graphics2D/examples/ninja/stand.png', position[0], position[1], 98, 156);
 	stand.autoslice(98, 156);
 	stand.frame(0);
 	stand.sequence('stand', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
 	stand.play('stand');
 
-	var block = ctx.sprite('block.png', position[0]-10, position[1]-9, 114, 173);
+	var block = ctx.sprite('http://keyten.github.io/Graphics2D/examples/ninja/block.png', position[0]-10, position[1]-9, 114, 173);
 	block.autoslice(114, 173);
 	block.frame(0);
 	block.sequence('block', [0,1,2,3]);
 	block.hide();
 	block.scale(0.95)
 
-	var bwalk = ctx.sprite('blockwalk.png', position[0]-10, position[1]-10, 582 / 6, 492 / 3);
+	var bwalk = ctx.sprite('http://keyten.github.io/Graphics2D/examples/ninja/blockwalk.png', position[0]-10, position[1]-10, 582 / 6, 492 / 3);
 	bwalk.autoslice(582 / 6, 492 / 3);
 	bwalk.frame(0);
 	bwalk.sequence('walk', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
 	bwalk.hide();
 
-	var run = ctx.sprite('run.png', position[0], position[1] + 9, 114, 140);
+	var run = ctx.sprite('http://keyten.github.io/Graphics2D/examples/ninja/run.png', position[0], position[1] + 9, 114, 140);
 	run.autoslice(114, 140);
 	run.frame(0);
 	run.sequence('runstart', [0,1,2,3,4,5,6]);
