@@ -54,7 +54,7 @@
 
 			this._frame = frame;
 			this._crop = this._frames[frame];
-			this._visible = true;
+//			this._visible = true;
 			this.fire('frame', {frame:frame});
 			return this.update();
 		},
@@ -69,6 +69,9 @@
 			this._sequences[name] = frames;
 		},
 		play : function(sequence, fps, loop, callback){
+			if(this._timer)
+				window.clearInterval(this._timer);
+
 			if($.util.isString(sequence))
 				sequence = this._sequences[sequence];
 
@@ -108,7 +111,7 @@
 		},
 
 		_frame : null,
-		_visible : false
+//		_visible : false
 	});
 
 

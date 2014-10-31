@@ -525,7 +525,6 @@ var Graphics2D = (function(window, undefined){
 		},
 		scale : function(x, y, pivot){
 			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
-			// да-да, я знаю, что это страшная конструкция. привыкайте, тут везде так
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
