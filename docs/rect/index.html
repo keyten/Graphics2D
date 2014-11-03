@@ -7,7 +7,7 @@
 		<meta name="description" content="Graphics2D : JavaScript canvas library">
 
 		<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet.css">
-		<title>Docs - Graphics2D</title>
+		<title>Rect - Docs - Graphics2D</title>
 		<script src="../../js/script.js"></script>
 	</head>
 
@@ -49,19 +49,42 @@
 					<a href="/Graphics2D/docs/pattern/">Pattern</a>
 				</div>
 				<div style="overflow:hidden">
-					<h2 style="margin:0;">Graphics2D API Documentation</h2>
-				<p>Download <a href="#">Graphics2D.js</a> and paste to your page:</p>
-				<div><pre><code>&lt;script src="Graphics2D.js"&gt;&lt;/script&gt;</code></pre></div><br/>
-				<p>Well, now add canvas:</p>
-				<div><pre><code>&lt;canvas id="mycanvas" width="700" height="500"&gt;&lt;/canvas&gt;</code></pre></div><br/>
-				<p>Let's get Graphics2D context:</p>
-				<div><pre><code>var ctx = Graphics2D.id('mycanvas');</code></pre></div><br/>
-				<p>We can draw!</p>
-				<div><pre><code>ctx.rect(10, 10, 200, 200, {
-	colors:['#0af', '#fa0'],
-	from:'top left',
-	to:'bottom'
-}, 'black 2px #f0a');</code></pre></div></div>
+					<h2 style="margin:0;">Rect</h2>
+					<p>Rectangle. Parameters: x, y, width, height, [fill, [stroke]].</p>
+					<pre><code>ctx.rect(10, 10, 200, 200, 'black');
+
+ctx.rect({
+    x : 100,
+    y : 100,
+    width : 50,
+    height : 50,
+
+    stroke : 'green 3px'
+});</code></pre>
+					<h3 id="rect-xywh">x, y, width, height</h3>
+					<p>Return or change.</p>
+					<pre><code>rect.x(); // -> 100
+rect.x(200);
+    .y(300)
+    .width(100);
+rect.x(); // -> 200
+rect.width(); // -> 100</code></pre>
+					<h3 id="rect-points">x1, y1, x2, y2</h3>
+					<p>Return or change coordinates of the left top or right bottom point.</p>
+					<pre><code>// rect - 10, 10, 200, 200
+// (x, y, width, height)
+
+rect.x1(); // -> 10
+rect.x2(); // -> 210
+
+rect.x1(0);
+// rect - 0, 10, 210, 200
+
+rect.x2(100);
+// rect - 0, 10, 110, 200</code></pre>
+
+
+				</div>
 			</section>
 		</div>
 

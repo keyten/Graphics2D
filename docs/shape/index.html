@@ -7,7 +7,7 @@
 		<meta name="description" content="Graphics2D : JavaScript canvas library">
 
 		<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet.css">
-		<title>Docs - Graphics2D</title>
+		<title>Shape - Docs - Graphics2D</title>
 		<script src="../../js/script.js"></script>
 	</head>
 
@@ -49,19 +49,223 @@
 					<a href="/Graphics2D/docs/pattern/">Pattern</a>
 				</div>
 				<div style="overflow:hidden">
-					<h2 style="margin:0;">Graphics2D API Documentation</h2>
-				<p>Download <a href="#">Graphics2D.js</a> and paste to your page:</p>
-				<div><pre><code>&lt;script src="Graphics2D.js"&gt;&lt;/script&gt;</code></pre></div><br/>
-				<p>Well, now add canvas:</p>
-				<div><pre><code>&lt;canvas id="mycanvas" width="700" height="500"&gt;&lt;/canvas&gt;</code></pre></div><br/>
-				<p>Let's get Graphics2D context:</p>
-				<div><pre><code>var ctx = Graphics2D.id('mycanvas');</code></pre></div><br/>
-				<p>We can draw!</p>
-				<div><pre><code>ctx.rect(10, 10, 200, 200, {
-	colors:['#0af', '#fa0'],
-	from:'top left',
-	to:'bottom'
-}, 'black 2px #f0a');</code></pre></div></div>
+					<h2 style="margin:0;">Shape</h2>
+					<p>Shape is a base class - all shapes inherits from him.</p>
+					<p>We can create any object in two ways:</p>
+					<pre><code>// parameters
+ctx.rect(10, 10, 200, 200, 'black', '2px blue');
+
+// or object
+ctx.rect({
+    x: 10,
+    y: 10,
+    width: 200,
+    height: 200,
+    fill: 'black',
+    stroke: '2px blue',
+
+    opacity: 0.5 // additional property
+});</code></pre>
+					<p>Available properties: opacity, composite, visible, clip.</p>
+
+					<p>Also we can create hidden objects - they will respond to events.</p>
+
+					<h3 id="shape-fill">fill ( color / gradient / texture : string / object )</h3>
+					<p>Returns object fill, or changes it.</p>
+					<pre><code>object.fill(); // -> 'red'
+object.fill('blue');</code></pre>
+					<p>Gradient - object with <code>colors</code> property. More is <a href="../gradient/">here</a>.</p>
+					<pre><code>object.fill({ colors:['red', 'green'], from:'top', to:'bottom' });
+object.fill(); // -> [object Object]</code></pre>
+					<p>Pattern - object with <code>image</code> property or string starts from <code>.</code>, <code>http://</code>.</p>
+
+					<h3 id="shape-stroke">stroke ( stroke:string / object / null )</h3>
+					<p>Returns object stroke, or changes it.</p>
+					<pre><code>object.stroke(); // -> Object(color, width, cap, join, dash)
+
+object.stroke('2px red');
+object.stroke('15px'); // changes only width; color is still 'red'
+object.stroke({ cap:true, color:'blue' });
+
+object.stroke(null); // removes stroke</code></pre>
+					<p>Possible parameters:</p>
+					<ul>
+						<li><code>width</code> -- any css-like unit (<code>5px</code>, <code>0.5em</code>). Without units - works as <code>px</code>.</li>
+						<li><code>color</code>.</li>
+						<li><code>join</code> -- <code>miter</code>, <code>bevel</code>, <code>round</code>.</li>
+						<li><code>cap</code> -- <code>butt</code>, <code>square</code>, <code>round</code>. And: <code>2px round red</code> -- cap = join = 'round'.</li>
+						<li><code>dash</code> -- array (<code>[2,2,1]</code>) or <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.</li>
+						<li><code>opacity</code> -- only float, only in text format. We can use <code>green 0.5</code> without <code>rgba(0, 128, 0, 0.5)</code>.</li>
+					</ul>
+
+					<h3 id="shape-opacity">opacity ( value:float {from 0 to 1} )</h3>
+					<p>Returns or changes opacity.</p>
+
+					<h3 id="shape-composite">composite ( value:string )</h3>
+					<p>All possible values is here: <a href="http://dev.w3.org/fxtf/compositing-1/" target="_blank">http://dev.w3.org/fxtf/compositing-1/</a>.</p>
+
+					<h3 id="shape-show-hide">show () / hide ()</h3>
+					<p>Makes object hidden / visible.</p>
+
+					<h3 id="shape-cursor">cursor ( value:string )</h3>
+					<p>Defines cursor on mouseover to object. All possible values is here: <a href="http://www.w3.org/TR/css3-ui/#cursor" target="_blank">http://www.w3.org/TR/css3-ui/#cursor</a>.</p>
+					<pre><code>object.cursor('crosshair');</code></pre>
+
+					<h3 id="shape-z">z ( value:int )</h3>
+					<p>Returns or changes z-index of object.</p>
+					<p>Z-index is index of object in all objects array. Each object has his unique z-index; object with larger z-index will be drawn over objects with less z-index.</p>
+					<pre><code>var a = ctx.rect(10, 10, 200, 200);
+var b = ctx.circle(100, 100, 50);
+a.z(); // -> 0
+b.z(); // -> 1
+
+b.z(0);
+b.z(); // -> 0
+a.z(); // -> 1</code></pre>
+					
+					<h3 id="shape-ispointin">isPointIn ( x:int, y:int )</h3>
+					<p>Returns true if point (x, y) is in shape.</p>
+					<pre><code>var rect = ctx.rect(10, 10, 10, 10);
+rect.isPointIn(0, 0); // -> false
+rect.isPointIn(11, 11); // -> true</code></pre>
+					
+					<h3 id="shape-bounds">bounds ()</h3>
+					<p>Isn't defined in Shape class, but all Graphics2D shape classes contains it. Returns bounds of object.</p>
+					<pre><code>ctx.circle(100, 100, 15)
+    .bounds(); // -> { x:85, y:85, width:30, height:30, cx... }</code></pre>
+    				<p>Object has properties: x, y, width, height, w, h (short aliases for width & height), x1, y1, x2, y2 (left top and right bottom point), cx, cy (center coords).</p>
+
+    				<h2 style="font-size:18pt;margin-top:40px;">Events</h2>
+    				<h3 id="shape-on">on ( event:string, function:function )</h3>
+    				<p>Adds listener to element. Supports all canvas events. Extends event object by 3 properties (targetObject, contextX, contextY). This == object.</p>
+    				<pre><code>object.on('mouseover', function(e){
+    e.targetObject == this; // true
+    e.contextX; // mouse coordinates on canvas
+    e.contextY;
+});</code></pre>
+					<p>We can use quick calls:</p>
+					<pre><code>object.on('click', 'fill', 'red');
+// instead of
+object.on('click', function(){
+	this.fill('red');
+});</code></pre>
+					<p>And timers:</p>
+					<pre><code>object.on(1000, function(){});
+// instead of
+setTimeout(function(){}.bind(object), 1000);
+
+// and:
+object.on(1000, 'fill', 'blue');</code></pre>
+
+					<h3 id="shape-once">once ( event:string, function:function )</h3>
+					<p>Listener, that will removed after first calling.</p>
+
+					<h3 id="shape-off">off ([event:string, [function:function]])</h3>
+					<p>Removes 1) all listeners; 2) all listeners to certain event; 3) certain listener.</p>
+					<pre><code>object.off('click', anyfunc);
+object.off('click');
+object.off();</code></pre>
+
+					<h3 id="shape-fire">fire ( event:string, [object:object] )</h3>
+					<p>Calls all listeners of the certain event.</p>
+					<pre><code>object.on('click', function(e){
+	alert(e.which);
+});
+object.fire('click', { which:23 });</code></pre>
+
+					<h3 id="shape-aliases">Aliases</h3>
+					<p>Aliases for <code>.on</code> and <code>.fire</code>. The next events: <code>click</code>, <code>dblclick</code>, <code>mousedown</code>, <code>mouseup</code>, <code>mousemove</code>, <code>mouseover</code>, <code>mouseout</code>, <code>mousewheel</code>, <code>focus</code>, <code>blur</code>. For example:</p>
+					<pre><code>object.click(function(e){
+	alert(2);
+});
+// == object.on('click', function...)
+
+object.mouseover('fill', 'red');
+
+object.click();
+// == object.fire('click');</code></pre>
+
+    				<h2 style="font-size:18pt;margin-top:40px;">Transformations</h2>
+    				<p>We can use the pivot parameter with all transform functions (except for translate).</p>
+    				<p>Pivot is an array or object with absolute coordinates (<code>[10, 10]</code>, <code>{ x: 15, y: 15 }</code>) or string with relative coordinates (<code>left</code> (left center); <code>top right</code> == <code>right top</code> == <code>tr</code> == <code>rt</code> and other).</p>
+    				<p>Pivot = center of shape by default.</p>
+
+    				<h3 id="shape-scale">scale ( size : float / object / array, [pivot] ); &nbsp; &nbsp; scale ( x : float, y : float, [pivot] )</h3>
+    				<p>Scales the shape.</p>
+    				<pre><code>object.scale(2);
+object.scale(2, 'left top');
+
+object.scale(2, 3);
+object.scale(2, 3, 'right bottom');
+
+object.scale([1, 0.5], 'center');
+object.scale({ x:1, y:0.5 });</code></pre>
+
+					<h3 id="shape-rotate">rotate ( angle, [pivot] )</h3>
+					<p>Rotates the shape (using degrees).</p>
+					<pre><code>object.rotate(45);
+object.rotate(-45, 'top');</code></pre>
+
+    				<h3 id="shape-skew">skew ( size : float / object / array, [pivot] ); &nbsp; &nbsp; skew ( x : float, y : float, [pivot] )</h3>
+    				<p>Skew transform; using degrees.</p>
+					<pre><code>object.skew(10);
+object.skew(-10, 'bottom');
+
+object.skew(5, 0);
+object.skew(0, 5, 'rb');
+
+object.skew([-5, -5], 'lt');
+object.skew({ x:0, y:0 });</code></pre>
+
+					<h3 id="shape-translate">translate ( x : int, y : int )</h3>
+					<p>Translates shape.</p>
+					<pre><code>object.translate(10, 10);</code></pre>
+
+					<h3 id="shape-transform">transform ( m11, m21, m12, m22, m13, m23, [pivot] )</h3>
+					<p>Transforms by matrix.</p>
+					<pre><code>object.transform(
+    Math.cos(Math.PI / 4),
+    Math.sin(Math.PI / 4),
+   -Math.sin(Math.PI / 4),
+    Math.cos(Math.PI / 4),
+    0,
+    0,
+
+    'center'
+);
+// will rotate object to 45 degrees (Pi / 4 radians)</code></pre>
+					<p>More about matrix transformations: <a href="http://en.wikipedia.org/wiki/Transformation_matrix" target="_blank">http://en.wikipedia.org/wiki/Transformation_matrix</a>.</p>
+
+    				<h2 style="font-size:18pt;margin-top:40px;">Animation</h2>
+    				<h3 id="shape-animate">animate ( parameter : string, value, [duration, [easing, [callback]]] )</h3>
+    				<h3 id="shape-animate">animate ( parameter : string, value, [options : object] )</h3>
+    				<h3 id="shape-animate">animate ( object : object, [duration, [easing, [callback]]] )</h3>
+    				<h3 id="shape-animate">animate ( object : object, [options : object] )</h3>
+    				<p>Duration - int; easing - string / function; callback - function.</p>
+
+    				<pre><code>object.animate('width', 100);
+object.animate('height', 300,
+   1000, 'bounceOut', function(){ this.hide() });
+
+object.animate({
+    x : 10,
+    fill : 'red',
+    stroke : '3px'
+}, {
+    duration : 5000, // ms
+    easing : function(x){ return Math.sin(x * Math.PI); }
+});</code></pre>
+					<p>Available parameters:</p>
+					<ul>
+						<li>opacity.</li>
+						<li>fill (except for gradients & patterns).</li>
+						<li>stroke (only width & color).</li>
+						<li>crop (for images).</li>
+						<li>x, y, width, height (rect).</li>
+						<li>cx, cy, radius (circle).</li>
+						<li>rotate, scale, scaleX, scaleY, skew, skewX, skewY, translate, translateX, translateY (transformations; pivot = 'center').</li>
+
+				</div>
 			</section>
 		</div>
 

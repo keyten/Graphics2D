@@ -100,7 +100,12 @@
 			CodeMirror.on(editor, 'change', function(){
 				clearTimeout(delay);
 				delay = setTimeout(function(){
+					var cnv = document.getElementById('canvas'),
+						ct = cnv.getContext('2d');
+					ct.clearRect(0,0,1000,1000);
 					eval(editor.getValue());
+					if(ctx)
+						delete ctx;
 				}, 300);
 			});
 		</script>
