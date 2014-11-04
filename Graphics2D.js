@@ -1021,8 +1021,8 @@ var Graphics2D = (function(window, undefined){
 		processPath : function(ctx){
 			ctx.save();
 			ctx.beginPath();
-			this._points.forEach(function(point){
-				point.process(ctx);
+			this._points.forEach(function(point, i){
+				point.process(ctx, i);
 			});
 			ctx.restore();
 		},
@@ -1033,14 +1033,14 @@ var Graphics2D = (function(window, undefined){
 
 				// number array
 				if(isArray(path[0])){
-					curves[0] = new _.pathFunctions.moveTo(path[0], false, curves);
+					curves[0] = new _.pathFunctions.moveTo(path[0], curves, this);
 
 					path.forEach(function(value, i){
 						if(i == 0)
 							return;
 
 						if(value === true){
-							curves[i] = new _.pathFunctions.closePath([], false, curves);
+							curves[i] = new _.pathFunctions.closePath([], curves, this);
 							return;
 						}
 
@@ -1050,16 +1050,16 @@ var Graphics2D = (function(window, undefined){
 								4: 'quadraticCurveTo',
 								6: 'bezierCurveTo'
 							}[value.length]
-						](value, false, curves);
-					});
+						](value, curves, this);
+					}.bind(this));
 				}
 
 				// objects
 				else {
 					path.forEach(function(value, i){
 						// {name, args, ?x,y}
-						curves[i] = new _.pathFunctions[value.name](value.arguments, false, curves);
-					});
+						curves[i] = new _.pathFunctions[value.name](value.arguments, curves, this);
+					}.bind(this));
 				}
 
 			}
@@ -2387,6 +2387,9 @@ var Graphics2D = (function(window, undefined){
 			arguments : function(value){
 				if(value === undefined)
 					return this._arguments;
+				if(arguments.length > 1)
+					value = Array.prototype.slice.call(arguments);
+
 				this._arguments = value;
 				for(var i = 0; i < this.base.params.length;i++)
 					this[this.base.params[i]] = value[i];
