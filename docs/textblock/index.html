@@ -50,6 +50,38 @@
 				</div>
 				<div style="overflow:hidden">
 					<h2 style="margin:0;">Textblock</h2>
+					<p>Text block. We use block coordinates and can break text (with \n or auto break).</p>
+					<p>Parameters : text, [font], x, y, [width], [fill, [stroke]].</p>
+					<pre><code>var tb, auto;
+tb = ctx.textblock("Hello,\ntextblock!", "Arial 0.7em", 10, 10, 'black');
+auto = ctx.textblock("It's must be a very long text, " + 
+           "and it will auto break, because we're using " +
+           "textblock", "Arial 13pt", 10, 10, 70, 'red');</code></pre>
+           			<h3 id="textblock-inherited">Inherited from the Text class</h3>
+           			<p><code>x</code>, <code>y</code>, <code>font</code>, <code>family</code>, <code>size</code>, <code>bold</code>, <code>italic</code>, <code>align</code>, <code>underline</code>. Baseline doesn't supported.</p>
+
+           			<h3 id="textblock-width">width ( value : int )</h3>
+           			<p>Returns / changes width of the block.</p>
+           			<pre><code>t = ctx.textblock("Lorem ipsum and etc...", "Arial 13pt", 10, 10, 'red');
+// block without width
+
+t.width(); // -> 171.6767578125
+
+t.width(100); // autobreaks the text
+t.width(); // -> 100</code></pre>
+
+					<h3 id="textblock-height">height ()</h3>
+					<p>Returns the height.</p>
+					<pre><code>t.height(); // -> 51</code></pre>
+
+					<h3 id="textblock-lineheight">lineHeight ( value : int )</h3>
+					<p>Returns / changes.</p>
+					<pre><code>t.lineHeight(); // -> 17
+t.lineHeight(30);
+t.lineHeight(); // -> 30</code></pre>
+
+					<h3 id="textblock-limit">limit ( value : int )</h3>
+					<p>Lines limit. Returns / changes.</p>
 				</div>
 			</section>
 		</div>
@@ -58,6 +90,7 @@
 		<div id="footer_wrap" class="outer">
 			<footer class="inner">
 				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+				<p style="font-size:10pt;">I'm sorry for my English... If you find a bug, please <a href="https://github.com/keyten/Graphics2D/issues">tell me</a>.</p>
 			</footer>
 		</div>
 

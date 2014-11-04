@@ -50,6 +50,29 @@
 				</div>
 				<div style="overflow:hidden">
 					<h2 style="margin:0;">Pattern</h2>
+					<p>Pattern. Parameters : image, repeat (true, false, 'x', 'y'; true by default).</p>
+					<pre><code>var pat = ctx.pattern('./img.png');
+
+var pat2 = ctx.pattern('#image', 'x');
+
+var i = new Image;
+i.src = '../img.jpg';
+var pat3 = ctx.pattern({
+  image: i,
+  repeat: false
+});</code></pre>
+					
+					<h3 id="pattern-inline">Inline pattern</h3>
+					<pre><code>ctx.rect(0, 0, 1, 1, './img.jpg');
+// link must begin with a '.' or 'http://'
+
+ctx.rect(1, 1, 1, 1, {
+  image: './png.jpg.gif',
+  repeat: 'y'
+});</code></pre>
+					
+					<h3 id="pattern-repeat">repeat ( value : boolean / string )</h3>
+					<p>Returns / changes. Values : <code>true</code>, <code>false</code>, <code>'x'</code>, <code>'y'</code>.</p>
 				</div>
 			</section>
 		</div>
@@ -58,6 +81,7 @@
 		<div id="footer_wrap" class="outer">
 			<footer class="inner">
 				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+				<p style="font-size:10pt;">I'm sorry for my English... If you find a bug, please <a href="https://github.com/keyten/Graphics2D/issues">tell me</a>.</p>
 			</footer>
 		</div>
 

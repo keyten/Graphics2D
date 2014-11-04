@@ -50,6 +50,59 @@
 				</div>
 				<div style="overflow:hidden">
 					<h2 style="margin:0;">Text</h2>
+					<p>Text. Just a text. Without line breaks. Parameters: text, [font], x, y, [fill, [stroke]].</p>
+					<pre><code>ctx.text("Hello, world!", 10, 10, "black");
+ctx.text("Bye, cruel JS", "Arial 15px", 10, 100, "red");
+
+ctx.text({
+    text : "Hey again, JS",
+    x : 10,
+    y : 150,
+
+    fill : '#ffa',
+    align : 'center'
+});</code></pre>
+					<p>Additional parameters: font, align, baseline, width (max width).</p>
+
+					<h3 id="text-txy">text, x, y</h3>
+					<p>Return or change certain parameter.</p>
+					<pre><code>tex1.text(); // -> "Hello, world!"
+tex1.text("Again, cruel JS");
+tex1.text(); // -> "Again, cruel JS"</code></pre>
+					
+					<h3 id="text-font">font ( value : string / object )</h3>
+					<pre><code>tex1.font(); // -> "italic bold 10px Arial"
+tex1.font(true); // -> { italic:true, bold:true, size:10, family:"Arial" }
+
+tex1.font("20pt"); // changes only size
+tex1.font({ bold:false });
+
+// Graphics2D understands even so:
+tex1.font('Comic 2px italic Sans bold MS');
+tex1.font(); // -> 'italic bold 2px Comic Sans MS'</code></pre>
+
+					<h3 id="text-fparams">family / size / bold / italic</h3>
+					<pre><code>tex1.family("Myfont bold")
+tex1.family(); // -> "Myfont bold"
+
+tex1.size(); // -> 10
+tex1.size('20px');
+
+tex1.bold(); // -> true
+tex1.bold(false);</code></pre>
+
+					<h3 id="text-align">align / baseline</h3>
+					<p>Align : <code>left</code>, <code>center</code>, <code>right</code>.</p>
+					<p>Baseline (vertical align) : <code>top</code>, <code>middle</code>, <code>bottom</code>, <code>ideographic</code>, <code>alphabetic</code>.</p>
+
+					<h3 id="text-underline">underline ( enabled : boolean )</h3>
+					<p><code>true</code> or <code>false</code>.</p>
+
+					<h3 id="text-width">width ( value : int )</h3>
+					<p>Returns current width; changes maximum width.</p>
+					<pre><code>tex1.width(); // -> 55.01953125
+tex1.width(30);
+tex1.width(); // -> 30</code></pre>
 				</div>
 			</section>
 		</div>
@@ -58,6 +111,7 @@
 		<div id="footer_wrap" class="outer">
 			<footer class="inner">
 				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+				<p style="font-size:10pt;">I'm sorry for my English... If you find a bug, please <a href="https://github.com/keyten/Graphics2D/issues">tell me</a>.</p>
 			</footer>
 		</div>
 

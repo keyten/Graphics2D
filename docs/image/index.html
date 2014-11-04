@@ -50,6 +50,34 @@
 				</div>
 				<div style="overflow:hidden">
 					<h2 style="margin:0;">Image</h2>
+					<p>Image. Parameters: image, x, y, [width, height].</p>
+					<p>We can use <code>'native'</code> (original image) or <code>'auto'</code> (with proportions saving) width / height.</p>
+					<pre><code>ctx.image("./image.jpg", 10, 10);
+
+// document.getElementById('image');
+ctx.image("#image", 50, 50, 200, 'auto');
+
+var i = new Image;
+i.src = 'http://keyten.github.io/Graphics2D/images/crossword.png';
+ctx.image({
+    image : i,
+    x : 100,
+    y : 100,
+
+    crop : [0, 0, 50, 50] // we can use crop
+});</code></pre>
+					
+					<h3 id="image-xywh">x, y, width, height</h3>
+					<p>Works like <a href="/Graphics2D/docs/rect/#rect-xywh">the same methods of Rect class</a>. And width / height can be used with <code>'native'</code> and <code>'auto'</code>.</p>
+
+					<h3 id="image-points">x1, y1, x2, y2</h3>
+					<p>Works like <a href="/Graphics2D/docs/rect/#rect-points">the same methods of Rect class</a>.</p>
+
+					<h3 id="image-crop">crop( value : array / arguments )</h3>
+					<p>Returns or changes the crop:</p>
+					<pre><code>image.crop(); // -> [0,0,10,10]
+image.crop(10, 10, 200, 200);
+image.crop([10, 10, 200, 200]);</code></pre>
 				</div>
 			</section>
 		</div>
@@ -58,6 +86,7 @@
 		<div id="footer_wrap" class="outer">
 			<footer class="inner">
 				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+				<p style="font-size:10pt;">I'm sorry for my English... If you find a bug, please <a href="https://github.com/keyten/Graphics2D/issues">tell me</a>.</p>
 			</footer>
 		</div>
 
