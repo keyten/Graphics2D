@@ -111,6 +111,39 @@ object.stroke(null); // removes stroke</code></pre>
 					<p>Defines cursor on mouseover to object. All possible values is here: <a href="http://www.w3.org/TR/css3-ui/#cursor" target="_blank">http://www.w3.org/TR/css3-ui/#cursor</a>.</p>
 					<pre><code>object.cursor('crosshair');</code></pre>
 
+					<h3 id="shape-clip">clip ( shape )</h3>
+					<p>Returns or changes the object's clip.</p>
+					<pre><code>object.clip(); // -> undefined
+
+// 4 parameters - rect
+object.clip( 10, 10, 200, 200 );
+
+// 3 parameters - circle
+object.clip( 100, 100, 50 );
+
+// has the processPath function:
+object.clip({
+    processPath : function(ctx){
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(100,0);
+        ctx.lineTo(50,100);
+        ctx.closePath();
+    }
+});
+
+// or:
+object.clip( ctx.rect(10, 10, 200, 200) );
+
+// other - path
+object.clip("M10,10 L200,200");
+
+// delete
+object.clip(null);</code></pre>
+					<p>We can change the clip:</p>
+					<pre><code>object.clip( 100, 100, 100, 100 );
+object.clip().animate('rotate', 45);</code></pre>
+
 					<h3 id="shape-z">z ( value:int )</h3>
 					<p>Returns or changes z-index of object.</p>
 					<p>Z-index is index of object in all objects array. Each object has his unique z-index; object with larger z-index will be drawn over objects with less z-index.</p>
@@ -124,7 +157,7 @@ b.z(); // -> 0
 a.z(); // -> 1</code></pre>
 					
 					<h3 id="shape-ispointin">isPointIn ( x:int, y:int )</h3>
-					<p>Returns true if point (x, y) is in shape.</p>
+					<p>Returns true if point (x, y) is in the shape.</p>
 					<pre><code>var rect = ctx.rect(10, 10, 10, 10);
 rect.isPointIn(0, 0); // -> false
 rect.isPointIn(11, 11); // -> true</code></pre>
@@ -134,6 +167,9 @@ rect.isPointIn(11, 11); // -> true</code></pre>
 					<pre><code>ctx.circle(100, 100, 15)
     .bounds(); // -> { x:85, y:85, width:30, height:30, cx... }</code></pre>
     				<p>Object has properties: x, y, width, height, w, h (short aliases for width & height), x1, y1, x2, y2 (left top and right bottom point), cx, cy (center coords).</p>
+
+    				<h3 id="shape-remove">remove ()</h3>
+    				<p>Removes the object.</p>
 
     				<h2 style="font-size:18pt;margin-top:40px;">Events</h2>
     				<h3 id="shape-on">on ( event:string, function:function )</h3>

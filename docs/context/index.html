@@ -72,6 +72,13 @@ ctx.getObjectInPoint(7, 7); // == second</code></pre>
 	e.contextX; // coordinates of mouse on context
 	e.contextY;
 });</code></pre>
+					<p>Btw, we can use timers:</p>
+					<pre><code>ctx.on(1000, function(e){
+    // this function will be called in 1000 ms
+
+    // this == ctx
+});</code></pre>
+
 					<h3 id="context-once">once( event, function )</h3>
 					<p>Listener, that will removed after first calling.</p>
 
