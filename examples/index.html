@@ -31,40 +31,21 @@
 		<!-- MAIN CONTENT -->
 		<div id="main_content_wrap" class="outer">
 			<section id="main_content" class="inner">
-				<div class="menu_left" id="docs_menu">
-					<span class="label" style="display:block;text-align:center;">Graphics2D.js 1.0</span>
-					<h4>Basic</h4>
-					<a href="">Basics</a>
-					<a href="context/">Context</a>
-					<a href="shape/">Shape</a>
-					<h4>Shapes</h4>
-					<a href="rect/">Rect</a>
-					<a href="circle/">Circle</a>
-					<a href="path/">Path</a>
-					<a href="image/">Image</a>
-					<a href="text/">Text</a>
-					<a href="textblock/">Textblock</a>
-					<h4>Filling</h4>
-					<a href="gradient/">Gradient</a>
-					<a href="pattern/">Pattern</a>
-				</div>
-				<div style="overflow:hidden">
-					<h2 style="margin:0;">Graphics2D API Documentation</h2>
-					<p>Download <a href="#">Graphics2D.js</a> and paste to your page:</p>
-					<pre><code>&lt;script src="Graphics2D.js"&gt;&lt;/script&gt;</code></pre>
-					<p>Well, now add canvas:</p>
-					<pre><code>&lt;canvas id="mycanvas" width="700" height="500"&gt;&lt;/canvas&gt;</code></pre>
-					<p>Let's get Graphics2D context:</p>
-					<pre><code>var ctx = Graphics2D.id('mycanvas');</code></pre>
-					<p>We can draw!</p>
-					<pre><code>ctx.rect(10, 10, 200, 200, {
-	colors:['#0af', '#fa0'],
-	from:'top left',
-	to:'bottom'
-}, 'black 2px #f0a');</code></pre>
-				</div>
+				<h2 style="margin:0">Examples</h2>
+				<a href="example.js" target="_blank">Bezier</a>
+				<a href="example.js" target="_blank">Gradients</a>
+				<a href="example.js" target="_blank">Transformations</a>
+<br/>
 			</section>
 		</div>
+
+		<style>
+			#main_content a {
+				display:block;
+				font-size:12pt;
+				padding:5px;
+			}
+		</style>
 
 		<!-- FOOTER	-->
 		<div id="footer_wrap" class="outer">

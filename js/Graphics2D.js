@@ -235,7 +235,7 @@ var Graphics2D = (function(window, undefined){
 			this._style = {};
 		},
 
-		_attributes : function(object){
+		_parseHash : function(object){
 			var s = this._style;
 			if(object.opacity != null)
 				s.globalAlpha = object.opacity;
@@ -246,9 +246,9 @@ var Graphics2D = (function(window, undefined){
 			if(object.clip)
 				this._clip = object.clip;
 
-			this._fillAndStroke(object.fill, object.stroke, this.context.context);
+			this._processStyle(object.fill, object.stroke, this.context.context);
 		},
-		_fillAndStroke : function(fill, stroke, ctx){
+		_processStyle : function(fill, stroke, ctx){
 			if(fill)
 				this._style.fillStyle = fill;
 			if(stroke)
@@ -525,7 +525,6 @@ var Graphics2D = (function(window, undefined){
 		},
 		scale : function(x, y, pivot){
 			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
-			// да-да, я знаю, что это страшная конструкция. привыкайте, тут везде так
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
@@ -778,14 +777,14 @@ var Graphics2D = (function(window, undefined){
 				this._y = x.y;
 				this._width = x.width;
 				this._height = x.height;
-				this._attributes(x);
+				this._parseHash(x);
 			}
 			else {
 				this._x = x;
 				this._y = y;
 				this._width = w;
 				this._height = h;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -846,13 +845,13 @@ var Graphics2D = (function(window, undefined){
 				this._cx = x.cx || x.x;
 				this._cy = x.cy || x.y;
 				this._radius = x.radius;
-				this._attributes(x);
+				this._parseHash(x);
 			}
 			else {
 				this._cx = cx;
 				this._cy = cy;
 				this._radius = radius;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -885,30 +884,24 @@ var Graphics2D = (function(window, undefined){
 			this._z = context.elements.length;
 			this.context = context;
 			if(isHash(points)){
-				this._points = this._readPath(points.points);
-				this._attributes(points);
+				this._points = this._parsePath(points.points);
+				this._parseHash(points);
 			}
 			else {
-				this._points = this._readPath(points);
-				this._fillAndStroke(fill, stroke, context.context);
+				this._points = this._parsePath(points);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
-		closed : function(v){
-			if(v === undefined)
-				return !!this._closed;
-			return this._property('closed', !!v);
-		},
-
-		// манипулируем точками
+		// points
 		point : function(index, value){
 			if(value === undefined)
-				return _.point(this._points[index]);
-			this._points = this._points.slice(0, index).concat(this._readPath(value).concat(this._points.slice(index+1)));
+				return this._points[index];
+			this._points = this._points.slice(0, index).concat(this._parsePath(value).concat(this._points.slice(index+1)));
 			return this.update();
 		},
 		before : function(index, points){
-			this._points = this._points.slice(0, index).concat(this._readPath(points).concat(this._points.slice(index)));
+			this._points = this._points.slice(0, index).concat(this._parsePath(points).concat(this._points.slice(index)));
 			return this.update();
 		},
 		after : function(index, points){
@@ -923,17 +916,18 @@ var Graphics2D = (function(window, undefined){
 
 		points : function(points){
 			if(points === undefined){
-				return this._points.map(function(value){
-					return _.point(value);
-				});
+				return this._points;
 			}
-			this._points = this._readPath(points);
+			this._points = this._parsePath(points);
 			return this.update();
 		},
 
-		add : function(f, arg){
-			this._points.push({ f:f, arg:arg });
+		push : function(object){
+			this._points.push(object);
 			return this.update();
+		},
+		add : function(name, arg){
+			return this.push( new _.pathFunctions[name](arg, this._points, this) );
 		},
 		moveTo : function(x, y){
 			return this.add('moveTo', [x, y]);
@@ -953,11 +947,11 @@ var Graphics2D = (function(window, undefined){
 		arc : function(x, y, radius, start, end, clockwise){
 			return this.add('arc', [x, y, radius, start, end, clockwise]);
 		},
-		close : function(){
-			return this._property('closed', true);
+		closePath : function(){
+			return this.add('closePath');
 		},
 
-		// трансформации
+		// transformations
 		allPoints : function(fn){
 			// path.allPoints() => [[0,0], [10,10]]
 			// path.allPoints(function(func, arg){ return [0,0] })
@@ -970,78 +964,34 @@ var Graphics2D = (function(window, undefined){
 				returnData = true;
 			}
 			this._points.forEach(function(func){
-				var arg = func.arg;
-				if( temp = fn(parseInt(arg[0]), parseInt(arg[1])) ){
+				var arg = func._arguments;
+				if( temp = fn(Number(arg[0]), Number(arg[1])) ){
 					arg[0] = temp[0];
 					arg[1] = temp[1];
 				}
-				if( arg.length > 3 && func.f != 'arc' && (temp = fn(parseInt(arg[2]), parseInt(arg[3]))) ){
+				if( arg.length > 3 && func.name != 'arc' && (temp = fn(Number(arg[2]), Number(arg[3]))) ){
 					arg[2] = temp[0];
 					arg[3] = temp[1];
 				}
-				if( func.f == 'bezierCurveTo' && (temp = fn(parseInt(arg[4]), parseInt(arg[5]))) ){
+				if( func.name == 'bezierCurveTo' && (temp = fn(Number(arg[4]), Number(arg[5]))) ){
 					arg[4] = temp[0];
 					arg[5] = temp[1];
 				}
 			});
 			return returnData ? allPoints : this.update();
 		},
-		transformPoints : function(a,b,c,d,e,f, pivot){
-			var funcs = {
-					'translate' : function(){
-						// 'translate', x, y
-						e = b;
-						f = c;
-						a = d = 1;
-						b = c = 0;
-					},
-					'scale' : function(){
-						// 'scale', x, y, pivot
-						// 'scale', size, pivot
-						if(!isNumber(c))
-							d = c,
-							c = b;
-						pivot = d;
-						a = b;
-						d = c;
-						b = c = e = f = 0;
-					},
-					'rotate' : function(){
-						// 'rotate', angle, pivot
-						pivot = c;
-						//cos, sin, -sin, cos
-						a = d = Math.cos( b * Math.PI / 180 );
-						b = Math.sin( b * Math.PI / 180 );
-						c = -b;
-						e = f = 0;
-					},
-					'skew' : function(){
-						// 'skew', x, y, pivot
-						// 'skew', size, pivot
-						if(!isNumber(c))
-							d = c,
-							c = b;
-						pivot = d;
-						// 1, tan y, tan x, 1
-						a = d = 1;
-						e = b;
-						b = Math.tan( c * Math.PI / 180 );
-						c = Math.tan( e * Math.PI / 180 );
-						e = f = 0;
-					}
-				},
-				m  = [1,0,0,1,0,0], m2;
+		transformPath : function(a,b,c,d,e,f, pivot){
+			if(isString(a) && a in _.transformFunctions){
+				a = _.transformFunctions[a].apply(null, Array.prototype.slice.call(arguments,1));
+				b = a[1];
+				c = a[2];
+				d = a[3];
+				e = a[4];
+				f = a[5];
+				a = a[0];
+			}
 
-			// if (a in _.transformFunctions)
-			// 	   [a, b, c, d, e, f] = _.transformFunctions.apply(null, arguments);
-			// как-то так хочу
-			// называется "вначале кодишь, а потом думаешь"
-
-
-			if(a in funcs)
-				funcs[a]();
-			m2 = [a,b,c,d,e,f]
-
+			var m = [1,0,0,1,0,0], m2 = [a,b,c,d,e,f];
 			_.transform(m, m2, _.corner(pivot, this.bounds()));
 			return this.allPoints(function(x, y){
 				return _.transformPoint(x, y, m);
@@ -1055,7 +1005,12 @@ var Graphics2D = (function(window, undefined){
 				x2 = -Infinity,
 				y2 = -Infinity;
 			this._points.forEach(function(point){
-				var a = point.arg; // только вот если a[2] будет 0, то это не очень получится...
+				if(point.name != 'lineTo'
+					&& point.name != 'moveTo'
+					&& point.name != 'quadraticCurveTo'
+					&& point.name != 'bezierCurveTo')
+					return;
+				var a = point._arguments; // and if a[2] or a[4] == 0?
 				x  = Math.min( x,  a[0], a[2] || x,  a[4] || x  );
 				y  = Math.min( y,  a[1], a[3] || y,  a[5] || y  );
 				x2 = Math.max( x2, a[0], a[2] || x2, a[4] || x2 );
@@ -1066,67 +1021,81 @@ var Graphics2D = (function(window, undefined){
 		processPath : function(ctx){
 			ctx.save();
 			ctx.beginPath();
-			this._points.forEach(function(point){
-				ctx[ point.f ].apply(ctx, point.arg);
+			this._points.forEach(function(point, i){
+				point.process(ctx, i);
 			});
-			if(this._closed)
-				ctx.closePath();
 			ctx.restore();
 		},
-		_readPath : function(path){
+		_parsePath : function(path){
 			if(!path) return [];
+			var curves = [];
 			if(isArray(path)){
-				if(isArray(path[0])){ // [[0,0], [10,10], [100,100]]
-					path[0] = { f:'moveTo', arg:path[0] };
+
+				// number array
+				if(isArray(path[0])){
+					curves[0] = new _.pathFunctions.moveTo(path[0], curves, this);
+
 					path.forEach(function(value, i){
 						if(i == 0)
-							return; // first segment
+							return;
 
-						if(value === true)
-							return path[i] = { f:'closePath', arg:[] }
-						path[i] = {};
-						switch(value.length){
-							case 2: path[i] = { f:'lineTo', arg:value }; break;
-							case 4: path[i] = { f:'quadraticCurveTo', arg:[ value[2], value[3], value[0], value[1] ] }; break;
-							case 6: path[i] = { f:'bezierCurveTo',arg:[ value[2], value[3], value[4], value[5], value[0], value[1] ] }; break;
+						if(value === true){
+							curves[i] = new _.pathFunctions.closePath([], curves, this);
+							return;
 						}
-					});
-				}
-				else { // [{ f:'moveTo', x:0, y:0 }, { f:'lineTo', x:10, y:10 }]
-					function set(fn, names){
-						fn.arg = [];
-						for(var i = 0, l = names.length; i < l; i++)
-							fn.arg.push( fn[ names[i] ] );
-					}
 
-					var a = {
-						'moveTo' : [ 'x', 'y' ],
-						'lineTo' : [ 'x', 'y' ],
-						'quadraticCurveTo' : [ 'hx', 'hy', 'x', 'y' ],
-						'bezierCurveTo' : ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
-						'arc' : ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
-						'arcTo' : ['x1', 'y1', 'x2', 'y2', 'radius', 'anticlockwise'],
-						'closePath' : []
-					};
-					path.forEach(function(fn){
-						if(!fn.arg)
-							set(fn, a[fn.f]);
-					});
+						curves[i] = new _.pathFunctions[
+							{
+								2: 'lineTo',
+								4: 'quadraticCurveTo',
+								6: 'bezierCurveTo'
+							}[value.length]
+						](value, curves, this);
+					}.bind(this));
+				}
+
+				// objects
+				else {
+					path.forEach(function(value, i){
+						// {name, args, ?x,y}
+						curves[i] = new _.pathFunctions[value.name](value.arguments, curves, this);
+					}.bind(this));
+				}
+
+			}
+
+			// SVG-like
+			else if(isString(path)){
+				// regular for numbers: /\-?\d*\.\d+|\-?\d+/g
+				var match = path.match(/([A-Za-z])\s*((\-?\d*\.\d+|\-?\d+)((\s*,\s*|\s|\-)(\-?\d*\.\d+|\-?\d+))*)?/g);
+				var curves = []; // TODO: make possible more than one letter?
+				var command;
+				var numbers;
+				var length;
+				for(var i = 0, l = match.length; i < l; i++){
+					command = _.svgFunctions[match[i][0]];
+					numbers = match[i].match(/\-?\d*\.\d+|\-?\d+/g); // arguments
+					length = _.svgPathLengths[match[i][0]]; // count of the arguments (L - 2, H - 1...)
+					if(numbers){
+						numbers = numbers.map(function(v){ return Number(v) });
+
+						if(numbers.length > length){
+							// multiple in one command: L100,100,200,200,300,300,400,400 (== L100,100 L200,200, ...)
+							var exist = numbers.length,
+								mustb = length,
+								iters = exist / mustb;
+							for(; mustb <= exist; mustb+=length){
+								curves.push(new _.pathFunctions[command](numbers.slice(mustb-length, mustb), curves, this));
+							}
+						}
+						else
+							curves.push(new _.pathFunctions[command](numbers, curves, this));
+					}
+					else
+						curves.push(new _.pathFunctions[command](numbers, curves, this));
 				}
 			}
-			else {
-				var str  = (path + '').toUpperCase(),
-					path = [];
-				str.match(/([a-z][0-9]*,[0-9]*(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?(,[0-9]*)?)/gi).forEach(function(value,i){
-					path[i] = {
-						f : _.pathStrFunctions[ value[0] ],
-						arg : value.substr(1).split(',')
-					};
-				});
-				if(str.indexOf('Z') > -1)
-					path.push({ f:'closePath', arg:[] });
-			}
-			return path;
+			return curves;
 		}
 
 	});
@@ -1146,7 +1115,7 @@ var Graphics2D = (function(window, undefined){
 				this._width = image.width;
 				this._height = image.height;
 				this._crop = image.crop;
-				this._attributes(image);
+				this._parseHash(image);
 			}
 			else {
 				this._image = image;
@@ -1269,7 +1238,7 @@ var Graphics2D = (function(window, undefined){
 					&& (this._style.textAlign = text.align);
 				this._genFont();
 				this._width = text.width;
-				this._attributes(text);
+				this._parseHash(text);
 			}
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
@@ -1284,7 +1253,7 @@ var Graphics2D = (function(window, undefined){
 				this._genFont();
 				this._x = x;
 				this._y = y;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 		},
 
@@ -1454,7 +1423,7 @@ var Graphics2D = (function(window, undefined){
 				this._width = text.width === undefined ? 'auto' : text.width;
 				text.limit !== undefined
 					&& (this._limit = text.limit);
-				this._attributes(text);
+				this._parseHash(text);
 			}
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
@@ -1482,7 +1451,7 @@ var Graphics2D = (function(window, undefined){
 				this._x = x;
 				this._y = y;
 				this._width = width;
-				this._fillAndStroke(fill, stroke, context.context);
+				this._processStyle(fill, stroke, context.context);
 			}
 			this._genLines();
 		},
@@ -1980,7 +1949,7 @@ var Graphics2D = (function(window, undefined){
 
 
 
-	function Class(parent, properties){
+	function Class(parent, properties, base){
 
 		if(!properties) properties = parent, parent = null;
 
@@ -2012,6 +1981,9 @@ var Graphics2D = (function(window, undefined){
 			cls.prototype.constructor = cls;
 
 		}
+		if(base)
+			extend(cls, base);
+
 		extend(cls.prototype, properties)
 
 		return cls;
@@ -2379,32 +2351,6 @@ var Graphics2D = (function(window, undefined){
 		return [bounds.x + bounds.w * _.corners[corner][0], bounds.y + bounds.h * _.corners[corner][1] ];
 	}
 
-	_.point = function(point){
-		function args(){
-			for(var i = 0, l = arguments.length; i < l; i++)
-				point[arguments[i]] = point.arg[i];
-		}
-		switch(point.f){ // а нужен ли тут break?.. вот так вот я умудряюсь не до конца знать операторы языка...
-			case 'moveTo': case 'lineTo':
-				args('x', 'y');
-				break;
-			case 'quadraticCurveTo':
-				args('hx', 'hy', 'x', 'y');
-				break;
-			case 'bezierCurveTo':
-				args('h1x', 'h1y', 'h2x', 'h2y', 'x', 'y');
-				break;
-			case 'arcTo':
-				args('x1', 'y1', 'x2', 'y2', 'radius', 'clockwise');
-				break;
-			case 'arc':
-				args('x', 'y', 'radius', 'start', 'end', 'anti'); // TODO: что это за anti такое?
-				break;
-		}
-		return point;
-	}
-
-
 	// Animation
 	_.animTransformConstants = {
 		rotate : 0,
@@ -2419,13 +2365,93 @@ var Graphics2D = (function(window, undefined){
 		translateY : 0
 	};
 
+	// Path
+	_.pathFunctions = {
+		moveTo: { name:'moveTo', params:['x','y'] },
+		lineTo: { name:'lineTo', params:['x','y'] },
+		quadraticCurveTo: { name:'quadraticCurveTo', params:['hx','hy', 'x','y'] },
+		bezierCurveTo: { name:'bezierCurveTo', params:['h1x','h1y', 'h2x','h2y', 'x','y'] },
+		closePath: { name:'closePath', params:[] },
+	};
+	for(var cm in _.pathFunctions){
+		var cur = _.pathFunctions[cm];
+		_.pathFunctions[cm] = function(numbers, curves, path){
+			this.name = this.base.name;
+			this._arguments = numbers;
+			this.update = path.update.bind(path);
+			for(var i = 0; i < this.base.params.length;i++)
+				this[this.base.params[i]] = numbers[i];
+		}
+		_.pathFunctions[cm].prototype = {
+			base: cur,
+			arguments : function(value){
+				if(value === undefined)
+					return this._arguments;
+				if(arguments.length > 1)
+					value = Array.prototype.slice.call(arguments);
+
+				this._arguments = value;
+				for(var i = 0; i < this.base.params.length;i++)
+					this[this.base.params[i]] = value[i];
+				this.update();
+				return this;
+			},
+			set : function(name, value){
+				var index = this.base.params.indexOf(name);
+				this._arguments[index] = value;
+				this[name] = value;
+				this.update();
+				return this;
+			},
+			process : function(ctx){
+				ctx[this.name].apply(ctx, this._arguments);
+			}
+		};
+	};
+	// It's not real SVG!
+	_.svgFunctions = { M:'moveTo', L:'lineTo', C:'bezierCurveTo', Q:'quadraticCurveTo', Z:'closePath',
+		m:'moveTo', l:'lineTo', c:'bezierCurveTo', q:'quadraticCurveTo', z:'closePath' };
+	_.svgPathLengths = { M:2, L:2, C:6, Q:4, Z:0, m:2, l:2, c:6, q:4, z:0 };
+
+	_.transformFunctions = {
+		scale : function(x, y){
+			if(isArray(x)){
+				y = x[1];
+				x = x[0];
+			}
+			if(y === undefined)
+				y = x;
+			return [x, 0, 0, y, 0, 0];
+		},
+		rotate : function(angle, unit){
+			if(unit !== 'rad')
+				angle = angle * Math.PI / 180;
+			return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0];
+		},
+		skew : function(x, y){
+			if(isArray(x)){
+				y = x[1];
+				x = x[0];
+			}
+			if(y === undefined)
+				y = x;
+			return [1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0];
+		},
+		translate : function(x, y){
+			if(isArray(x)){
+				y = x[1];
+				x = x[0];
+			}
+			if(y === undefined)
+				y = x;
+			return [1, 0, 0, 1, x, y];
+		}
+	};
+
 
 	return {
 
-//		version : Math.PI * 0.01,
-// ШТО? o_O оставлю для истории
-
-		version : Math.PI / Math.PI, // а хотя почему бы и нет
+		version : Math.PI / Math.PI, // :)
 		util : _,
 		Class : Class,
 

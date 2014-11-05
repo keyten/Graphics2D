@@ -20,12 +20,12 @@
 		<div id="header_wrap" class="outer">
 				<header class="inner">
 					<div id="header_menu">
-						<a href="/Graphics2D/">Home</a>
-						<a href="/Graphics2D/sandbox/">Sandbox</a>
-						<a href="/Graphics2D/examples/">Examples</a>
-						<a href="/Graphics2D/docs/">Docs</a>
-						<a href="#">Download</a>
-						<a href="/Graphics2D/plugins/">Plugins</a>
+						<a href="../">Home</a>
+						<a href="../sandbox/">Sandbox</a>
+						<a href="../examples/">Examples</a>
+						<a href="../docs/">Docs</a>
+						<a href="../download/">Download</a>
+						<a href="../plugins/">Plugins</a>
 					</div>
 					<h1 id="project_title">graphics2d</h1>
 					<span id="project_tagline">simple canvas library</span>
@@ -37,7 +37,7 @@
 			<section id="main_content" class="inner" style="max-width:900px;">
 				<div style="display:inline-block;width:100%;">
 					<div style="width:50%;float:left;padding:5px;">
-						<textarea id="code">var ctx = Graphics2D.id('canvas');
+						<textarea id="code">ctx.circle(100, 100, 30, 'red');
 
 
 
@@ -63,16 +63,6 @@
 						<canvas style="background:white;border:solid 1px #eee; box-shadow:0 0 5px #eee" width="400" height="299" id="canvas"></canvas>
 					</div>
 				</div>
-				<!-- <table style="width:100%;">
-					<tr>
-						<td style="width:50%">
-								
-						</td>
-						<td>
-							<canvas style="background:white;border:solid 1px #eee; box-shadow:0 0 5px #eee"></canvas>
-						</td>
-					</tr>
-				</table> -->
 				<div id="block-2">
 					<span style="font-size:11pt;margin-right:25px">Plugins:</span>
 					<a href="#">Sprite</a>
@@ -92,20 +82,21 @@
 		<script>
 			var delay,
 				editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-				lineNumbers: true,
-				matchBrackets: true,
-				autofocus: true,
-				indentUnit: 4,
-			});
+					lineNumbers: true,
+					matchBrackets: true,
+					autofocus: true,
+					indentUnit: 4,
+				}),
+				ctx = Graphics2D.id('canvas');
+			ctx.circle(100, 100, 30, 'red');
 			CodeMirror.on(editor, 'change', function(){
 				clearTimeout(delay);
 				delay = setTimeout(function(){
+					ctx._elements = [];
 					var cnv = document.getElementById('canvas'),
 						ct = cnv.getContext('2d');
 					ct.clearRect(0,0,1000,1000);
 					eval(editor.getValue());
-					if(ctx)
-						delete ctx;
 				}, 300);
 			});
 		</script>

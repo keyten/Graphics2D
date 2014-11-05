@@ -63,4 +63,6 @@
 		controlline = null;
 		controlpoint = null;
 	};
+
+	Tools.selected = tool;
 })();
