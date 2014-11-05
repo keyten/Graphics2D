@@ -17,8 +17,28 @@ var Graphics2D = (function(window, undefined){
 	// Local variables
 	var emptyFunc = function(){},
 		_ = {},
-		toString = Object.prototype.toString;
+		toString = Object.prototype.toString,
+		requestAnimationFrame =
+				window.requestAnimationFrame		|| 
+				window.webkitRequestAnimationFrame	|| 
+				window.mozRequestAnimationFrame		|| 
+				window.oRequestAnimationFrame		|| 
+				window.msRequestAnimationFrame		||
+				window.setTimeout,
+		cancelAnimationFrame =
+				window.cancelAnimationFrame			|| 
+				window.webkitCancelAnimationFrame	|| 
+				window.mozCancelAnimationFrame		|| 
+				window.oCancelAnimationFrame		|| 
+				window.msCancelAnimationFrame		||
 
+				window.cancelRequestAnimationFrame			|| 
+				window.webkitCancelRequestAnimationFrame	|| 
+				window.mozCancelRequestAnimationFrame		|| 
+				window.oCancelRequestAnimationFrame			|| 
+				window.msCancelRequestAnimationFrame		||
+
+				window.clearTimeout;
 
 	// The main context
 	Context = function(canvas){
@@ -85,7 +105,7 @@ var Graphics2D = (function(window, undefined){
 		update : function(){
 			if(this.__timer)
 				return;
-			this.__timer = setTimeout(function(){
+			this.__timer = requestAnimationFrame(function(){
 				this.__update();
 				this.__timer = false;
 			}.bind(this), 1);
@@ -805,13 +825,13 @@ var Graphics2D = (function(window, undefined){
 			return x === undefined ?
 				this._x :
 				this._property('width', this._width - x + this._x).
-				     _property('x', x);
+					 _property('x', x);
 		},
 		y1 : function(y){
 			return y === undefined ?
 				this._y :
 				this._property('height', this._height - y + this._y).
-				     _property('y', y);
+					 _property('y', y);
 		},
 		x2 : function(x){
 			return x === undefined ?
@@ -1305,8 +1325,8 @@ var Graphics2D = (function(window, undefined){
 				else
 					obj.family += ' ' + val;
 			});
-            if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) === '' )
-                delete obj.family;
+			if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) === '' )
+				delete obj.family;
 			return obj;
 		},
 		family : function(f){
@@ -1333,14 +1353,14 @@ var Graphics2D = (function(window, undefined){
 			return this._property('underline', !!val);
 		},
 		width : function(w){
-            if(w === undefined && this._width === undefined){
-                var ctx = this.context.context;
-                this._applyStyle();
-                var m = ctx.measureText( this._text ).width;
-                ctx.restore();
-                return m;
-            }
-            return this._property('width', w);
+			if(w === undefined && this._width === undefined){
+				var ctx = this.context.context;
+				this._applyStyle();
+				var m = ctx.measureText( this._text ).width;
+				ctx.restore();
+				return m;
+			}
+			return this._property('width', w);
 		},
 
 		// text.font('2px')
