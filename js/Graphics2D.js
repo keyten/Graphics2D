@@ -1583,6 +1583,7 @@ var Graphics2D = (function(window, undefined){
 			if(!this._visible)
 				return;
 			this._applyStyle();
+			ctx.textBaseline = 'top';
 
 			for(i = 0, l = Math.min(this._lines.length, this._limit); i < l; i++){
 				line = this._lines[i];

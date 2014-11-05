@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset='utf-8'>
+		<meta http-equiv="X-UA-Compatible" content="chrome=1">
+		<meta name="description" content="Graphics2D : JavaScript canvas library">
+
+		<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet.css">
+		<title>Sprite - Examples - Graphics2D</title>
+		<script src="../../js/script.js"></script>
+		<script src="../../js/Graphics2D.js"></script>
+		<script src="sprite.js"></script>
+	</head>
+
+	<body>
+		<!-- HEADER -->
+		<div id="header_wrap" class="outer">
+				<header class="inner">
+					<div id="header_menu">
+						<a href="../../">Home</a>
+						<a href="../../sandbox/">Sandbox</a>
+						<a href="../../examples/">Examples</a>
+						<a href="../../docs/">Docs</a>
+						<a href="../../download/">Download</a>
+						<a href="../../plugins/">Plugins</a>
+					</div>
+					<h1 id="project_title">graphics2d</h1>
+					<span id="project_tagline">simple canvas library</span>
+				</header>
+		</div>
+
+		<!-- MAIN CONTENT -->
+		<div id="main_content_wrap" class="outer">
+			<section id="main_content" class="inner">
+				<div class="breadcrumbs">
+					<a href="../">Plugins</a>
+						<span class="arrow">&gt;</span>
+					<span class="page">Sprite</span>
+				</div>
+				<div style="margin-top:10px;">
+					<canvas id="example_sprite" class="canvas" width="118" height="176" style="float:left;margin-right:20px;"></canvas>
+					<div style="overflow:hidden">
+						<p>This plugin allows use sprites and sprite animation.</p>
+						<pre><code>var ninja = ctx.sprite('ninja.png', 10, 10, 98, 156);
+ninja.autoslice(98, 156);
+ninja.frame(0);
+ninja.sequence('stand', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
+ninja.play('stand');</code></pre>
+						<div id="block-2">
+							<strong style="font-size:11pt;padding-right:30px">Download:</strong>
+							<a href="sprite.js" target="_blank">sprite.js</a>
+						</div>
+
+						<h3 id="sprite-autoslice">autoslice ( width : int, height : int )</h3>
+						<p>Slices the image by his frame size.</p>
+
+						<h3 id="sprite-slice">slice ( frame : int, crop : array / arguments )</h3>
+						<p>Slices a frame.</p>
+						<pre><code>ninja.slice(0, [0, 0, 98, 156]);
+ninja.slice(1, 99, 0, 98, 156);</code></pre>
+
+						<h3 id="sprite-frame">frame ( frame : int )</h3>
+						<p>Switches to the certain frame. Fires the <code>frame</code> event.</p>
+						<pre><code>ninja.frame(1);</code></pre>
+
+						<h3 id="sprite-nextframe">nextframe ()</h3>
+						<p>Switches to the next frame (or to the 0 frame, if current frame is the last).</p>
+
+						<h3 id="sprite-nextframe">prevframe ()</h3>
+						<p>Switches to the previous frame (or to the 0 frame, if current frame is the last).</p>
+
+						<h3 id="sprite-sequence">sequence ( name : string, frames : array )</h3>
+						<p>Creates a new sequence with certain frames.</p>
+						<pre><code>ninja.sequence('stand', [0, 1, 2, 3]);
+ninja.sequence('anyother', [5, 6, 7, 8, 9]);</code></pre>
+
+						<h3 id="sprite-play">play ( sequence : string / array, [interval : int, [loop : bool, [callback : function]]] )</h3>
+						<p>Plays a sequence. By default: interval = 60ms; loop = true. Callback is calling after each animation end.</p>
+						<pre><code>ninja.play('stand');
+ninja.play('anyother', 100);
+ninja.play('sequence', 60, false);
+ninja.play([10, 11], 1000, true, function(){
+	console.log('Animation has end.')
+});</code></pre>
+
+						<h3 id="sprite-stop">stop ()</h3>
+						<p>Stops current animation.</p>
+					</div>
+				</div>
+			</section>
+		</div>
+
+		<script>
+			var ctx = Graphics2D.id('example_sprite'),
+				ninja = ctx.sprite('ninja.png', 10, 10, 98, 156);
+			ninja.autoslice(98, 156);
+			ninja.frame(0);
+			ninja.sequence('stand', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
+			ninja.play('stand');
+		</script>
+
+		<!-- FOOTER	-->
+		<div id="footer_wrap" class="outer">
+			<footer class="inner">
+				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+			</footer>
+		</div>
+
+		
+
+	</body>
+</html>
