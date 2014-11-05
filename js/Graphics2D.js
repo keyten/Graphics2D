@@ -842,10 +842,10 @@ var Graphics2D = (function(window, undefined){
 			this._z = context.elements.length;
 			this.context = context;
 			if(isHash(cx)){
-				this._cx = x.cx || x.x;
-				this._cy = x.cy || x.y;
-				this._radius = x.radius;
-				this._parseHash(x);
+				this._cx = cx.cx || cx.x;
+				this._cy = cx.cy || cx.y;
+				this._radius = cx.radius;
+				this._parseHash(cx);
 			}
 			else {
 				this._cx = cx;
@@ -1570,8 +1570,7 @@ var Graphics2D = (function(window, undefined){
 
 		isPointIn : Text.prototype.isPointIn,
 		bounds : function(){
-			var h = this.height();
-			return new Bounds( this._x, this._y + h/5, this.width(), h );
+			return new Bounds( this._x, this._y, this.width(), this.height() );
 		},
 		draw : function(ctx){
 			var fill = this._style.fillStyle ? ctx.fillText.bind(ctx) : emptyFunc,
@@ -1583,7 +1582,6 @@ var Graphics2D = (function(window, undefined){
 			if(!this._visible)
 				return;
 			this._applyStyle();
-			ctx.textBaseline = 'top';
 
 			for(i = 0, l = Math.min(this._lines.length, this._limit); i < l; i++){
 				line = this._lines[i];
@@ -1686,22 +1684,38 @@ var Graphics2D = (function(window, undefined){
 
 		// general
 		from : function(x,y,r){
+			if(isString(x) && x in _.corners){
+				this._from = x;
+				return this.update();
+			}
 			if(isArray(x)){
 				r = x[2];
 				y = x[1];
 				x = x[0];
-			} // we can use gradient.from(null, 10);
+			}
+
+			if(!isArray(this._from))
+				this._from = [];
+
 			if(x != null) this._from[0] = x; // TODO: distance ?
 			if(y != null) this._from[1] = y;
 			if(r != null) this._from[2] = r;
 			return this.update();
 		},
 		to : function(x,y,r){
+			if(isString(x) && x in _.corners){
+				this._from = x;
+				return this.update();
+			}
 			if(isArray(x)){
 				r = x[2];
 				y = x[1];
 				x = x[0];
 			}
+
+			if(!isArray(this._from))
+				this._from = [];
+
 			if(x != null) this._to[0] = x;
 			if(y != null) this._to[1] = y;
 			if(r != null) this._to[2] = r;
