@@ -2406,7 +2406,7 @@ var Graphics2D = (function(window, undefined){
 		lineTo: { name:'lineTo', params:['x','y'] },
 		quadraticCurveTo: { name:'quadraticCurveTo', params:['hx','hy', 'x','y'] },
 		bezierCurveTo: { name:'bezierCurveTo', params:['h1x','h1y', 'h2x','h2y', 'x','y'] },
-		closePath: { name:'closePath', params:[] },
+		closePath: { name:'closePath', params:[] }
 	};
 	for(var cm in _.pathFunctions){
 		var cur = _.pathFunctions[cm];
