@@ -7,9 +7,10 @@
 		<meta name="description" content="Graphics2D : JavaScript canvas library">
 
 		<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet.css">
-		<title>Sprite - Examples - Graphics2D</title>
+		<title>CatmullRom - Plugins - Graphics2D</title>
 		<script src="../../js/script.js"></script>
 		<script src="../../js/Graphics2D.js"></script>
+		<script src="catmullrom.js"></script>
 	</head>
 
 	<body>
@@ -32,20 +33,103 @@
 		<!-- MAIN CONTENT -->
 		<div id="main_content_wrap" class="outer">
 			<section id="main_content" class="inner">
+				<span style="float:right"><em style="padding-right:6px">Points: </em><input type="range" min="1" max="40" value="20" id="points_range" onchange="document.getElementById('points_input').value = this.value; changePoints(this.value)" onmousemove="document.getElementById('points_input').value = this.value; changePoints(this.value)" style="vertical-align:middle"/><input type="text" size="2" value="20" id="points_input" onchange="document.getElementById('points_range').value = parseInt(this.value); changePoints(this.value)"/></span>
 				<div class="breadcrumbs">
 					<a href="../">Plugins</a>
 						<span class="arrow">&gt;</span>
-					<span class="page">Sprite</span>
+					<span class="page">CatmullRom</span>
 				</div>
-				<div style="margin-top:10px;">
-					<canvas id="example_bezier" class="canvas" width="760" height="350"></canvas>
-				</div>
-				<div id="block-2">
-					<strong style="font-size:11pt;padding-right:30px">Download</strong>
-					<a href="Path.js" target="_blank">sprite.js</a>
-				</div>
+				<canvas id="example_catmullrom" class="canvas" width="760" height="350" style="display:block;margin-bottom:20px;"></canvas>
+				<p>This plugin allows use <a href="http://en.wikipedia.org/wiki/Cubic_Hermite_spline" target="_blank">Catmull-Rom splines</a> in <a href="../../docs/path">paths</a>.</p>
+				<pre><code>ctx.path([
+    { name : 'catmullRom', arguments : [ 250,300, 150,200, 500,100, 410,30 ] }
+     // handle1, point1, point2, handle2
+]);</code></pre>
+
+				<h3 id="catmullrom-getting">Getting a curve</h3>
+				<p>We can get Catmull-Rom curve as an any other path curve:</p>
+				<pre><code>var curve = path.point(0); // index of your curve</code></pre>
+
+				<h3 id="catmullrom-points">_points property</h3>
+				<p>Drawing and calculating precision. By default: 20.</p>
+				<pre><code>curve._points = 5;
+path.update();</code></pre>
+
+				<h3 id="catmullrom-pointAt">pointAt ( t : float )</h3>
+				<p>Returns coordinates of the point at position <code>t</code>.</p>
+				<pre><code>curve.pointAt(0); // -> {x: 150, y: 200}
+curve.pointAt(0.5); // -> {x: 324.375, y: 148.125}
+curve.pointAt(1); // -> {x: 500, y: 100}</code></pre>
+
+				<h3 id="catmullrom-length">length ()</h3>
+				<p>Returns length of the curve.</p>
+				<pre><code>curve.length(); // -> 358.02888844900446</code></pre>
+
+				<h3 id="catmullrom-arguments">arguments ( [value : array / arguments] )</h3>
+				<p>Returns / changes all points:</p>
+				<pre><code>curve.arguments(); // -> [ 250,300, 150,200, 500,100, 410,30 ]
+curve.arguments([116,193, 333,271, 378,147, 653,306]);
+// ==
+curve.arguments(116,193, 333,271, 378,147, 653,306);</code></pre>
+
+				<h3 id="catmullrom-set">set ( name : string, value : int )</h3>
+				<p>Changes a certain variable.</p>
+				<pre><code>curve.set('x1', 10);</code></pre>
+
+				<h3 id="catmullrom-vals">Variables</h3>
+				<p><code>h1x</code>, <code>h1y</code>, <code>x1</code>, <code>y1</code>, <code>x2</code>, <code>y2</code>, <code>h2x</code>, <code>h2y</code>.</p>
+				<pre><code>curve.x1; // -> 150
+curve.h1x; // -> 250</code></pre>
+
+				<h3 id="catmullrom-pointAt-noproto">Graphics2D.util.pathFunctions.catmullRom.pointAt ( h1x, h1y, x1, y1, x2, y2, x2x, x2y, t )</h3>
+				<p>Returns a point of the given curve.</p>
+				<pre><code>Graphics2D.util.pathFunctions.catmullRom.pointAt(250,300, 150,200, 500,100, 410,30, 0.5);</code></pre>
 			</section>
 		</div>
+
+		<script>
+			var ctx = Graphics2D.id('example_catmullrom'),
+				curve = ctx.path([
+					{ name : 'catmullRom', arguments : [250,300, 150,200, 500,100, 410,30] }
+					], null, 'round 5px ' + randcolor()).point(0),
+				cp1 = ctx.circle(250, 300, 7, null, '#e60 1px'),
+				cp2 = ctx.circle(150, 200, 7, null, '#e60 1px'),
+				cp3 = ctx.circle(500, 100, 7, null, '#e60 1px'),
+				cp4 = ctx.circle(410, 30, 7, null, '#e60 1px');
+
+		var current;
+		cp1.mousedown(function(){ current = this }).mouseup(function(){ current = null }).cursor('default');
+		cp2.mousedown(function(){ current = this }).mouseup(function(){ current = null }).cursor('default');
+		cp3.mousedown(function(){ current = this }).mouseup(function(){ current = null }).cursor('default');
+		cp4.mousedown(function(){ current = this }).mouseup(function(){ current = null }).cursor('default');
+
+		cp1.pointX = 'h1x'; cp1.pointY = 'h1y';
+		cp2.pointX = 'x1' ; cp2.pointY = 'y1' ;
+		cp3.pointX = 'x2' ; cp3.pointY = 'y2' ;
+		cp4.pointX = 'h2x'; cp4.pointY = 'h2y';
+
+		ctx.mousemove(function(e){
+			if(!current)
+				return;
+
+			current.cx(e.contextX).cy(e.contextY);
+			curve.set(current.pointX, e.contextX);
+			curve.set(current.pointY, e.contextY);
+		});
+
+		function changePoints(points){
+			points = parseInt(points);
+			curve._points = points;
+			curve.update();
+		}
+
+		function rand(from, to){
+			return Math.round(Math.random() * (to - from)) + from;
+		}
+		function randcolor(){
+			return 'rgb(' + [rand(0,255), rand(0,255), rand(0,255)].join(',') + ')';
+		}
+		</script>
 
 		<!-- FOOTER	-->
 		<div id="footer_wrap" class="outer">
