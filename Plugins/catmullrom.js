@@ -6,7 +6,7 @@
 
 	var catmullRom = function(numbers, curves, path){
 		this._arguments = numbers;
-		this._iterations = 20;
+		this._points = 20;
 		this._path = path;
 		this.update = path.update.bind(path);
 
@@ -22,32 +22,26 @@
 
 	$.util.pathFunctions.catmullRom = catmullRom;
 
-	catmullRom.prototype.process = function(ctx, index){
-		var max = this._iterations,
+	catmullRom.prototype.process = function(ctx){
+		var max = this._points,
 			step = 100 / max,
 			point;
 		for(var i = 0; i <= 100; i+=step){
-			point = this.pointAt(i / 100, index);
+			point = this.pointAt(i / 100);
 			ctx.lineTo(point.x, point.y);
 		}
 		if(i-step < 100){
-			point = this.pointAt(1, index);
+			point = this.pointAt(1);
 			ctx.lineTo(point.x, point.y);
 		}
 	}
 
-	catmullRom.prototype.pointAt = function(t, index){
-		var from = this._path._points[index === undefined ? this._index-1 : index-1];
-		if(!from)
-			from = [this._arguments[0], this._arguments[1]];
-		else
-			from = [from.x, from.y];
-
+	catmullRom.prototype.pointAt = function(t){
 		return catmullRom.pointAt.apply(0, this._arguments.concat([t]));
 	}
 
 	catmullRom.prototype.length = function(){
-		var max = this._iterations,
+		var max = this._points,
 			step = 100 / max,
 			point,
 			length = 0,
