@@ -12,7 +12,6 @@ ctx.on('keypress', function(e){
 	var text = block.text();
 	if(e.which == 8){
 		block.text( text.substring(0, text.length-1) );
-		return false;
 	}
 	else if(e.which == 13){
 		block.text( text + '\n' );
@@ -43,6 +42,6 @@ function alignCursor(){
 	var line = block._lines[block._lines.length - 1];
 	var tmptext = ctx.text(line.text, 'Arial 11pt', -100, -100);
 	cursor.x(10 + tmptext.width());
-	cursor.y(line.y - 12);
+	cursor.y(line.y);
 	tmptext.remove();
 }

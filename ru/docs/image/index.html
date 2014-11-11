@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset='utf-8'>
+		<meta http-equiv="X-UA-Compatible" content="chrome=1">
+		<meta name="description" content="Graphics2D : JavaScript canvas library">
+
+		<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet.css">
+		<title>Image - Docs - Graphics2D</title>
+		<script src="../../js/script.js"></script>
+	</head>
+
+	<body>
+		<!-- HEADER -->
+		<div id="header_wrap" class="outer">
+				<header class="inner">
+					<div id="header_menu">
+						<a href="../../">Home</a>
+						<a href="../../sandbox/">Sandbox</a>
+						<a href="../../examples/">Examples</a>
+						<a href="../../docs/">Docs</a>
+						<a href="../../download/">Download</a>
+						<a href="../../plugins/">Plugins</a>
+					</div>
+					<h1 id="project_title">graphics2d</h1>
+					<span id="project_tagline">simple canvas library</span>
+				</header>
+		</div>
+
+		<!-- MAIN CONTENT -->
+		<div id="main_content_wrap" class="outer">
+			<section id="main_content" class="inner">
+				<div class="menu_left" id="docs_menu">
+					<span class="label" style="display:block;text-align:center;">Graphics2D.js 1.0</span>
+					<h4>Basic</h4>
+					<a href="../">Basics</a>
+					<a href="../context/">Context</a>
+					<a href="../shape/">Shape</a>
+					<h4>Shapes</h4>
+					<a href="../rect/">Rect</a>
+					<a href="../circle/">Circle</a>
+					<a href="../path/">Path</a>
+					<a href="../image/">Image</a>
+					<a href="../text/">Text</a>
+					<a href="../textblock/">Textblock</a>
+					<h4>Filling</h4>
+					<a href="../gradient/">Gradient</a>
+					<a href="../pattern/">Pattern</a>
+				</div>
+				<div style="overflow:hidden">
+					<h2 style="margin:0;">Image</h2>
+					<p>Image. Parameters: image, x, y, [width, height].</p>
+					<p>We can use <code>'native'</code> (original image) or <code>'auto'</code> (with proportions saving) width / height.</p>
+					<pre><code>ctx.image("./image.jpg", 10, 10);
+
+// document.getElementById('image');
+ctx.image("#image", 50, 50, 200, 'auto');
+
+var i = new Image;
+i.src = 'http://keyten.github.io/Graphics2D/images/crossword.png';
+ctx.image({
+    image : i,
+    x : 100,
+    y : 100,
+
+    crop : [0, 0, 50, 50] // we can use crop
+});</code></pre>
+					
+					<h3 id="image-xywh">x, y, width, height</h3>
+					<p>Works like <a href="../rect/#rect-xywh">the same methods of Rect class</a>. And width / height can be used with <code>'native'</code> and <code>'auto'</code>.</p>
+
+					<h3 id="image-points">x1, y1, x2, y2</h3>
+					<p>Works like <a href="../rect/#rect-points">the same methods of Rect class</a>.</p>
+
+					<h3 id="image-crop">crop( value : array / arguments )</h3>
+					<p>Returns or changes the crop:</p>
+					<pre><code>image.crop(); // -> [0,0,10,10]
+image.crop(10, 10, 200, 200);
+image.crop([10, 10, 200, 200]);</code></pre>
+				</div>
+			</section>
+		</div>
+
+		<!-- FOOTER	-->
+		<div id="footer_wrap" class="outer">
+			<footer class="inner">
+				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
+				<p style="font-size:10pt;">I'm sorry for my English... If you find a bug, please <a href="https://github.com/keyten/Graphics2D/issues">tell me</a>.</p>
+			</footer>
+		</div>
+
+		
+
+	</body>
+</html>
