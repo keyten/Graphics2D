@@ -1,3 +1,4 @@
 Thumbs.db
 /test/*
 *.htm?
+node_modules/*

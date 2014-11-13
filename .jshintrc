@@ -1,0 +1,17 @@
+{
+	"maxerr"		: 50, // Max errors before stopping
+
+	"freeze"		: true, // prohibits overwriting prototypes of native objects
+	"forin"			: true, // for..in with {}.hasOwnProperty
+	"newcap"		: true, // capitalization for all classes
+	"noarg"			: true, // don't use arguments.caller & callee
+	"noempty"		: true, // don't use empty blocks {}
+	"nonbsp"		: true, // prohibit non-breaking whitespace
+	"quotmark"		: "single", // 'single' quotes
+	"unused"		: true, // all defined vars to be used
+	"strict"		: true, // all functions in ES5 Strict Mode
+
+	// environments
+	"browser"		: true,
+	"node"			: true
+}
