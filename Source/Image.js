@@ -1,4 +1,4 @@
-	Img = Class(Shape, {
+	Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
 			this._z = context.elements.length;
@@ -25,7 +25,7 @@
 				if(this._image[0] == '#')
 					this._image = document.getElementById( this._image.substr(1) );
 				else {
-					x = new Image;
+					x = new Image();
 					x.src = this._image;
 					this._image = x;
 				}
@@ -88,10 +88,12 @@
 		bounds : Rect.prototype.bounds,
 
 		crop : function(arr){
-			if(arguments.length == 0)
+			if(arguments.length === 0)
 				return this._crop;
 			if(arguments.length > 1)
 				this._crop = Array.prototype.slice.call(arguments, 0);
+			else if(arr === null)
+				delete this._crop;
 			else this._crop = arr;
 			return this.update();
 		},
@@ -101,12 +103,12 @@
 				return;
 			this._applyStyle();
 
-			if(this._crop != null)
+			if(this._crop !== undefined)
 				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
 			else
 				ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
 
-			if(this._style.strokeStyle != null)
+			if(this._style.strokeStyle !== undefined)
 				ctx.strokeRect(this._x, this._y, this._width, this._height);
 			ctx.restore();
 		}

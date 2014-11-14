@@ -1,4 +1,4 @@
-	Circle = Class(Shape, {
+	Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
 			this._z = context.elements.length;

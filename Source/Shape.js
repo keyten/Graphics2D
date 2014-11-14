@@ -1,5 +1,5 @@
 	// Transform animation
-	var trStart = function(anim, end, param){
+	var trStart = function(anim){
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
 			anim.object.matrixStart = this._matrix;
@@ -9,9 +9,10 @@
 	var trProcess = function(fn){
 			return function(anim, end, step, param){
 				// если матрица с прошлого "тика" - мы её обнуляем
-				if(anim.object.matrixCur.step != step)
-					anim.object.matrixCur = [1,0,0,1,0,0],
+				if(anim.object.matrixCur.step != step){
+					anim.object.matrixCur = [1,0,0,1,0,0];
 					anim.object.matrixCur.step = step;
+				}
 
 				var cur = _.interpolate(_.animTransformConstants[param], end, step);
 				_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
@@ -19,7 +20,7 @@
 			}
 		};
 
-	Shape = Class({
+	Shape = new Class({
 
 		initialize : function(){
 			this.listeners = {};
@@ -28,18 +29,18 @@
 
 		_parseHash : function(object){
 			var s = this._style;
-			if(object.opacity != null)
+			if(object.opacity !== undefined)
 				s.globalAlpha = object.opacity;
-			if(object.composite)
+			if(object.composite !== undefined)
 				s.globalCompositeOperation = object.composite;
-			if(object.visible != null)
+			if(object.visible !== undefined)
 				this._visible = object.visible;
-			if(object.clip)
+			if(object.clip !== undefined)
 				this._clip = object.clip;
 
 			this._processStyle(object.fill, object.stroke, this.context.context);
 		},
-		_processStyle : function(fill, stroke, ctx){
+		_processStyle : function(fill, stroke){
 			if(fill)
 				this._style.fillStyle = fill;
 			if(stroke)
@@ -51,8 +52,8 @@
 			if(isHash(fill) && fill.colors)
 				this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
 
-			if(fill && fill.indexOf){
-				if(fill.indexOf('http://') == 0 || fill.indexOf('.') == 0 || (isHash(fill) && fill.image))
+			if(fill && (isString(fill) || isHash(fill))){
+				if((isHash(fill) && fill.image) || fill.indexOf && (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0))
 					this._style.fillStyle = new Pattern(fill, null, this.context);
 			}
 			if(fill instanceof Image){
@@ -93,8 +94,8 @@
 			}
 		},
 		_parseStroke : function(stroke){
+			var obj = {}, opacity;
 			if(isHash(stroke)){
-				var obj = {};
 				stroke.width !== undefined
 					&& (obj.lineWidth   = stroke.width);
 				stroke.color
@@ -110,22 +111,21 @@
 				return obj;
 			}
 
-			if(!isString(stroke)) return {};
-			var obj = {}, opacity;
 			stroke.split(' ').forEach(function(val){
 				if(/^\d*\.\d+$/.test(val))
 					opacity = parseFloat(val);
 				else if(val[0] == '[')
-					obj._lineDash = val.substring(1, val.length-1).split(',')
+					obj._lineDash = val.substring(1, val.length-1).split(',');
 				else if(isNumber(val))
 					obj.lineWidth = _.distance(val);
 				else if(val == 'miter' || val == 'bevel')
 					obj.lineJoin = val;
 				else if(val == 'butt' || val == 'square')
 					obj.lineCap = val;
-				else if(val == 'round')
-					obj.lineJoin = obj.lineJoin || val,
+				else if(val == 'round'){
+					obj.lineJoin = obj.lineJoin || val;
 					obj.lineCap  = obj.lineCap  || val;
+				}
 				else if(val in _.dashes)
 					obj._lineDash = _.dashes[val];
 				else
@@ -181,9 +181,9 @@
 
 			if(clip.processPath)
 				this._clip = clip;
-			else if(c != undefined)
+			else if(c !== undefined)
 				this._clip = new Rect(clip, a, b, c, null, null, this.context);
-			else if(b != undefined)
+			else if(b !== undefined)
 				this._clip = new Circle(clip, a, b, null, null, this.context);
 			else
 				this._clip = new Path(clip, 0, 0, null, null, this.context);
@@ -198,8 +198,8 @@
 				this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
 				return this.update();
 			}
-			else if(fill && fill.indexOf){
-				if(fill.indexOf('http://') == 0 || fill.indexOf('.') == 0 || (isHash(fill) && fill.image)){
+			else if(fill && (fill.indexOf || isHash(fill))){
+				if((isHash(fill) && fill.image) || (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0)){
 					this._style.fillStyle = new Pattern(fill, null, this.context);
 					return this.update();
 				}
@@ -256,9 +256,9 @@
 			if(isString(fn)){
 				var command = fn,
 					args = Array.prototype.slice.call(arguments, 2);
-				fn = function(e){
+				fn = function(){
 					this[command].apply(this, args);
-				}
+				};
 				// [fn, proxy] = [proxy, fn];
 			}
 			if(toString.call(evt) == '[object Number]')
@@ -266,7 +266,7 @@
 
 			this.context._setListener(evt);
 			if(evt == 'mousewheel') // for firefox
-				(this.listeners[ 'DOMMouseScroll' ] || (this.listeners[ 'DOMMouseScroll' ] = [])).push(fn);
+				(this.listeners.DOMMouseScroll || (this.listeners.DOMMouseScroll = [])).push(fn);
 			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
 			return this;
 
@@ -315,14 +315,14 @@
 			return this.update();
 		},
 		scale : function(x, y, pivot){
-			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
 			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 		},
 		skew : function(x, y, pivot){
-			return this.transform( 1, Math.tan((y == null ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
+			return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
 		},
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
@@ -342,8 +342,8 @@
 						anim.object.fill = [anim.object.fillEnd[0], anim.object.fillEnd[1], anim.object.fillEnd[2], 0];
 				},
 				process : function(anim, end, step){
-					var start = anim.object.fill,
-						end = anim.object.fillEnd;
+					var start = anim.object.fill;
+					end = anim.object.fillEnd;
 					this._style.fillStyle = [
 						'rgba(',
 						Math.round(_.interpolate(start[0], end[0], step)), ',',
@@ -376,11 +376,11 @@
 						anim.object.strokeColor = [anim.object.strokeColorEnd[0], anim.object.strokeColorEnd[1], anim.object.strokeColorEnd[2], 0];
 				},
 				process : function(anim, end, step){
-					if(anim.object.strokeWidthEnd != null)
+					if(anim.object.strokeWidthEnd !== undefined)
 						this._style.lineWidth = _.interpolate(anim.object.strokeWidth, anim.object.strokeWidthEnd, step);
-					if(anim.object.strokeColorEnd != null){
-						var start = anim.object.strokeColor,
-							end = anim.object.strokeColorEnd;
+					if(anim.object.strokeColorEnd !== undefined){
+						var start = anim.object.strokeColor;
+						end = anim.object.strokeColorEnd;
 						this._style.strokeStyle = [
 							'rgba(',
 							Math.round(_.interpolate(start[0], end[0], step)), ',',
@@ -392,8 +392,8 @@
 				}
 			},
 			opacity : {
-				start : function(anim, end){
-					anim.object.opacity = this._style.globalAlpha == null ? 1 : this._style.globalAlpha;
+				start : function(anim){
+					anim.object.opacity = this._style.globalAlpha === undefined ? 1 : this._style.globalAlpha;
 				},
 				process : function(anim, end, step){
 					this._style.globalAlpha = _.interpolate(anim.object.opacity, end, step);
@@ -515,16 +515,20 @@
 				}
 			}
 
-			var anim = new Anim(0, 1, dur, easing), i;
+			var anim = new Anim(0, 1, dur, easing);
 			anim.object = {};
-			for(param in params)
-				(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
+			for(var param in params){
+				if(Object.prototype.hasOwnProperty.call(params, param))
+					(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
+			}
 
 			anim.start(function(step){
 
-				for(param in params)
-					this._anim[param].process.call(this, anim, params[param], step, param);
-					// animObject, endValue, step, parameter
+				for(param in params){
+					if(Object.prototype.hasOwnProperty.call(params, param))
+						this._anim[param].process.call(this, anim, params[param], step, param);
+						// animObject, endValue, step, parameter
+				}
 
 				this.update();
 
@@ -549,10 +553,10 @@
 					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
 				else
 					return this.fire.apply(this, arguments);
-			}
+			};
 		});
 
 	// сокращения для анимаций
 	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
-		Shape.prototype._anim[name] = Shape.prototype._anim['number'];
+		Shape.prototype._anim[name] = Shape.prototype._anim.number;
 	});

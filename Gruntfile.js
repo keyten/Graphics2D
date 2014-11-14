@@ -20,13 +20,13 @@ module.exports = function(grunt){
 			options: {
 				jshintrc: '.jshintrc'
 			},
-			files: 'Source/*.js'
+			files: 'Source/utils.js'
 		},
 
 		watch: {
 			build: {
 				files: 'Source/*.js',
-				tasks: 'default'
+				tasks: 'build'
 			}
 		}
 

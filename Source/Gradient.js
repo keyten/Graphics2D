@@ -1,4 +1,4 @@
-	Gradient = Class({
+	Gradient = new Class({
 
 		initialize : function(type, colors, from, to, context){
 			if(isHash(type)){
@@ -65,7 +65,7 @@
 					return _.interpolate( _.color(stops[last]), _.color(stops[keys[i]]), (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
 				}
 				last = keys[i];
-			};
+			}
 
 		},
 		color : function(i, color){
@@ -96,9 +96,9 @@
 			if(!isArray(this._from))
 				this._from = [];
 
-			if(x != null) this._from[0] = x; // TODO: distance ?
-			if(y != null) this._from[1] = y;
-			if(r != null) this._from[2] = r;
+			if(x !== undefined) this._from[0] = x; // TODO: distance ?
+			if(y !== undefined) this._from[1] = y;
+			if(r !== undefined) this._from[2] = r;
 			return this.update();
 		},
 		to : function(x,y,r){
@@ -115,9 +115,9 @@
 			if(!isArray(this._from))
 				this._from = [];
 
-			if(x != null) this._to[0] = x;
-			if(y != null) this._to[1] = y;
-			if(r != null) this._to[2] = r;
+			if(x !== undefined) this._to[0] = x;
+			if(y !== undefined) this._to[1] = y;
+			if(r !== undefined) this._to[2] = r;
 			return this.update();
 		},
 
@@ -212,7 +212,8 @@
 				grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || (bounds || (bounds = element.bounds())).height);
 
 			for(var offset in this._colors){
-				grad.addColorStop( offset, this._colors[offset] );
+				if(Object.prototype.hasOwnProperty.call(this._colors, offset))
+					grad.addColorStop( offset, this._colors[offset] );
 			}
 			return grad;
 		}

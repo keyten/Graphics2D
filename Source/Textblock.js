@@ -1,4 +1,4 @@
-	TextBlock = Class(Shape, {
+	TextBlock = new Class(Shape, {
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
@@ -80,9 +80,9 @@
 			this._style.textAlign = align;
 			var w = this.width();
 			this._lines.forEach({
-				'left' : function(line){ line.x = 0 },
-				'center' : function(line){ line.x = w / 2 },
-				'right' : function(line){ line.x = w }
+				'left' : function(line){ line.x = 0; },
+				'center' : function(line){ line.x = w / 2; },
+				'right' : function(line){ line.x = w; }
 			}[align]);
 			return this.update();
 		},
@@ -118,7 +118,7 @@
 
 			this._applyStyle();
 
-			text.split('\n').forEach(function(line, i){
+			text.split('\n').forEach(function(line){
 				if(ctx.measureText(line).width > width){ // нужно ли разбивать строку на строки
 					var words = line.split(' '),
 						useline = '',
@@ -135,7 +135,7 @@
 							useline = testline;
 						}
 					}
-					lines.push({ text:useline, x:x, y:size * countline, count:countline++ })
+					lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
 				}
 				else
 					lines.push({ text:line, x:x, y:size * countline, count:countline++ });
@@ -146,7 +146,7 @@
 		},
 		lineHeight : function(height){
 			if(height === undefined)
-				return this._lineHeight == null ? this._font.size : this._lineHeight;
+				return this._lineHeight === undefined ? this._font.size : this._lineHeight;
 			if(height === false)
 				height = this._font.size;
 			this._lineHeight = height;

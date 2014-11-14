@@ -1,4 +1,4 @@
-	Path = Class(Shape, {
+	Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;
@@ -80,7 +80,7 @@
 			if(fn === undefined){
 				fn = function(x,y){
 					allPoints.push([x,y]);
-				}
+				};
 				returnData = true;
 			}
 			this._points.forEach(function(func){
@@ -156,7 +156,7 @@
 					curves[0] = new _.pathFunctions.moveTo(path[0], curves, this);
 
 					path.forEach(function(value, i){
-						if(i == 0)
+						if(i === 0)
 							return;
 
 						if(value === true){
@@ -188,22 +188,23 @@
 			else if(isString(path)){
 				// regular for numbers: /\-?\d*\.\d+|\-?\d+/g
 				var match = path.match(/([A-Za-z])\s*((\-?\d*\.\d+|\-?\d+)((\s*,\s*|\s|\-)(\-?\d*\.\d+|\-?\d+))*)?/g);
-				var curves = []; // TODO: make possible more than one letter?
+				// TODO: make possible more than one letter?
 				var command;
 				var numbers;
 				var length;
+				var toNumber = function(v){ return Number(v); };
 				for(var i = 0, l = match.length; i < l; i++){
 					command = _.svgFunctions[match[i][0]];
 					numbers = match[i].match(/\-?\d*\.\d+|\-?\d+/g); // arguments
 					length = _.svgPathLengths[match[i][0]]; // count of the arguments (L - 2, H - 1...)
 					if(numbers){
-						numbers = numbers.map(function(v){ return Number(v) });
+						numbers = numbers.map(toNumber);
 
 						if(numbers.length > length){
 							// multiple in one command: L100,100,200,200,300,300,400,400 (== L100,100 L200,200, ...)
 							var exist = numbers.length,
-								mustb = length,
-								iters = exist / mustb;
+								mustb = length;
+				//				iters = exist / mustb;
 							for(; mustb <= exist; mustb+=length){
 								curves.push(new _.pathFunctions[command](numbers.slice(mustb-length, mustb), curves, this));
 							}

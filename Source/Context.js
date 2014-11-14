@@ -3,7 +3,7 @@
 		this.canvas    = canvas;
 		this.elements  = [];
 		this.listeners = {};
-	}
+	};
 
 	Context.prototype = {
 
@@ -91,7 +91,7 @@
 
 		hoverElement : null,
 		focusElement : null,
-		_setListener : function(event, repeat){
+		_setListener : function(event){
 			if(this.listeners[event])
 				return;
 
@@ -103,9 +103,10 @@
 						e.contextY = e.clientY - coords[1]
 					);
 
-				if(event == 'mouseout')
-					object = this.hoverElement,
+				if(event == 'mouseout'){
+					object = this.hoverElement;
 					this.hoverElement = null;
+				}
 
 				e.targetObject = object,
 				object && object.fire && object.fire(event, e);
@@ -147,7 +148,7 @@
 				return window.setTimeout(fn.bind(this), evt), this;
 
 			if(evt == 'mousewheel') // for firefox
-				(this.listeners[ 'DOMMouseScroll' ] || this._setListener('DOMMouseScroll')).push(fn);
+				(this.listeners.DOMMouseScroll || this._setListener('DOMMouseScroll')).push(fn);
 			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
 			return this;
 		},
