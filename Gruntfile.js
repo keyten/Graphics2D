@@ -20,7 +20,7 @@ module.exports = function(grunt){
 			options: {
 				jshintrc: '.jshintrc'
 			},
-			files: 'Source/utils.js'
+			files: 'Source/*.js'
 		},
 
 		watch: {
