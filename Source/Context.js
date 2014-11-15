@@ -99,11 +99,16 @@
 
 			var canvas = this.canvas;
 			canvas.addEventListener(event, function(e){
-				var coords = $.util.coordsOfElement(container),
+				var coords = _.coordsOfElement(container),
 					element;
 
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
+				
+				if(event == 'mouseout'){
+					object = this.hoverElement;
+					this.hoverElement = null;
+				}
 
 				for(var l = this.layers.length-1; l+1; l--){
 					if(element = this.layers[l].getObjectInPoint(e.contextX, e.contextY))
