@@ -264,7 +264,7 @@
 			if(toString.call(evt) == '[object Number]')
 				return window.setTimeout(fn.bind(this), evt), this;
 
-			this.context._setListener(evt);
+			this.context.listener(evt);
 			if(evt == 'mousewheel') // for firefox
 				(this.listeners.DOMMouseScroll || (this.listeners.DOMMouseScroll = [])).push(fn);
 			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);

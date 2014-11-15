@@ -91,42 +91,44 @@
 
 		hoverElement : null,
 		focusElement : null,
-		_setListener : function(event){
+		listener : function(event){
 			if(this.listeners[event])
 				return;
 
-			var canvas = this.canvas;
-			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(canvas),
-					object = this.getObjectInPoint(
-						e.contextX = e.clientX - coords[0],
-						e.contextY = e.clientY - coords[1]
-					);
-
-				if(event == 'mouseout'){
-					object = this.hoverElement;
-					this.hoverElement = null;
-				}
-
-				e.targetObject = object,
-				object && object.fire && object.fire(event, e);
-				this.fire(event, e);
-
-			}.bind(this));
-
 			this.listeners[event] = [];
 
+			var canvas = this.canvas;
+			canvas.addEventListener(event, function(e){
+				var coords = $.util.coordsOfElement(container),
+					element;
+
+				e.contextX = e.clientX - coords.x;
+				e.contextY = e.clientY - coords.y;
+
+				for(var l = this.layers.length-1; l+1; l--){
+					if(element = this.layers[l].getObjectInPoint(e.contextX, e.contextY))
+						break;
+				}
+
+				e.targetObject = element;
+
+				if(element && element.fire)
+					element.fire(event, e);
+
+				this.fire(event, e);
+			}.bind(this));
+
 			if(event == 'mouseover' || event == 'mouseout')
-				this._setSpecialListener('mouseover', 'mouseout', 'hover', 'mousemove'),
-				this._setListener(event == 'mouseover' ? 'mouseout' : 'mouseover'); // от бесконечной рекурсии спасает первое условие функции
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove'),
+				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
 			else if(event == 'focus' || event == 'blur')
-				this._setSpecialListener('focus', 'blur', 'focus', 'mousedown');
+				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 			else if(event == 'mousewheel') // firefox
-				this._setListener('DOMMouseScroll');
+				this.listener('DOMMouseScroll');
 
 			return this.listeners[event];
 		},
-		_setSpecialListener : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
+		listenerSpecial : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
 			// mouseover, mouseout, hover, mousemove
 			// focus, blur, focus, mousedown
 			name += 'Element';
@@ -148,8 +150,8 @@
 				return window.setTimeout(fn.bind(this), evt), this;
 
 			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || this._setListener('DOMMouseScroll')).push(fn);
-			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
+				(this.listeners.DOMMouseScroll || this.listener('DOMMouseScroll')).push(fn);
+			(this.listeners[ evt ] || this.listener(evt)).push(fn);
 			return this;
 		},
 		once : function(evt, fn){ // not works with .off

@@ -436,13 +436,22 @@
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of DOM element
-		var offsetElement = element, x = 0, y = 0;
-		while(offsetElement){
-			x += offsetElement.offsetLeft;
-			y += offsetElement.offsetTop;
-			offsetElement = offsetElement.offsetParent;
-		}
-		return [x,y];
+		var x = 0, y = 0,
+			temp = element.getBoundingClientRect();
+		x += temp.x;
+		y += temp.y;
+
+		temp = element.ownerDocument.documentElement;
+		x += temp.clientLeft || 0;
+		y += temp.clientTop  || 0;
+
+		temp = window.getComputedStyle(element);
+		x += parseInt(temp.borderLeftWidth);
+		x += parseInt(temp.paddingLeft);
+		y += parseInt(temp.borderTopWidth);
+		y += parseInt(temp.paddingTop);
+
+		return { x: x, y: y };
 	};
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)

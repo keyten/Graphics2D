@@ -134,42 +134,44 @@
 
 		hoverElement : null,
 		focusElement : null,
-		_setListener : function(event){
+		listener : function(event){
 			if(this.listeners[event])
 				return;
 
-			var canvas = this.canvas;
-			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(canvas),
-					object = this.getObjectInPoint(
-						e.contextX = e.clientX - coords[0],
-						e.contextY = e.clientY - coords[1]
-					);
-
-				if(event == 'mouseout'){
-					object = this.hoverElement;
-					this.hoverElement = null;
-				}
-
-				e.targetObject = object,
-				object && object.fire && object.fire(event, e);
-				this.fire(event, e);
-
-			}.bind(this));
-
 			this.listeners[event] = [];
 
+			var canvas = this.canvas;
+			canvas.addEventListener(event, function(e){
+				var coords = $.util.coordsOfElement(container),
+					element;
+
+				e.contextX = e.clientX - coords.x;
+				e.contextY = e.clientY - coords.y;
+
+				for(var l = this.layers.length-1; l+1; l--){
+					if(element = this.layers[l].getObjectInPoint(e.contextX, e.contextY))
+						break;
+				}
+
+				e.targetObject = element;
+
+				if(element && element.fire)
+					element.fire(event, e);
+
+				this.fire(event, e);
+			}.bind(this));
+
 			if(event == 'mouseover' || event == 'mouseout')
-				this._setSpecialListener('mouseover', 'mouseout', 'hover', 'mousemove'),
-				this._setListener(event == 'mouseover' ? 'mouseout' : 'mouseover'); // от бесконечной рекурсии спасает первое условие функции
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove'),
+				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
 			else if(event == 'focus' || event == 'blur')
-				this._setSpecialListener('focus', 'blur', 'focus', 'mousedown');
+				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 			else if(event == 'mousewheel') // firefox
-				this._setListener('DOMMouseScroll');
+				this.listener('DOMMouseScroll');
 
 			return this.listeners[event];
 		},
-		_setSpecialListener : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
+		listenerSpecial : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
 			// mouseover, mouseout, hover, mousemove
 			// focus, blur, focus, mousedown
 			name += 'Element';
@@ -191,8 +193,8 @@
 				return window.setTimeout(fn.bind(this), evt), this;
 
 			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || this._setListener('DOMMouseScroll')).push(fn);
-			(this.listeners[ evt ] || this._setListener(evt)).push(fn);
+				(this.listeners.DOMMouseScroll || this.listener('DOMMouseScroll')).push(fn);
+			(this.listeners[ evt ] || this.listener(evt)).push(fn);
 			return this;
 		},
 		once : function(evt, fn){ // not works with .off
@@ -493,7 +495,7 @@
 			if(toString.call(evt) == '[object Number]')
 				return window.setTimeout(fn.bind(this), evt), this;
 
-			this.context._setListener(evt);
+			this.context.listener(evt);
 			if(evt == 'mousewheel') // for firefox
 				(this.listeners.DOMMouseScroll || (this.listeners.DOMMouseScroll = [])).push(fn);
 			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
@@ -2324,13 +2326,22 @@
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of DOM element
-		var offsetElement = element, x = 0, y = 0;
-		while(offsetElement){
-			x += offsetElement.offsetLeft;
-			y += offsetElement.offsetTop;
-			offsetElement = offsetElement.offsetParent;
-		}
-		return [x,y];
+		var x = 0, y = 0,
+			temp = element.getBoundingClientRect();
+		x += temp.x;
+		y += temp.y;
+
+		temp = element.ownerDocument.documentElement;
+		x += temp.clientLeft || 0;
+		y += temp.clientTop  || 0;
+
+		temp = window.getComputedStyle(element);
+		x += parseInt(temp.borderLeftWidth);
+		x += parseInt(temp.paddingLeft);
+		y += parseInt(temp.borderTopWidth);
+		y += parseInt(temp.paddingTop);
+
+		return { x: x, y: y };
 	};
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
