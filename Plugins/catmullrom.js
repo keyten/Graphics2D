@@ -10,6 +10,7 @@
 		this._path = path;
 		this.update = path.update.bind(path);
 
+		this.name = 'catmullRom';
 		this.h1x = numbers[0];
 		this.h1y = numbers[1];
 		this.h2x = numbers[5];
@@ -21,6 +22,7 @@
 	}
 
 	$.util.pathFunctions.catmullRom = catmullRom;
+
 
 	catmullRom.prototype.process = function(ctx){
 		var max = this._points,
