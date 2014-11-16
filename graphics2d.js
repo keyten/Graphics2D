@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 16.11.2014
+ *  Last edit: 17.11.2014
  *  License: MIT / LGPL
  */
 
@@ -1967,13 +1967,13 @@
 			return 1 - func(1 - t);
 		};
 		Anim.easing[i + 'InOut'] = function(t){
-			return t <= 0.5 ? func(2 * t) : (2 - func(2 * (1 - t))) / 2;
+			return t <= 0.5 ? func(2 * t) / 2 : (2 - func(2 * (1 - t))) / 2;
 		};
 	}
 
 	for(var i in Anim.easing){
 		// don't make functions within a loop
-		if(Object.prototype.hasOwnProperty(Anim.easing, i))
+		if(Object.prototype.hasOwnProperty.call(Anim.easing, i))
 			processEasing(Anim.easing[i]);
 	}
 
