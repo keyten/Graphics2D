@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 15.11.2014
+ *  Last edit: 16.11.2014
  *  License: MIT / LGPL
  */
 
@@ -142,20 +142,17 @@
 
 			var canvas = this.canvas;
 			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(container),
+				var coords = _.coordsOfElement(canvas),
 					element;
 
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
 				
-				if(event == 'mouseout'){
-					object = this.hoverElement;
-					this.hoverElement = null;
-				}
+				element = this.getObjectInPoint(e.contextX, e.contextY);
 
-				for(var l = this.layers.length-1; l+1; l--){
-					if(element = this.layers[l].getObjectInPoint(e.contextX, e.contextY))
-						break;
+				if(event == 'mouseout'){
+					element = this.hoverElement;
+					this.hoverElement = null;
 				}
 
 				e.targetObject = element;
@@ -2428,13 +2425,6 @@
 		bezierCurveTo: { name:'bezierCurveTo', params:['h1x','h1y', 'h2x','h2y', 'x','y'] },
 		closePath: { name:'closePath', params:[] }
 	};
-	var fn = function(numbers, curves, path){
-		this.name = this.base.name;
-		this._arguments = numbers;
-		this.update = path.update.bind(path);
-		for(var i = 0; i < this.base.params.length;i++)
-			this[this.base.params[i]] = numbers[i];
-	};
 	var proto = {
 		arguments : function(value){
 			if(value === undefined)
@@ -2463,7 +2453,13 @@
 	for(var cm in _.pathFunctions){
 		if(Object.prototype.hasOwnProperty.call(_.pathFunctions, cm)){
 			var cur = _.pathFunctions[cm];
-			_.pathFunctions[cm] = fn;
+			_.pathFunctions[cm] = function(numbers, curves, path){
+				this.name = this.base.name;
+				this._arguments = numbers;
+				this.update = path.update.bind(path);
+				for(var i = 0; i < this.base.params.length;i++)
+					this[this.base.params[i]] = numbers[i];
+			};
 			_.pathFunctions[cm].prototype = extend({
 				base: cur
 			}, proto);

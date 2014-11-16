@@ -533,13 +533,6 @@
 		bezierCurveTo: { name:'bezierCurveTo', params:['h1x','h1y', 'h2x','h2y', 'x','y'] },
 		closePath: { name:'closePath', params:[] }
 	};
-	var fn = function(numbers, curves, path){
-		this.name = this.base.name;
-		this._arguments = numbers;
-		this.update = path.update.bind(path);
-		for(var i = 0; i < this.base.params.length;i++)
-			this[this.base.params[i]] = numbers[i];
-	};
 	var proto = {
 		arguments : function(value){
 			if(value === undefined)
@@ -568,7 +561,13 @@
 	for(var cm in _.pathFunctions){
 		if(Object.prototype.hasOwnProperty.call(_.pathFunctions, cm)){
 			var cur = _.pathFunctions[cm];
-			_.pathFunctions[cm] = fn;
+			_.pathFunctions[cm] = function(numbers, curves, path){
+				this.name = this.base.name;
+				this._arguments = numbers;
+				this.update = path.update.bind(path);
+				for(var i = 0; i < this.base.params.length;i++)
+					this[this.base.params[i]] = numbers[i];
+			};
 			_.pathFunctions[cm].prototype = extend({
 				base: cur
 			}, proto);

@@ -99,20 +99,17 @@
 
 			var canvas = this.canvas;
 			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(container),
+				var coords = _.coordsOfElement(canvas),
 					element;
 
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
 				
-				if(event == 'mouseout'){
-					object = this.hoverElement;
-					this.hoverElement = null;
-				}
+				element = this.getObjectInPoint(e.contextX, e.contextY);
 
-				for(var l = this.layers.length-1; l+1; l--){
-					if(element = this.layers[l].getObjectInPoint(e.contextX, e.contextY))
-						break;
+				if(event == 'mouseout'){
+					element = this.hoverElement;
+					this.hoverElement = null;
 				}
 
 				e.targetObject = element;
