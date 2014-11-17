@@ -86,6 +86,7 @@
 			return this._property('height', this._computeSize(this._width, h, this._image)[1]);
 		},
 		bounds : Rect.prototype.bounds,
+		processPath : Rect.prototype.processPath, // for event listeners
 
 		crop : function(arr){
 			if(arguments.length === 0)
