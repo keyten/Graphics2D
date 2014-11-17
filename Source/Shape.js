@@ -169,6 +169,8 @@
 		z : function(z){
 			if(z === undefined)
 				return this._z;
+			if(z === 'top')
+				z = this.context.elements.length;
 			this.context.elements = _.move.call(this.context.elements, this._z, z);
 			this._z = z;
 			return this.update();
