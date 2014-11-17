@@ -25,11 +25,11 @@
 				}
 			}
 
-			var s = this._computeSize(this._width, this._height, { width:width, height:height });
+			var s = this._computeSize(width, height, { width:this._width, height:this._height })
 			this._width = s[0];
 			this._height = s[1];
 
-			return this;
+			return this.update();
 		},
 		slice : function(frame, slice,y,w,h){
 			if(typeof frame == 'object' && 0 in frame){
@@ -54,7 +54,6 @@
 
 			this._frame = frame;
 			this._crop = this._frames[frame];
-//			this._visible = true;
 			this.fire('frame', {frame:frame});
 			return this.update();
 		},
@@ -111,7 +110,6 @@
 		},
 
 		_frame : null,
-//		_visible : false
 	});
 
 
