@@ -41,7 +41,7 @@ Planet.prototype.createPlanet = function(options){
 	sprite.frame(options.image);
 	sprite.x(center[0] - 13 + options.radius);
 	sprite.y(center[1] - 13); // 13,13 - половины ширины и высоты фрейма
-	sprite.mouseover(this.over.bind(this)).mouseout(this.out.bind(this));
+	sprite.mouseover(this.overPlanet.bind(this)).mouseout(this.out.bind(this));
 	sprite.click(this.click.bind(this));
 	sprite.cursor('pointer');
 
@@ -76,7 +76,7 @@ Planet.prototype.createOrbit = function(options){
 	orbit.isPointIn = function(x, y){
 		x -= center[0];
 		y -= center[1];
-		return (x*x + y*y) <= Math.pow(this._radius + 3, 2) && ((x*x + y*y) > Math.pow(this._radius - 3, 2));
+		return (x*x + y*y) <= Math.pow(this._radius + 20, 2) && ((x*x + y*y) > Math.pow(this._radius - 20, 2));
 	}
 
 	this.orbit = orbit;
@@ -92,6 +92,10 @@ Planet.prototype.createTitle = function(name){
 }
 
 Planet.prototype.over = function(e){
+	this.stroke.show();
+	this.orbit.stroke('3px rgba(0,192,255,1)');
+}
+Planet.prototype.overPlanet = function(e){
 	this.stroke.show();
 	this.orbit.stroke('3px rgba(0,192,255,1)');
 	this.titlebg.x(e.contextX).y(e.contextY).show();
