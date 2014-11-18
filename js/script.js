@@ -1,6 +1,6 @@
 
 // Selection highlighting
-
+/*
 var colors = [
 	'a0f', 'af0', 'fa0', 'f0a', '0af', '0fa'
 ];
@@ -16,3 +16,4 @@ window.onload = function(){
 	for(var i = 0; i < h3s.length; i++)
 		h3s[i].onclick = function(){ location.href = '#' + this.id };
 }
+ */
