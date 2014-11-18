@@ -108,9 +108,9 @@ Planet.prototype.overPlanet = function(e){
 Planet.prototype.out = function(){
 	this.stroke.hide();
 	this.orbit.stroke('1px rgba(0,192,255,0.5)');
-	if(this.rect){
-		this.rect.remove();
+	if(this.text){
 		this.text.remove();
+		this.rect.remove();
 	}
 }
 Planet.prototype.click = function(){
