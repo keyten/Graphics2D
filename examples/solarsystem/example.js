@@ -6,7 +6,6 @@ var app = Graphics2D.app('#example_solarsystem', width, height); // размер
 var background = app.layer(0);
 var orbits = app.layer(1);
 var planets = app.layer(2);
-var titles = app.layer(3);
 var planetarray = [];
 var planetNames = [ "Selene", "Mimas", "Ares", "Enceladus", "Tethys", "Dione", "Zeus", "Rhea", "Titan", "Janus", "Hyperion", "Iapetus" ];
 
@@ -25,7 +24,6 @@ function Planet(options){
 	// создание планеты
 	this.createPlanet(options);
 	this.createOrbit(options);
-	this.createTitle(options.name);
 
 	planetarray.push(this);
 }
@@ -83,13 +81,6 @@ Planet.prototype.createOrbit = function(options){
 	this.stroke = stroke;
 }
 
-Planet.prototype.createTitle = function(name){
-	var rect = titles.rect(0, 0, 70, 25, 'rgb(0,56,100)', '1px rgb(0,30,50)').hide();
-	var text = titles.text(name, 'Arial 11pt', 35, 12, 'rgba(0,192,255,1)').align('center').baseline('middle').hide();
-
-	this.titlebg = rect;
-	this.title = text;
-}
 
 Planet.prototype.over = function(e){
 	this.stroke.show();
@@ -98,14 +89,16 @@ Planet.prototype.over = function(e){
 Planet.prototype.overPlanet = function(e){
 	this.stroke.show();
 	this.orbit.stroke('3px rgba(0,192,255,1)');
-	this.titlebg.x(e.contextX).y(e.contextY).show();
-	this.title.x(e.contextX + 35).y(e.contextY + 12).show();
+	this.rect = planets.rect(e.contextX, e.contextY, 70, 25, 'rgb(0,56,100)', '1px rgb(0,30,50)');
+	this.text = planets.text(name, 'Arial 11pt', e.contextX + 35, e.contextY + 12, 'rgba(0,192,255,1)').align('center').baseline('middle').hide();
 }
 Planet.prototype.out = function(){
 	this.stroke.hide();
 	this.orbit.stroke('1px rgba(0,192,255,0.5)');
-	this.titlebg.hide();
-	this.title.hide();
+	if(this.rect){
+		this.rect.remove();
+		this.text.remove();
+	}
 }
 Planet.prototype.click = function(){
 	if(this.rotatePerMs){
