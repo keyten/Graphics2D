@@ -436,23 +436,15 @@
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of DOM element
-		var x = 0, y = 0,
-			temp = element.getBoundingClientRect();
-		x += temp.x;
-		y += temp.y;
 
-		temp = element.ownerDocument.documentElement;
-		x += temp.clientLeft || 0;
-		y += temp.clientTop  || 0;
+		var box = element.getBoundingClientRect();
+		return { x:box.left, y:box.top };
 
-		temp = window.getComputedStyle(element);
-		x += parseInt(temp.borderLeftWidth);
-		x += parseInt(temp.paddingLeft);
-		y += parseInt(temp.borderTopWidth);
-		y += parseInt(temp.paddingTop);
-
-		return { x: x, y: y };
 	};
+
+	_.scrollOfElement = function(element){
+		return { x: document.body.scrollLeft, y: document.body.scrollTop }
+	}
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 		if(value === undefined) return;
