@@ -437,14 +437,15 @@
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of DOM element
 
-		var box = element.getBoundingClientRect();
-		return { x:box.left, y:box.top };
+		var box = element.getBoundingClientRect(),
+			style = window.getComputedStyle(element);
+
+		return {
+			x: box.left + parseInt(style.borderLeftWidth) + parseInt(temp.paddingLeft),
+			y: box.top  + parseInt(style.borderTopWidth)  + parseInt(temp.paddingTop)
+		};
 
 	};
-
-	_.scrollOfElement = function(element){
-		return { x: document.body.scrollLeft, y: document.body.scrollTop }
-	}
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 		if(value === undefined) return;
