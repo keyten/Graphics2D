@@ -70,7 +70,6 @@ Planet.prototype.createOrbit = function(options){
 
 	stroke.rotate(this.startAngle, center);
 	orbit.mouseover(this.over.bind(this)).mouseout(this.out.bind(this));
-	orbit.cursor('pointer');
 	orbit.isPointIn = function(x, y){
 		x -= center[0];
 		y -= center[1];
@@ -89,8 +88,22 @@ Planet.prototype.over = function(e){
 Planet.prototype.overPlanet = function(e){
 	this.stroke.show();
 	this.orbit.stroke('3px rgba(0,192,255,1)');
+	if(this.rect){
+		this.rect.remove();
+		this.text.remove();
+	}
 	this.rect = planets.rect(e.contextX, e.contextY, 70, 25, 'rgb(0,56,100)', '1px rgb(0,30,50)');
-	this.text = planets.text(name, 'Arial 11pt', e.contextX + 35, e.contextY + 12, 'rgba(0,192,255,1)').align('center').baseline('middle').hide();
+	this.text = planets.text({
+		text: this.name,
+		font: 'Arial 11pt',
+		x: e.contextX + 35,
+		y: e.contextY + 12,
+
+		align: 'center',
+		baseline: 'middle',
+
+		fill: "rgba(0,192,255,1)"
+	});
 }
 Planet.prototype.out = function(){
 	this.stroke.hide();
