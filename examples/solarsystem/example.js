@@ -22,8 +22,8 @@ function Planet(options){
 	this.name = options.name;
 
 	// создание планеты
-	this.createPlanet(options);
 	this.createOrbit(options);
+	this.createPlanet(options);
 
 	planetarray.push(this);
 }
@@ -34,18 +34,15 @@ Planet.prototype.update = function(){
 }
 
 Planet.prototype.createPlanet = function(options){
-	var sprite = planets.sprite('images/planets.png', 0, 0);
+	var sprite = planets.sprite('images/planets.png', center[0] - 13 + options.radius, center[1] - 13);
 	sprite.autoslice(26, 26); // размеры каждого фрейма
 	sprite.frame(options.image);
-	sprite.x(center[0] - 13 + options.radius);
-	sprite.y(center[1] - 13); // 13,13 - половины ширины и высоты фрейма
 	sprite.mouseover(this.overPlanet.bind(this)).mouseout(this.out.bind(this));
 	sprite.click(this.click.bind(this));
 	sprite.cursor('pointer');
 
 	this.sprite = sprite;
 
-	this.startAngle = rand(360);
 	sprite.rotate(this.startAngle, center);
 }
 
@@ -58,7 +55,7 @@ Planet.prototype.createOrbit = function(options){
 		stroke: '1px rgba(0,192,255,0.5)'
 	});
 
-	var stroke = orbits.circle({
+	var stroke = planets.circle({
 		cx: center[0] + this.radius, // помещаем в координаты планеты
 		cy: center[1],
 		radius: 15,
@@ -68,6 +65,7 @@ Planet.prototype.createOrbit = function(options){
 		visible: false
 	});
 
+	this.startAngle = rand(360);
 	stroke.rotate(this.startAngle, center);
 	orbit.mouseover(this.over.bind(this)).mouseout(this.out.bind(this));
 	orbit.isPointIn = function(x, y){
