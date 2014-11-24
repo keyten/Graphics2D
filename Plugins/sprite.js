@@ -12,11 +12,11 @@
 		initialize : function(){
 			this._frames = [];
 			this._sequences = [];
-			this._image.onload = function(){ this.fire('load') }.bind(this);
+			this._image.onload = function(){ this.fire('load'); }.bind(this);
 		},
 		autoslice : function(width, height){
 			if(!this._image.complete)
-				return this._image.addEventListener('load', function(){ this.autoslice(width, height)}.bind(this));
+				return this._image.addEventListener('load', function(){ this.autoslice(width, height); }.bind(this));
 			var iw = this._image.width,
 				ih = this._image.height;
 			for(var j = 0; j < ih; j+=height){
@@ -25,7 +25,7 @@
 				}
 			}
 
-			var s = this._computeSize(width, height, { width:this._width, height:this._height })
+			var s = this._computeSize(width, height, { width:this._width, height:this._height });
 			this._width = s[0];
 			this._height = s[1];
 
@@ -50,7 +50,7 @@
 				return this._frame;
 
 			if(!this._image.complete)
-				return this._image.addEventListener('load', function(){ this.frame(frame)}.bind(this));
+				return this._image.addEventListener('load', function(){ this.frame(frame); }.bind(this));
 
 			this._frame = frame;
 			this._crop = this._frames[frame];
@@ -58,10 +58,10 @@
 			return this.update();
 		},
 		nextframe : function(){
-			return this.frame(this._frame === this._frames.length-1 ? 0 : this._frame + 1)
+			return this.frame(this._frame === this._frames.length-1 ? 0 : this._frame + 1);
 		},
 		prevframe : function(){
-			return this.frame(this._frame === 0 ? this._frames.length-1 : this._frame - 1)
+			return this.frame(this._frame === 0 ? this._frames.length-1 : this._frame - 1);
 		},
 
 		sequence : function(name, frames){
