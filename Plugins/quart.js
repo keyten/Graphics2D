@@ -21,7 +21,7 @@
 		this.y1 = numbers[1];
 		this.x2 = numbers[2];
 		this.y2 = numbers[3];
-	}
+	};
 
 	quart.prototype.process = function(ctx){
 		var max = this._points,
@@ -35,11 +35,11 @@
 			point = this.pointAt(1);
 			ctx.lineTo(point.x, point.y);
 		}
-	}
+	};
 
 	quart.prototype.pointAt = function(t){
 		return quart.pointAt.apply(0, this._arguments.concat([t]));
-	}
+	};
 
 	quart.prototype.arguments = function(value){
 		if(value === undefined)
@@ -59,7 +59,7 @@
 		this.y2 = value[3];
 		this.update();
 		return this;
-	}
+	};
 
 	quart.parameters = ['x1', 'y1', 'x2', 'y2', 'h1x', 'h1y', 'h2x', 'h2y', 'h3x', 'h3y'];
 	quart.prototype.set = function(name, value){
@@ -68,7 +68,7 @@
 		this[name] = value;
 		this.update();
 		return this;
-	}
+	};
 
 
 
@@ -81,7 +81,7 @@
 			x: (Math.pow(i,4)*fx) + (4*t*i*i*i*h1x) + (4*t*t*i*i*h2x) + (4*t*t*t*i*h3x) + (Math.pow(t,4)*tx),
 			y: (Math.pow(i,4)*fy) + (4*t*i*i*i*h1y) + (4*t*t*i*i*h2y) + (4*t*t*t*i*h3y) + (Math.pow(t,4)*ty)
 		};
-	}
+	};
 
 
 })(window, Graphics2D);
