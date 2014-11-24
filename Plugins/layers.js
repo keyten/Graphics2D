@@ -6,7 +6,7 @@
 
 	$.app = function(query, width, height){
 		return new App( document.querySelector(query), width, height );
-	}
+	};
 
 	function App(container, width, height){
 		this.layers = [];
@@ -64,9 +64,10 @@
 				this.fire(event, e);
 			}.bind(this));
 
-			if(event == 'mouseover' || event == 'mouseout')
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove'),
+			if(event == 'mouseover' || event == 'mouseout'){
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
+			}
 			else if(event == 'focus' || event == 'blur')
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 
