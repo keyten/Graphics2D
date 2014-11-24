@@ -19,7 +19,7 @@
 		this.y1 = numbers[3];
 		this.x2 = numbers[4];
 		this.y2 = numbers[5];
-	}
+	};
 
 	$.util.pathFunctions.catmullRom = catmullRom;
 

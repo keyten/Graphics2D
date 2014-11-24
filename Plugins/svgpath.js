@@ -43,11 +43,11 @@
 			numbers = match[i].match(/\-?\d*\.\d+|\-?\d+/g); // arguments
 			length = lengths[match[i][0]]; // count of the arguments (L - 2, H - 1...)
 			if(numbers){
-				numbers = numbers.map(function(v){ return Number(v) });
+				numbers = numbers.map(function(v){ return Number(v); });
 				if(numbers.length > length){
 					var exist = numbers.length,
 						mustb = length,
-						iters = exist / mustb,
+		//				iters = exist / mustb,
 						current;
 					for(; mustb <= exist; mustb+=length){
 						current = numbers.slice(mustb-length, mustb)
@@ -463,12 +463,12 @@
 			else curves.push({ name : 'closePath' });
 		}
 		return curves;
-	}
+	};
 
 
 	$.Context.prototype.pathFromSVG = function(points, fill, stroke){
 		return this.push(new $.Path($.util.parseSVGPath(points), fill, stroke, this));
-	}
+	};
 	$.Context.prototype.imageFromSVG = function(points, x, y, fill, stroke){
 		var path = new $.Path($.util.parseSVGPath(points), fill, stroke, this);
 		var bounds = path.bounds();
@@ -483,7 +483,7 @@
 		this.canvas.width = w;
 		this.canvas.height = h;
 		return this.image(du, x, y);
-	}
+	};
 
 
 
