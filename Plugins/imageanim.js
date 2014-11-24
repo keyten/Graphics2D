@@ -14,7 +14,7 @@
 		for(var from = Number(match[1]), to = Number(match[2]); from <= to; from++)
 			array.push(path.replace(/\[(\d+)\-(\d+)\]/, from));
 		return array;
-	}
+	};
 
 	var ImageAnim = $.ImageAnim = $.Class($.Image, {
 		__initialize__ : function(image, x, y, width, height, context){
@@ -47,9 +47,9 @@
 			}
 
 			var img;
-			this._image.forEach(function(frame, i){
+			this._image.forEach(function(frame){
 				if(!(frame instanceof Image)){
-					img = new Image;
+					img = new Image();
 					img.src = frame;
 					frame = img;
 				}
@@ -78,7 +78,7 @@
 				return this._frame;
 
 			if(!this._frames[frame].complete)
-				return this._frames[frame].addEventListener('load', function(){ this.frame(frame)}.bind(this));
+				return this._frames[frame].addEventListener('load', function(){ this.frame(frame); }.bind(this));
 
 			this._frame = frame;
 			this._image = this._frames[frame];
@@ -86,10 +86,10 @@
 			return this.update();
 		},
 		nextframe : function(){
-			return this.frame(this._frame === this._frames.length-1 ? 0 : this._frame + 1)
+			return this.frame(this._frame === this._frames.length-1 ? 0 : this._frame + 1);
 		},
 		prevframe : function(){
-			return this.frame(this._frame === 0 ? this._frames.length-1 : this._frame - 1)
+			return this.frame(this._frame === 0 ? this._frames.length-1 : this._frame - 1);
 		},
 
 		sequence : function(name, frames){
