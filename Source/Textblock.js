@@ -26,17 +26,19 @@
 			// text, x, y
 				this._text = text;
 				if(!isNumber(width)){
-					if(isNumber(font)) // но ведь там может быть и просто-размер
-						stroke = fill,
-						fill = width,
-						width = y,
-						y = x,
-						x = font,
+					if(isNumber(font)){ // но ведь там может быть и просто-размер
+						stroke = fill;
+						fill = width;
+						width = y;
+						y = x;
+						x = font;
 						font = '10px sans-serif';
-					if(!isNumber(width))
-						stroke = fill,
-						fill = width,
+					}
+					if(!isNumber(width)){
+						stroke = fill;
+						fill = width;
 						width = 'auto';
+					}
 				}
 				this._font = this._parseFont(font);
 				this._genFont();

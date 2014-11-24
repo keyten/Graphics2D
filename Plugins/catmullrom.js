@@ -15,7 +15,7 @@
 		this.h1y = numbers[1];
 		this.h2x = numbers[5];
 		this.h2y = numbers[7];
-		this.x1 = numbers[2]
+		this.x1 = numbers[2];
 		this.y1 = numbers[3];
 		this.x2 = numbers[4];
 		this.y2 = numbers[5];
@@ -36,11 +36,11 @@
 			point = this.pointAt(1);
 			ctx.lineTo(point.x, point.y);
 		}
-	}
+	};
 
 	catmullRom.prototype.pointAt = function(t){
 		return catmullRom.pointAt.apply(0, this._arguments.concat([t]));
-	}
+	};
 
 	catmullRom.prototype.length = function(){
 		var max = this._points,
@@ -56,7 +56,7 @@
 			last = point;
 		}
 		return length;
-	}
+	};
 
 	// utils
 	catmullRom.prototype.arguments = function(value){
@@ -75,7 +75,7 @@
 		this.y2 = value[5];
 		this.update();
 		return this;
-	}
+	};
 
 	catmullRom.parameters = ['h1x', 'h1y', 'x1', 'y1', 'x2', 'y2', 'h2x', 'h2y'];
 	catmullRom.prototype.set = function(name, value){
@@ -84,7 +84,7 @@
 		this[name] = value;
 		this.update();
 		return this;
-	}
+	};
 
 
 
@@ -98,9 +98,9 @@
 			y: 0.5 * ((-y1 + 3*y2 - 3*y3 + y4)*t*t*t
 					+ (2*y1 - 5*y2 + 4*y3 - y4)*t*t
 					+ (-y1 + y3)*t
-					+ 2*y2),
+					+ 2*y2)
 		};
-	}
+	};
 
 
 })(window, Graphics2D);

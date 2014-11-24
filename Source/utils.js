@@ -16,14 +16,14 @@
 				finish = start + dur,
 				interval, time, frame;
 
-			interval = this.interval = setInterval(function(){ // fixme! requestAnimationFrame -- посмотреть, что там, а то фигня какая-то с ним получается
+			interval = this.interval = setInterval(function(){ // TODO: one timer for all animations; requestAnimationFrame
 				if(time == (time = Date.now())) return;
 				frame = ease( time > finish ? 1 : (time - start) / dur );
 				fn(from + delta * frame, frame);
 
 				if(time > finish)
 					clearInterval(interval);
-			}, fps || 10); // fixme или можно 1000 / fps, так точнее будет... реально fps
+			}, fps || 10); // or -- 1000/fps (real fps :))
 
 			return this;
 		},
@@ -441,8 +441,8 @@
 			style = window.getComputedStyle(element);
 
 		return {
-			x: box.left + parseInt(style.borderLeftWidth) + parseInt(temp.paddingLeft),
-			y: box.top  + parseInt(style.borderTopWidth)  + parseInt(temp.paddingTop)
+			x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
+			y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
 		};
 
 	};

@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 19.11.2014
+ *  Last edit: 24.11.2014
  *  License: MIT / LGPL
  */
 
@@ -163,9 +163,10 @@
 				this.fire(event, e);
 			}.bind(this));
 
-			if(event == 'mouseover' || event == 'mouseout')
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove'),
+			if(event == 'mouseover' || event == 'mouseout'){
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
+			}
 			else if(event == 'focus' || event == 'blur')
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 			else if(event == 'mousewheel') // firefox
@@ -199,7 +200,7 @@
 			(this.listeners[ evt ] || this.listener(evt)).push(fn);
 			return this;
 		},
-		once : function(evt, fn){ // not works with .off
+		once : function(evt, fn){ // doesn't works with .off
 			if(evt == 'mousewheel')
 				this.once('DOMMouseScroll', fn);
 			var proxy;
@@ -233,25 +234,24 @@
 
 		// Transform animation
 	var trStart = function(anim){
-			if(!this._matrix)
-				this._matrix = [1,0,0,1,0,0];
-			anim.object.matrixStart = this._matrix;
-			anim.object.matrixCur = [1,0,0,1,0,0];
-			anim.object.matrixCur.step = 0;
-		};
+		if(!this._matrix)
+			this._matrix = [1,0,0,1,0,0];
+		anim.object.matrixStart = this._matrix;
+		anim.object.matrixCur = [1,0,0,1,0,0];
+		anim.object.matrixCur.step = 0;
+	};
 	var trProcess = function(fn){
-			return function(anim, end, step, param){
-				// если матрица с прошлого "тика" - мы её обнуляем
-				if(anim.object.matrixCur.step != step){
-					anim.object.matrixCur = [1,0,0,1,0,0];
-					anim.object.matrixCur.step = step;
-				}
-
-				var cur = _.interpolate(_.animTransformConstants[param], end, step);
-				_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
-				this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
+		return function(anim, end, step, param){
+			if(anim.object.matrixCur.step != step){
+				anim.object.matrixCur = [1,0,0,1,0,0];
+				anim.object.matrixCur.step = step;
 			}
+
+			var cur = _.interpolate(_.animTransformConstants[param], end, step);
+			_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
+			this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
 		};
+	};
 
 	Shape = new Class({
 
@@ -744,15 +744,16 @@
 					dur    = value.duration;
 				}
 				else {
-					after = easing,
-					easing = dur,
+					after = easing;
+					easing = dur;
 					dur = value;
 				}
 			}
 
-			var anim = new Anim(0, 1, dur, easing);
+			var anim = new Anim(0, 1, dur, easing),
+				param;
 			anim.object = {};
-			for(var param in params){
+			for(param in params){
 				if(Object.prototype.hasOwnProperty.call(params, param))
 					(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
 			}
@@ -779,7 +780,7 @@
 		_visible : true
 	});
 
-	// сокращения для событий
+	// events slices
 	['click', 'dblclick', 'mousedown', 'mousewheel',
 		'mouseup', 'mousemove', 'mouseover',
 		'mouseout', 'focus', 'blur'].forEach(function(event){
@@ -791,7 +792,7 @@
 			};
 		});
 
-	// сокращения для анимаций
+	// animation slices
 	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
 		Shape.prototype._anim[name] = Shape.prototype._anim.number;
 	});
@@ -834,14 +835,14 @@
 		x1 : function(x){
 			return x === undefined ?
 				this._x :
-				this._property('width', this._width - x + this._x).
-					 _property('x', x);
+				this._property('width', this._width - x + this._x)
+					._property('x', x);
 		},
 		y1 : function(y){
 			return y === undefined ?
 				this._y :
-				this._property('height', this._height - y + this._y).
-					 _property('y', y);
+				this._property('height', this._height - y + this._y)
+					._property('y', y);
 		},
 		x2 : function(x){
 			return x === undefined ?
@@ -1273,12 +1274,13 @@
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
 				this._text = text;
-				if(!isNumber(y))
-					stroke = fill,
-					fill = y,
-					y = x,
-					x = font,
+				if(!isNumber(y)){
+					stroke = fill;
+					fill = y;
+					y = x;
+					x = font;
 					font = '10px sans-serif';
+				}
 				this._font = this._parseFont(font);
 				this._genFont();
 				this._x = x;
@@ -1388,7 +1390,7 @@
 			var align = this._style.textAlign || 'left',
 				baseline = this._style.textBaseline || 'top',
 				width = this.width(),
-				size = parseInt(this._font.size) * 1.15, // не помню, откуда это число взялось. вроде привет LibCanvas?)
+				size = parseInt(this._font.size) * 1.15, //magic number (from LibCanvas? :))
 				x = this._x,
 				y = this._y;
 
@@ -1419,9 +1421,9 @@
 
 			// underline
 			if(this._underline){
-				var b = this.bounds();
+				var b = this.bounds(),
+					height = Math.round(this._font.size / 5);
 				ctx.beginPath();
-				var height = Math.round(this._font.size / 5)
 				ctx.moveTo(b.x, b.y + b.h - height);
 				ctx.lineTo(b.x + b.w, b.y + b.h - height);
 				ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
@@ -1463,17 +1465,19 @@
 			// text, x, y
 				this._text = text;
 				if(!isNumber(width)){
-					if(isNumber(font)) // но ведь там может быть и просто-размер
-						stroke = fill,
-						fill = width,
-						width = y,
-						y = x,
-						x = font,
+					if(isNumber(font)){ // но ведь там может быть и просто-размер
+						stroke = fill;
+						fill = width;
+						width = y;
+						y = x;
+						x = font;
 						font = '10px sans-serif';
-					if(!isNumber(width))
-						stroke = fill,
-						fill = width,
+					}
+					if(!isNumber(width)){
+						stroke = fill;
+						fill = width;
 						width = 'auto';
+					}
 				}
 				this._font = this._parseFont(font);
 				this._genFont();
@@ -1660,11 +1664,12 @@
 					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.startRadius[0], 2) + Math.pow(this._to[1] - type.startRadius[1], 2) ));
 			}
 			else {
-				if(to === undefined)
-					to = from,
-					from = colors,
-					colors = type,
+				if(to === undefined){
+					to = from;
+					from = colors;
+					colors = type;
 					type = 'linear';
+				}
 				this._type = type || 'linear';
 				this._colors = isArray(colors) ? this._parseColors(colors) : colors;
 				this._from = from;
@@ -1911,14 +1916,14 @@
 				finish = start + dur,
 				interval, time, frame;
 
-			interval = this.interval = setInterval(function(){ // fixme! requestAnimationFrame -- посмотреть, что там, а то фигня какая-то с ним получается
+			interval = this.interval = setInterval(function(){ // TODO: one timer for all animations; requestAnimationFrame
 				if(time == (time = Date.now())) return;
 				frame = ease( time > finish ? 1 : (time - start) / dur );
 				fn(from + delta * frame, frame);
 
 				if(time > finish)
 					clearInterval(interval);
-			}, fps || 10); // fixme или можно 1000 / fps, так точнее будет... реально fps
+			}, fps || 10); // or -- 1000/fps (real fps :))
 
 			return this;
 		},
@@ -2336,8 +2341,8 @@
 			style = window.getComputedStyle(element);
 
 		return {
-			x: box.left + parseInt(style.borderLeftWidth) + parseInt(temp.paddingLeft),
-			y: box.top  + parseInt(style.borderTopWidth)  + parseInt(temp.paddingTop)
+			x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
+			y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
 		};
 
 	};
@@ -2522,7 +2527,7 @@
 		Anim : Anim,
 
 		query : function(query, index, element){
-			return new Context( isString(query) ? (element || document).querySelectorAll(query)[element || 0] : query.canvas || query );
+			return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
 		},
 		id : function(id){
 			return new Context( document.getElementById(id) );

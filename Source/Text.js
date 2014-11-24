@@ -22,12 +22,13 @@
 			else {
 			// "ABC", "10px", "20pt", "20pt", "black"
 				this._text = text;
-				if(!isNumber(y))
-					stroke = fill,
-					fill = y,
-					y = x,
-					x = font,
+				if(!isNumber(y)){
+					stroke = fill;
+					fill = y;
+					y = x;
+					x = font;
 					font = '10px sans-serif';
+				}
 				this._font = this._parseFont(font);
 				this._genFont();
 				this._x = x;
@@ -137,7 +138,7 @@
 			var align = this._style.textAlign || 'left',
 				baseline = this._style.textBaseline || 'top',
 				width = this.width(),
-				size = parseInt(this._font.size) * 1.15, // не помню, откуда это число взялось. вроде привет LibCanvas?)
+				size = parseInt(this._font.size) * 1.15, //magic number (from LibCanvas? :))
 				x = this._x,
 				y = this._y;
 
@@ -168,9 +169,9 @@
 
 			// underline
 			if(this._underline){
-				var b = this.bounds();
+				var b = this.bounds(),
+					height = Math.round(this._font.size / 5);
 				ctx.beginPath();
-				var height = Math.round(this._font.size / 5)
 				ctx.moveTo(b.x, b.y + b.h - height);
 				ctx.lineTo(b.x + b.w, b.y + b.h - height);
 				ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;

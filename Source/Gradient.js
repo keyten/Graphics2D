@@ -31,11 +31,12 @@
 					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.startRadius[0], 2) + Math.pow(this._to[1] - type.startRadius[1], 2) ));
 			}
 			else {
-				if(to === undefined)
-					to = from,
-					from = colors,
-					colors = type,
+				if(to === undefined){
+					to = from;
+					from = colors;
+					colors = type;
 					type = 'linear';
+				}
 				this._type = type || 'linear';
 				this._colors = isArray(colors) ? this._parseColors(colors) : colors;
 				this._from = from;

@@ -120,9 +120,10 @@
 				this.fire(event, e);
 			}.bind(this));
 
-			if(event == 'mouseover' || event == 'mouseout')
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove'),
+			if(event == 'mouseover' || event == 'mouseout'){
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
+			}
 			else if(event == 'focus' || event == 'blur')
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 			else if(event == 'mousewheel') // firefox
@@ -156,7 +157,7 @@
 			(this.listeners[ evt ] || this.listener(evt)).push(fn);
 			return this;
 		},
-		once : function(evt, fn){ // not works with .off
+		once : function(evt, fn){ // doesn't works with .off
 			if(evt == 'mousewheel')
 				this.once('DOMMouseScroll', fn);
 			var proxy;

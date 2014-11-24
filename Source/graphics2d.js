@@ -83,7 +83,7 @@
 		Anim : Anim,
 
 		query : function(query, index, element){
-			return new Context( isString(query) ? (element || document).querySelectorAll(query)[element || 0] : query.canvas || query );
+			return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
 		},
 		id : function(id){
 			return new Context( document.getElementById(id) );

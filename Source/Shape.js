@@ -1,24 +1,23 @@
 	// Transform animation
 	var trStart = function(anim){
-			if(!this._matrix)
-				this._matrix = [1,0,0,1,0,0];
-			anim.object.matrixStart = this._matrix;
-			anim.object.matrixCur = [1,0,0,1,0,0];
-			anim.object.matrixCur.step = 0;
-		};
+		if(!this._matrix)
+			this._matrix = [1,0,0,1,0,0];
+		anim.object.matrixStart = this._matrix;
+		anim.object.matrixCur = [1,0,0,1,0,0];
+		anim.object.matrixCur.step = 0;
+	};
 	var trProcess = function(fn){
-			return function(anim, end, step, param){
-				// если матрица с прошлого "тика" - мы её обнуляем
-				if(anim.object.matrixCur.step != step){
-					anim.object.matrixCur = [1,0,0,1,0,0];
-					anim.object.matrixCur.step = step;
-				}
-
-				var cur = _.interpolate(_.animTransformConstants[param], end, step);
-				_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
-				this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
+		return function(anim, end, step, param){
+			if(anim.object.matrixCur.step != step){
+				anim.object.matrixCur = [1,0,0,1,0,0];
+				anim.object.matrixCur.step = step;
 			}
+
+			var cur = _.interpolate(_.animTransformConstants[param], end, step);
+			_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
+			this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
 		};
+	};
 
 	Shape = new Class({
 
@@ -511,15 +510,16 @@
 					dur    = value.duration;
 				}
 				else {
-					after = easing,
-					easing = dur,
+					after = easing;
+					easing = dur;
 					dur = value;
 				}
 			}
 
-			var anim = new Anim(0, 1, dur, easing);
+			var anim = new Anim(0, 1, dur, easing),
+				param;
 			anim.object = {};
-			for(var param in params){
+			for(param in params){
 				if(Object.prototype.hasOwnProperty.call(params, param))
 					(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
 			}
@@ -546,7 +546,7 @@
 		_visible : true
 	});
 
-	// сокращения для событий
+	// events slices
 	['click', 'dblclick', 'mousedown', 'mousewheel',
 		'mouseup', 'mousemove', 'mouseover',
 		'mouseout', 'focus', 'blur'].forEach(function(event){
@@ -558,7 +558,7 @@
 			};
 		});
 
-	// сокращения для анимаций
+	// animation slices
 	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
 		Shape.prototype._anim[name] = Shape.prototype._anim.number;
 	});

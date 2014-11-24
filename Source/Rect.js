@@ -35,14 +35,14 @@
 		x1 : function(x){
 			return x === undefined ?
 				this._x :
-				this._property('width', this._width - x + this._x).
-					 _property('x', x);
+				this._property('width', this._width - x + this._x)
+					._property('x', x);
 		},
 		y1 : function(y){
 			return y === undefined ?
 				this._y :
-				this._property('height', this._height - y + this._y).
-					 _property('y', y);
+				this._property('height', this._height - y + this._y)
+					._property('y', y);
 		},
 		x2 : function(x){
 			return x === undefined ?
