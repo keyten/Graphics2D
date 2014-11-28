@@ -9,16 +9,19 @@
 				this._to = type.to || [];
 
 				// radial
-				if(type.center)
-					this._to[0] = type.center[0], // TODO: distance
+				if(type.center){
+					this._to[0] = type.center[0]; // TODO: distance
 					this._to[1] = type.center[1];
+				}
 
-				if(type.hilite)
-					this._from[0] = this._to[0] + type.hilite[0],
+				if(type.hilite){
+					this._from[0] = this._to[0] + type.hilite[0];
 					this._from[1] = this._to[1] + type.hilite[1];
-				else if(!type.from)
-					this._from[0] = this._to[0],
+				}
+				else if(!type.from){
+					this._from[0] = this._to[0];
 					this._from[1] = this._to[1];
+				}
 
 				if(isNumber(type.radius))
 					this._to[2] = _.distance(type.radius);

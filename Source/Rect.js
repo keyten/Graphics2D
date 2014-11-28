@@ -19,7 +19,7 @@
 			}
 		},
 
-		// параметры
+		// parameters
 		x : function(x){
 			return this._property('x', x);
 		},

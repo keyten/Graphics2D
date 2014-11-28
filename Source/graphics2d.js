@@ -41,27 +41,27 @@
 				window.clearTimeout;
 
 
-	// {{include Context.js}}
+// {{include Context.js}}
 
-	// {{include Shape.js}}
+// {{include Shape.js}}
 
-	// {{include Rect.js}}
+// {{include Rect.js}}
 
-	// {{include Circle.js}}
+// {{include Circle.js}}
 
-	// {{include Path.js}}
+// {{include Path.js}}
 
-	// {{include Image.js}}
+// {{include Image.js}}
 
-	// {{include Text.js}}
+// {{include Text.js}}
 
-	// {{include Textblock.js}}
+// {{include Textblock.js}}
 
-	// {{include Gradient.js}}
+// {{include Gradient.js}}
 
-	// {{include Pattern.js}}
+// {{include Pattern.js}}
 
-	// {{include utils.js}}
+// {{include utils.js}}
 
 	window.Graphics2D = {
 

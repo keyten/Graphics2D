@@ -34,7 +34,7 @@
 		// todo: fullscreen
 		this.fullbody();
 
-		if(hideMouse === true){
+		if(hideMouse === true){ // hideCursor!
 			this.normalState.cursor = this.canvas.style.cursor;
 			this.canvas.style.cursor = 'none';
 		}

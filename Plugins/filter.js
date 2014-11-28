@@ -61,7 +61,7 @@
 					opacity  = options.opacity,
 					interpolate = $.util.interpolate;
 				for(i = 0; i < data.length; i+= 4){
-					pixel = callback(data[i], data[i+1], data[i+2], data[i+3]);
+					pixel = callback(data[i], data[i+1], data[i+2], data[i+3]); // TODO: x, y
 					data[i]   = interpolate(data[i], pixel.r, opacity);
 					data[i+1] = interpolate(data[i+1], pixel.g, opacity);
 					data[i+2] = interpolate(data[i+2], pixel.b, opacity);

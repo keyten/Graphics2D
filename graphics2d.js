@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 24.11.2014
+ *  Last edit: 28.11.2014
  *  License: MIT / LGPL
  */
 
@@ -41,7 +41,7 @@
 				window.clearTimeout;
 
 
-		Context = function(canvas){
+	Context = function(canvas){
 		this.context   = canvas.getContext('2d');
 		this.canvas    = canvas;
 		this.elements  = [];
@@ -232,7 +232,7 @@
 
 	};
 
-		// Transform animation
+	// Transform animation
 	var trStart = function(anim){
 		if(!this._matrix)
 			this._matrix = [1,0,0,1,0,0];
@@ -798,7 +798,7 @@
 	});
 
 
-		Rect = new Class(Shape, {
+	Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
 			this._z = context.elements.length;
@@ -819,7 +819,7 @@
 			}
 		},
 
-		// параметры
+		// parameters
 		x : function(x){
 			return this._property('x', x);
 		},
@@ -866,7 +866,7 @@
 	});
 
 
-		Circle = new Class(Shape, {
+	Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
 			this._z = context.elements.length;
@@ -907,7 +907,7 @@
 	});
 
 
-		Path = new Class(Shape, {
+	Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;
@@ -1131,7 +1131,7 @@
 	});
 
 
-		Img = new Class(Shape, {
+	Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
 			this._z = context.elements.length;
@@ -1250,7 +1250,7 @@
 	});
 
 
-		Text = new Class(Shape, {
+	Text = new Class(Shape, {
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
@@ -1437,7 +1437,7 @@
 	});
 
 
-		TextBlock = new Class(Shape, {
+	TextBlock = new Class(Shape, {
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
@@ -1631,7 +1631,7 @@
 	});
 
 
-		Gradient = new Class({
+	Gradient = new Class({
 
 		initialize : function(type, colors, from, to, context){
 			if(isHash(type)){
@@ -1642,16 +1642,19 @@
 				this._to = type.to || [];
 
 				// radial
-				if(type.center)
-					this._to[0] = type.center[0], // TODO: distance
+				if(type.center){
+					this._to[0] = type.center[0]; // TODO: distance
 					this._to[1] = type.center[1];
+				}
 
-				if(type.hilite)
-					this._from[0] = this._to[0] + type.hilite[0],
+				if(type.hilite){
+					this._from[0] = this._to[0] + type.hilite[0];
 					this._from[1] = this._to[1] + type.hilite[1];
-				else if(!type.from)
-					this._from[0] = this._to[0],
+				}
+				else if(!type.from){
+					this._from[0] = this._to[0];
 					this._from[1] = this._to[1];
+				}
 
 				if(isNumber(type.radius))
 					this._to[2] = _.distance(type.radius);
@@ -1855,7 +1858,7 @@
 	});
 
 
-		Pattern = new Class({
+	Pattern = new Class({
 
 		initialize : function(image, repeat, context){
 			this._repeat = (!!repeat === repeat ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
@@ -1898,7 +1901,7 @@
 	});
 
 
-		Anim = new Class({
+	Anim = new Class({
 
 		initialize : function(from, to, dur, easing){
 			this.from = from;
