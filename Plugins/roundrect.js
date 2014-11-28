@@ -7,11 +7,9 @@
 	var RoundRect = $.Class($.Rect, {
 		initialize : function(object){
 			if($.util.isHash(object)){
-				this.rx = object.rx;
-				this.ry = object.ry;
+				this._rx = object.rx;
+				this._ry = object.ry;
 			}
-			this._style = {};
-			this.listeners = {};
 		},
 
 		_rx : 0,
@@ -27,7 +25,7 @@
 		processPath : function(ctx){
 			if(!this._rx && !this._ry)
 				return $.Rect.prototype.processPath.call(this, ctx);
-			
+
 			var x = this._x,
 				y = this._y,
 				w = this._width,
@@ -60,6 +58,10 @@
 	});
 
 	$.RoundRect = RoundRect;
+
+	// animating corners
+	$.Shape.prototype._anim.rx = $.Shape.prototype._anim.number;
+	$.Shape.prototype._anim.ry = $.Shape.prototype._anim.number;
 
 	$.Context.prototype.roundrect = function(x, y, w, h, fill, stroke){
 		return this.push(new RoundRect(x, y, w, h, fill, stroke, this));
