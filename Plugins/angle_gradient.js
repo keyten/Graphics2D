@@ -11,7 +11,7 @@
 		nUpdate = nGrad.update;
 
 	nGrad.initialize = function(type, colors, from, to, context){
-		if(($.util.isString(type) && type != 'angle') || type.type != 'angle'){
+		if(($.util.isString(type) && type != 'angle') || ($.util.isHash(type) && type.type != 'angle')){
 			nInit.call(this, type, colors, from, to, context);
 		}
 		else {
@@ -19,6 +19,7 @@
 			this._center = type.center || from || 'center';
 			this._angle = type.angle || to || 0;
 			this._colors = ($.util.isArray(type.colors) || $.util.isArray(colors)) ? this._parseColors(type.colors || colors) : type.colors || colors;
+			this._density = type.density || 10;
 
 			this._changed = true;
 			this.context = context;
@@ -51,6 +52,15 @@
 		return this.update();
 	};
 
+	nGrad.density = function(density){
+		if(this._type !== 'angle')
+			return;
+		if(density === undefined)
+			return this._density;
+		this._density = density;
+		return this.update();
+	};
+
 	nGrad.toCanvasStyle = function(ctx, element){
 		if(this._type !== 'angle')
 			return nTCS.call(this, ctx, element);
@@ -66,19 +76,21 @@
 			steps = Object.keys(this._colors).sort(),
 			startAngle, endAngle,
 
-			width = ctx.canvas.width,
-			height = ctx.canvas.height;
+			buffer = document.createElement('canvas'),
+			context = buffer.getContext('2d');
 
-		// texture sizes
-		ctx.canvas.width = bounds.x2;
-		ctx.canvas.height = bounds.y2;
+		this._buffer = buffer;
+		this._bufferContext = context;
+
+		buffer.width  = bounds.width;
+		buffer.height = bounds.height;
 
 		// drawing
-		ctx.save();
-		ctx.clearRect(bounds.x, bounds.y, bounds.w, bounds.h);
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.translate(center[0], center[1]);
-		ctx.rotate(this._angle * Math.PI / 180);
+		context.save();
+		context.clearRect(bounds.x, bounds.y, bounds.w, bounds.h);
+		context.setTransform(1, 0, 0, 1, 0, 0);
+		context.translate(center[0], center[1]);
+		context.rotate(this._angle * Math.PI / 180);
 
 		steps[0] = Number(steps[0]);
 
@@ -87,25 +99,22 @@
 			startAngle = steps[i] * 360;
 			endAngle = steps[i+1] * 360;
 
-			drawAngle(ctx, lineLength, startAngle, endAngle,
+			drawAngle(context, lineLength, startAngle, endAngle,
 				$.util.color(this._colors[steps[i]]),
-				$.util.color(this._colors[steps[i+1]]), center);
+				$.util.color(this._colors[steps[i+1]]),
+				center, this._density);
 		}
-		ctx.restore();
+		context.restore();
 
-		var pat = ctx.createPattern(ctx.canvas, 'no-repeat');
-		ctx.canvas.width = width;
-		ctx.canvas.height = height;
+		var pat = ctx.createPattern(buffer, 'no-repeat');
 		this._cached = pat;
 		this._changed = false;
-		element.context.__update(); // TODO: use a new canvas instead of current
 		return pat;
 	};
 
-	function drawAngle(ctx, length, start, end, color1, color2, center){
+	function drawAngle(ctx, length, start, end, color1, color2, center, density){
 		// TODO: use pixels instead of lines
-		var density = 10,
-			delta = (end-start)*density,
+		var delta = (end-start)*density,
 			step = 1 / density / 180 * Math.PI,
 			i, t;
 		length = -length;
