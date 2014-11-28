@@ -2016,11 +2016,14 @@
 				if(cls.prototype.__initialize__)
 					return cls.prototype.__initialize__.apply(this,arguments);
 
-				var parent = this.constructor.parent;
+				var inits = [],
+					parent = this.constructor.parent;
 				while(parent){
-					if('initialize' in parent.prototype)
-						parent.prototype.initialize.apply(this, arguments);
+					inits.push(parent.prototype.initialize);
 					parent = parent.parent;
+				}
+				for(var i = inits.length; i--;){
+					inits[i].apply(this, arguments);
 				}
 
 				return (cls.prototype.initialize || emptyFunc).apply(this,arguments);
