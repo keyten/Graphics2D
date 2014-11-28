@@ -280,7 +280,7 @@
 				fn.call(this, e);
 				this.off(evt, proxy);
 			}.bind(this));
-			proxy.proxyFor = fn; // for .off
+			fn.proxy = proxy; // for .off
 		},
 		off : function(evt, fn){
 			if(evt == 'mousewheel')
@@ -288,7 +288,7 @@
 			if(!fn)
 				this.listeners[evt] = [];
 
-			this.listeners[evt][this.listeners[evt].indexOf(fn.proxyFor || fn)] = emptyFunc;
+			this.listeners[evt][this.listeners[evt].indexOf(fn.proxy || fn)] = emptyFunc;
 			return this;
 		},
 		fire : function(evt, data){
