@@ -102,5 +102,15 @@
 		};
 	};
 
+	catmullRom.angleAt = function(x1, y1, x2, y2, x3, y3, x4, y4, t){
+		var dx = 0.5 * (x3 - x1)
+					+ 2*t*(2*x1 - 5*x2 + 4*x3 - x4)
+					+ 3*t*t*(3*x2 + x4 - x1 - 3*x3),
+			dy = 0.5 * (y3 - y1)
+					+ 2*t*(2*y1 - 5*y2 + 4*y3 - y4)
+					+ 3*t*t*(3*y2 + y4 - y1 - 3*y3);
+		return Math.atan2(dy, dx);
+	};
+
 
 })(window, Graphics2D);

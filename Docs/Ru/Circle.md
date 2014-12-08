@@ -3,6 +3,8 @@
 
 `Graphics2D.Circle` -- круг.
 
+Параметры: `cx`, `cy`, `radius` -- координаты центра и радиус.
+
 ### Создание
 ```js
 // cx, cy, radius, [fill], [stroke]

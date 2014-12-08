@@ -47,10 +47,9 @@
 				if(numbers.length > length){
 					var exist = numbers.length,
 						mustb = length,
-		//				iters = exist / mustb,
 						current;
 					for(; mustb <= exist; mustb+=length){
-						current = numbers.slice(mustb-length, mustb)
+						current = numbers.slice(mustb-length, mustb);
 						switch(command){
 							case 'm': // moveto, relative
 								x += current[0];

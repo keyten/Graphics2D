@@ -20,7 +20,7 @@
 			var iw = this._image.width,
 				ih = this._image.height;
 			for(var j = 0; j < ih; j+=height){
-				for(var i = 0; i < iw; i+=width){
+				for(var i = 0; i < iw - 1; i+=width){
 					this._frames.push([i, j, width, height]);
 				}
 			}

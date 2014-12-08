@@ -330,6 +330,10 @@
 			return this.transform(1, 0, 0, 1, x, y);
 		},
 
+		// conversions
+		toPath : function(){},
+		toImage : function(){},
+
 		// анимация
 		_anim : {
 			fill : {

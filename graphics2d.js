@@ -564,8 +564,93 @@
 			return this.transform(1, 0, 0, 1, x, y);
 		},
 
-		// анимация
+		// animation
 		_anim : {
+			number : {
+				start : function(end, property){
+					this._animData[property + 'End'] = _.distance(end);
+				},
+				step : function(end, t, property){
+					this['_' + property] =
+						this['_' + property] * (1 - t) +
+						this._animData[property + 'End'] * t;
+				},
+				end : function(end, property){
+					delete this['_' + property];
+				}
+			}
+		},
+
+		animate : function(property, value, duration, easing, after){
+			var start = this._anim[property].start,
+				step = this._anim[property].step,
+				end = this._anim[property].end;
+
+			// объект с данными анимаций
+			if(!this._animData)
+				this._animData = {};
+
+			// массив анимаций контекста
+			if(!this.context._tweens) // TODO: привязать анимации не к контексту, а к глобальному скоупу вообще
+				this.context._tweens = [];
+
+			// вызываем стартовую функцию
+			start.call(this, value, property);
+
+			// вставляем в tweens объект с нашей анимацией
+			var now = Date.now();
+			this.context._tweens.push({
+				// объект
+				element : this,
+
+				// свойство
+				property : property,
+				stepListener : step,
+
+				// начальное и конечное значения
+				from : this._x,
+				to : value,
+
+				// время
+				startTime : now,
+				endTime : now + duration,
+				duration : duration
+			});
+
+			function array_remove(array, element){
+				var index = array.indexOf(element);
+				return array.slice(0, index).concat( array.slice(index+1) );
+			}
+
+			// this.context.processAnimation();
+			var tweens = this.context._tweens;
+			var processor = function(){
+				for(var i = 0, l = tweens.length; i < l; i++){
+					// вынести переменную i наружу из функции. В замыкание. Будет ли быстрее вот только? Можно прибиндить всё :)
+					var now = Date.now();
+					var tween = tweens[i];
+
+					if(tween.endTime <= now){ // 1. никогда не вызывается. 2. неправильно считается t.
+						array_remove(tweens, tween);
+					}
+
+					var t = (now - tween.startTime) / tween.duration;
+					if(t > 1)
+						t = 1;
+
+					tween.stepListener.call(tween.element, tween.to, t, tween.property);
+					tween.element.update();
+				}
+
+
+				if(tweens.length !== 0)
+					requestAnimationFrame(processor);
+			};
+			requestAnimationFrame(processor);
+		},
+
+		// анимация
+/*		_anim : {
 			fill : {
 				start : function(anim, end){
 					anim.object.fill = _.color(this._style.fillStyle);
@@ -775,7 +860,7 @@
 				setTimeout(after.bind(this), dur || 500);
 
 			return this;
-		},
+		}, */
 
 		// defaults
 		_visible : true
