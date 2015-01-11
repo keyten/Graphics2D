@@ -1,4 +1,4 @@
-	Pattern = new Class({
+	$.Pattern = Pattern = new Class({
 
 		initialize : function(image, repeat, context){
 			this._repeat = (!!repeat === repeat ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));

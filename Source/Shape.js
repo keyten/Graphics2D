@@ -19,7 +19,7 @@
 		};
 	};
 
-	Shape = new Class({
+	$.Shape = Shape = new Class({
 
 		initialize : function(){
 			this.listeners = {};
@@ -334,8 +334,105 @@
 		toPath : function(){},
 		toImage : function(){},
 
-		// анимация
+		// animation
 		_anim : {
+			number : {
+				start : function(end, property){
+					this._animData[property + 'Start'] = this['_' + property];
+					this._animData[property + 'End'] = _.distance(end);
+				},
+				step : function(end, t, property){
+					var start = this._animData[property + 'Start'];
+					end = this._animData[property + 'End'];
+					this['_' + property] = start * (1 - t) + end * t;
+				},
+				end : function(end, property){
+					delete this['_' + property];
+				}
+			}
+		},
+
+		animate : function(property, value, options){
+			//	animate(property, value, duration, easing, after);
+			//	animate(properties, duration, easing, after);
+			//	animate(property, value, options);
+			//	animate(properties, options);
+			if(isHash(property)){
+				if(!isHash(value)){
+					value = {
+						duration : value,
+						easing : options,
+						after : arguments[3]
+					};
+				}
+				for(var i in property){
+					if(Object.prototype.hasOwnProperty.call(property, i))
+						this.animate(i, property[i], value);
+				}
+				return this;
+			}
+
+			if(!isHash(options)){
+				options = {
+					duration : options,
+					easing : arguments[3],
+					after : arguments[4] // optimize? using args by index + by name may be slow :)
+				};
+// TODO: Graphics2D.animMethod = 'rfa' (requestAnimationFrame) | 'timeout'
+			}
+
+			// animate listeners
+			var start = this._anim[property].start,
+				step = this._anim[property].step,
+				end = this._anim[property].end;
+
+
+			// объект с данными анимаций
+			if(!this._animData)
+				this._animData = {};
+
+			// массив анимаций контекста
+			if(!Graphics2D._tweens)
+				Graphics2D._tweens = [];
+
+			// массив анимаций элемента
+			if(!this._tweens) // TODO: реализовать очередь анимаций
+				this._tweens = [];
+
+			// вызываем стартовую функцию
+			start.call(this, value, property);
+
+			// вставляем в tweens объект с нашей анимацией
+			var now = Date.now();
+			Graphics2D._tweens.push({
+				// объект
+				element : this,
+
+				// свойство
+				property : property,
+				stepListener : step,
+				endListener : end,
+
+				// начальное и конечное значения
+				from : this._x,
+				to : value,
+
+				// время
+				startTime : now,
+				endTime : now + options.duration,
+				duration : options.duration,
+
+				easing : options.easing,
+				after : options.after
+			});
+
+			Graphics2D._processAnimation();
+			return this;
+		},
+
+
+		// анимация
+/*		_anim : {
 			fill : {
 				start : function(anim, end){
 					anim.object.fill = _.color(this._style.fillStyle);
@@ -545,7 +642,7 @@
 				setTimeout(after.bind(this), dur || 500);
 
 			return this;
-		},
+		}, */
 
 		// defaults
 		_visible : true
@@ -567,3 +664,55 @@
 	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
 		Shape.prototype._anim[name] = Shape.prototype._anim.number;
 	});
+
+// animation
+	$.arrayRemove = function(array, element){
+		var index = array.indexOf(element);
+		return array.slice(0, index).concat( array.slice(index+1) );
+	};
+
+
+	$._processAnimation = function(){
+
+		var tweens = Graphics2D._tweens;
+		var processor = function(){
+			// вообще объявить функцию однажды, а потом использовать
+			// а индекс - вообще вынести во внешний контекст Graphics2D (т.е. изначальный) -- оптимизация же ). Или лучше всего вообще в свойства. Хотя... нафига?
+			// ах да, она зависит от RFA, локальной переменной.
+			for(var i = 0, l = tweens.length; i < l; i++){
+				var now = Date.now();
+				var tween = tweens[i];
+
+				if(!tween)
+					return;
+
+				if(tween.endTime <= now){
+					tweens = $.arrayRemove(tweens, tween);
+					if(tween.after)
+						tween.after.call(tween.element, tween.to, tween.property);
+					if(tween.endListener)
+						tween.endListener.call(tween.element, tween.to, tween.property);
+				}
+
+				var t = (now - tween.startTime) / tween.duration;
+				if(t > 1)
+					t = 1;
+
+				if(tween.easing)
+					t = tween.easing(t);
+
+				tween.stepListener.call(tween.element, tween.to, t, tween.property);
+				tween.element.update();
+			}
+
+
+			if(tweens.length !== 0)
+				this._animationProcessor = requestAnimationFrame(processor);
+			else // не работает :(
+				this._animationProcessor = null;
+
+		}.bind(this);
+
+		this._animationProcessor = requestAnimationFrame(processor);
+
+	};

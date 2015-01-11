@@ -1,4 +1,4 @@
-	Img = new Class(Shape, {
+	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
 			this._z = context.elements.length;

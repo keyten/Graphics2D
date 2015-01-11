@@ -1,4 +1,4 @@
-	Path = new Class(Shape, {
+	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;

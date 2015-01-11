@@ -1,4 +1,4 @@
-	Gradient = new Class({
+	$.Gradient = Gradient = new Class({
 
 		initialize : function(type, colors, from, to, context){
 			if(isHash(type)){

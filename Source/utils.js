@@ -1,4 +1,4 @@
-	Anim = new Class({
+	$.Anim = Anim = new Class({
 
 		initialize : function(from, to, dur, easing){
 			this.from = from;
@@ -34,7 +34,7 @@
 
 	});
 
-	// Mootools :)
+	// Mootools :) partially
 	Anim.easing = {
 		linear : function(x){ return x; },
 		half : function(x){ return Math.sqrt(x); },
@@ -397,7 +397,7 @@
 
 	// Clear functions
 	_.move = function(from, to){ // moves an element of array
-		if(from < to) to++; // учёт того, что с перемещением элемента массив сам изменяется. и изменяются координаты
+		if(from < to) to++;
 		var first = this.slice(0,to),
 			last  = this.slice(to),
 			res = first.concat([this[from]]).concat(last);
@@ -438,7 +438,7 @@
 
 
 	// DOM
-	_.coordsOfElement = function(element){ // returns coords of DOM element
+	_.coordsOfElement = function(element){ // returns coords of a DOM element
 
 		var box = element.getBoundingClientRect(),
 			style = window.getComputedStyle(element);
@@ -520,6 +520,9 @@
 		translateX : 0,
 		translateY : 0
 	};
+
+	// TODO: move animation to a new file;
+	// TODO: move the path utils to the path file
 
 	// Path
 	_.pathFunctions = {

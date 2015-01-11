@@ -1,4 +1,4 @@
-	TextBlock = new Class(Shape, {
+	$.TextBlock = TextBlock = new Class(Shape, {
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]

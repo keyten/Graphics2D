@@ -1,4 +1,4 @@
-	Context = function(canvas){
+	$.Context = Context = function(canvas){
 		this.context   = canvas.getContext('2d');
 		this.canvas    = canvas;
 		this.elements  = [];

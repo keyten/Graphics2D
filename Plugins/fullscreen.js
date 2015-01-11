@@ -4,6 +4,18 @@
  */
 (function(window, $, undefined){
 
+	$.enterFullScreen = Element.prototype.requestFullScreen     ||
+	                    Element.prototype.mozRequestFullscreen    ||
+	                    Element.prototype.webkitRequestFullscreen ||
+	                    Element.prototype.msRequestFullscreen     ||
+	                    isNotSupported;
+
+	$.exitFullScreen = (document.exitFullScreen      ||
+	                   document.mozCancelFullScreen  ||
+	                   document.webkitExitFullscreen ||
+	                   document.msExitFullscreen     ||
+	                   isNotSupported).bind(document);
+
 	$.resizeCanvasByBody = function(canvas, context){
 		canvas.width = window.innerWidth;
 		canvas.height = window.innerHeight;
@@ -31,8 +43,10 @@
 	};
 
 	$.Context.prototype.fullscreen = function(hideMouse){
-		// todo: fullscreen
-		this.fullbody();
+		// todo: polyfill?
+		$.enterFullScreen.call(this.canvas);
+		this.resizeListener = function(){ $.resizeCanvasByBody(canvas, this); }.bind(this);
+		window.addEventListener('resize', this.resizeListener);
 
 		if(hideMouse === true){ // hideCursor!
 			this.normalState.cursor = this.canvas.style.cursor;
@@ -40,7 +54,10 @@
 		}
 	};
 
-	$.Context.prototype.unfull = function(){
+	$.Context.prototype.exitfull = function(){
+		if(document.fullScreen)
+			$.exitFullScreen();
+
 		var canvas = this.canvas,
 			state = this.normalState;
 		canvas.style.position = state.position;
@@ -58,5 +75,10 @@
 
 		this.normalState = this.resizeListener = null;
 	};
+
+	function isNotSupported(){
+		if(window.console)
+			window.console.log("Fullscreen API isn't supported.");
+	}
 
 })(window, Graphics2D);

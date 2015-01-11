@@ -7,6 +7,9 @@
 
 (function(window, undefined){
 
+	// The main graphics2D class
+	var $ = {};
+
 	// Classes
 	var Context,
 
@@ -19,23 +22,23 @@
 		_ = {},
 		toString = Object.prototype.toString,
 		requestAnimationFrame =
-				window.requestAnimationFrame		|| 
-				window.webkitRequestAnimationFrame	|| 
-				window.mozRequestAnimationFrame		|| 
-				window.oRequestAnimationFrame		|| 
+				window.requestAnimationFrame		||
+				window.webkitRequestAnimationFrame	||
+				window.mozRequestAnimationFrame		||
+				window.oRequestAnimationFrame		||
 				window.msRequestAnimationFrame		||
 				window.setTimeout,
 		cancelAnimationFrame =
-				window.cancelAnimationFrame			|| 
-				window.webkitCancelAnimationFrame	|| 
-				window.mozCancelAnimationFrame		|| 
-				window.oCancelAnimationFrame		|| 
+				window.cancelAnimationFrame			||
+				window.webkitCancelAnimationFrame	||
+				window.mozCancelAnimationFrame		||
+				window.oCancelAnimationFrame		||
 				window.msCancelAnimationFrame		||
 
-				window.cancelRequestAnimationFrame			|| 
-				window.webkitCancelRequestAnimationFrame	|| 
-				window.mozCancelRequestAnimationFrame		|| 
-				window.oCancelRequestAnimationFrame			|| 
+				window.cancelRequestAnimationFrame			||
+				window.webkitCancelRequestAnimationFrame	||
+				window.mozCancelRequestAnimationFrame		||
+				window.oCancelRequestAnimationFrame			||
 				window.msCancelRequestAnimationFrame		||
 
 				window.clearTimeout;
@@ -63,32 +66,19 @@
 
 // {{include utils.js}}
 
-	window.Graphics2D = {
+	$.version = Math.PI / 3.490658503988659;
 
-		version : Math.PI / Math.PI, // :)
-		util : _,
-		Class : Class,
-
-		Context : Context,
-		Shape : Shape,
-		Rect : Rect,
-		Circle : Circle,
-		Path : Path,
-		Image : Img,
-		Text : Text,
-		TextBlock : TextBlock,
-
-		Gradient : Gradient,
-		Pattern : Pattern,
-		Anim : Anim,
-
-		query : function(query, index, element){
-			return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
-		},
-		id : function(id){
-			return new Context( document.getElementById(id) );
-		}
-
+	$.query = function(query, index, element){
+		// TODO: test
+		return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
 	};
+
+	$.id = function(id){
+		return new Context( document.getElementById(id) );
+	};
+
+	$.util = _;
+
+	window.Graphics2D = $;
 
 })(this);

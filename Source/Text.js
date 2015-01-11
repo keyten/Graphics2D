@@ -1,4 +1,4 @@
-	Text = new Class(Shape, {
+	$.Text = Text = new Class(Shape, {
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]

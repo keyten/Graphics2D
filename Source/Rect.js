@@ -1,4 +1,4 @@
-	Rect = new Class(Shape, {
+	$.Rect = Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
 			this._z = context.elements.length;

@@ -1,11 +1,14 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 28.11.2014
+ *  Last edit: 1.1.2015
  *  License: MIT / LGPL
  */
 
 (function(window, undefined){
+
+	// The main graphics2D class
+	var $ = {};
 
 	// Classes
 	var Context,
@@ -19,29 +22,29 @@
 		_ = {},
 		toString = Object.prototype.toString,
 		requestAnimationFrame =
-				window.requestAnimationFrame		|| 
-				window.webkitRequestAnimationFrame	|| 
-				window.mozRequestAnimationFrame		|| 
-				window.oRequestAnimationFrame		|| 
+				window.requestAnimationFrame		||
+				window.webkitRequestAnimationFrame	||
+				window.mozRequestAnimationFrame		||
+				window.oRequestAnimationFrame		||
 				window.msRequestAnimationFrame		||
 				window.setTimeout,
 		cancelAnimationFrame =
-				window.cancelAnimationFrame			|| 
-				window.webkitCancelAnimationFrame	|| 
-				window.mozCancelAnimationFrame		|| 
-				window.oCancelAnimationFrame		|| 
+				window.cancelAnimationFrame			||
+				window.webkitCancelAnimationFrame	||
+				window.mozCancelAnimationFrame		||
+				window.oCancelAnimationFrame		||
 				window.msCancelAnimationFrame		||
 
-				window.cancelRequestAnimationFrame			|| 
-				window.webkitCancelRequestAnimationFrame	|| 
-				window.mozCancelRequestAnimationFrame		|| 
-				window.oCancelRequestAnimationFrame			|| 
+				window.cancelRequestAnimationFrame			||
+				window.webkitCancelRequestAnimationFrame	||
+				window.mozCancelRequestAnimationFrame		||
+				window.oCancelRequestAnimationFrame			||
 				window.msCancelRequestAnimationFrame		||
 
 				window.clearTimeout;
 
 
-	Context = function(canvas){
+	$.Context = Context = function(canvas){
 		this.context   = canvas.getContext('2d');
 		this.canvas    = canvas;
 		this.elements  = [];
@@ -253,7 +256,7 @@
 		};
 	};
 
-	Shape = new Class({
+	$.Shape = Shape = new Class({
 
 		initialize : function(){
 			this.listeners = {};
@@ -564,16 +567,21 @@
 			return this.transform(1, 0, 0, 1, x, y);
 		},
 
+		// conversions
+		toPath : function(){},
+		toImage : function(){},
+
 		// animation
 		_anim : {
 			number : {
 				start : function(end, property){
+					this._animData[property + 'Start'] = this['_' + property];
 					this._animData[property + 'End'] = _.distance(end);
 				},
 				step : function(end, t, property){
-					this['_' + property] =
-						this['_' + property] * (1 - t) +
-						this._animData[property + 'End'] * t;
+					var start = this._animData[property + 'Start'];
+					end = this._animData[property + 'End'];
+					this['_' + property] = start * (1 - t) + end * t;
 				},
 				end : function(end, property){
 					delete this['_' + property];
@@ -581,31 +589,66 @@
 			}
 		},
 
-		animate : function(property, value, duration, easing, after){
+		animate : function(property, value, options){
+			//	animate(property, value, duration, easing, after);
+			//	animate(properties, duration, easing, after);
+			//	animate(property, value, options);
+			//	animate(properties, options);
+			if(isHash(property)){
+				if(!isHash(value)){
+					value = {
+						duration : value,
+						easing : options,
+						after : arguments[3]
+					};
+				}
+				for(var i in property){
+					if(Object.prototype.hasOwnProperty.call(property, i))
+						this.animate(i, property[i], value);
+				}
+				return this;
+			}
+
+			if(!isHash(options)){
+				options = {
+					duration : options,
+					easing : arguments[3],
+					after : arguments[4] // optimize? using args by index + by name may be slow :)
+				};
+// TODO: Graphics2D.animMethod = 'rfa' (requestAnimationFrame) | 'timeout'
+			}
+
+			// animate listeners
 			var start = this._anim[property].start,
 				step = this._anim[property].step,
 				end = this._anim[property].end;
+
 
 			// объект с данными анимаций
 			if(!this._animData)
 				this._animData = {};
 
 			// массив анимаций контекста
-			if(!this.context._tweens) // TODO: привязать анимации не к контексту, а к глобальному скоупу вообще
-				this.context._tweens = [];
+			if(!Graphics2D._tweens)
+				Graphics2D._tweens = [];
+
+			// массив анимаций элемента
+			if(!this._tweens) // TODO: реализовать очередь анимаций
+				this._tweens = [];
 
 			// вызываем стартовую функцию
 			start.call(this, value, property);
 
 			// вставляем в tweens объект с нашей анимацией
 			var now = Date.now();
-			this.context._tweens.push({
+			Graphics2D._tweens.push({
 				// объект
 				element : this,
 
 				// свойство
 				property : property,
 				stepListener : step,
+				endListener : end,
 
 				// начальное и конечное значения
 				from : this._x,
@@ -613,41 +656,17 @@
 
 				// время
 				startTime : now,
-				endTime : now + duration,
-				duration : duration
+				endTime : now + options.duration,
+				duration : options.duration,
+
+				easing : options.easing,
+				after : options.after
 			});
 
-			function array_remove(array, element){
-				var index = array.indexOf(element);
-				return array.slice(0, index).concat( array.slice(index+1) );
-			}
-
-			// this.context.processAnimation();
-			var tweens = this.context._tweens;
-			var processor = function(){
-				for(var i = 0, l = tweens.length; i < l; i++){
-					// вынести переменную i наружу из функции. В замыкание. Будет ли быстрее вот только? Можно прибиндить всё :)
-					var now = Date.now();
-					var tween = tweens[i];
-
-					if(tween.endTime <= now){ // 1. никогда не вызывается. 2. неправильно считается t.
-						array_remove(tweens, tween);
-					}
-
-					var t = (now - tween.startTime) / tween.duration;
-					if(t > 1)
-						t = 1;
-
-					tween.stepListener.call(tween.element, tween.to, t, tween.property);
-					tween.element.update();
-				}
-
-
-				if(tweens.length !== 0)
-					requestAnimationFrame(processor);
-			};
-			requestAnimationFrame(processor);
+			Graphics2D._processAnimation();
+			return this;
 		},
+
 
 		// анимация
 /*		_anim : {
@@ -883,8 +902,60 @@
 		Shape.prototype._anim[name] = Shape.prototype._anim.number;
 	});
 
+// animation
+	$.arrayRemove = function(array, element){
+		var index = array.indexOf(element);
+		return array.slice(0, index).concat( array.slice(index+1) );
+	};
 
-	Rect = new Class(Shape, {
+
+	$._processAnimation = function(){
+
+		var tweens = Graphics2D._tweens;
+		var processor = function(){
+			// вообще объявить функцию однажды, а потом использовать
+			// а индекс - вообще вынести во внешний контекст Graphics2D (т.е. изначальный) -- оптимизация же ). Или лучше всего вообще в свойства. Хотя... нафига?
+			// ах да, она зависит от RFA, локальной переменной.
+			for(var i = 0, l = tweens.length; i < l; i++){
+				var now = Date.now();
+				var tween = tweens[i];
+
+				if(!tween)
+					return;
+
+				if(tween.endTime <= now){
+					tweens = $.arrayRemove(tweens, tween);
+					if(tween.after)
+						tween.after.call(tween.element, tween.to, tween.property);
+					if(tween.endListener)
+						tween.endListener.call(tween.element, tween.to, tween.property);
+				}
+
+				var t = (now - tween.startTime) / tween.duration;
+				if(t > 1)
+					t = 1;
+
+				if(tween.easing)
+					t = tween.easing(t);
+
+				tween.stepListener.call(tween.element, tween.to, t, tween.property);
+				tween.element.update();
+			}
+
+
+			if(tweens.length !== 0)
+				this._animationProcessor = requestAnimationFrame(processor);
+			else // не работает :(
+				this._animationProcessor = null;
+
+		}.bind(this);
+
+		this._animationProcessor = requestAnimationFrame(processor);
+
+	};
+
+
+	$.Rect = Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
 			this._z = context.elements.length;
@@ -952,7 +1023,7 @@
 	});
 
 
-	Circle = new Class(Shape, {
+	$.Circle = Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
 			this._z = context.elements.length;
@@ -993,7 +1064,7 @@
 	});
 
 
-	Path = new Class(Shape, {
+	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;
@@ -1217,7 +1288,7 @@
 	});
 
 
-	Img = new Class(Shape, {
+	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
 			this._z = context.elements.length;
@@ -1336,7 +1407,7 @@
 	});
 
 
-	Text = new Class(Shape, {
+	$.Text = Text = new Class(Shape, {
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
@@ -1523,7 +1594,7 @@
 	});
 
 
-	TextBlock = new Class(Shape, {
+	$.TextBlock = TextBlock = new Class(Shape, {
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
@@ -1717,7 +1788,7 @@
 	});
 
 
-	Gradient = new Class({
+	$.Gradient = Gradient = new Class({
 
 		initialize : function(type, colors, from, to, context){
 			if(isHash(type)){
@@ -1944,7 +2015,7 @@
 	});
 
 
-	Pattern = new Class({
+	$.Pattern = Pattern = new Class({
 
 		initialize : function(image, repeat, context){
 			this._repeat = (!!repeat === repeat ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
@@ -1987,7 +2058,7 @@
 	});
 
 
-	Anim = new Class({
+	$.Anim = Anim = new Class({
 
 		initialize : function(from, to, dur, easing){
 			this.from = from;
@@ -2023,7 +2094,7 @@
 
 	});
 
-	// Mootools :)
+	// Mootools :) partially
 	Anim.easing = {
 		linear : function(x){ return x; },
 		half : function(x){ return Math.sqrt(x); },
@@ -2386,7 +2457,7 @@
 
 	// Clear functions
 	_.move = function(from, to){ // moves an element of array
-		if(from < to) to++; // учёт того, что с перемещением элемента массив сам изменяется. и изменяются координаты
+		if(from < to) to++;
 		var first = this.slice(0,to),
 			last  = this.slice(to),
 			res = first.concat([this[from]]).concat(last);
@@ -2427,7 +2498,7 @@
 
 
 	// DOM
-	_.coordsOfElement = function(element){ // returns coords of DOM element
+	_.coordsOfElement = function(element){ // returns coords of a DOM element
 
 		var box = element.getBoundingClientRect(),
 			style = window.getComputedStyle(element);
@@ -2509,6 +2580,9 @@
 		translateX : 0,
 		translateY : 0
 	};
+
+	// TODO: move animation to a new file;
+	// TODO: move the path utils to the path file
 
 	// Path
 	_.pathFunctions = {
@@ -2599,32 +2673,19 @@
 	};
 
 
-	window.Graphics2D = {
+	$.version = Math.PI / 3.490658503988659;
 
-		version : Math.PI / Math.PI, // :)
-		util : _,
-		Class : Class,
-
-		Context : Context,
-		Shape : Shape,
-		Rect : Rect,
-		Circle : Circle,
-		Path : Path,
-		Image : Img,
-		Text : Text,
-		TextBlock : TextBlock,
-
-		Gradient : Gradient,
-		Pattern : Pattern,
-		Anim : Anim,
-
-		query : function(query, index, element){
-			return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
-		},
-		id : function(id){
-			return new Context( document.getElementById(id) );
-		}
-
+	$.query = function(query, index, element){
+		// TODO: test
+		return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
 	};
+
+	$.id = function(id){
+		return new Context( document.getElementById(id) );
+	};
+
+	$.util = _;
+
+	window.Graphics2D = $;
 
 })(this);
