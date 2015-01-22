@@ -1,0 +1,30 @@
+{
+  "name": "Graphics2D",
+  "main": "graphics2d.min.js",
+  "version": "0.9.0",
+  "description": "JavaScript library for drawing and interaction with canvas.",
+  "keywords": [
+    "canvas",
+    "graphics",
+    "html5",
+    "draw",
+    "2d"
+  ],
+  "authors": [
+    "Keyten"
+  ],
+  "license": "MIT / LGPL",
+  "homepage": "http://keyten.github.io/Graphics2D",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    ".jshintrc",
+    "Gruntfile.js",
+    "Docs",
+    "Plugins",
+    "Source"
+  ]
+}
