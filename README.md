@@ -8,7 +8,9 @@ bower install graphics2d
 
 ### Documentation
 [Russian](http://github.com/keyten/Graphics2D/tree/master/Docs/Ru)
+
 [English](http://keyten.github.io/Graphics2D/docs/)
 
 [Examples](http://keyten.github.io/Graphics2D/examples/)
+
 [Sandbox](http://keyten.github.io/Graphics2D/sandbox/)
