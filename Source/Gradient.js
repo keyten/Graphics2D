@@ -201,14 +201,17 @@
 				if(/^\d+(px|pt)?/.test(from))
 					this._from = from = _.distance(from);
 				else
-					from = _.corner(from, bounds = element.bounds());
+					from = element.corner(from);
 			}
 			if(isString(to)){
 				if(/^\d+(px|pt)?/.test(to))
 					this._to = to = _.distance(to);
 				else
-					to = _.corner(to, bounds || (bounds = element.bounds()));
+					to = element.corner(to);
 			}
+
+			// TODO: add {x:10, y:10, from:'left'}
+			// it's not a string :)
 
 			if(this._type == 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);

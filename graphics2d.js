@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 1.1.2015
+ *  Last edit: 24.1.2015
  *  License: MIT / LGPL
  */
 
@@ -251,7 +251,7 @@
 			}
 
 			var cur = _.interpolate(_.animTransformConstants[param], end, step);
-			_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
+			_.transform(anim.object.matrixCur, fn(cur), this.corner('center'));
 			this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
 		};
 	};
@@ -424,7 +424,7 @@
 			else if(b !== undefined)
 				this._clip = new Circle(clip, a, b, null, null, this.context);
 			else
-				this._clip = new Path(clip, 0, 0, null, null, this.context);
+				this._clip = new Path(clip, null, null, this.context);
 			return this.update();
 		},
 		remove : function(){
@@ -451,7 +451,7 @@
 			var s = this._style;
 			if(str === undefined)
 				return {
-					color : s.strokeStyle, // todo: наставить дефолтных значений?
+					color : s.strokeStyle, // todo: add default values?
 					width : s.lineWidth,
 					cap   : s.lineCap,
 					join  : s.lineJoin,
@@ -542,15 +542,37 @@
 			if(this._matrix)
 				ctx.transform.apply(ctx, this._matrix);
 			this.processPath(ctx);
-			try { return ctx.isPointInPath(x, y); }
-			finally { ctx.restore(); }
+			x = ctx.isPointInPath(x, y);
+			ctx.restore();
+			return x;
+		},
+		corner : function(corner){
+			if(isArray(corner))
+				return corner;
+			if(isHash(corner)){
+				if(Object.hasOwnProperty.call(corner, 'from')){ // TODO: _.has = Object.hasOwnProperty.call
+					var from = this.corner(corner.from);
+					return [from[0] + corner.x, from[1] + corner.y];
+				}
+				else
+					return [corner.x, corner.y];
+			}
+			if(!this.bounds)
+				throw new Error('Object hasn\'t bounds() method.');
+			if(!corner)
+				corner = 'center';
+			var bounds = this.bounds();
+			return [
+				bounds.x + bounds.w * _.corners[corner][0],
+				bounds.y + bounds.h * _.corners[corner][1]
+			];
 		},
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
-			_.transform(this._matrix, [a, b, c, d, e, f], _.corner(pivot, this.bounds()));
+			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
 			return this.update();
 		},
 		scale : function(x, y, pivot){
@@ -1991,14 +2013,17 @@
 				if(/^\d+(px|pt)?/.test(from))
 					this._from = from = _.distance(from);
 				else
-					from = _.corner(from, bounds = element.bounds());
+					from = element.corner(from);
 			}
 			if(isString(to)){
 				if(/^\d+(px|pt)?/.test(to))
 					this._to = to = _.distance(to);
 				else
-					to = _.corner(to, bounds || (bounds = element.bounds()));
+					to = element.corner(to);
 			}
+
+			// TODO: add {x:10, y:10, from:'left'}
+			// it's not a string :)
 
 			if(this._type == 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
@@ -2490,7 +2515,7 @@
 
 
 	// Сокращения
-	_.transform = function( m1, m2, pivot ){ // transforms the matrix with a pivot
+	_.transform = function( m1, m2, pivot ){ // transforms a matrix with a pivot
 		extend( m1, _.multiply( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
 		extend( m1, _.multiply( m1, m2 ) );
 		extend( m1, _.multiply( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
@@ -2555,16 +2580,6 @@
 		var unit = value.replace(/\d+?/gi, '');
 		value = value.replace(/[^\d]+?/gi, '');
 		return Math.round(_.units[unit] * value);
-	};
-
-	_.corner = function(corner, bounds){
-		if(isArray(corner))
-			return corner;
-		if(isHash(corner))
-			return [corner.x, corner.y];
-		if(!corner)
-			corner = 'center';
-		return [bounds.x + bounds.w * _.corners[corner][0], bounds.y + bounds.h * _.corners[corner][1] ];
 	};
 
 	// Animation

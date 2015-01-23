@@ -14,7 +14,7 @@
 			}
 
 			var cur = _.interpolate(_.animTransformConstants[param], end, step);
-			_.transform(anim.object.matrixCur, fn(cur), _.corner('center', this.bounds()));
+			_.transform(anim.object.matrixCur, fn(cur), this.corner('center'));
 			this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
 		};
 	};
@@ -335,7 +335,7 @@
 		transform : function(a, b, c, d, e, f, pivot){
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
-			_.transform(this._matrix, [a, b, c, d, e, f], _.corner(pivot, this.bounds()));
+			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
 			return this.update();
 		},
 		scale : function(x, y, pivot){

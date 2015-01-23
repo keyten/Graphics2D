@@ -430,7 +430,7 @@
 
 
 	// Сокращения
-	_.transform = function( m1, m2, pivot ){ // transforms the matrix with a pivot
+	_.transform = function( m1, m2, pivot ){ // transforms a matrix with a pivot
 		extend( m1, _.multiply( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
 		extend( m1, _.multiply( m1, m2 ) );
 		extend( m1, _.multiply( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
@@ -495,16 +495,6 @@
 		var unit = value.replace(/\d+?/gi, '');
 		value = value.replace(/[^\d]+?/gi, '');
 		return Math.round(_.units[unit] * value);
-	};
-
-	_.corner = function(corner, bounds){
-		if(isArray(corner))
-			return corner;
-		if(isHash(corner))
-			return [corner.x, corner.y];
-		if(!corner)
-			corner = 'center';
-		return [bounds.x + bounds.w * _.corners[corner][0], bounds.y + bounds.h * _.corners[corner][1] ];
 	};
 
 	// Animation
