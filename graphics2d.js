@@ -637,8 +637,14 @@
 					easing : arguments[3],
 					after : arguments[4] // optimize? using args by index + by name may be slow :)
 				};
-// TODO: Graphics2D.animMethod = 'rfa' (requestAnimationFrame) | 'timeout'
+				// TODO: Graphics2D.animMethod = 'raf' (requestAnimationFrame) | 'timeout'
 			}
+
+			// defaults
+			if(!options.duration)
+				options.duration = 500;
+			if(!options.easing)
+				options.easing = Anim.easing.linear;
 
 			// animate listeners
 			var start = this._anim[property].start,
@@ -655,8 +661,8 @@
 				Graphics2D._tweens = [];
 
 			// массив анимаций элемента
-			if(!this._tweens) // TODO: реализовать очередь анимаций
-				this._tweens = [];
+	//		if(!this._tweens) // TODO: реализовать очередь анимаций
+	//			this._tweens = [];
 
 			// вызываем стартовую функцию
 			start.call(this, value, property);
@@ -925,57 +931,56 @@
 	});
 
 // animation
-	$.arrayRemove = function(array, element){
-		var index = array.indexOf(element);
-		return array.slice(0, index).concat( array.slice(index+1) );
-	};
+	var tweens = $._tweens;
+	if(!tweens)
+		tweens = $._tweens = [];
 
+	var i, l, t, now, tween;
+	var processor = function(){
+		for(i = 0, l = tweens.length; i < l; i++){
+			now = Date.now();
+			tween = tweens[i];
+
+			// removing the current element may cause a wrong behavior
+			if(!tween)
+				continue;
+
+			if(tween.endTime <= now){
+				if(tween.after)
+					tween.after.call(tween.element, tween.to, tween.property);
+				if(tween.endListener)
+					tween.endListener.call(tween.element, tween.to, tween.property);
+
+				tweens.splice(tweens.indexOf(tween), 1); // remove the tween
+			}
+
+			t = (now - tween.startTime) / tween.duration;
+			if(t > 1)
+				t = 1;
+
+			if(tween.easing)
+				t = tween.easing(t);
+
+			tween.stepListener.call(tween.element, tween.to, t, tween.property);
+			tween.element.update();
+		}
+
+		if(tweens.length !== 0)
+			$._animationProcessor = requestAnimationFrame(processor);
+		else
+			$._animationProcessor = null;
+
+	};
 
 	$._processAnimation = function(){
 
-		var tweens = Graphics2D._tweens;
-		var processor = function(){
-			// вообще объявить функцию однажды, а потом использовать
-			// а индекс - вообще вынести во внешний контекст Graphics2D (т.е. изначальный) -- оптимизация же ). Или лучше всего вообще в свойства. Хотя... нафига?
-			// ах да, она зависит от RFA, локальной переменной.
-			for(var i = 0, l = tweens.length; i < l; i++){
-				var now = Date.now();
-				var tween = tweens[i];
+		if($._animationProcessor)
+			return;
 
-				if(!tween)
-					return;
-
-				if(tween.endTime <= now){
-					tweens = $.arrayRemove(tweens, tween);
-					if(tween.after)
-						tween.after.call(tween.element, tween.to, tween.property);
-					if(tween.endListener)
-						tween.endListener.call(tween.element, tween.to, tween.property);
-				}
-
-				var t = (now - tween.startTime) / tween.duration;
-				if(t > 1)
-					t = 1;
-
-				if(tween.easing)
-					t = tween.easing(t);
-
-				tween.stepListener.call(tween.element, tween.to, t, tween.property);
-				tween.element.update();
-			}
-
-
-			if(tweens.length !== 0)
-				this._animationProcessor = requestAnimationFrame(processor);
-			else // не работает :(
-				this._animationProcessor = null;
-
-		}.bind(this);
-
-		this._animationProcessor = requestAnimationFrame(processor);
-
+		$._animationProcessor = requestAnimationFrame(processor);
 	};
 
+// TODO: use the Array::splice for deleting elements (instead of slice+concat)
 
 	$.Rect = Rect = new Class(Shape, {
 
