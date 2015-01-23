@@ -187,7 +187,7 @@
 			else if(b !== undefined)
 				this._clip = new Circle(clip, a, b, null, null, this.context);
 			else
-				this._clip = new Path(clip, 0, 0, null, null, this.context);
+				this._clip = new Path(clip, null, null, this.context);
 			return this.update();
 		},
 		remove : function(){
@@ -214,7 +214,7 @@
 			var s = this._style;
 			if(str === undefined)
 				return {
-					color : s.strokeStyle, // todo: наставить дефолтных значений?
+					color : s.strokeStyle, // todo: add default values?
 					width : s.lineWidth,
 					cap   : s.lineCap,
 					join  : s.lineJoin,
@@ -305,8 +305,30 @@
 			if(this._matrix)
 				ctx.transform.apply(ctx, this._matrix);
 			this.processPath(ctx);
-			try { return ctx.isPointInPath(x, y); }
-			finally { ctx.restore(); }
+			x = ctx.isPointInPath(x, y);
+			ctx.restore();
+			return x;
+		},
+		corner : function(corner){
+			if(isArray(corner))
+				return corner;
+			if(isHash(corner)){
+				if(Object.hasOwnProperty.call(corner, 'from')){ // TODO: _.has = Object.hasOwnProperty.call
+					var from = this.corner(corner.from);
+					return [from[0] + corner.x, from[1] + corner.y];
+				}
+				else
+					return [corner.x, corner.y];
+			}
+			if(!this.bounds)
+				throw new Error('Object hasn\'t bounds() method.');
+			if(!corner)
+				corner = 'center';
+			var bounds = this.bounds();
+			return [
+				bounds.x + bounds.w * _.corners[corner][0],
+				bounds.y + bounds.h * _.corners[corner][1]
+			];
 		},
 
 		// transformations
