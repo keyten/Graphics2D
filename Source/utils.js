@@ -397,6 +397,7 @@
 
 	// Clear functions
 	_.move = function(from, to){ // moves an element of array
+		// TODO: use splice?
 		if(from < to) to++;
 		var first = this.slice(0,to),
 			last  = this.slice(to),

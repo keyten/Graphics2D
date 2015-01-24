@@ -191,7 +191,7 @@
 			return this.update();
 		},
 		remove : function(){
-			this.context.elements = this.context.elements.slice(0, this._z).concat(this.context.elements.slice(this._z+1));
+			this.context.elements.splice(this._z, 1);
 			return this.update();
 		},
 		fill : function(fill){

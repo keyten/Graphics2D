@@ -17,10 +17,12 @@
 		point : function(index, value){
 			if(value === undefined)
 				return this._points[index];
-			this._points = this._points.slice(0, index).concat(this._parsePath(value).concat(this._points.slice(index+1)));
+			value = this._parsePath(value);
+			this._points.splice.call(this._points, [index, 1].concat(value));
 			return this.update();
 		},
 		before : function(index, points){
+			points = this._parsePath(points);
 			this._points = this._points.slice(0, index).concat(this._parsePath(points).concat(this._points.slice(index)));
 			return this.update();
 		},

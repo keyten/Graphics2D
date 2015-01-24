@@ -428,7 +428,7 @@
 			return this.update();
 		},
 		remove : function(){
-			this.context.elements = this.context.elements.slice(0, this._z).concat(this.context.elements.slice(this._z+1));
+			this.context.elements.splice(this._z, 1);
 			return this.update();
 		},
 		fill : function(fill){
@@ -1110,10 +1110,12 @@
 		point : function(index, value){
 			if(value === undefined)
 				return this._points[index];
-			this._points = this._points.slice(0, index).concat(this._parsePath(value).concat(this._points.slice(index+1)));
+			value = this._parsePath(value);
+			this._points.splice.call(this._points, [index, 1].concat(value));
 			return this.update();
 		},
 		before : function(index, points){
+			points = this._parsePath(points);
 			this._points = this._points.slice(0, index).concat(this._parsePath(points).concat(this._points.slice(index)));
 			return this.update();
 		},
@@ -2487,6 +2489,7 @@
 
 	// Clear functions
 	_.move = function(from, to){ // moves an element of array
+		// TODO: use splice?
 		if(from < to) to++;
 		var first = this.slice(0,to),
 			last  = this.slice(to),
