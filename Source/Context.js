@@ -1,5 +1,5 @@
 	$.Context = Context = function(canvas){
-		this.context   = canvas.getContext('2d');
+		this.context   = canvas.getContext('2d'); // rename to the context2d?
 		this.canvas    = canvas;
 		this.elements  = [];
 		this.listeners = {};
@@ -14,6 +14,9 @@
 		},
 		circle : function(cx, cy, r, fill, stroke){
 			return this.push(new Circle(cx, cy, r, fill, stroke, this));
+		},
+		curve : function(name, from, to, fill, stroke){
+			return this.push(new Curve(name, to, from, fill, stroke, this));
 		},
 		path : function(points, fill, stroke){
 			return this.push(new Path(points, fill, stroke, this));
@@ -57,6 +60,7 @@
 			this.elements.push(element);
 			if( element.draw )
 				element.draw(this.context);
+			// todo: move here 1. element._z 2. element.context
 			return element;
 		},
 		update : function(){

@@ -3,53 +3,59 @@
 		initialize : function(points, fill, stroke, context){
 			this._z = context.elements.length;
 			this.context = context;
-			if(isHash(points)){
-				this._points = this._parsePath(points.points);
-				this._parseHash(points);
-			}
-			else {
-				this._points = this._parsePath(points);
-				this._processStyle(fill, stroke, context.context);
-			}
+			this._curves = Path.parsePath(points, this);
+			this._processStyle(fill, stroke, context.context);
 		},
 
-		// points
-		point : function(index, value){
+		// curves
+		curve : function(index, value){
 			if(value === undefined)
-				return this._points[index];
-			value = this._parsePath(value);
-			this._points.splice.call(this._points, [index, 1].concat(value));
+				return this._curves[index];
+
+			value = Path.parsePath(value, this, index === 0 ? false : true);
+			this._curves.splice.apply(this._curves, [index, 1].concat(value));
 			return this.update();
 		},
-		before : function(index, points){
-			points = this._parsePath(points);
-			this._points = this._points.slice(0, index).concat(this._parsePath(points).concat(this._points.slice(index)));
+		before : function(index, value, turnToLine){
+			// if index = 0 & turnToLine then the first moveTo will be turned to lineTo
+			// turnToLine = true by default
+			if(turnToLine !== false && index === 0){
+				this._curves[0]._name = 'lineTo';
+			}
+
+			value = Path.parsePath(value, this, index === 0 ? false : true);
+			this._curves.splice.apply(this._curves, [index, 0].concat(value));
 			return this.update();
 		},
-		after : function(index, points){
-			return this.before(index+1, points);
+		after : function(index, value){
+			value = Path.parsePath(value, this, index === 0 ? false : true);
+			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
+			return this.update();
 		},
 		remove : function(index){
 			if(index === undefined)
 				return Shape.prototype.remove.call(this);
-			this._points = this._points.slice(0, index).concat( this._points.slice(index+1) );
+			this._curves.splice(index, 1);
+			return this.update();
+		},
+		curves : function(value){
+			if(value === undefined)
+				return this._curves;
+
+			if(isNumber(value[0]))
+				this._curves = Path.parsePath(Array.prototype.slice.call(arguments), this);
+			else
+				this._curves = Path.parsePath(value, this);
 			return this.update();
 		},
 
-		points : function(points){
-			if(points === undefined){
-				return this._points;
-			}
-			this._points = this._parsePath(points);
-			return this.update();
-		},
-
-		push : function(object){
-			this._points.push(object);
+		// adding
+		push : function(curve){
+			this._curves.push(curve);
 			return this.update();
 		},
 		add : function(name, arg){
-			return this.push( new _.pathFunctions[name](arg, this._points, this) );
+			return this.push(new Path.curves[name](name, arg, this));
 		},
 		moveTo : function(x, y){
 			return this.add('moveTo', [x, y]);
@@ -64,161 +70,186 @@
 			return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 		},
 		arcTo : function(x1, y1, x2, y2, radius, clockwise){
-			return this.add('arcTo', [x1, y1, x2, y2, radius, clockwise]);
+			return this.add('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 		},
 		arc : function(x, y, radius, start, end, clockwise){
-			return this.add('arc', [x, y, radius, start, end, clockwise]);
+			return this.add('arc', [x, y, radius, start, end, !!clockwise]);
 		},
 		closePath : function(){
-			return this.add('closePath');
+			// todo: using the closePath var
+			return this.add('closePath', []);
 		},
 
-		// transformations
-		allPoints : function(fn){
-			// path.allPoints() => [[0,0], [10,10]]
-			// path.allPoints(function(func, arg){ return [0,0] })
-			var allPoints = [],
-				returnData, temp;
-			if(fn === undefined){
-				fn = function(x,y){
-					allPoints.push([x,y]);
-				};
-				returnData = true;
-			}
-			this._points.forEach(function(func){
-				var arg = func._arguments;
-				if( temp = fn(Number(arg[0]), Number(arg[1])) ){
-					arg[0] = temp[0];
-					arg[1] = temp[1];
-				}
-				if( arg.length > 3 && func.name != 'arc' && (temp = fn(Number(arg[2]), Number(arg[3]))) ){
-					arg[2] = temp[0];
-					arg[3] = temp[1];
-				}
-				if( func.name == 'bezierCurveTo' && (temp = fn(Number(arg[4]), Number(arg[5]))) ){
-					arg[4] = temp[0];
-					arg[5] = temp[1];
-				}
-			});
-			return returnData ? allPoints : this.update();
-		},
-		transformPath : function(a,b,c,d,e,f, pivot){
-			if(isString(a) && a in _.transformFunctions){
-				a = _.transformFunctions[a].apply(null, Array.prototype.slice.call(arguments,1));
-				b = a[1];
-				c = a[2];
-				d = a[3];
-				e = a[4];
-				f = a[5];
-				a = a[0];
-			}
-
-			var m = [1,0,0,1,0,0], m2 = [a,b,c,d,e,f];
-			_.transform(m, m2, _.corner(pivot, this.bounds()));
-			return this.allPoints(function(x, y){
-				return _.transformPoint(x, y, m);
-			});
-		},
-
-
-		bounds : function(){
-			var x  =  Infinity,
-				y  =  Infinity,
-				x2 = -Infinity,
-				y2 = -Infinity;
-			this._points.forEach(function(point){
-				if(point.name != 'lineTo'
-					&& point.name != 'moveTo'
-					&& point.name != 'quadraticCurveTo'
-					&& point.name != 'bezierCurveTo')
-					return;
-				var a = point._arguments; // and if a[2] or a[4] == 0?
-				x  = Math.min( x,  a[0], a[2] || x,  a[4] || x  );
-				y  = Math.min( y,  a[1], a[3] || y,  a[5] || y  );
-				x2 = Math.max( x2, a[0], a[2] || x2, a[4] || x2 );
-				y2 = Math.max( y2, a[1], a[3] || y2, a[5] || y2 );
-			});
-			return new Bounds(x, y, x2 - x, y2 - y);
-		},
+		// processing
+		allPoints : function(callback){},
+		transformPath : function(a, b, c, d, e, f, pivot){},
 		processPath : function(ctx){
-			ctx.save();
+			var current = [0, 0];
+
 			ctx.beginPath();
-			this._points.forEach(function(point, i){
-				point.process(ctx, i);
+			this._curves.forEach(function(curve){
+				curve = curve.process(ctx, current);
+				current[0] += curve[0];
+				current[1] += curve[1];
 			});
-			ctx.restore();
 		},
-		_parsePath : function(path){
-			if(!path) return [];
-			var curves = [];
-			if(isArray(path)){
+		merge : function(path){
+			this._curves = this._curves.concat(path._curves);
+			return this.update();
+		},
 
-				// number array
-				if(isArray(path[0])){
-					curves[0] = new _.pathFunctions.moveTo(path[0], curves, this);
+		bounds : function(){}
+	});
 
-					path.forEach(function(value, i){
-						if(i === 0)
-							return;
+	var basicLine, quadratic, bezier, arc, arcTo;
 
-						if(value === true){
-							curves[i] = new _.pathFunctions.closePath([], curves, this);
-							return;
-						}
+	Path.curves = {
+		moveTo : basicLine = new Class(Curve, {
+			process : function(ctx, point){
+				ctx[this._name].apply(ctx, this._arguments);
+				return this._arguments;
+			},
+			x : function(value){ return this.argument(0, value); },
+			y : function(value){ return this.argument(1, value); },
+			bounds : function(from){
+				if(this._name == 'moveTo')
+					return null;
 
-						curves[i] = new _.pathFunctions[
-							{
-								2: 'lineTo',
-								4: 'quadraticCurveTo',
-								6: 'bezierCurveTo'
-							}[value.length]
-						](value, curves, this);
-					}.bind(this));
-				}
+				if(this._from)
+					from = this._from;
+				return new Bounds(from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1]);
+			}
+		}),
+		lineTo : basicLine,
+		quadraticCurveTo : quadratic = new Class(Curve, {
+			process : function(ctx, point){
+				ctx[this._name].apply(ctx, this._arguments);
+				return this._arguments.slice(2);
+			},
+			x : function(value){ return this.argument(2, value); },
+			y  : function(value){ return this.argument(3, value); },
+			hx : function(value){ return this.argument(0, value); },
+			hy : function(value){ return this.argument(1, value); },
+			bounds : function(from){
+				if(this._from)
+					from = this._from;
+				var minx = Math.min(this._arguments[0], this._arguments[2], from[0]),
+					miny = Math.min(this._arguments[1], this._arguments[3], from[1]),
+					maxx = Math.max(this._arguments[0], this._arguments[2], from[0]),
+					maxy = Math.max(this._arguments[1], this._arguments[3], from[1]);
+				return new Bounds(minx, miny, maxx-minx, maxy-miny);
+			}
+		}),
+		bezierCurveTo : bezier = new Class(Curve, {
+			process : function(ctx, point){
+				ctx[this._name].apply(ctx, this._arguments);
+				return this._arguments.slice(4);
+			},
+			x : function(value){ return this.argument(4, value); },
+			y : function(value){ return this.argument(5, value); },
+			h1x : function(value){ return this.argument(0, value); },
+			h1y : function(value){ return this.argument(1, value); },
+			h2x : function(value){ return this.argument(2, value); },
+			h2y : function(value){ return this.argument(3, value); },
+			bounds : function(from){
+				if(this._from)
+					from = this._from;
+				var minx = Math.min(this._arguments[0], this._arguments[2], this._arguments[4], from[0]),
+					miny = Math.min(this._arguments[1], this._arguments[3], this._arguments[5], from[1]),
+					maxx = Math.max(this._arguments[0], this._arguments[2], this._arguments[4], from[0]),
+					maxy = Math.max(this._arguments[1], this._arguments[3], this._arguments[5], from[1]);
+				return new Bounds(minx, miny, maxx-minx, maxy-miny);
+			}
+		}),
+		arc : arc = new Class(Curve, {
+			process : function(ctx, point){
+				ctx[this._name].apply(ctx, this._arguments);
 
-				// objects
+				var x = this._arguments[0],
+					y = this._arguments[1],
+					radius = this._arguments[2],
+					start  = this._arguments[3],
+					end    = this._arguments[4],
+					clockwise = this._arguments[5],
+
+					delta = end - start;
+
+				if(clockwise)
+					delta = -delta;
+
+				return [
+					x + Math.cos(delta) * radius,
+					y + Math.sin(delta) * radius
+				];
+			},
+			x : function(value){ return this.argument(0, value); },
+			y : function(value){ return this.argument(1, value); },
+			radius : function(value){ return this.argument(2, value); },
+			start : function(value){ return this.argument(3, value); },
+			end : function(value){ return this.argument(4, value); },
+			clockwise : function(value){ return this.argument(5, value); }
+		}),
+		arcTo : arcTo = new Class(Curve, {
+			process : function(ctx, point){
+				ctx[this._name].apply(ctx, this._arguments);
+				return this._arguments.slice(2,4);
+			},
+			x1 : function(value){ return this.argument(0, value); },
+			y1 : function(value){ return this.argument(1, value); },
+			x2 : function(value){ return this.argument(2, value); },
+			y2 : function(value){ return this.argument(3, value); },
+			radius : function(value){ return this.argument(4, value); },
+			clockwise : function(value){ return this.argument(5, value); }
+		})
+	};
+
+	var closePath = new Curve('closePath', []);
+
+	function curveByArray(array, path){
+		if(array === true)
+			return closePath;
+
+		switch(array.length){
+			case 2:
+				return new basicLine('lineTo', array, path);
+			case 4:
+				return new quadratic('quadraticCurveTo', array, path);
+			case 6:
+				return new bezier('bezierCurveTo', array, path);
+		}
+	}
+
+	Path.parsePath = function(path, pathObject, firstIsNotMove){
+		if(!path)
+			return [];
+
+		if(path instanceof Curve)
+			return [path];
+
+		var curves = [];
+		if(isArray(path)){
+
+			// fix for [x,y] instead of [[x,y]]
+			if(isNumber(path[0]))
+				path = [path];
+
+			for(var i = 0, l = path.length; i < l; i++){
+
+				// Curve
+				if(path[i] instanceof Curve)
+					curves.push(path[i]);
+
+				// Array
 				else {
-					path.forEach(function(value, i){
-						// {name, args, ?x,y}
-						curves[i] = new _.pathFunctions[value.name](value.arguments, curves, this);
-					}.bind(this));
-				}
-
-			}
-
-			// SVG-like
-			else if(isString(path)){
-				// regular for numbers: /\-?\d*\.\d+|\-?\d+/g
-				var match = path.match(/([A-Za-z])\s*((\-?\d*\.\d+|\-?\d+)((\s*,\s*|\s|\-)(\-?\d*\.\d+|\-?\d+))*)?/g);
-				// TODO: make possible more than one letter?
-				var command;
-				var numbers;
-				var length;
-				var toNumber = function(v){ return Number(v); };
-				for(var i = 0, l = match.length; i < l; i++){
-					command = _.svgFunctions[match[i][0]];
-					numbers = match[i].match(/\-?\d*\.\d+|\-?\d+/g); // arguments
-					length = _.svgPathLengths[match[i][0]]; // count of the arguments (L - 2, H - 1...)
-					if(numbers){
-						numbers = numbers.map(toNumber);
-
-						if(numbers.length > length){
-							// multiple in one command: L100,100,200,200,300,300,400,400 (== L100,100 L200,200, ...)
-							var exist = numbers.length,
-								mustb = length;
-				//				iters = exist / mustb;
-							for(; mustb <= exist; mustb+=length){
-								curves.push(new _.pathFunctions[command](numbers.slice(mustb-length, mustb), curves, this));
-							}
-						}
-						else
-							curves.push(new _.pathFunctions[command](numbers, curves, this));
+					if(i === 0 && !firstIsNotMove){
+						curves.push(new basicLine('moveTo', path[i], pathObject));
+						continue;
 					}
-					else
-						curves.push(new _.pathFunctions[command](numbers, curves, this));
+					curves.push(curveByArray(path[i], pathObject))
 				}
 			}
-			return curves;
+
 		}
 
-	});
+		return curves;
+	};

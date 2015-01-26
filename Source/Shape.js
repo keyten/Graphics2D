@@ -152,7 +152,7 @@
 			return this.context.update(), this;
 		},
 
-		// параметры
+		// properties
 		_property : function(name, value){
 			if(value === undefined)
 				return this['_' + name];

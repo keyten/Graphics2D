@@ -13,7 +13,7 @@
 	// Classes
 	var Context,
 
-		Shape, Rect, Circle, Path, Img, Text, TextBlock,
+		Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
 
 		Gradient, Pattern, Anim, Bounds;
 
@@ -51,6 +51,8 @@
 // {{include Rect.js}}
 
 // {{include Circle.js}}
+
+// {{include Curve.js}}
 
 // {{include Path.js}}
 
