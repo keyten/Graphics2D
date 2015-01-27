@@ -79,12 +79,14 @@
 			});
 			this.fire('update');
 		},
-		getObjectInPoint : function(x, y){
+		getObjectInPoint : function(x, y, mouse){
 			var elements = this.elements,
 				i = elements.length;
 
 			while(i--){
-				if( elements[i].isPointIn && elements[i].isPointIn(x,y) && elements[i]._visible )
+			// mouse=true : don't return element with _events=false
+				if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
+					(elements[i]._events || !mouse) )
 					return elements[i];
 			}
 			return null;
@@ -109,7 +111,7 @@
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
 				
-				element = this.getObjectInPoint(e.contextX, e.contextY);
+				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 
 				if(event == 'mouseout'){
 					element = this.hoverElement;

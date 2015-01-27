@@ -165,6 +165,9 @@
 			this._style[name] = value;
 			return this.update();
 		},
+		mouse : function(state){
+			return this._property('events', !!state);
+		},
 		z : function(z){
 			if(z === undefined)
 				return this._z;
@@ -673,7 +676,8 @@
 		}, */
 
 		// defaults
-		_visible : true
+		_visible : true,
+		_events : true
 	});
 
 	// events slices
