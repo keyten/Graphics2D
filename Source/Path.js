@@ -28,9 +28,10 @@
 			return this.update();
 		},
 		after : function(index, value){
-			value = Path.parsePath(value, this, index === 0 ? false : true);
-			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
-			return this.update();
+			return this.before(index+1, value);
+//			value = Path.parsePath(value, this, index === 0 ? false : true);
+//			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
+//			return this.update();
 		},
 		remove : function(index){
 			if(index === undefined)

@@ -1,4 +1,4 @@
-/*  Graphics2D 0.9.0
+/*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
  *  Last edit: 27.1.2015
@@ -1199,9 +1199,10 @@
 			return this.update();
 		},
 		after : function(index, value){
-			value = Path.parsePath(value, this, index === 0 ? false : true);
-			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
-			return this.update();
+			return this.before(index+1, value);
+//			value = Path.parsePath(value, this, index === 0 ? false : true);
+//			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
+//			return this.update();
 		},
 		remove : function(index){
 			if(index === undefined)
