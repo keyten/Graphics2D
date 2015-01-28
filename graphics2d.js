@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 27.1.2015
+ *  Last edit: 28.1.2015
  *  License: MIT / LGPL
  */
 
@@ -49,6 +49,7 @@
 		this.canvas    = canvas;
 		this.elements  = [];
 		this.listeners = {};
+		this._cache    = {}; // for gradients
 	};
 
 	Context.prototype = {
@@ -125,12 +126,14 @@
 			});
 			this.fire('update');
 		},
-		getObjectInPoint : function(x, y){
+		getObjectInPoint : function(x, y, mouse){
 			var elements = this.elements,
 				i = elements.length;
 
 			while(i--){
-				if( elements[i].isPointIn && elements[i].isPointIn(x,y) && elements[i]._visible )
+			// mouse=true : don't return element with _events=false
+				if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
+					(elements[i]._events || !mouse) )
 					return elements[i];
 			}
 			return null;
@@ -155,7 +158,7 @@
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
 				
-				element = this.getObjectInPoint(e.contextX, e.contextY);
+				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 
 				if(event == 'mouseout'){
 					element = this.hoverElement;
@@ -405,6 +408,9 @@
 				return this._style[name];
 			this._style[name] = value;
 			return this.update();
+		},
+		mouse : function(state){
+			return this._property('events', !!state);
 		},
 		z : function(z){
 			if(z === undefined)
@@ -914,7 +920,8 @@
 		}, */
 
 		// defaults
-		_visible : true
+		_visible : true,
+		_events : true
 	});
 
 	// events slices
@@ -2118,11 +2125,11 @@
 			this.context.update();
 			return this;
 		},
+		_cache : true,
 		toCanvasStyle : function(ctx, element){
 			var grad,
 				from = this._from,
-				to = this._to,
-				bounds;
+				to = this._to;
 
 			// for corners like 'top left'
 			if(isString(from)){
@@ -2138,6 +2145,12 @@
 					to = element.corner(to);
 			}
 
+			// Cache
+			var key = this.key(from, to);
+			if(this._cache && this.context._cache[key])
+				return this.context._cache[key];
+
+console.log(key);
 			// TODO: add {x:10, y:10, from:'left'}
 			// it's not a string :)
 
@@ -2150,7 +2163,12 @@
 				if(Object.prototype.hasOwnProperty.call(this._colors, offset))
 					grad.addColorStop( offset, this._colors[offset] );
 			}
+
+			this.context._cache[key] = grad;
 			return grad;
+		},
+		key : function(from, to){
+			return [this._type, from, to, JSON.stringify(this._colors)].join(',');
 		}
 
 	});

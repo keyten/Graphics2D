@@ -3,6 +3,7 @@
 		this.canvas    = canvas;
 		this.elements  = [];
 		this.listeners = {};
+		this._cache    = {}; // for gradients
 	};
 
 	Context.prototype = {

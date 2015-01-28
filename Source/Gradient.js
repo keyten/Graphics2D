@@ -190,11 +190,11 @@
 			this.context.update();
 			return this;
 		},
+		_cache : true,
 		toCanvasStyle : function(ctx, element){
 			var grad,
 				from = this._from,
-				to = this._to,
-				bounds;
+				to = this._to;
 
 			// for corners like 'top left'
 			if(isString(from)){
@@ -210,6 +210,12 @@
 					to = element.corner(to);
 			}
 
+			// Cache
+			var key = this.key(from, to);
+			if(this._cache && this.context._cache[key])
+				return this.context._cache[key];
+
+console.log(key);
 			// TODO: add {x:10, y:10, from:'left'}
 			// it's not a string :)
 
@@ -222,7 +228,12 @@
 				if(Object.prototype.hasOwnProperty.call(this._colors, offset))
 					grad.addColorStop( offset, this._colors[offset] );
 			}
+
+			this.context._cache[key] = grad;
 			return grad;
+		},
+		key : function(from, to){
+			return [this._type, from, to, JSON.stringify(this._colors)].join(',');
 		}
 
 	});
