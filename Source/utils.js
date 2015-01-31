@@ -493,9 +493,9 @@
 			document.body.removeChild(div);
 		}
 
-		var unit = value.replace(/\d+?/gi, '');
-		value = value.replace(/[^\d]+?/gi, '');
-		return Math.round(_.units[unit] * value);
+		var unit = value.replace(/[\d\.]+?/gi, '');
+		value = value.replace(/[^\d\.]+?/gi, '');
+		return (_.units[unit] * value)|0;
 	};
 
 	// Animation

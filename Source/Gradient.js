@@ -210,19 +210,19 @@
 					to = element.corner(to);
 			}
 
+			// TODO: add {x:10, y:10, from:'left'}
+			// it's not a string :)
+
 			// Cache
 			var key = this.key(from, to);
 			if(this._cache && this.context._cache[key])
 				return this.context._cache[key];
 
-console.log(key);
-			// TODO: add {x:10, y:10, from:'left'}
-			// it's not a string :)
-
 			if(this._type == 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
-			else 
-				grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || (bounds || (bounds = element.bounds())).height);
+
+			else
+				grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || element.bounds().height);
 
 			for(var offset in this._colors){
 				if(Object.prototype.hasOwnProperty.call(this._colors, offset))

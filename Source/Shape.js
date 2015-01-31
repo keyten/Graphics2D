@@ -363,16 +363,116 @@
 		_anim : {
 			number : {
 				start : function(end, property){
-					this._animData[property + 'Start'] = this['_' + property];
-					this._animData[property + 'End'] = _.distance(end);
+					var anim = this._animData;
+					anim[property + 'Start'] = this['_' + property];
+					anim[property + 'End'  ] = _.distance(end);
 				},
 				step : function(end, t, property){
-					var start = this._animData[property + 'Start'];
-					end = this._animData[property + 'End'];
-					this['_' + property] = start * (1 - t) + end * t;
+					var anim  = this._animData,
+						start = anim[property + 'Start'],
+						end   = anim[property + 'End'];
+					this['_' + property] = (start * (1 - t) + end * t)|0; // |0 = Math.floor
 				},
 				end : function(end, property){
-					delete this['_' + property];
+					delete this._animData['_' + property];
+				}
+			},
+
+			fill : {
+				start : function(end, property){
+					var anim = this._animData;
+					anim.fillStart = _.color(this._style.fillStyle);
+					anim.fillEnd   = _.color(end);
+
+					// fix for transparent color
+					if(this._style.fillStyle == 'transparent')
+						anim.fillStart = anim.fillEnd.slice(0,3).concat([0]);
+					if(end == 'transparent')
+						anim.fillEnd = anim.fillStart.slice(0,3).concat([0])
+				},
+				step : function(end, t, property){
+					var anim  = this._animData,
+						start = anim.fillStart,
+						end   = anim.fillEnd;
+					this._style.fillStyle = 'rgba(' +
+						[(start[0] * (1 - t) + end[0] * t)|0,
+						 (start[1] * (1 - t) + end[1] * t)|0,
+						 (start[2] * (1 - t) + end[2] * t)|0,
+						 start[3] * (1 - t) + end[3] * t].join(',')
+						+ ')';
+				},
+				end : function(end, property){
+					delete this._animData.fillStart;
+					delete this._animData.fillEnd;
+				}
+			},
+
+			stroke : {
+				start : function(end, property){
+
+					// regexp for css distances:
+					// /(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/ and /(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?/
+					// regexp for colors:
+					// /(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/ and new RegExp(Object.keys(_.colors).join('|'))) || []);
+					// never use it! :)
+
+					var anim = this._animData;
+					end = Shape.prototype._parseStroke(end);
+
+					if(!this._style.strokeStyle)
+						this._style.strokeStyle = 'transparent';
+					if(!this._style.lineWidth)
+						this._style.lineWidth = 1;
+
+					if(end.strokeStyle){
+						anim.strokeColorStart = _.color(this._style.strokeStyle);
+						anim.strokeColorEnd   = _.color(end.strokeStyle);
+					}
+					if(end.lineWidth){
+						anim.strokeWidthStart = _.distance(this._style.lineWidth);
+						anim.strokeWidthEnd   = end.lineWidth;
+					}
+
+					// fix for transparent color
+					if(this._style.strokeStyle == 'transparent')
+						anim.strokeColorStart = anim.strokeColorEnd.slice(0,3).concat([0]);
+					if(end.strokeStyle == 'transparent')
+						anim.strokeColorEnd = anim.strokeColorStart.slice(0,3).concat([0]);
+				},
+				step : function(end, t, property){
+					var anim  = this._animData,
+						cstart = anim.strokeColorStart,
+						cend   = anim.strokeColorEnd,
+						wstart = anim.strokeWidthStart,
+						wend   = anim.strokeWidthEnd;
+					if(cstart){
+						this._style.strokeStyle = 'rgba(' +
+						[(cstart[0] * (1 - t) + cend[0] * t)|0,
+						 (cstart[1] * (1 - t) + cend[1] * t)|0,
+						 (cstart[2] * (1 - t) + cend[2] * t)|0,
+						  cstart[3] * (1 - t) + cend[3] * t].join(',')
+						+ ')';
+					}
+					if(wstart)
+						this._style.lineWidth = (wstart * (1 - t) + wend * t)|0;
+				},
+				end : function(end, property){
+					delete this._animData.strokeColorStart;
+					delete this._animData.strokeColorEnd;
+					delete this._animData.strokeWidthStart;
+					delete this._animData.strokeWidthEnd;
+				}
+			},
+
+			opacity : {
+				start : function(){
+					this._animData.opacityStart = this._style.globalAlpha || 1;
+				},
+				step : function(end, t){
+					this._style.globalAlpha = this._animData.opacityStart * (1 - t) + end * t;
+				},
+				end : function(){
+					delete this._animData.opacityStart;
 				}
 			}
 		},
@@ -464,99 +564,6 @@
 
 		// анимация
 /*		_anim : {
-			fill : {
-				start : function(anim, end){
-					anim.object.fill = _.color(this._style.fillStyle);
-					if(end == 'transparent')
-						anim.object.fillEnd = [anim.object.fill[0], anim.object.fill[1], anim.object.fill[2], 0];
-					else
-						anim.object.fillEnd = _.color(end);
-
-					if(this._style.fillStyle == 'transparent')
-						anim.object.fill = [anim.object.fillEnd[0], anim.object.fillEnd[1], anim.object.fillEnd[2], 0];
-				},
-				process : function(anim, end, step){
-					var start = anim.object.fill;
-					end = anim.object.fillEnd;
-					this._style.fillStyle = [
-						'rgba(',
-						Math.round(_.interpolate(start[0], end[0], step)), ',',
-						Math.round(_.interpolate(start[1], end[1], step)), ',',
-						Math.round(_.interpolate(start[2], end[2], step)), ',',
-						_.interpolate(start[3], end[3], step), ')'				
-					].join('');
-				}
-			},
-			stroke : {
-				start : function(anim, end){
-					anim.object.strokeWidth = this._style.lineWidth;
-					anim.object.strokeColor = _.color(this._style.strokeStyle);					
-					if(isHash(end)){
-						anim.object.strokeWidthEnd = _.distance(end.width);
-						if(end.color == 'transparent')
-							anim.object.strokeColorEnd = [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0];
-						else
-							anim.object.strokeColorEnd = _.color(end.color);
-					}
-					else {
-						anim.object.strokeWidthEnd = _.distance((end.replace(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/, '').match(/(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?/) || [])[0]);
-						if(end.indexOf('transparent') > -1)
-							anim.object.strokeColorEnd = [anim.object.strokeColor[0], anim.object.strokeColor[1], anim.object.strokeColor[2], 0];
-						else
-							anim.object.strokeColorEnd = _.color((end.match(/(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/) || end.match(new RegExp(Object.keys(_.colors).join('|'))) || [])[0]);
-						// монструозненько
-					}
-					if(this._style.strokeStyle == 'transparent')
-						anim.object.strokeColor = [anim.object.strokeColorEnd[0], anim.object.strokeColorEnd[1], anim.object.strokeColorEnd[2], 0];
-				},
-				process : function(anim, end, step){
-					if(anim.object.strokeWidthEnd !== undefined)
-						this._style.lineWidth = _.interpolate(anim.object.strokeWidth, anim.object.strokeWidthEnd, step);
-					if(anim.object.strokeColorEnd !== undefined){
-						var start = anim.object.strokeColor;
-						end = anim.object.strokeColorEnd;
-						this._style.strokeStyle = [
-							'rgba(',
-							Math.round(_.interpolate(start[0], end[0], step)), ',',
-							Math.round(_.interpolate(start[1], end[1], step)), ',',
-							Math.round(_.interpolate(start[2], end[2], step)), ',',
-							_.interpolate(start[3], end[3], step), ')'				
-						].join('');
-					}
-				}
-			},
-			opacity : {
-				start : function(anim){
-					anim.object.opacity = this._style.globalAlpha === undefined ? 1 : this._style.globalAlpha;
-				},
-				process : function(anim, end, step){
-					this._style.globalAlpha = _.interpolate(anim.object.opacity, end, step);
-				}
-			},
-			crop : {
-				start : function(anim){
-					anim.object.crop = this._crop;
-				},
-				process :function(anim, end, step){
-					var start = anim.object.crop;
-					this._crop = [
-						_.interpolate(start[0], end[0], step),
-						_.interpolate(start[1], end[1], step),
-						_.interpolate(start[2], end[2], step),
-						_.interpolate(start[3], end[3], step)
-					];
-				}
-			},
-
-			number : {
-				start: function(anim, end, param){
-					anim[param] = this['_' + param];
-				},
-				process: function(anim, end, step, param){
-					this['_' + param] = _.interpolate(anim[param], end, step);
-				}
-			},
-
 			rotate : {
 				start : trStart,
 				process : trProcess(function(ang){
@@ -712,6 +719,15 @@
 			if(!tween)
 				continue;
 
+			t = (now - tween.startTime) / tween.duration;
+			if(t > 1)
+				t = 1;
+
+			if(tween.easing)
+				t = tween.easing(t);
+
+			tween.stepListener.call(tween.element, tween.to, t, tween.property);
+
 			if(tween.endTime <= now){
 				if(tween.after)
 					tween.after.call(tween.element, tween.to, tween.property);
@@ -721,14 +737,6 @@
 				tweens.splice(tweens.indexOf(tween), 1); // remove the tween
 			}
 
-			t = (now - tween.startTime) / tween.duration;
-			if(t > 1)
-				t = 1;
-
-			if(tween.easing)
-				t = tween.easing(t);
-
-			tween.stepListener.call(tween.element, tween.to, t, tween.property);
 			tween.element.update();
 		}
 

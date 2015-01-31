@@ -115,3 +115,20 @@
 		}
 
 	});
+
+	Image.prototype._anim.crop = {
+		// extends the Shape::_anim
+		start : function(end){
+			this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
+		},
+		process :function(end, t, property){
+			var start = this._animData.cropStart,
+				i = 1 - t;
+			this._crop = [
+				start[0] * i + end[0] * t,
+				start[1] * i + end[1] * t,
+				start[2] * i + end[2] * t,
+				start[3] * i + end[3] * t
+			];
+		}
+	},
