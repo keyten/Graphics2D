@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 31.1.2015
+ *  Last edit: 7.2.2015
  *  License: MIT / LGPL
  */
 
@@ -454,27 +454,27 @@
 			}
 			return this._setstyle('fillStyle', fill);
 		},
-		stroke : function(str){
+		stroke : function(stroke){
 			// element.stroke() => { fill : 'black', width:2 }
 			// element.stroke({ fill:'black', width:3 });
 			// element.stroke('black 4pt');
-			var s = this._style;
-			if(str === undefined)
+			var style = this._style;
+			if(stroke === undefined)
 				return {
-					color : s.strokeStyle, // todo: add default values?
-					width : s.lineWidth,
-					cap   : s.lineCap,
-					join  : s.lineJoin,
-					dash  : s._lineDash
+					color : style.strokeStyle, // todo: add default values?
+					width : style.lineWidth,
+					cap   : style.lineCap,
+					join  : style.lineJoin,
+					dash  : style._lineDash
 				};
-			if(str === null){
-				delete this._style.strokeStyle;
-				delete this._style.lineWidth;
-				delete this._style.lineCap;
-				delete this._style.lineJoin;
-				delete this._style._lineDash;
+			if(stroke === null){
+				delete style.strokeStyle;
+				delete style.lineWidth;
+				delete style.lineCap;
+				delete style.lineJoin;
+				delete style._lineDash;
 			}
-			extend(this._style, this._parseStroke(str));
+			extend(style, this._parseStroke(stroke));
 			return this.update();
 		},
 		opacity : function(opacity){
@@ -497,6 +497,11 @@
 			}).on('mouseout', function(){
 				cnv.style.cursor = old;
 			});
+		},
+		shadow : function(shadow){
+			var style = this._style;
+			//extend(this._style, this._parseShadow(shadow));
+			return this.update();
 		},
 
 		// события
@@ -868,63 +873,7 @@
 					return [1, 0, 0, 1, 0, cur];
 				})
 			}
-
-		},
-		animate : function(params, value, dur, easing, after){
-			//	r.animate(param, value, dur, easing, after);
-			//	r.animate(params, dur, easing, after);
-			//	r.animate(param, value, options);
-			//	r.animate(params, options);
-
-			if(isString(params)){
-				var obj = {};
-				obj[params] = value;
-				params = obj;
-
-				if(isHash(dur)){
-					after  = dur.after;
-					easing = dur.easing;
-					dur    = dur.duration;
-				}
-			}
-			else {
-				if(isHash(value)){
-					after  = value.after;
-					easing = value.easing;
-					dur    = value.duration;
-				}
-				else {
-					after = easing;
-					easing = dur;
-					dur = value;
-				}
-			}
-
-			var anim = new Anim(0, 1, dur, easing),
-				param;
-			anim.object = {};
-			for(param in params){
-				if(Object.prototype.hasOwnProperty.call(params, param))
-					(this._anim[param].start || emptyFunc).call(this, anim, params[param], param);
-			}
-
-			anim.start(function(step){
-
-				for(param in params){
-					if(Object.prototype.hasOwnProperty.call(params, param))
-						this._anim[param].process.call(this, anim, params[param], step, param);
-						// animObject, endValue, step, parameter
-				}
-
-				this.update();
-
-			}.bind(this));
-
-			if(after)
-				setTimeout(after.bind(this), dur || 500);
-
-			return this;
-		}, */
+ */
 
 		// defaults
 		_visible : true,
@@ -1559,7 +1508,7 @@
 
 	});
 
-	Image.prototype._anim.crop = {
+	Img.prototype._anim.crop = {
 		// extends the Shape::_anim
 		start : function(end){
 			this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
@@ -2387,6 +2336,8 @@
 		return cls;
 
 	}
+
+	$.Class = Class;
 
 
 	function extend(a,b){

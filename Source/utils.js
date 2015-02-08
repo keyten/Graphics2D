@@ -144,6 +144,8 @@
 
 	}
 
+	$.Class = Class;
+
 
 	function extend(a,b){
 		for(var i in b){

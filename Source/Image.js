@@ -116,7 +116,7 @@
 
 	});
 
-	Image.prototype._anim.crop = {
+	Img.prototype._anim.crop = {
 		// extends the Shape::_anim
 		start : function(end){
 			this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
