@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 7.2.2015
+ *  Last edit: 19.2.2015
  *  License: MIT / LGPL
  */
 
