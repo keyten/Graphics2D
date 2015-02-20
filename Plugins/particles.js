@@ -58,7 +58,14 @@
 				p[i].draw(ctx, delta);
 			}
 			ctx.restore();
-		}
+		},
+
+		// parameters
+		count : function(value){
+			this._count = value;
+			this.genParticles();
+		},
+
 	});
 
 	var Particle = $.Class({
