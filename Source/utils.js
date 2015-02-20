@@ -120,7 +120,8 @@
 					parent = parent.parent;
 				}
 				for(var i = inits.length; i--;){
-					inits[i].apply(this, arguments);
+					if(inits[i])
+						inits[i].apply(this, arguments);
 				}
 
 				return (cls.prototype.initialize || emptyFunc).apply(this,arguments);
