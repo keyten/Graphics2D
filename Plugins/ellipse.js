@@ -12,11 +12,14 @@
 			if($.util.isHash(object)){
 				this._rx = object.rx;
 				this._ry = object.ry;
+				if(object.kappa !== undefined)
+					this._kappa = object.kappa;
 			}
 		},
 
 		_rx : 0,
 		_ry : 0,
+		_kappa : 4/3 * (Math.sqrt(2) - 1),
 
 		radius : function(radius){
 			if(radius === undefined){
@@ -34,31 +37,33 @@
 		ry : function(ry){
 			return this._property('ry', ry);
 		},
+		kappa : function(kappa){
+			return this._property('kappa', kappa);
+		},
 
 		processPath : function(ctx){
-			if(this._rx === this._ry)
-				return $.Circle.prototype.processPath.call(this, ctx);
+			// http://stackoverflow.com/questions/2172798/how-to-draw-an-oval-in-html5-canvas/23184724#23184724
+			ctx.beginPath();
+			if(ctx.ellipse){
+				// x, y, radiusX, radiusY, rotation, startAngle, endAngle, anticlockwise
+				ctx.ellipse(this._cx, this._cy, this._rx, this._ry, 0, 0, Math.PI * 2, true);
+				return;
+			}
 
-			var cx = this._cx,
+			var kappa = this._kappa,
+				cx = this._cx,
 				cy = this._cy,
 				rx = this._rx,
-				ry = this._ry;
-			ctx.beginPath();
+				ry = this._ry,
 
-			// move to top
-			ctx.moveTo(cx, cy - ry);
+				ox = rx * kappa,
+				oy = ry * kappa;
 
-			// left
-			ctx.quadraticCurveTo(cx + rx, cy - ry, cx + rx, cy);
-
-			// bottom
-			ctx.quadraticCurveTo(cx + rx, cy + ry, cx, cy + ry);
-
-			// right
-			ctx.quadraticCurveTo(cx - rx, cy + ry, cx - rx, cy);
-
-			// top
-			ctx.quadraticCurveTo(cx - rx, cy - ry, cx, cy - ry);
+			ctx.moveTo(cx - rx, cy);
+			ctx.bezierCurveTo(cx - rx, cy - oy, cx - ox, cy - ry, cx, cy - ry);
+			ctx.bezierCurveTo(cx + ox, cy - ry, cx + rx, cy - oy, cx + rx, cy);
+			ctx.bezierCurveTo(cx + rx, cy + oy, cx + ox, cy + ry, cx, cy + ry);
+			ctx.bezierCurveTo(cx - ox, cy + ry, cx - rx, cy + oy, cx - rx, cy);
 		}
 	});
 
@@ -67,9 +72,25 @@
 	// animating corners
 	$.Shape.prototype._anim.rx = $.Shape.prototype._anim.number;
 	$.Shape.prototype._anim.ry = $.Shape.prototype._anim.number;
+	$.Shape.prototype._anim.kappa = {
+		start : function(){
+			this._animData.kappaStart = this._kappa;
+		},
+		step : function(end, t){
+			this._kappa = this._animData.kappaStart * (1 - t) + end * t;
+		},
+		end : function(){
+			delete this._animData.kappaStart;
+		}
+	};
 
-	$.Context.prototype.ellipse = function(cx, cy, radius, /* rx, ry */ fill, stroke){
-		return this.push(new Ellipse(cx, cy, radius, fill, stroke, this));
+	$.Context.prototype.ellipse = function(cx, cy, rx, ry, fill, stroke){
+		if($.util.isNumber(ry) || (typeof ry === 'string' && ry.search(/\d+/) === 0)){
+			return this.push(new Ellipse({
+				cx:cx, cy:cy, rx:rx, ry:ry, fill:fill, stroke:stroke
+			}, null, null, null, null, this));
+		}
+		return this.push(new Ellipse(cx, cy, rx, ry, fill, this));
 	};
 
 })(window, Graphics2D);
