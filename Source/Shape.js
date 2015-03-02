@@ -83,6 +83,8 @@
 				ctx.transform.apply(ctx, this._matrix);
 			if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle)
 				ctx.fillStyle = this._style.fillStyle.toCanvasStyle(ctx, this);
+			else if(typeof this._style.fillStyle === 'function')
+				ctx.fillStyle = this._style.fillStyle.call(this, ctx);
 			if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle)
 				ctx.strokeStyle = this._style.strokeStyle.toCanvasStyle(ctx, this);
 			if(this._style._lineDash){

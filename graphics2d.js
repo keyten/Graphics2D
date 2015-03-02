@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 19.2.2015
+ *  Last edit: 2.3.2015
  *  License: MIT / LGPL
  */
 
@@ -327,6 +327,8 @@
 				ctx.transform.apply(ctx, this._matrix);
 			if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle)
 				ctx.fillStyle = this._style.fillStyle.toCanvasStyle(ctx, this);
+			else if(typeof this._style.fillStyle === 'function')
+				ctx.fillStyle = this._style.fillStyle.call(this, ctx);
 			if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle)
 				ctx.strokeStyle = this._style.strokeStyle.toCanvasStyle(ctx, this);
 			if(this._style._lineDash){
