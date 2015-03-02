@@ -1433,6 +1433,16 @@
 		return curves;
 	};
 
+	var smoothWithPrefix;
+	function smoothPrefix(ctx){
+		if(smoothWithPrefix) return smoothWithPrefix;
+		['imageSmoothingEnabled', 'mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled'].forEach(function(name){
+			if(name in ctx)
+				smoothWithPrefix = name;
+		});
+		return smoothWithPrefix;
+	}
+
 	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
@@ -1533,6 +1543,17 @@
 			else this._crop = arr;
 			return this.update();
 		},
+
+		smooth : function(value){
+			var style = this._style,
+				prefix = smoothPrefix(this.context.context);
+			if(value === undefined)
+				return style[prefix] === undefined ? this.context.context[prefix] : style[prefix];
+			style[prefix] = !!value;
+			return this.update();
+		},
+
+		_smooth : true,
 
 		draw : function(ctx){
 			if(!this._visible)
