@@ -481,6 +481,12 @@
 				end : function(){
 					delete this._animData.opacityStart;
 				}
+			},
+
+			translateX : {
+				start : function(end, property){},
+				step : function(end, t, property){},
+				end : function(end, property){}
 			}
 		},
 
@@ -641,7 +647,8 @@
 	// events slices
 	['click', 'dblclick', 'mousedown', 'mousewheel',
 		'mouseup', 'mousemove', 'mouseover',
-		'mouseout', 'focus', 'blur'].forEach(function(event){
+		'mouseout', 'focus', 'blur',
+		'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 			Shape.prototype[event] = Context.prototype[event] = function(fn){
 				if(typeof fn == 'function' || isString(fn))
 					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));

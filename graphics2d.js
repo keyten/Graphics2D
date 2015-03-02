@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 2.3.2015
+ *  Last edit: 3.3.2015
  *  License: MIT / LGPL
  */
 
@@ -725,6 +725,12 @@
 				end : function(){
 					delete this._animData.opacityStart;
 				}
+			},
+
+			translateX : {
+				start : function(end, property){},
+				step : function(end, t, property){},
+				end : function(end, property){}
 			}
 		},
 
@@ -885,7 +891,8 @@
 	// events slices
 	['click', 'dblclick', 'mousedown', 'mousewheel',
 		'mouseup', 'mousemove', 'mouseover',
-		'mouseout', 'focus', 'blur'].forEach(function(event){
+		'mouseout', 'focus', 'blur',
+		'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 			Shape.prototype[event] = Context.prototype[event] = function(fn){
 				if(typeof fn == 'function' || isString(fn))
 					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
