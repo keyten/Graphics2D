@@ -256,9 +256,43 @@
 				cnv.style.cursor = old;
 			});
 		},
-		shadow : function(shadow){
+		shadow : function(name, value){
+			// shape.shadow({ x, y, color, blur });
+			// shape.shadow('x')
+			// shape.shadow('x', value)
+			// shape.shadow('1px 1px red 2px')
 			var style = this._style;
-			//extend(this._style, this._parseShadow(shadow));
+			var shadowToStyle = {
+				'x': 'shadowOffsetX',
+				'y': 'shadowOffsetY',
+				'color': 'shadowColor',
+				'blur': 'shadowBlur'
+			};
+			if(isString(name)){
+				if(value === undefined){
+					return style[shadowToStyle[name]];
+				}
+				else if(name.indexOf(' ') === -1){
+					// distance ?
+					style[shadowToStyle[name]] = value;
+				}
+				else {
+					// '1px 1px 2px red'
+				}
+			}
+			else {
+				value = name;
+				if(value.opacity){
+					value.color = _.color(value.color || style.shadowColor || 'black');
+					value.color[3] *= value.opacity;
+					value.color = 'rgba(' + value.color.join(',') + ')';
+				}
+				for(name in value){
+					if(Object.prototype.hasOwnProperty.call(value, name)){
+						style[shadowToStyle[name]] = value[name];
+					}
+				}
+			}
 			return this.update();
 		},
 
