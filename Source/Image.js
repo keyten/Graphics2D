@@ -127,8 +127,10 @@
 
 			if(this._crop !== undefined)
 				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
-			else
+			else if(this._width !== undefined)
 				ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
+			else
+				ctx.drawImage(this._image, this._x, this._y);
 
 			if(this._style.strokeStyle !== undefined)
 				ctx.strokeRect(this._x, this._y, this._width, this._height);
