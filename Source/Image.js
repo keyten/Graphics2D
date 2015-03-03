@@ -50,14 +50,14 @@
 				this._height = s[1];
 			}
 			
-			this._image.onload = function(){
+			this._image.addEventListener('load', function(){
 				this.fire('load');
 				s = this._computeSize(this._width, this._height, this._image);
 				this._width = s[0];
 				this._height = s[1];
 				this.update();
-			}.bind(this);
-
+			}.bind(this));
+			// Video tag support
 		},
 		
 		_computeSize : function(w, h, image){
