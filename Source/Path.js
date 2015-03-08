@@ -102,6 +102,12 @@
 		bounds : function(){}
 	});
 
+	function argument(n){
+		return function(value){
+			return this.argument(n, value);
+		}
+	}
+
 	var basicLine, quadratic, bezier, arc, arcTo;
 
 	Path.curves = {
@@ -110,8 +116,8 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments;
 			},
-			x : function(value){ return this.argument(0, value); },
-			y : function(value){ return this.argument(1, value); },
+			x : argument(0),
+			y : argument(1),
 			bounds : function(from){
 				if(this._name == 'moveTo')
 					return null;
@@ -127,10 +133,10 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(2);
 			},
-			x : function(value){ return this.argument(2, value); },
-			y  : function(value){ return this.argument(3, value); },
-			hx : function(value){ return this.argument(0, value); },
-			hy : function(value){ return this.argument(1, value); },
+			x  : argument(2),
+			y  : argument(3),
+			hx : argument(0),
+			hy : argument(1),
 			bounds : function(from){
 				if(this._from)
 					from = this._from;
@@ -146,12 +152,12 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(4);
 			},
-			x : function(value){ return this.argument(4, value); },
-			y : function(value){ return this.argument(5, value); },
-			h1x : function(value){ return this.argument(0, value); },
-			h1y : function(value){ return this.argument(1, value); },
-			h2x : function(value){ return this.argument(2, value); },
-			h2y : function(value){ return this.argument(3, value); },
+			x   : argument(4),
+			y   : argument(5),
+			h1x : argument(0),
+			h1y : argument(1),
+			h2x : argument(2),
+			h2y : argument(3),
 			bounds : function(from){
 				if(this._from)
 					from = this._from;
@@ -183,24 +189,24 @@
 					y + Math.sin(delta) * radius
 				];
 			},
-			x : function(value){ return this.argument(0, value); },
-			y : function(value){ return this.argument(1, value); },
-			radius : function(value){ return this.argument(2, value); },
-			start : function(value){ return this.argument(3, value); },
-			end : function(value){ return this.argument(4, value); },
-			clockwise : function(value){ return this.argument(5, value); }
+			x : argument(0),
+			y : argument(1),
+			radius : argument(2),
+			start : argument(3),
+			end : argument(4),
+			clockwise : argument(5)
 		}),
 		arcTo : arcTo = new Class(Curve, {
 			process : function(ctx, point){
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(2,4);
 			},
-			x1 : function(value){ return this.argument(0, value); },
-			y1 : function(value){ return this.argument(1, value); },
-			x2 : function(value){ return this.argument(2, value); },
-			y2 : function(value){ return this.argument(3, value); },
-			radius : function(value){ return this.argument(4, value); },
-			clockwise : function(value){ return this.argument(5, value); }
+			x1 : argument(0),
+			y1 : argument(1),
+			x2 : argument(2),
+			y2 : argument(3),
+			radius : argument(4),
+			clockwise : argument(5)
 		})
 	};
 

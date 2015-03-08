@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 3.3.2015
+ *  Last edit: 8.3.2015
  *  License: MIT / LGPL
  */
 
@@ -621,20 +621,38 @@
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
+			if(a === null){
+				this._matrix = null;
+				return this.update();
+			}
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
 			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
 			return this.update();
 		},
 		scale : function(x, y, pivot){
-			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			if(!isNumber(x)){
+				x = x[0] || x.x || 0;
+			}
+//			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
 			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 		},
 		skew : function(x, y, pivot){
-			return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
+			// todo: shape.skew(size, pivot)
+			if(y === undefined){
+				if(isNumber(x))
+					y = x;
+				else
+					y = x[1] || x.y || 0;
+			}
+			if(!isNumber(x)){
+				x = x[0] || x.x || 0;
+			}
+			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
+	//		return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
 		},
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
@@ -1280,6 +1298,12 @@
 		bounds : function(){}
 	});
 
+	function argument(n){
+		return function(value){
+			return this.argument(n, value);
+		}
+	}
+
 	var basicLine, quadratic, bezier, arc, arcTo;
 
 	Path.curves = {
@@ -1288,8 +1312,8 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments;
 			},
-			x : function(value){ return this.argument(0, value); },
-			y : function(value){ return this.argument(1, value); },
+			x : argument(0),
+			y : argument(1),
 			bounds : function(from){
 				if(this._name == 'moveTo')
 					return null;
@@ -1305,10 +1329,10 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(2);
 			},
-			x : function(value){ return this.argument(2, value); },
-			y  : function(value){ return this.argument(3, value); },
-			hx : function(value){ return this.argument(0, value); },
-			hy : function(value){ return this.argument(1, value); },
+			x  : argument(2),
+			y  : argument(3),
+			hx : argument(0),
+			hy : argument(1),
 			bounds : function(from){
 				if(this._from)
 					from = this._from;
@@ -1324,12 +1348,12 @@
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(4);
 			},
-			x : function(value){ return this.argument(4, value); },
-			y : function(value){ return this.argument(5, value); },
-			h1x : function(value){ return this.argument(0, value); },
-			h1y : function(value){ return this.argument(1, value); },
-			h2x : function(value){ return this.argument(2, value); },
-			h2y : function(value){ return this.argument(3, value); },
+			x   : argument(4),
+			y   : argument(5),
+			h1x : argument(0),
+			h1y : argument(1),
+			h2x : argument(2),
+			h2y : argument(3),
 			bounds : function(from){
 				if(this._from)
 					from = this._from;
@@ -1361,24 +1385,24 @@
 					y + Math.sin(delta) * radius
 				];
 			},
-			x : function(value){ return this.argument(0, value); },
-			y : function(value){ return this.argument(1, value); },
-			radius : function(value){ return this.argument(2, value); },
-			start : function(value){ return this.argument(3, value); },
-			end : function(value){ return this.argument(4, value); },
-			clockwise : function(value){ return this.argument(5, value); }
+			x : argument(0),
+			y : argument(1),
+			radius : argument(2),
+			start : argument(3),
+			end : argument(4),
+			clockwise : argument(5)
 		}),
 		arcTo : arcTo = new Class(Curve, {
 			process : function(ctx, point){
 				ctx[this._name].apply(ctx, this._arguments);
 				return this._arguments.slice(2,4);
 			},
-			x1 : function(value){ return this.argument(0, value); },
-			y1 : function(value){ return this.argument(1, value); },
-			x2 : function(value){ return this.argument(2, value); },
-			y2 : function(value){ return this.argument(3, value); },
-			radius : function(value){ return this.argument(4, value); },
-			clockwise : function(value){ return this.argument(5, value); }
+			x1 : argument(0),
+			y1 : argument(1),
+			x2 : argument(2),
+			y2 : argument(3),
+			radius : argument(4),
+			clockwise : argument(5)
 		})
 	};
 
@@ -1485,14 +1509,14 @@
 				this._height = s[1];
 			}
 			
-			this._image.onload = function(){
+			this._image.addEventListener('load', function(){
 				this.fire('load');
 				s = this._computeSize(this._width, this._height, this._image);
 				this._width = s[0];
 				this._height = s[1];
 				this.update();
-			}.bind(this);
-
+			}.bind(this));
+			// Video tag support
 		},
 		
 		_computeSize : function(w, h, image){
@@ -1562,8 +1586,10 @@
 
 			if(this._crop !== undefined)
 				ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
-			else
+			else if(this._width !== undefined)
 				ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
+			else
+				ctx.drawImage(this._image, this._x, this._y);
 
 			if(this._style.strokeStyle !== undefined)
 				ctx.strokeRect(this._x, this._y, this._width, this._height);

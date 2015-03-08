@@ -377,20 +377,38 @@
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
+			if(a === null){
+				this._matrix = null;
+				return this.update();
+			}
 			if(!this._matrix)
 				this._matrix = [1,0,0,1,0,0];
 			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
 			return this.update();
 		},
 		scale : function(x, y, pivot){
-			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			if(!isNumber(x)){
+				x = x[0] || x.x || 0;
+			}
+//			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
 			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 		},
 		skew : function(x, y, pivot){
-			return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
+			// todo: shape.skew(size, pivot)
+			if(y === undefined){
+				if(isNumber(x))
+					y = x;
+				else
+					y = x[1] || x.y || 0;
+			}
+			if(!isNumber(x)){
+				x = x[0] || x.x || 0;
+			}
+			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
+	//		return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
 		},
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
