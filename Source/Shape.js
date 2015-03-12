@@ -115,15 +115,15 @@
 			stroke.split(' ').forEach(function(val){
 				if(/^\d*\.\d+$/.test(val))
 					opacity = parseFloat(val);
-				else if(val[0] == '[')
+				else if(val[0] === '[')
 					obj._lineDash = val.substring(1, val.length-1).split(',');
 				else if(isNumber(val))
 					obj.lineWidth = _.distance(val);
-				else if(val == 'miter' || val == 'bevel')
+				else if(val === 'miter' || val === 'bevel')
 					obj.lineJoin = val;
-				else if(val == 'butt' || val == 'square')
+				else if(val === 'butt' || val === 'square')
 					obj.lineCap = val;
-				else if(val == 'round'){
+				else if(val === 'round'){
 					obj.lineJoin = obj.lineJoin || val;
 					obj.lineCap  = obj.lineCap  || val;
 				}
@@ -296,43 +296,43 @@
 			return this.update();
 		},
 
-		// события
-		on : function(evt, fn){
+		// events
+		on : function(event, fn){
 			if(isString(fn)){
-				var command = fn,
+				var method = fn,
 					args = Array.prototype.slice.call(arguments, 2);
 				fn = function(){
-					this[command].apply(this, args);
+					this[method].apply(this, args);
 				};
 				// [fn, proxy] = [proxy, fn];
 			}
-			if(toString.call(evt) == '[object Number]')
-				return window.setTimeout(fn.bind(this), evt), this;
+			if(toString.call(event) === '[object Number]')
+				return window.setTimeout(fn.bind(this), event), this;
 
-			this.context.listener(evt);
-			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || (this.listeners.DOMMouseScroll = [])).push(fn);
-			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
+			this.context.listener(event);
+			(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 			return this;
 
 		},
-		once : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.once('DOMMouseScroll', fn);
+		once : function(event, fn){
 			var proxy;
-			this.on(evt, proxy = function(e){
+			this.on(event, proxy = function(e){
 				fn.call(this, e);
-				this.off(evt, proxy);
+				this.off(event, proxy);
 			}.bind(this));
-			fn.proxy = proxy; // for .off
-		},
-		off : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.off('DOMMouseScroll');
-			if(!fn)
-				this.listeners[evt] = [];
 
-			this.listeners[evt][this.listeners[evt].indexOf(fn.proxy || fn)] = emptyFunc;
+			fn.proxy = proxy; // for .off
+			// BAD, BAD, BAD!
+
+			// func.proxy = true;
+			// shape.once(func);
+			// func.proxy -- ?
+		},
+		off : function(event, fn){
+			if(!fn)
+				this.listeners[event] = [];
+
+			this.listeners[event][this.listeners[event].indexOf(fn.proxy || fn)] = emptyFunc;
 			return this;
 		},
 		fire : function(evt, data){
@@ -421,10 +421,12 @@
 			}
 			return this.transform( x, 0, 0, y, 0, 0, pivot);
 		},
+
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
 			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 		},
+
 		skew : function(x, y, pivot){
 			// todo: shape.skew(size, pivot)
 			if(y === undefined){
@@ -438,6 +440,7 @@
 			}
 			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
 		},
+
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
 		},
@@ -472,9 +475,9 @@
 					anim.fillEnd   = _.color(end);
 
 					// fix for transparent color
-					if(this._style.fillStyle == 'transparent')
+					if(this._style.fillStyle === 'transparent')
 						anim.fillStart = anim.fillEnd.slice(0,3).concat([0]);
-					if(end == 'transparent')
+					if(end === 'transparent')
 						anim.fillEnd = anim.fillStart.slice(0,3).concat([0])
 				},
 				step : function(end, t, property){
@@ -521,9 +524,9 @@
 					}
 
 					// fix for transparent color
-					if(this._style.strokeStyle == 'transparent')
+					if(this._style.strokeStyle === 'transparent')
 						anim.strokeColorStart = anim.strokeColorEnd.slice(0,3).concat([0]);
-					if(end.strokeStyle == 'transparent')
+					if(end.strokeStyle === 'transparent')
 						anim.strokeColorEnd = anim.strokeColorStart.slice(0,3).concat([0]);
 				},
 				step : function(end, t, property){
@@ -730,7 +733,7 @@
 		'mouseout', 'focus', 'blur',
 		'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 			Shape.prototype[event] = Context.prototype[event] = function(fn){
-				if(typeof fn == 'function' || isString(fn))
+				if(typeof fn === 'function' || isString(fn))
 					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
 				else
 					return this.fire.apply(this, arguments);

@@ -218,7 +218,7 @@
 			if(this._cache && this.context._cache[key])
 				return this.context._cache[key];
 
-			if(this._type == 'linear')
+			if(this._type === 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
 
 			else

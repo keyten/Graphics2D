@@ -87,7 +87,7 @@
 
 		// Path slices
 
-		line : function(fx, fy, tx, ty, stroke){
+		line : function(fx, fy, tx, ty, stroke){ // todo: curves instead of paths
 			return this.push(new Path([[fx, fy], [tx, ty]], null, stroke, this));
 		},
 		quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
@@ -104,6 +104,9 @@
 		// Methods
 
 		push : function(element){
+			element.z = this.elements.length;
+			element.context = this;
+
 			this.elements.push(element);
 			if( element.draw )
 				element.draw(this.context);
@@ -111,14 +114,15 @@
 			return element;
 		},
 		update : function(){
-			if(this.__timer)
+			if(this._timer !== undefined)
 				return;
-			this.__timer = requestAnimationFrame(function(){
-				this.__update();
-				this.__timer = false;
+
+			this._timer = requestAnimationFrame(function(){
+				this._update();
+				this._timer = false;
 			}.bind(this), 1);
 		},
-		__update : function(){
+		_update : function(){
 			var ctx = this.context;
 			ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			this.elements.forEach(function(object){
@@ -150,19 +154,19 @@
 
 			this.listeners[event] = [];
 
-			var canvas = this.canvas;
-			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(canvas),
-					element;
+			this.canvas.addEventListener(event, function(e){
+				var element,
+					coords = _.coordsOfElement(this.canvas);
 
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
-				
-				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 
-				if(event == 'mouseout'){
+				if(event === 'mouseout'){
 					element = this.hoverElement;
 					this.hoverElement = null;
+				}
+				else {
+					element = this.getObjectInPoint(e.contextX, e.contextY, true);
 				}
 
 				e.targetObject = element;
@@ -173,14 +177,19 @@
 				this.fire(event, e);
 			}.bind(this));
 
-			if(event == 'mouseover' || event == 'mouseout'){
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
-				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
+			switch(event){
+				case 'mouseover':
+					this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+					this.listener('mouseout');
+					break;
+				case 'mouseout':
+					this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+					this.listener('mouseover');
+					break;
+				case 'focus':
+					this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
+					break;
 			}
-			else if(event == 'focus' || event == 'blur')
-				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
-			else if(event == 'mousewheel') // firefox
-				this.listener('DOMMouseScroll');
 
 			return this.listeners[event];
 		},
@@ -193,41 +202,36 @@
 					last = this[name];
 
 				if(last != current){
-					last    && last.fire    && last.fire(out, e);
-					current && current.fire && current.fire(over, e);
+					if(last && last.fire)
+						last.fire(out, e);
+					if(current && current.fire)
+						current.fire(over, e);
 					this[name] = current;
 				}
 
 			}.bind(this));
 			return this;
 		},
-		on : function(evt, fn){
-			if(toString.call(evt) == '[object Number]')
-				return window.setTimeout(fn.bind(this), evt), this;
+		on : function(event, fn){
+			if(toString.call(evt) === '[object Number]')
+				return window.setTimeout(fn.bind(this), event), this;
 
-			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || this.listener('DOMMouseScroll')).push(fn);
-			(this.listeners[ evt ] || this.listener(evt)).push(fn);
+			(this.listeners[ event ] || this.listener(event)).push(fn);
 			return this;
 		},
-		once : function(evt, fn){ // doesn't works with .off
-			if(evt == 'mousewheel')
-				this.once('DOMMouseScroll', fn);
+		once : function(event, fn){ // doesn't works with .off
 			var proxy;
-			this.on(evt, proxy = function(e){
+			this.on(event, proxy = function(e){
 				fn.call(this, e);
-				this.off(evt, proxy);
+				this.off(event, proxy);
 			}.bind(this));
 		},
-		off : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.off('DOMMouseScroll');
-
+		off : function(event, fn){
 			if(!fn)
-				this.listeners[evt] = [];
+				this.listeners[event] = [];
 
-			var index = this.listeners[evt].indexOf(fn);
-			this.listeners = this.listeners[evt].slice(0, index).concat( this.listeners[evt].slice(index+1) );
+			var index = this.listeners[event].indexOf(fn);
+			this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
 			return this;
 		},
 		fire : function(evt, data){
@@ -359,15 +363,15 @@
 			stroke.split(' ').forEach(function(val){
 				if(/^\d*\.\d+$/.test(val))
 					opacity = parseFloat(val);
-				else if(val[0] == '[')
+				else if(val[0] === '[')
 					obj._lineDash = val.substring(1, val.length-1).split(',');
 				else if(isNumber(val))
 					obj.lineWidth = _.distance(val);
-				else if(val == 'miter' || val == 'bevel')
+				else if(val === 'miter' || val === 'bevel')
 					obj.lineJoin = val;
-				else if(val == 'butt' || val == 'square')
+				else if(val === 'butt' || val === 'square')
 					obj.lineCap = val;
-				else if(val == 'round'){
+				else if(val === 'round'){
 					obj.lineJoin = obj.lineJoin || val;
 					obj.lineCap  = obj.lineCap  || val;
 				}
@@ -540,43 +544,43 @@
 			return this.update();
 		},
 
-		// события
-		on : function(evt, fn){
+		// events
+		on : function(event, fn){
 			if(isString(fn)){
-				var command = fn,
+				var method = fn,
 					args = Array.prototype.slice.call(arguments, 2);
 				fn = function(){
-					this[command].apply(this, args);
+					this[method].apply(this, args);
 				};
 				// [fn, proxy] = [proxy, fn];
 			}
-			if(toString.call(evt) == '[object Number]')
-				return window.setTimeout(fn.bind(this), evt), this;
+			if(toString.call(event) === '[object Number]')
+				return window.setTimeout(fn.bind(this), event), this;
 
-			this.context.listener(evt);
-			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || (this.listeners.DOMMouseScroll = [])).push(fn);
-			(this.listeners[ evt ] || (this.listeners[ evt ] = [])).push(fn);
+			this.context.listener(event);
+			(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 			return this;
 
 		},
-		once : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.once('DOMMouseScroll', fn);
+		once : function(event, fn){
 			var proxy;
-			this.on(evt, proxy = function(e){
+			this.on(event, proxy = function(e){
 				fn.call(this, e);
-				this.off(evt, proxy);
+				this.off(event, proxy);
 			}.bind(this));
-			fn.proxy = proxy; // for .off
-		},
-		off : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.off('DOMMouseScroll');
-			if(!fn)
-				this.listeners[evt] = [];
 
-			this.listeners[evt][this.listeners[evt].indexOf(fn.proxy || fn)] = emptyFunc;
+			fn.proxy = proxy; // for .off
+			// BAD, BAD, BAD!
+
+			// func.proxy = true;
+			// shape.once(func);
+			// func.proxy -- ?
+		},
+		off : function(event, fn){
+			if(!fn)
+				this.listeners[event] = [];
+
+			this.listeners[event][this.listeners[event].indexOf(fn.proxy || fn)] = emptyFunc;
 			return this;
 		},
 		fire : function(evt, data){
@@ -665,10 +669,12 @@
 			}
 			return this.transform( x, 0, 0, y, 0, 0, pivot);
 		},
+
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
 			return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 		},
+
 		skew : function(x, y, pivot){
 			// todo: shape.skew(size, pivot)
 			if(y === undefined){
@@ -682,6 +688,7 @@
 			}
 			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
 		},
+
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
 		},
@@ -716,9 +723,9 @@
 					anim.fillEnd   = _.color(end);
 
 					// fix for transparent color
-					if(this._style.fillStyle == 'transparent')
+					if(this._style.fillStyle === 'transparent')
 						anim.fillStart = anim.fillEnd.slice(0,3).concat([0]);
-					if(end == 'transparent')
+					if(end === 'transparent')
 						anim.fillEnd = anim.fillStart.slice(0,3).concat([0])
 				},
 				step : function(end, t, property){
@@ -765,9 +772,9 @@
 					}
 
 					// fix for transparent color
-					if(this._style.strokeStyle == 'transparent')
+					if(this._style.strokeStyle === 'transparent')
 						anim.strokeColorStart = anim.strokeColorEnd.slice(0,3).concat([0]);
-					if(end.strokeStyle == 'transparent')
+					if(end.strokeStyle === 'transparent')
 						anim.strokeColorEnd = anim.strokeColorStart.slice(0,3).concat([0]);
 				},
 				step : function(end, t, property){
@@ -974,7 +981,7 @@
 		'mouseout', 'focus', 'blur',
 		'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 			Shape.prototype[event] = Context.prototype[event] = function(fn){
-				if(typeof fn == 'function' || isString(fn))
+				if(typeof fn === 'function' || isString(fn))
 					return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
 				else
 					return this.fire.apply(this, arguments);
@@ -1042,8 +1049,6 @@
 	$.Rect = Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
-			this._z = context.elements.length;
-			this.context = context;
 			if(isHash(x)){
 				this._x = x.x;
 				this._y = x.y;
@@ -1110,11 +1115,9 @@
 	$.Circle = Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
-			this._z = context.elements.length;
-			this.context = context;
 			if(isHash(cx)){
-				this._cx = cx.cx || cx.x;
-				this._cy = cx.cy || cx.y;
+				this._cx = cx.cx || cx.x || 0;
+				this._cy = cx.cy || cx.y || 0;
 				this._radius = cx.radius;
 				this._parseHash(cx);
 			}
@@ -1155,8 +1158,6 @@
 
 			if(context instanceof Context){
 				// independent curve
-				this._z = context.elements.length;
-				this.context = context;
 				this._from = from;
 				this._processStyle(fill, stroke, context.context);
 			}
@@ -1225,8 +1226,6 @@
 	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
-			this._z = context.elements.length;
-			this.context = context;
 			this._curves = Path.parsePath(points, this);
 			this._processStyle(fill, stroke, context.context);
 		},
@@ -1343,7 +1342,7 @@
 			x : argument(0),
 			y : argument(1),
 			bounds : function(from){
-				if(this._name == 'moveTo')
+				if(this._name === 'moveTo')
 					return null;
 
 				if(this._from)
@@ -1498,9 +1497,6 @@
 	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
-			this._z = context.elements.length;
-			this.context = context;
-
 			if(x === undefined){
 				this._image = image.image;
 				this._x = image.x;
@@ -1519,7 +1515,7 @@
 			}
 
 			if(isString(this._image)){
-				if(this._image[0] == '#')
+				if(this._image[0] === '#')
 					this._image = document.getElementById( this._image.substr(1) );
 				else {
 					x = new Image();
@@ -1648,8 +1644,6 @@
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
-			this._z = context.elements.length;
-			this.context = context;
 			this._style.textBaseline = 'top';
 
 			if(isHash(text)){
@@ -1713,6 +1707,7 @@
 			font.italic && (str += 'italic ');
 			font.bold && (str += 'bold ');
 			return this._setstyle('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
+			// font.size can't be 0? unexpected behavior
 		},
 		_parseFont : function(font){
 			if(isHash(font)){
@@ -1722,9 +1717,9 @@
 
 			var obj = {family:''};
 			font.split(' ').forEach(function(val){
-				if(val == 'bold')
+				if(val === 'bold')
 					obj.bold = true;
-				else if(val == 'italic')
+				else if(val === 'italic')
 					obj.italic = true;
 				else if(/^\d+(px|pt)?/.test(val))
 					obj.size = _.distance(val);
@@ -1788,16 +1783,16 @@
 				x = this._x,
 				y = this._y;
 
-			if(align == 'center')
+			if(align === 'center')
 				x -= width/2;
-			else if(align == 'right')
+			else if(align === 'right')
 				x -= width;
 
-			if(baseline == 'middle')
+			if(baseline === 'middle')
 				y -= size/2;
-			else if(baseline == 'bottom' || baseline == 'ideographic')
+			else if(baseline === 'bottom' || baseline === 'ideographic')
 				y -= size;
-			else if(baseline == 'alphabetic')
+			else if(baseline === 'alphabetic')
 				y -= size * 0.8;
 			return new Bounds(x, y, width, size);
 		},
@@ -1835,8 +1830,6 @@
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
-			this._z = context.elements.length;
-			this.context = context;
 			if(isHash(text)){
 				this._text  = text.text;
 				this._x     = text.x;
@@ -1925,7 +1918,7 @@
 		// block parameters
 		width : function(v){
 			v = this._property('width', v);
-			if(v == 'auto'){ // fixme
+			if(v === 'auto'){ // fixme
 				v = 0;
 				var ctx = this.context.context;
 				this._applyStyle();
@@ -1935,7 +1928,7 @@
 				ctx.restore();
 				return v;
 			}
-			if(v == this) this._genLines().update();
+			if(v === this) this._genLines().update();
 			return v;
 		},
 		height : function(){
@@ -1946,10 +1939,10 @@
 				lines = this._lines = [],
 				size = this._lineHeight || this._font.size || 10,
 				ctx = this.context.context,
-				width = this._width == 'auto' ? Infinity : this._width,
+				width = this._width === 'auto' ? Infinity : this._width,
 				countline = 1,
 				align = this._style.textAlign,
-				x = (align == 'center') ? (width/2) : ((width == 'right') ? width : 0);
+				x = (align === 'center') ? (width/2) : ((width === 'right') ? width : 0);
 
 			this._applyStyle();
 
@@ -2245,7 +2238,7 @@
 			if(this._cache && this.context._cache[key])
 				return this.context._cache[key];
 
-			if(this._type == 'linear')
+			if(this._type === 'linear')
 				grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
 
 			else
@@ -2275,7 +2268,7 @@
 				this._image = image;
 
 			else if(isString(image)){
-				if(image[0] == '#')
+				if(image[0] === '#')
 					this._image = document.getElementById(image.substr(1));
 				else
 					this._image = new Image(),

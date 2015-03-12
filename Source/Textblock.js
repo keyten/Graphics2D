@@ -2,8 +2,6 @@
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
-			this._z = context.elements.length;
-			this.context = context;
 			if(isHash(text)){
 				this._text  = text.text;
 				this._x     = text.x;
@@ -92,7 +90,7 @@
 		// block parameters
 		width : function(v){
 			v = this._property('width', v);
-			if(v == 'auto'){ // fixme
+			if(v === 'auto'){ // fixme
 				v = 0;
 				var ctx = this.context.context;
 				this._applyStyle();
@@ -102,7 +100,7 @@
 				ctx.restore();
 				return v;
 			}
-			if(v == this) this._genLines().update();
+			if(v === this) this._genLines().update();
 			return v;
 		},
 		height : function(){
@@ -113,10 +111,10 @@
 				lines = this._lines = [],
 				size = this._lineHeight || this._font.size || 10,
 				ctx = this.context.context,
-				width = this._width == 'auto' ? Infinity : this._width,
+				width = this._width === 'auto' ? Infinity : this._width,
 				countline = 1,
 				align = this._style.textAlign,
-				x = (align == 'center') ? (width/2) : ((width == 'right') ? width : 0);
+				x = (align === 'center') ? (width/2) : ((width === 'right') ? width : 0);
 
 			this._applyStyle();
 

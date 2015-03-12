@@ -7,7 +7,7 @@
 				this._image = image;
 
 			else if(isString(image)){
-				if(image[0] == '#')
+				if(image[0] === '#')
 					this._image = document.getElementById(image.substr(1));
 				else
 					this._image = new Image(),

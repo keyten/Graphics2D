@@ -1,8 +1,6 @@
 	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
-			this._z = context.elements.length;
-			this.context = context;
 			this._curves = Path.parsePath(points, this);
 			this._processStyle(fill, stroke, context.context);
 		},
@@ -119,7 +117,7 @@
 			x : argument(0),
 			y : argument(1),
 			bounds : function(from){
-				if(this._name == 'moveTo')
+				if(this._name === 'moveTo')
 					return null;
 
 				if(this._from)

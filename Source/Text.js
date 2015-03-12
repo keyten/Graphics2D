@@ -2,8 +2,6 @@
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
-			this._z = context.elements.length;
-			this.context = context;
 			this._style.textBaseline = 'top';
 
 			if(isHash(text)){
@@ -67,6 +65,7 @@
 			font.italic && (str += 'italic ');
 			font.bold && (str += 'bold ');
 			return this._setstyle('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
+			// font.size can't be 0? unexpected behavior
 		},
 		_parseFont : function(font){
 			if(isHash(font)){
@@ -76,9 +75,9 @@
 
 			var obj = {family:''};
 			font.split(' ').forEach(function(val){
-				if(val == 'bold')
+				if(val === 'bold')
 					obj.bold = true;
-				else if(val == 'italic')
+				else if(val === 'italic')
 					obj.italic = true;
 				else if(/^\d+(px|pt)?/.test(val))
 					obj.size = _.distance(val);
@@ -142,16 +141,16 @@
 				x = this._x,
 				y = this._y;
 
-			if(align == 'center')
+			if(align === 'center')
 				x -= width/2;
-			else if(align == 'right')
+			else if(align === 'right')
 				x -= width;
 
-			if(baseline == 'middle')
+			if(baseline === 'middle')
 				y -= size/2;
-			else if(baseline == 'bottom' || baseline == 'ideographic')
+			else if(baseline === 'bottom' || baseline === 'ideographic')
 				y -= size;
-			else if(baseline == 'alphabetic')
+			else if(baseline === 'alphabetic')
 				y -= size * 0.8;
 			return new Bounds(x, y, width, size);
 		},

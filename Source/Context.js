@@ -41,7 +41,7 @@
 
 		// Path slices
 
-		line : function(fx, fy, tx, ty, stroke){
+		line : function(fx, fy, tx, ty, stroke){ // todo: curves instead of paths
 			return this.push(new Path([[fx, fy], [tx, ty]], null, stroke, this));
 		},
 		quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
@@ -58,6 +58,9 @@
 		// Methods
 
 		push : function(element){
+			element.z = this.elements.length;
+			element.context = this;
+
 			this.elements.push(element);
 			if( element.draw )
 				element.draw(this.context);
@@ -65,14 +68,15 @@
 			return element;
 		},
 		update : function(){
-			if(this.__timer)
+			if(this._timer !== undefined)
 				return;
-			this.__timer = requestAnimationFrame(function(){
-				this.__update();
-				this.__timer = false;
+
+			this._timer = requestAnimationFrame(function(){
+				this._update();
+				this._timer = false;
 			}.bind(this), 1);
 		},
-		__update : function(){
+		_update : function(){
 			var ctx = this.context;
 			ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			this.elements.forEach(function(object){
@@ -104,19 +108,19 @@
 
 			this.listeners[event] = [];
 
-			var canvas = this.canvas;
-			canvas.addEventListener(event, function(e){
-				var coords = _.coordsOfElement(canvas),
-					element;
+			this.canvas.addEventListener(event, function(e){
+				var element,
+					coords = _.coordsOfElement(this.canvas);
 
 				e.contextX = e.clientX - coords.x;
 				e.contextY = e.clientY - coords.y;
-				
-				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 
-				if(event == 'mouseout'){
+				if(event === 'mouseout'){
 					element = this.hoverElement;
 					this.hoverElement = null;
+				}
+				else {
+					element = this.getObjectInPoint(e.contextX, e.contextY, true);
 				}
 
 				e.targetObject = element;
@@ -127,14 +131,19 @@
 				this.fire(event, e);
 			}.bind(this));
 
-			if(event == 'mouseover' || event == 'mouseout'){
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
-				this.listener(event == 'mouseover' ? 'mouseout' : 'mouseover');
+			switch(event){
+				case 'mouseover':
+					this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+					this.listener('mouseout');
+					break;
+				case 'mouseout':
+					this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+					this.listener('mouseover');
+					break;
+				case 'focus':
+					this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
+					break;
 			}
-			else if(event == 'focus' || event == 'blur')
-				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
-			else if(event == 'mousewheel') // firefox
-				this.listener('DOMMouseScroll');
 
 			return this.listeners[event];
 		},
@@ -147,41 +156,36 @@
 					last = this[name];
 
 				if(last != current){
-					last    && last.fire    && last.fire(out, e);
-					current && current.fire && current.fire(over, e);
+					if(last && last.fire)
+						last.fire(out, e);
+					if(current && current.fire)
+						current.fire(over, e);
 					this[name] = current;
 				}
 
 			}.bind(this));
 			return this;
 		},
-		on : function(evt, fn){
-			if(toString.call(evt) == '[object Number]')
-				return window.setTimeout(fn.bind(this), evt), this;
+		on : function(event, fn){
+			if(toString.call(evt) === '[object Number]')
+				return window.setTimeout(fn.bind(this), event), this;
 
-			if(evt == 'mousewheel') // for firefox
-				(this.listeners.DOMMouseScroll || this.listener('DOMMouseScroll')).push(fn);
-			(this.listeners[ evt ] || this.listener(evt)).push(fn);
+			(this.listeners[ event ] || this.listener(event)).push(fn);
 			return this;
 		},
-		once : function(evt, fn){ // doesn't works with .off
-			if(evt == 'mousewheel')
-				this.once('DOMMouseScroll', fn);
+		once : function(event, fn){ // doesn't works with .off
 			var proxy;
-			this.on(evt, proxy = function(e){
+			this.on(event, proxy = function(e){
 				fn.call(this, e);
-				this.off(evt, proxy);
+				this.off(event, proxy);
 			}.bind(this));
 		},
-		off : function(evt, fn){
-			if(evt == 'mousewheel')
-				this.off('DOMMouseScroll');
-
+		off : function(event, fn){
 			if(!fn)
-				this.listeners[evt] = [];
+				this.listeners[event] = [];
 
-			var index = this.listeners[evt].indexOf(fn);
-			this.listeners = this.listeners[evt].slice(0, index).concat( this.listeners[evt].slice(index+1) );
+			var index = this.listeners[event].indexOf(fn);
+			this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
 			return this;
 		},
 		fire : function(evt, data){

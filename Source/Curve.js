@@ -5,8 +5,6 @@
 
 			if(context instanceof Context){
 				// independent curve
-				this._z = context.elements.length;
-				this.context = context;
 				this._from = from;
 				this._processStyle(fill, stroke, context.context);
 			}

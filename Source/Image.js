@@ -11,9 +11,6 @@
 	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
-			this._z = context.elements.length;
-			this.context = context;
-
 			if(x === undefined){
 				this._image = image.image;
 				this._x = image.x;
@@ -32,7 +29,7 @@
 			}
 
 			if(isString(this._image)){
-				if(this._image[0] == '#')
+				if(this._image[0] === '#')
 					this._image = document.getElementById( this._image.substr(1) );
 				else {
 					x = new Image();

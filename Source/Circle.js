@@ -1,11 +1,9 @@
 	$.Circle = Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
-			this._z = context.elements.length;
-			this.context = context;
 			if(isHash(cx)){
-				this._cx = cx.cx || cx.x;
-				this._cy = cx.cy || cx.y;
+				this._cx = cx.cx || cx.x || 0;
+				this._cy = cx.cy || cx.y || 0;
 				this._radius = cx.radius;
 				this._parseHash(cx);
 			}
