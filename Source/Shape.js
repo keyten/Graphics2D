@@ -65,7 +65,7 @@
 			var ctx = this.context.context;
 			ctx.save();
 			for(var i in this._style){
-				if(Object.prototype.hasOwnProperty.call(this._style, i))
+				if(_.has(this._style, i))
 					ctx[i] = this._style[i];
 			}
 			if(this._clip){
@@ -288,7 +288,7 @@
 					value.color = 'rgba(' + value.color.join(',') + ')';
 				}
 				for(name in value){
-					if(Object.prototype.hasOwnProperty.call(value, name)){
+					if(_.has(value, name)){
 						style[shadowToStyle[name]] = value[name];
 					}
 				}
@@ -357,7 +357,7 @@
 			if(isArray(corner))
 				return corner;
 			if(isHash(corner)){
-				if(Object.hasOwnProperty.call(corner, 'from')){ // TODO: _.has = Object.hasOwnProperty.call
+				if(_.has(corner, 'from')){
 					var from = this.corner(corner.from);
 					return [from[0] + corner.x, from[1] + corner.y];
 				}
@@ -377,20 +377,49 @@
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
+			/* px, py = pivot
+				[1,0,px]   [a,c,e]   [1,0,-px]   [a,c,e+px]   [1,0,-px]   [a,c,-px*a - py*c + e+px]
+				[0,1,py] * [b,d,f] * [0,1,-py] = [b,d,f+py] * [0,1,-py] = [b,d,-px*b - py*d + f+py]
+				[0,0,1]    [0,0,1]   [0,0,1]     [0,0,1]      [0,0,1]     [0,0,1]
+			*/
+			if(a === undefined){
+				return this._matrix;
+			}
 			if(a === null){
 				this._matrix = null;
 				return this.update();
 			}
-			if(!this._matrix)
-				this._matrix = [1,0,0,1,0,0];
-			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
+
+			var corner = this.corner(pivot),
+				matrix = [
+					a, b, c, d,
+					-corner[0]*a - corner[1]*c + e+corner[0],
+					-corner[0]*b - corner[1]*d + f+corner[1]
+					];
+
+			if(this._matrix)
+				matrix = _.multiply(this._matrix, matrix);
+			
+			this._matrix = matrix;
 			return this.update();
 		},
+
 		scale : function(x, y, pivot){
-			if(!isNumber(x)){
-				x = x[0] || x.x || 0;
+			// pivot dont work
+			if(y === undefined){
+				if(isNumber(x))
+					y = x;
+				else
+					y = x[1] !== undefined? x[1]
+						: x.y !== undefined? x.y
+						: 1;
 			}
-//			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			if(!isNumber(x)){
+				x = x[0] !== undefined? x[0]
+						: x.x !== undefined? x.x
+						: 1;
+			}
+			return this.transform( x, 0, 0, y, 0, 0, pivot);
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
@@ -408,7 +437,6 @@
 				x = x[0] || x.x || 0;
 			}
 			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
-	//		return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
 		},
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
@@ -556,7 +584,7 @@
 					};
 				}
 				for(var i in property){
-					if(Object.prototype.hasOwnProperty.call(property, i))
+					if(_.has(property, i))
 						this.animate(i, property[i], value);
 				}
 				return this;

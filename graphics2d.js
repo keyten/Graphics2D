@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 8.3.2015
+ *  Last edit: 12.3.2015
  *  License: MIT / LGPL
  */
 
@@ -309,7 +309,7 @@
 			var ctx = this.context.context;
 			ctx.save();
 			for(var i in this._style){
-				if(Object.prototype.hasOwnProperty.call(this._style, i))
+				if(_.has(this._style, i))
 					ctx[i] = this._style[i];
 			}
 			if(this._clip){
@@ -532,7 +532,7 @@
 					value.color = 'rgba(' + value.color.join(',') + ')';
 				}
 				for(name in value){
-					if(Object.prototype.hasOwnProperty.call(value, name)){
+					if(_.has(value, name)){
 						style[shadowToStyle[name]] = value[name];
 					}
 				}
@@ -601,7 +601,7 @@
 			if(isArray(corner))
 				return corner;
 			if(isHash(corner)){
-				if(Object.hasOwnProperty.call(corner, 'from')){ // TODO: _.has = Object.hasOwnProperty.call
+				if(_.has(corner, 'from')){
 					var from = this.corner(corner.from);
 					return [from[0] + corner.x, from[1] + corner.y];
 				}
@@ -621,20 +621,49 @@
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
+			/* px, py = pivot
+				[1,0,px]   [a,c,e]   [1,0,-px]   [a,c,e+px]   [1,0,-px]   [a,c,-px*a - py*c + e+px]
+				[0,1,py] * [b,d,f] * [0,1,-py] = [b,d,f+py] * [0,1,-py] = [b,d,-px*b - py*d + f+py]
+				[0,0,1]    [0,0,1]   [0,0,1]     [0,0,1]      [0,0,1]     [0,0,1]
+			*/
+			if(a === undefined){
+				return this._matrix;
+			}
 			if(a === null){
 				this._matrix = null;
 				return this.update();
 			}
-			if(!this._matrix)
-				this._matrix = [1,0,0,1,0,0];
-			_.transform(this._matrix, [a, b, c, d, e, f], this.corner(pivot));
+
+			var corner = this.corner(pivot),
+				matrix = [
+					a, b, c, d,
+					-corner[0]*a - corner[1]*c + e+corner[0],
+					-corner[0]*b - corner[1]*d + f+corner[1]
+					];
+
+			if(this._matrix)
+				matrix = _.multiply(this._matrix, matrix);
+			
+			this._matrix = matrix;
 			return this.update();
 		},
+
 		scale : function(x, y, pivot){
-			if(!isNumber(x)){
-				x = x[0] || x.x || 0;
+			// pivot dont work
+			if(y === undefined){
+				if(isNumber(x))
+					y = x;
+				else
+					y = x[1] !== undefined? x[1]
+						: x.y !== undefined? x.y
+						: 1;
 			}
-//			return this.transform( isNumber(x) ? x : (x[0] || x.x || 0), 0, 0, (y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y), 0, 0, pivot );
+			if(!isNumber(x)){
+				x = x[0] !== undefined? x[0]
+						: x.x !== undefined? x.x
+						: 1;
+			}
+			return this.transform( x, 0, 0, y, 0, 0, pivot);
 		},
 		rotate : function(angle, pivot){
 			angle = angle * Math.PI / 180;
@@ -652,7 +681,6 @@
 				x = x[0] || x.x || 0;
 			}
 			return this.transform( 1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
-	//		return this.transform( 1, Math.tan((y === undefined ? (isNumber(x) ? x : (x[1] || x.y || 0)) : y) * Math.PI / 180), Math.tan((isNumber(x) ? x : (x[0] || x.x || 0)) * Math.PI / 180), 1, 0, 0, pivot );
 		},
 		translate : function(x, y){
 			return this.transform(1, 0, 0, 1, x, y);
@@ -800,7 +828,7 @@
 					};
 				}
 				for(var i in property){
-					if(Object.prototype.hasOwnProperty.call(property, i))
+					if(_.has(property, i))
 						this.animate(i, property[i], value);
 				}
 				return this;
@@ -2447,13 +2475,13 @@
 		return toString.call(a) == '[object Array]';
 	}
 	function isHash(a){
-		try {
-			JSON.stringify(a); // only hashes
+//		try {
+//			JSON.stringify(a); // only hashes
 			return toString.call(a) == '[object Object]';
-		}
-		catch(e){
-			return false;
-		}
+//		}
+//		catch(e){
+//			return false;
+//		}
 	}
 	function isNumber(value){
 		if(toString.call(value) == '[object Number]')
@@ -2466,6 +2494,7 @@
 //		return isNumber(a) || typeof a == 'object';
 //	}
 
+	_.has = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
 	_.Bounds = Bounds;
 	_.extend = extend;
 	_.isString = isString;
@@ -2694,7 +2723,7 @@
 		return first.concat(last);
 	};
 
-	_.multiply = function(m1, m2){ // multiplies two matrixes
+	_.multiply = function(m1, m2){ // multiplies two matrices
 		return [
 			m1[0] * m2[0] + m1[2] * m2[1],
 			m1[1] * m2[0] + m1[3] * m2[1],
@@ -2712,17 +2741,6 @@
 	_.transformPoint = function(x,y, m){
 		return [x * m[0] + y * m[2] + m[4], x * m[1] + y * m[3] + m[5]];
 	};
-
-
-
-
-	// Сокращения
-	_.transform = function( m1, m2, pivot ){ // transforms a matrix with a pivot
-		extend( m1, _.multiply( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
-		extend( m1, _.multiply( m1, m2 ) );
-		extend( m1, _.multiply( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
-	};
-
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of a DOM element
@@ -2743,19 +2761,30 @@
 		var test;
 		if(value in _.colors)
 			return _.color('#' + _.colors[value]);
+
+		// rgba(255, 100, 20, 0.5)
 		if(test = value.match(/^rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\)/))
 			return [parseInt(test[1]), parseInt(test[2]), parseInt(test[3]), parseFloat(test[5] || 1)];
+
+		// rgba(100%, 0%, 50%, 1)
 		if(test = value.match(/^rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\)/))
 			return [ Math.round(parseInt(test[1]) * 2.55), Math.round(parseInt(test[2]) * 2.55), Math.round(parseInt(test[3]) * 2.55), parseFloat(test[5] || 1) ];
+
+		// #bebebe
 		if(test = value.match(/^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i))
 			return [parseInt(test[1], 16), parseInt(test[2], 16), parseInt(test[3], 16), 1];
+
+		// #555
 		if(test = value.match(/^\#([0-9a-f])([0-9a-f])([0-9a-f])/i))
 			return [parseInt(test[1] + test[1], 16), parseInt(test[2] + test[2], 16), parseInt(test[3] + test[3], 16), 1];
-		if(value == 'rand')
+
+		if(value === 'rand')
 			return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), Number(Math.random().toFixed(2))];
 
-		return [0,0,0,0];
+		return [0, 0, 0, 0];
 	};
+
+	_.distanceUnits = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
 
 	_.distance = function(value){
 		if(value === undefined) return;
@@ -2770,9 +2799,7 @@
 			var div = document.createElement('div');
 			document.body.appendChild(div); // FF don't need this :)
 			_.units = {};
-			['em', 'ex', 'ch', 'rem', 'vw',
-			 'vh', 'vmin', 'vmax', 'cm',
-			 'mm', 'in', 'pt', 'pc'].forEach(function(unit){
+			_.distanceUnits.forEach(function(unit){
 				div.style.width = '1' + unit;
 				_.units[unit] = parseFloat(getComputedStyle(div).width);
 			});

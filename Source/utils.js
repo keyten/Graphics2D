@@ -164,13 +164,13 @@
 		return toString.call(a) == '[object Array]';
 	}
 	function isHash(a){
-		try {
-			JSON.stringify(a); // only hashes
+//		try {
+//			JSON.stringify(a); // only hashes
 			return toString.call(a) == '[object Object]';
-		}
-		catch(e){
-			return false;
-		}
+//		}
+//		catch(e){
+//			return false;
+//		}
 	}
 	function isNumber(value){
 		if(toString.call(value) == '[object Number]')
@@ -183,6 +183,7 @@
 //		return isNumber(a) || typeof a == 'object';
 //	}
 
+	_.has = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
 	_.Bounds = Bounds;
 	_.extend = extend;
 	_.isString = isString;
@@ -411,7 +412,7 @@
 		return first.concat(last);
 	};
 
-	_.multiply = function(m1, m2){ // multiplies two matrixes
+	_.multiply = function(m1, m2){ // multiplies two matrices
 		return [
 			m1[0] * m2[0] + m1[2] * m2[1],
 			m1[1] * m2[0] + m1[3] * m2[1],
@@ -429,17 +430,6 @@
 	_.transformPoint = function(x,y, m){
 		return [x * m[0] + y * m[2] + m[4], x * m[1] + y * m[3] + m[5]];
 	};
-
-
-
-
-	// Сокращения
-	_.transform = function( m1, m2, pivot ){ // transforms a matrix with a pivot
-		extend( m1, _.multiply( m1, [ 1,0,0,1,pivot[0],pivot[1] ] ) );
-		extend( m1, _.multiply( m1, m2 ) );
-		extend( m1, _.multiply( m1, [ 1,0,0,1,-pivot[0],-pivot[1] ] ) );
-	};
-
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of a DOM element
@@ -460,19 +450,30 @@
 		var test;
 		if(value in _.colors)
 			return _.color('#' + _.colors[value]);
+
+		// rgba(255, 100, 20, 0.5)
 		if(test = value.match(/^rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\)/))
 			return [parseInt(test[1]), parseInt(test[2]), parseInt(test[3]), parseFloat(test[5] || 1)];
+
+		// rgba(100%, 0%, 50%, 1)
 		if(test = value.match(/^rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\)/))
 			return [ Math.round(parseInt(test[1]) * 2.55), Math.round(parseInt(test[2]) * 2.55), Math.round(parseInt(test[3]) * 2.55), parseFloat(test[5] || 1) ];
+
+		// #bebebe
 		if(test = value.match(/^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i))
 			return [parseInt(test[1], 16), parseInt(test[2], 16), parseInt(test[3], 16), 1];
+
+		// #555
 		if(test = value.match(/^\#([0-9a-f])([0-9a-f])([0-9a-f])/i))
 			return [parseInt(test[1] + test[1], 16), parseInt(test[2] + test[2], 16), parseInt(test[3] + test[3], 16), 1];
-		if(value == 'rand')
+
+		if(value === 'rand')
 			return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), Number(Math.random().toFixed(2))];
 
-		return [0,0,0,0];
+		return [0, 0, 0, 0];
 	};
+
+	_.distanceUnits = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
 
 	_.distance = function(value){
 		if(value === undefined) return;
@@ -487,9 +488,7 @@
 			var div = document.createElement('div');
 			document.body.appendChild(div); // FF don't need this :)
 			_.units = {};
-			['em', 'ex', 'ch', 'rem', 'vw',
-			 'vh', 'vmin', 'vmax', 'cm',
-			 'mm', 'in', 'pt', 'pc'].forEach(function(unit){
+			_.distanceUnits.forEach(function(unit){
 				div.style.width = '1' + unit;
 				_.units[unit] = parseFloat(getComputedStyle(div).width);
 			});
