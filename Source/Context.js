@@ -167,7 +167,7 @@
 			return this;
 		},
 		on : function(event, fn){
-			if(toString.call(evt) === '[object Number]')
+			if(toString.call(event) === '[object Number]')
 				return window.setTimeout(fn.bind(this), event), this;
 
 			(this.listeners[ event ] || this.listener(event)).push(fn);
@@ -188,8 +188,8 @@
 			this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
 			return this;
 		},
-		fire : function(evt, data){
-			var listeners = this.listeners[ evt ];
+		fire : function(event, data){
+			var listeners = this.listeners[ event ];
 			if(!listeners) return this;
 
 			listeners.forEach(function(func){
