@@ -6,7 +6,6 @@
 
 	var Ellipse = $.Class($.Circle, {
 		initialize : function(object){
-			// TODO: parameters
 			this._rx = this._ry = this._radius;
 
 			if($.util.isHash(object)){
@@ -64,9 +63,11 @@
 			ctx.bezierCurveTo(cx + ox, cy - ry, cx + rx, cy - oy, cx + rx, cy);
 			ctx.bezierCurveTo(cx + rx, cy + oy, cx + ox, cy + ry, cx, cy + ry);
 			ctx.bezierCurveTo(cx - ox, cy + ry, cx - rx, cy + oy, cx - rx, cy);
+			ctx.closePath(); // fix for a last corner with kappa=0
 		}
 	});
 
+	Ellipse.kappa = Ellipse.prototype._kappa;
 	$.Ellipse = Ellipse;
 
 	// animating corners

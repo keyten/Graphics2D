@@ -1,41 +1,5 @@
-	$.Anim = Anim = new Class({
-
-		initialize : function(from, to, dur, easing){
-			this.from = from;
-			this.delta = to - from;
-			this.dur = dur || 500;
-			this.ease = easing || 'linear';
-		},
-
-		start : function(fn, fps){
-			var delta = this.delta,
-				from  = this.from,
-				dur   = this.dur,
-				ease  = Anim.easing[this.ease] || function(x){return x;},
-				start = Date.now(),
-				finish = start + dur,
-				interval, time, frame;
-
-			interval = this.interval = setInterval(function(){ // TODO: one timer for all animations; requestAnimationFrame
-				if(time == (time = Date.now())) return;
-				frame = ease( time > finish ? 1 : (time - start) / dur );
-				fn(from + delta * frame, frame);
-
-				if(time > finish)
-					clearInterval(interval);
-			}, fps || 10); // or -- 1000/fps (real fps :))
-
-			return this;
-		},
-		stop : function(){
-			clearInterval(this.interval);
-			return this;
-		}
-
-	});
-
 	// Mootools :) partially
-	Anim.easing = {
+	$.easing = {
 		linear : function(x){ return x; },
 		half : function(x){ return Math.sqrt(x); },
 		pow : function(t, v){
@@ -66,23 +30,23 @@
 		}
 	};
 	['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-		Anim.easing[name] = function(t){ return Math.pow(t, i+2); };
+		$.easing[name] = function(t){ return Math.pow(t, i+2); };
 	});
 
 	function processEasing(func){
-		Anim.easing[i + 'In'] = func;
-		Anim.easing[i + 'Out'] = function(t){
+		$.easing[i + 'In'] = func;
+		$.easing[i + 'Out'] = function(t){
 			return 1 - func(1 - t);
 		};
-		Anim.easing[i + 'InOut'] = function(t){
+		$.easing[i + 'InOut'] = function(t){
 			return t <= 0.5 ? func(2 * t) / 2 : (2 - func(2 * (1 - t))) / 2;
 		};
 	}
 
-	for(var i in Anim.easing){
+	for(var i in $.easing){
 		// don't make functions within a loop
-		if(Object.prototype.hasOwnProperty.call(Anim.easing, i))
-			processEasing(Anim.easing[i]);
+		if(Object.prototype.hasOwnProperty.call($.easing, i))
+			processEasing($.easing[i]);
 	}
 
 
@@ -183,7 +147,7 @@
 //		return isNumber(a) || typeof a == 'object';
 //	}
 
-	_.has = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
+	_.has = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
 	_.Bounds = Bounds;
 	_.extend = extend;
 	_.isString = isString;

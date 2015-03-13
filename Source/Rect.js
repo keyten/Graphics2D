@@ -1,6 +1,7 @@
 	$.Rect = Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
+			this.context = context;
 			if(isHash(x)){
 				this._x = x.x;
 				this._y = x.y;

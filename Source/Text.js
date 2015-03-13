@@ -3,6 +3,7 @@
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
 			this._style.textBaseline = 'top';
+			this.context = context;
 
 			if(isHash(text)){
 				this._text  = text.text;

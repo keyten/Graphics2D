@@ -1,6 +1,7 @@
 	$.Circle = Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
+			this.context = context;
 			if(isHash(cx)){
 				this._cx = cx.cx || cx.x || 0;
 				this._cy = cx.cy || cx.y || 0;

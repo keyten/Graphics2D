@@ -2,6 +2,7 @@
 		initialize : function(name, args, from, fill, stroke, context){
 			this._name = name;
 			this._arguments = args; // todo: parsing args {x: 10, y:10}
+			this.context = context;
 
 			if(context instanceof Context){
 				// independent curve

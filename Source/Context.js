@@ -68,12 +68,12 @@
 			return element;
 		},
 		update : function(){
-			if(this._timer !== undefined)
+			if(this._timer)
 				return;
 
 			this._timer = requestAnimationFrame(function(){
 				this._update();
-				this._timer = false;
+				this._timer = null;
 			}.bind(this), 1);
 		},
 		_update : function(){

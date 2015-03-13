@@ -30,14 +30,45 @@
 
 		_distortion : 0,
 
+		cx : function(value){
+			return this._property('cx', value);
+		},
+
+		cy : function(value){
+			return this._property('cy', value);
+		},
+
+		radius1 : function(value){
+			return this._property('radius1', value);
+		},
+
+		radius2 : function(value){
+			return this._property('radius2', value);
+		},
+
+		points : function(value){
+			return this._property('points', value);
+		},
+
+		distortion : function(value){
+			return this._property('distortion', value);
+		},
+
 		processPath : function(ctx){
+			var angle1, angle2,
+				offset = Math.PI / this._points,
+				i = 0;
+
 			ctx.beginPath();
-			for(var i = 0; i < this._points; i++){
-				var angle1 = pi2 * i / this._points,
-					angle2 = angle1 + (Math.PI / this._points) + this._distortion;
+
+			for(; i < this._points; i++){
+				angle1 = pi2 * i / this._points;
+				angle2 = angle1 + offset + this._distortion;
 				ctx.lineTo(this._cx + this._radius1 * Math.cos(angle1), this._cy + this._radius1 * Math.sin(angle1));
 				ctx.lineTo(this._cx + this._radius2 * Math.cos(angle2), this._cy + this._radius2 * Math.sin(angle2));
 			}
+
+			ctx.closePath();
 		}
 	});
 

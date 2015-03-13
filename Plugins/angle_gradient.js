@@ -70,7 +70,7 @@
 
 		// draw the gradient
 		var bounds = element.bounds(),
-			center = $.util.corner(this._center, bounds),
+			center = element.corner(this._center),
 			lineLength = Math.sqrt(Math.pow(bounds.h,2) + Math.pow(bounds.w,2)) / 2,
 
 			steps = Object.keys(this._colors).sort(),

@@ -54,6 +54,8 @@
 			ctx.lineTo(x+rx, y);
 			// top left side
 			ctx.quadraticCurveTo(x, y, x, y+ry);
+
+			ctx.closePath();
 		}
 	});
 

@@ -2,6 +2,8 @@
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
+			this.context = context;
+
 			if(isHash(text)){
 				this._text  = text.text;
 				this._x     = text.x;

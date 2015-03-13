@@ -11,6 +11,7 @@
 	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
+			this.context = context;
 			if(x === undefined){
 				this._image = image.image;
 				this._x = image.x;
@@ -136,7 +137,7 @@
 
 	});
 
-	Img.prototype._anim.crop = {
+/*	Img.prototype._anim.crop = {
 		// extends the Shape::_anim
 		start : function(end){
 			this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
@@ -152,3 +153,4 @@
 			];
 		}
 	},
+ */

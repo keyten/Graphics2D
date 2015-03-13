@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 12.3.2015
+ *  Last edit: 13.3.2015
  *  License: MIT / LGPL
  */
 
@@ -114,12 +114,12 @@
 			return element;
 		},
 		update : function(){
-			if(this._timer !== undefined)
+			if(this._timer)
 				return;
 
 			this._timer = requestAnimationFrame(function(){
 				this._update();
-				this._timer = false;
+				this._timer = null;
 			}.bind(this), 1);
 		},
 		_update : function(){
@@ -213,7 +213,7 @@
 			return this;
 		},
 		on : function(event, fn){
-			if(toString.call(evt) === '[object Number]')
+			if(toString.call(event) === '[object Number]')
 				return window.setTimeout(fn.bind(this), event), this;
 
 			(this.listeners[ event ] || this.listener(event)).push(fn);
@@ -234,8 +234,8 @@
 			this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
 			return this;
 		},
-		fire : function(evt, data){
-			var listeners = this.listeners[ evt ];
+		fire : function(event, data){
+			var listeners = this.listeners[ event ];
 			if(!listeners) return this;
 
 			listeners.forEach(function(func){
@@ -244,27 +244,6 @@
 			return this;
 		}
 
-	};
-
-	// Transform animation
-	var trStart = function(anim){
-		if(!this._matrix)
-			this._matrix = [1,0,0,1,0,0];
-		anim.object.matrixStart = this._matrix;
-		anim.object.matrixCur = [1,0,0,1,0,0];
-		anim.object.matrixCur.step = 0;
-	};
-	var trProcess = function(fn){
-		return function(anim, end, step, param){
-			if(anim.object.matrixCur.step != step){
-				anim.object.matrixCur = [1,0,0,1,0,0];
-				anim.object.matrixCur.step = step;
-			}
-
-			var cur = _.interpolate(_.animTransformConstants[param], end, step);
-			_.transform(anim.object.matrixCur, fn(cur), this.corner('center'));
-			this._matrix = _.multiply(anim.object.matrixStart, anim.object.matrixCur);
-		};
 	};
 
 	$.Shape = Shape = new Class({
@@ -698,282 +677,265 @@
 		toImage : function(){},
 
 		// animation
-		_anim : {
-			number : {
-				start : function(end, property){
-					var anim = this._animData;
-					anim[property + 'Start'] = this['_' + property];
-					anim[property + 'End'  ] = _.distance(end);
-				},
-				step : function(end, t, property){
-					var anim  = this._animData,
-						start = anim[property + 'Start'],
-						end   = anim[property + 'End'];
-					this['_' + property] = (start * (1 - t) + end * t)|0; // |0 = Math.floor
-				},
-				end : function(end, property){
-					delete this._animData['_' + property];
-				}
-			},
-
-			fill : {
-				start : function(end, property){
-					var anim = this._animData;
-					anim.fillStart = _.color(this._style.fillStyle);
-					anim.fillEnd   = _.color(end);
-
-					// fix for transparent color
-					if(this._style.fillStyle === 'transparent')
-						anim.fillStart = anim.fillEnd.slice(0,3).concat([0]);
-					if(end === 'transparent')
-						anim.fillEnd = anim.fillStart.slice(0,3).concat([0])
-				},
-				step : function(end, t, property){
-					var anim  = this._animData,
-						start = anim.fillStart,
-						end   = anim.fillEnd;
-					this._style.fillStyle = 'rgba(' +
-						[(start[0] * (1 - t) + end[0] * t)|0,
-						 (start[1] * (1 - t) + end[1] * t)|0,
-						 (start[2] * (1 - t) + end[2] * t)|0,
-						 start[3] * (1 - t) + end[3] * t].join(',')
-						+ ')';
-				},
-				end : function(end, property){
-					delete this._animData.fillStart;
-					delete this._animData.fillEnd;
-				}
-			},
-
-			stroke : {
-				start : function(end, property){
-
-					// regexp for css distances:
-					// /(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/ and /(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?/
-					// regexp for colors:
-					// /(#[0-9a-f]{6})|(#[0-9a-f]{3})|(rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\))|(rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\))/ and new RegExp(Object.keys(_.colors).join('|'))) || []);
-					// never use it! :)
-
-					var anim = this._animData;
-					end = Shape.prototype._parseStroke(end);
-
-					if(!this._style.strokeStyle)
-						this._style.strokeStyle = 'transparent';
-					if(!this._style.lineWidth)
-						this._style.lineWidth = 1;
-
-					if(end.strokeStyle){
-						anim.strokeColorStart = _.color(this._style.strokeStyle);
-						anim.strokeColorEnd   = _.color(end.strokeStyle);
-					}
-					if(end.lineWidth){
-						anim.strokeWidthStart = _.distance(this._style.lineWidth);
-						anim.strokeWidthEnd   = end.lineWidth;
-					}
-
-					// fix for transparent color
-					if(this._style.strokeStyle === 'transparent')
-						anim.strokeColorStart = anim.strokeColorEnd.slice(0,3).concat([0]);
-					if(end.strokeStyle === 'transparent')
-						anim.strokeColorEnd = anim.strokeColorStart.slice(0,3).concat([0]);
-				},
-				step : function(end, t, property){
-					var anim  = this._animData,
-						cstart = anim.strokeColorStart,
-						cend   = anim.strokeColorEnd,
-						wstart = anim.strokeWidthStart,
-						wend   = anim.strokeWidthEnd;
-					if(cstart){
-						this._style.strokeStyle = 'rgba(' +
-						[(cstart[0] * (1 - t) + cend[0] * t)|0,
-						 (cstart[1] * (1 - t) + cend[1] * t)|0,
-						 (cstart[2] * (1 - t) + cend[2] * t)|0,
-						  cstart[3] * (1 - t) + cend[3] * t].join(',')
-						+ ')';
-					}
-					if(wstart)
-						this._style.lineWidth = (wstart * (1 - t) + wend * t)|0;
-				},
-				end : function(end, property){
-					delete this._animData.strokeColorStart;
-					delete this._animData.strokeColorEnd;
-					delete this._animData.strokeWidthStart;
-					delete this._animData.strokeWidthEnd;
-				}
-			},
-
-			opacity : {
-				start : function(){
-					this._animData.opacityStart = this._style.globalAlpha || 1;
-				},
-				step : function(end, t){
-					this._style.globalAlpha = this._animData.opacityStart * (1 - t) + end * t;
-				},
-				end : function(){
-					delete this._animData.opacityStart;
-				}
-			},
-
-			translateX : {
-				start : function(end, property){},
-				step : function(end, t, property){},
-				end : function(end, property){}
-			}
-		},
-
-		animate : function(property, value, options){
+		animate : function( prop, value, options ){
 			//	animate(property, value, duration, easing, after);
 			//	animate(properties, duration, easing, after);
 			//	animate(property, value, options);
 			//	animate(properties, options);
-			if(isHash(property)){
-				if(!isHash(value)){
-					value = {
-						duration : value,
-						easing : options,
-						after : arguments[3]
-					};
-				}
-				for(var i in property){
-					if(_.has(property, i))
-						this.animate(i, property[i], value);
+
+			if( isHash( prop ) ){
+				if( isHash( value ) )
+					value.queue = false;
+				else
+					value = { duration: value, easing: options, callback: arguments[4], queue: false };
+
+				for( var i in prop ){
+					if( _.has( prop, i ) )
+						this.animate( i, prop[i], value, options, arguments[4] );
 				}
 				return this;
 			}
 
-			if(!isHash(options)){
-				options = {
-					duration : options,
-					easing : arguments[3],
-					after : arguments[4] // optimize? using args by index + by name may be slow :)
-				};
-				// TODO: Graphics2D.animMethod = 'raf' (requestAnimationFrame) | 'timeout'
+			if( !isHash( options ) ){
+				options = { duration: options, easing: arguments[3], callback: arguments[4] };
 			}
 
-			// defaults
-			if(!options.duration)
-				options.duration = 500;
-			if(!options.easing)
-				options.easing = Anim.easing.linear;
+			var now = Date.now(),
+				object = {
+				// element
+				elem: this,
+				// time
+				startTime: now,
+				endTime: now + (options.duration || 500),
+				duration: options.duration || 500,
+				// property
+				prop: prop,
+				end: value,
+				// animation process
+				state: 0,
+				easing: $.easing[options.easing] || options.easing || $.easing.linear,
+				callback: options.callback
+			};
 
-			// animate listeners
-			var start = this._anim[property].start,
-				step = this._anim[property].step,
-				end = this._anim[property].end;
-
-
-			// объект с данными анимаций
-			if(!this._animData)
-				this._animData = {};
-
-			// массив анимаций контекста
-			if(!Graphics2D._tweens)
-				Graphics2D._tweens = [];
-
-			// массив анимаций элемента
-	//		if(!this._tweens) // TODO: реализовать очередь анимаций
-	//			this._tweens = [];
-
-			// вызываем стартовую функцию
-			start.call(this, value, property);
-
-			// вставляем в tweens объект с нашей анимацией
-			var now = Date.now();
-			Graphics2D._tweens.push({
-				// объект
-				element : this,
-
-				// свойство
-				property : property,
-				stepListener : step,
-				endListener : end,
-
-				// начальное и конечное значения
-				from : this._x,
-				to : value,
-
-				// время
-				startTime : now,
-				endTime : now + options.duration,
-				duration : options.duration,
-
-				easing : options.easing,
-				after : options.after
-			});
-
-			Graphics2D._processAnimation();
+			if( options.queue === false ){
+				$._queue.push( object );
+				$._checkAnimation();
+			} else {
+				if( this._queue && this._queue.length > 0 )
+					this._queue.push( object );
+				else {
+					this._queue = [ object ];
+					$._queue.push( object );
+					$._checkAnimation();
+				}
+			}
 			return this;
 		},
 
-
-		// анимация
-/*		_anim : {
-			rotate : {
-				start : trStart,
-				process : trProcess(function(ang){
-					return [Math.cos(ang = ang*Math.PI/180), Math.sin(ang), -Math.sin(ang), Math.cos(ang), 0, 0];
-				})
-			},
-			scale : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [cur, 0, 0, cur, 0, 0];
-				})
-			},
-			scaleX : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [cur, 0, 0, 1, 0, 0];
-				})
-			},
-			scaleY : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [1, 0, 0, cur, 0, 0];
-				})
-			},
-			skew : {
-				start : trStart,
-				process : trProcess(function(ang){
-					return [1, Math.tan(ang = ang*Math.PI/180), Math.tan(ang), 1, 0, 0];
-				})
-			},
-			skewX : {
-				start : trStart,
-				process : trProcess(function(ang){
-					return [1, 0, Math.tan(ang * Math.PI / 180), 1, 0, 0];
-				})
-			},
-			skewY : {
-				start : trStart,
-				process : trProcess(function(ang){
-					return [1, Math.tan(ang * Math.PI / 180), 0, 1, 0, 0];
-				})
-			},
-			translate : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [1, 0, 0, 1, cur, cur];
-				})
-			},
-			translateX : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [1, 0, 0, 1, cur, 0];
-				})
-			},
-			translateY : {
-				start : trStart,
-				process : trProcess(function(cur){
-					return [1, 0, 0, 1, 0, cur];
-				})
-			}
- */
-
 		// defaults
 		_visible : true,
-		_events : true
+		_events : true,
+		_origin : 'center' // for transform animations
 	});
+
+	$._queue = [];
+	var enabledAnimation = false;
+	function doAnimation(){
+		var current, t,
+			i = 0,
+			l = $._queue.length,
+			now = Date.now();
+		for( ; i < l; i++ ){
+			current = $._queue[i];
+			t = (now - current.startTime) / current.duration;
+
+			if( t < 0 )
+				continue;
+
+			if( t > 1 )
+				t = 1;
+
+			current.now = now;
+			current.pos = current.easing(t);
+			$.fx.step[current.prop](current);
+
+			if( current.state === 0 )
+				current.state = 1;
+
+			if( t === 1 ){
+				if( current.callback )
+					current.callback.call( current.elem, current );
+				if( current.elem._queue ){
+					current.elem._queue.shift();
+					if( current.elem._queue.length > 0 ){
+						$._queue[i] = current = current.elem._queue[0];
+						current.startTime = Date.now();
+						current.endTime = current.startTime + current.duration;
+					} else {
+						current.elem._queue = null;
+						$._queue.splice(i, 1);
+						i--; l--;
+					}
+				} else {
+					current.elem._queue = null;
+					$._queue.splice(i, 1);
+					i--; l--;
+				}
+			}
+		}
+		current.elem.update();
+		if(l > 0)
+			requestAnimationFrame(doAnimation);
+		else
+			enabledAnimation = false;
+	}
+	$._checkAnimation = function(){
+		if( !enabledAnimation ){
+			requestAnimationFrame(doAnimation);
+			enabledAnimation = true;
+		}
+	};
+	$.fx = {};
+	$.fx.step = {
+		int: function( fx ){
+			if( fx.state === 0 ){
+				fx._prop = '_' + fx.prop;
+				fx.start = fx.elem[ fx._prop ];
+			}
+
+			fx.elem[ fx._prop ] = Math.round(fx.start + (fx.end - fx.start) * fx.pos);
+		},
+
+		float: function( fx ){
+			if( fx.state === 0 ){
+				fx._prop = '_' + fx.prop;
+				fx.start = fx.elem[ fx._prop ];
+			}
+
+			fx.elem[ fx._prop ] = fx.start + (fx.end - fx.start) * fx.pos;
+		},
+
+		opacity: function( fx ){
+			if( fx.state === 0 ){
+				fx.start = fx.elem._style.globalAlpha;
+				if( fx.start === undefined )
+					fx.start = 1;
+			}
+			fx.elem._style.globalAlpha = fx.start + (fx.end - fx.start) * fx.pos;
+		},
+
+		fill: function( fx ){
+			if( fx.state === 0 ){
+				fx.start = _.color( fx.elem._style.fillStyle );
+
+				if( fx.end === 'transparent' ){
+					fx.end = fx.start.slice(0, 3).concat([ 0 ]);
+				} else
+					fx.end = _.color( fx.end );
+
+				if( fx.elem._style.fillStyle === 'transparent'
+					|| fx.elem._style.fillStyle === undefined )
+					fx.start = fx.end.slice(0, 3).concat([ 0 ]);
+			}
+			fx.elem._style.fillStyle = 'rgba(' +
+				[ Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
+				  Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
+				  Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
+				 fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos ].join(',') + ')';
+		},
+
+		stroke: function( fx ){
+			if( fx.state === 0 ){
+				var end = Shape.prototype._parseStroke( fx.end );
+				fx.color1 = _.color( fx.elem._style.strokeStyle );
+				fx.width1 = fx.elem._style.lineWidth || 0;
+				fx.width2 = end.lineWidth;
+
+				if( end.strokeStyle === 'transparent' )
+					fx.color2 = fx.color1.slice(0, 3).concat([ 0 ]);
+				else if( end.strokeStyle )
+					fx.color2 = _.color( end.strokeStyle );
+
+				if( (fx.elem._style.strokeStyle === 'transparent'
+					|| fx.elem._style.strokeStyle === undefined)&& end.strokeStyle )
+					fx.color1 = fx.color2.slice(0, 3).concat([ 0 ]);
+			}
+
+			if( fx.color2 ){
+				fx.elem._style.strokeStyle = 'rgba(' +
+					[ Math.round(fx.color1[0] + (fx.color2[0] - fx.color1[0]) * fx.pos),
+					  Math.round(fx.color1[1] + (fx.color2[1] - fx.color1[1]) * fx.pos),
+					  Math.round(fx.color1[2] + (fx.color2[2] - fx.color1[2]) * fx.pos),
+					 fx.color1[3] + (fx.color2[3] - fx.color1[3]) * fx.pos ].join(',') + ')';
+			}
+
+			if( fx.width2 )
+				fx.elem._style.lineWidth = fx.width1 + (fx.width2 - fx.width1) * fx.pos;
+		},
+
+		translate: function( fx ){
+			transformAnimation( fx, function(){
+				return [ 1, 0, 0, 1, fx.end[0] * fx.pos, fx.end[1] * fx.pos ];
+			} );
+		},
+		rotate: function( fx ){
+			if( fx.state === 0 )
+				fx.end = fx.end * Math.PI / 180;
+
+			transformAnimation( fx, function(){
+				var cur = fx.end * fx.pos,
+					cos = Math.cos( cur ),
+					sin = Math.sin( cur );
+				return [ cos, sin, -sin, cos, 0, 0 ];
+			} );
+		},
+		skew: function( fx ){
+			if( fx.state === 0 ){
+				if( fx.end.length === undefined )
+					fx.end = [ fx.end, fx.end ];
+
+				fx.end[0] = fx.end[0] * Math.PI / 180;
+				fx.end[1] = fx.end[1] * Math.PI / 180;
+			}
+
+			transformAnimation( fx, function(){
+				return [ 1, Math.tan( fx.end[1] * fx.pos ), Math.tan( fx.end[0] * fx.pos ), 1, 0, 0 ];
+			} );
+		},
+		scale: function( fx ){
+			if( fx.state === 0 && fx.end.length === undefined )
+				fx.end = [ fx.end, fx.end ];
+
+			transformAnimation( fx, function(){
+				return [ 1 + (fx.end[0] - 1) * fx.pos, 0, 0, 1 + (fx.end[1] - 1) * fx.pos, 0, 0 ];
+			} );
+		},
+		origin: function( fx ){
+			if( fx.state === 0 )
+				fx.elem._origin = fx.elem.corner( fx.end );
+		}
+	};
+
+	function transformAnimation( fx, fn ){
+		if( fx.state === 0 ){
+			fx.elem._matrixStart = fx.elem._matrix || [ 1, 0, 0, 1, 0, 0 ];
+			fx.elem._matrixCur = [];
+			if( fx.elem.corner )
+				fx.corner = fx.elem.corner( fx.elem._origin || 'center' );
+			else
+				fx.corner = [ 0, 0 ];
+		}
+		if( fx.elem._matrixCur.now !== fx.now )
+			fx.elem._matrixCur = [ 1, 0, 0, 1, 0, 0 ];
+
+		var matrix = fn( fx );
+		matrix[4] += fx.corner[0] - fx.corner[0]*matrix[0] - fx.corner[1]*matrix[2];
+		matrix[5] += fx.corner[1] - fx.corner[0]*matrix[1] - fx.corner[1]*matrix[3];
+
+		fx.elem._matrixCur = _.multiply( fx.elem._matrixCur, matrix );
+		fx.elem._matrixCur.now = fx.now;
+		fx.elem._matrix = _.multiply( fx.elem._matrixStart, fx.elem._matrixCur );
+	}
 
 	// events slices
 	['click', 'dblclick', 'mousedown', 'mousewheel',
@@ -989,66 +951,14 @@
 		});
 
 	// animation slices
-	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function(name){
-		Shape.prototype._anim[name] = Shape.prototype._anim.number;
+	['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function( param ){
+		$.fx.step[ param ] = $.fx.step.int;
 	});
-
-// animation
-	var tweens = $._tweens;
-	if(!tweens)
-		tweens = $._tweens = [];
-
-	var i, l, t, now, tween;
-	var processor = function(){
-		for(i = 0, l = tweens.length; i < l; i++){
-			now = Date.now();
-			tween = tweens[i];
-
-			// removing the current element may cause a wrong behavior
-			if(!tween)
-				continue;
-
-			t = (now - tween.startTime) / tween.duration;
-			if(t > 1)
-				t = 1;
-
-			if(tween.easing)
-				t = tween.easing(t);
-
-			tween.stepListener.call(tween.element, tween.to, t, tween.property);
-
-			if(tween.endTime <= now){
-				if(tween.after)
-					tween.after.call(tween.element, tween.to, tween.property);
-				if(tween.endListener)
-					tween.endListener.call(tween.element, tween.to, tween.property);
-
-				tweens.splice(tweens.indexOf(tween), 1); // remove the tween
-			}
-
-			tween.element.update();
-		}
-
-		if(tweens.length !== 0)
-			$._animationProcessor = requestAnimationFrame(processor);
-		else
-			$._animationProcessor = null;
-
-	};
-
-	$._processAnimation = function(){
-
-		if($._animationProcessor)
-			return;
-
-		$._animationProcessor = requestAnimationFrame(processor);
-	};
-
-// TODO: use the Array::splice for deleting elements (instead of slice+concat)
 
 	$.Rect = Rect = new Class(Shape, {
 
 		initialize : function(x, y, w, h, fill, stroke, context){
+			this.context = context;
 			if(isHash(x)){
 				this._x = x.x;
 				this._y = x.y;
@@ -1115,6 +1025,7 @@
 	$.Circle = Circle = new Class(Shape, {
 
 		initialize : function(cx, cy, radius, fill, stroke, context){
+			this.context = context;
 			if(isHash(cx)){
 				this._cx = cx.cx || cx.x || 0;
 				this._cy = cx.cy || cx.y || 0;
@@ -1155,6 +1066,7 @@
 		initialize : function(name, args, from, fill, stroke, context){
 			this._name = name;
 			this._arguments = args; // todo: parsing args {x: 10, y:10}
+			this.context = context;
 
 			if(context instanceof Context){
 				// independent curve
@@ -1228,6 +1140,7 @@
 		initialize : function(points, fill, stroke, context){
 			this._curves = Path.parsePath(points, this);
 			this._processStyle(fill, stroke, context.context);
+			this.context = context;
 		},
 
 		// curves
@@ -1497,6 +1410,7 @@
 	$.Image = Img = new Class(Shape, {
 
 		initialize : function(image, x, y, width, height, context){
+			this.context = context;
 			if(x === undefined){
 				this._image = image.image;
 				this._x = image.x;
@@ -1622,7 +1536,7 @@
 
 	});
 
-	Img.prototype._anim.crop = {
+/*	Img.prototype._anim.crop = {
 		// extends the Shape::_anim
 		start : function(end){
 			this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
@@ -1638,13 +1552,14 @@
 			];
 		}
 	},
-
+ */
 
 	$.Text = Text = new Class(Shape, {
 
 		initialize : function(text, font, x, y, fill, stroke, context){
 			// text, [font], x, y, [fill], [stroke]
 			this._style.textBaseline = 'top';
+			this.context = context;
 
 			if(isHash(text)){
 				this._text  = text.text;
@@ -1830,6 +1745,8 @@
 
 		initialize : function(text, font, x, y, width, fill, stroke, context){
 			// text, [font], x, y, [width], [fill], [stroke]
+			this.context = context;
+
 			if(isHash(text)){
 				this._text  = text.text;
 				this._x     = text.x;
@@ -2302,44 +2219,8 @@
 	});
 
 
-	$.Anim = Anim = new Class({
-
-		initialize : function(from, to, dur, easing){
-			this.from = from;
-			this.delta = to - from;
-			this.dur = dur || 500;
-			this.ease = easing || 'linear';
-		},
-
-		start : function(fn, fps){
-			var delta = this.delta,
-				from  = this.from,
-				dur   = this.dur,
-				ease  = Anim.easing[this.ease] || function(x){return x;},
-				start = Date.now(),
-				finish = start + dur,
-				interval, time, frame;
-
-			interval = this.interval = setInterval(function(){ // TODO: one timer for all animations; requestAnimationFrame
-				if(time == (time = Date.now())) return;
-				frame = ease( time > finish ? 1 : (time - start) / dur );
-				fn(from + delta * frame, frame);
-
-				if(time > finish)
-					clearInterval(interval);
-			}, fps || 10); // or -- 1000/fps (real fps :))
-
-			return this;
-		},
-		stop : function(){
-			clearInterval(this.interval);
-			return this;
-		}
-
-	});
-
 	// Mootools :) partially
-	Anim.easing = {
+	$.easing = {
 		linear : function(x){ return x; },
 		half : function(x){ return Math.sqrt(x); },
 		pow : function(t, v){
@@ -2370,23 +2251,23 @@
 		}
 	};
 	['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-		Anim.easing[name] = function(t){ return Math.pow(t, i+2); };
+		$.easing[name] = function(t){ return Math.pow(t, i+2); };
 	});
 
 	function processEasing(func){
-		Anim.easing[i + 'In'] = func;
-		Anim.easing[i + 'Out'] = function(t){
+		$.easing[i + 'In'] = func;
+		$.easing[i + 'Out'] = function(t){
 			return 1 - func(1 - t);
 		};
-		Anim.easing[i + 'InOut'] = function(t){
+		$.easing[i + 'InOut'] = function(t){
 			return t <= 0.5 ? func(2 * t) / 2 : (2 - func(2 * (1 - t))) / 2;
 		};
 	}
 
-	for(var i in Anim.easing){
+	for(var i in $.easing){
 		// don't make functions within a loop
-		if(Object.prototype.hasOwnProperty.call(Anim.easing, i))
-			processEasing(Anim.easing[i]);
+		if(Object.prototype.hasOwnProperty.call($.easing, i))
+			processEasing($.easing[i]);
 	}
 
 
@@ -2487,7 +2368,7 @@
 //		return isNumber(a) || typeof a == 'object';
 //	}
 
-	_.has = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
+	_.has = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
 	_.Bounds = Bounds;
 	_.extend = extend;
 	_.isString = isString;
