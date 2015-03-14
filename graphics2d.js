@@ -602,13 +602,65 @@
 				bounds.y + bounds.h * _.corners[corner][1]
 			];
 		},
+		bounds : function(options){
+			// options.transform == true / false / 'fix'
+			// options.stroke == true / false / 'exclude';
+			var bounds = this._bounds(),
+				m = this._matrix;
+			if( !options )
+				return bounds;
+
+			if( options.transform !== false && m !== undefined ){
+				// bug with shape, rotated to 100 deg
+				bounds.ltx = bounds.x1 * m[0] + bounds.y1 * m[2] + m[4];
+				bounds.lty = bounds.x1 * m[1] + bounds.y1 * m[3] + m[5];
+				bounds.rtx = bounds.x2 * m[0] + bounds.y1 * m[2] + m[4];
+				bounds.rty = bounds.x2 * m[1] + bounds.y1 * m[3] + m[5];
+
+				bounds.lbx = bounds.x1 * m[0] + bounds.y2 * m[2] + m[4];
+				bounds.lby = bounds.x1 * m[1] + bounds.y2 * m[3] + m[5];
+				bounds.rbx = bounds.x2 * m[0] + bounds.y2 * m[2] + m[4];
+				bounds.rby = bounds.x2 * m[1] + bounds.y2 * m[3] + m[5];
+
+				bounds.x1 = Math.min(bounds.ltx, bounds.lbx);
+				bounds.y1 = Math.min(bounds.lty, bounds.rty);
+				bounds.x2 = Math.max(bounds.rbx, bounds.rtx);
+				bounds.y2 = Math.max(bounds.rby, bounds.lby);
+				if( bounds.x2 < bounds.x1 ){
+					bounds.x1 = Math.max(bounds.ltx, bounds.lbx);
+					bounds.x2 = Math.min(bounds.rbx, bounds.rtx);
+					bounds.y1 = Math.max(bounds.lty, bounds.rty);
+					bounds.y2 = Math.min(bounds.rby, bounds.lby);
+				}
+				// I don't know how it works. And it doesn't works good :(
+			}
+			if( options.stroke !== false ){
+				var half = this._style.lineWidth,
+					width = half * 2;
+				if( width !== undefined ){
+					if( options.stroke === 'exclude' ){
+						width = -width;
+						half = -half;
+					}
+					
+					bounds.x1 -= half;
+					bounds.y1 -= half;
+					bounds.x2 += half;
+					bounds.y2 += half;
+					bounds.width += width;
+					bounds.height += width;
+				}
+			}
+
+			return bounds;
+		},
 
 		// transformations
 		transform : function(a, b, c, d, e, f, pivot){
 			/* px, py = pivot
-				[1,0,px]   [a,c,e]   [1,0,-px]   [a,c,e+px]   [1,0,-px]   [a,c,-px*a - py*c + e+px]
-				[0,1,py] * [b,d,f] * [0,1,-py] = [b,d,f+py] * [0,1,-py] = [b,d,-px*b - py*d + f+py]
-				[0,0,1]    [0,0,1]   [0,0,1]     [0,0,1]      [0,0,1]     [0,0,1]
+				[1,0,px]   [a,c,e]   [1,0,-px]   [a,c,e+px]   [1,0,-px]   [a, c, -px*a - py*c + e+px]
+				[0,1,py] * [b,d,f] * [0,1,-py] = [b,d,f+py] * [0,1,-py] = [b, d, -px*b - py*d + f+py]
+				[0,0,1]    [0,0,1]   [0,0,1]     [0,0,1]      [0,0,1]     [0, 0, 1]
 			*/
 			if(a === undefined){
 				return this._matrix;
@@ -1691,7 +1743,7 @@
 			var b = this.bounds();
 			return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
 		},
-		bounds : function(){
+		_bounds : function(){
 			var align = this._style.textAlign || 'left',
 				baseline = this._style.textBaseline || 'top',
 				width = this.width(),

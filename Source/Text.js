@@ -134,7 +134,7 @@
 			var b = this.bounds();
 			return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
 		},
-		bounds : function(){
+		_bounds : function(){
 			var align = this._style.textAlign || 'left',
 				baseline = this._style.textBaseline || 'top',
 				width = this.width(),
