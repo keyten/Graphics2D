@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 13.3.2015
+ *  Last edit: 14.3.2015
  *  License: MIT / LGPL
  */
 
@@ -279,7 +279,8 @@
 				this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
 
 			if(fill && (isString(fill) || isHash(fill))){
-				if((isHash(fill) && fill.image) || fill.indexOf && (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0))
+				if((isHash(fill) && fill.image) || fill.indexOf
+					&& (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0 || fill.indexOf('data:image/') === 0))
 					this._style.fillStyle = new Pattern(fill, null, this.context);
 			}
 			if(fill instanceof Image){
