@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 14.3.2015
+ *  Last edit: 16.3.2015
  *  License: MIT / LGPL
  */
 
@@ -1115,80 +1115,156 @@
 	});
 
 
-	$.Curve = Curve = new Class(Shape, {
-		initialize : function(name, args, from, fill, stroke, context){
-			this._name = name;
-			this._arguments = args; // todo: parsing args {x: 10, y:10}
-			this.context = context;
+	$.Curve = Curve = new Class({
+		initialize : function( name, _arguments, path ){
+			this.name = name;
+			this.path = path;
+			this._arguments = _arguments;
 
-			if(context instanceof Context){
-				// independent curve
-				this._from = from;
-				this._processStyle(fill, stroke, context.context);
+			if( name in Curve.curves ){
+				Curve.curves[ name ]( this );
+		//		extend( this, Curve.curves[ name ].prototype );
 			}
-			else if(from) {
-				// from - path
-				this.update = from.update.bind(from);
-			}
-
-			if(name in Path.curves)
-				extend(this, Path.curves[name].prototype);
 		},
 
-		arguments : function(){
-			return this._property('arguments', arguments.length > 1 ? arguments : arguments[0]);
-		},
-
-		argument : function(index, value){
-			if(value === undefined)
-				return this._arguments[index];
-			this._arguments[index] = value;
-			this.update();
+		// todo: extendsBy to the classes
+		_property : Shape.prototype._property,
+		update : function(){
+			this.path.update();
 			return this;
 		},
 
-		from : function(x, y){
-			if(y !== undefined)
-				return this._property('from', [x, y]);
-			return this._property('from', x);
+		arguments : function(){
+			return this._property( 'arguments', arguments.length > 1 ? arguments : arguments[0] );
 		},
 
-		process : function(ctx){
-			ctx[this._name].apply(ctx, this._arguments);
-			return [0,0];
+		argument : function( index, value ){
+			if( value === undefined )
+				return this._arguments[ index ];
+			this._arguments[ index ] = value;
+			return this.update();
 		},
 
-		processPath : function(ctx){
-			ctx.beginPath();
-			ctx.moveTo(this._from[0], this._from[1]);
-			this.process(ctx, this._from);
+		from : function(){}, // returns from point
+
+		process : function( ctx ){
+			ctx[ this._name ].apply( ctx, this._arguments );
+
+			if( this._slice )
+				return this._arguments.slice( this._slice[0], this._slice[1] );
+
+			return [ 0, 0 ];
 		},
 
-		toPath : function(){
-			// this.context.push?
-			var path = new Path(this);
-			path._style = this._style;
-			return path;
-		},
-
-		bounds : function(){
+		_bounds : function(){
 			return null;
 		}
-
-		// pointAt: function(){},
-		// tangentAt: function(){},
-		// normalAt = auto
-		// intersections: function(){},
-		// toBezier: function(){},
-		// approximate: function(){}, // by lines
-		// bounds: function(){},
-		// length: function(){},
-		// divide: function(){},
-		// nearest: function(){}, // nearest point
-		// allPoints
 	});
+	
+	// to utils
+	function argument( index ){
+		return function( value ){
+			return this.argument( index, value );
+		};
+	}
 
-	$.Path = Path = new Class(Shape, {
+	Curve.curves = {
+		moveTo : function( object ){
+			object._slice = [ , ];
+			object.x = argument( 0 );
+			object.y = argument( 1 );
+		},
+		lineTo : function( object ){
+			Curve.curves.moveTo( object );
+			object._bounds = function( from ){
+				return new Bounds( from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1] );
+			};
+		},
+		quadraticCurveTo : function( object ){
+			object._slice = [ 2 ];
+			object.hx = argument( 0 );
+			object.hy = argument( 1 );
+			object.x  = argument( 2 );
+			object.y  = argument( 3 );
+			object._bounds = function( f ){ // from
+				var a = this._arguments,
+					x1 = Math.min(a[0], a[2], f[0]),
+					y1 = Math.min(a[1], a[3], f[1]),
+					x2 = Math.max(a[0], a[2], f[0]),
+					y2 = Math.max(a[1], a[3], f[1]);
+				return new Bounds(x1, y1, x2 - x1, y2 - y1);
+			};
+		},
+		bezierCurveTo : function( object ){
+			object._slice = [ 4 ];
+			object.h1x = argument( 0 );
+			object.h1y = argument( 1 );
+			object.h2x = argument( 2 );
+			object.h2y = argument( 3 );
+			object.x   = argument( 4 );
+			object.y   = argument( 5 );
+			object._bounds = function( f ){ // from
+				var a = this._arguments,
+					x1 = Math.min(a[0], a[2], a[4], f[0]),
+					y1 = Math.min(a[1], a[3], a[5], f[1]),
+					x2 = Math.max(a[0], a[2], a[4], f[0]),
+					y2 = Math.max(a[1], a[3], a[5], f[1]);
+				return new Bounds(x1, y1, x2 - x1, y2 - y1);
+			};
+		},
+		arc : function( object ){
+			object.x         = argument( 0 );
+			object.y         = argument( 1 );
+			object.radius    = argument( 2 );
+			object.start     = argument( 3 );
+			object.end       = argument( 4 );
+			object.clockwise = argument( 5 );
+
+			object.process = function( ctx ){
+				// var [x, y, radius, start, end, clockwise] = this._arguments;
+				var x         = this._arguments[ 0 ],
+					y         = this._arguments[ 1 ],
+					radius    = this._arguments[ 2 ],
+					start     = this._arguments[ 3 ],
+					end       = this._arguments[ 4 ],
+					clockwise = this._arguments[ 5 ],
+					delta     = end - start;
+
+				ctx.arc( x, y, radius, start, end, clockwise );
+
+				if( clockwise )
+					delta = -delta;
+// why?.. is it must be in the base functionality?
+				return [
+					x + Math.cos( delta ) * radius,
+					y + Math.sin( delta ) * radius
+				];
+			};
+		},
+		arcTo : function( object ){
+			object._slice = [ 2, 4 ];
+			object.x1 = argument( 0 );
+			object.y1 = argument( 1 );
+			object.x2 = argument( 2 );
+			object.y2 = argument( 3 );
+			object.radius = argument( 4 );
+			object.clockwise = argument( 5 );
+		}
+	};
+
+	$.curves = Curve.curves;
+
+	$.Path = Path = new Class( Shape, {
+
+		initialize : function( points, fill, stroke, context ){
+			this._curves = Path.parsePath( points, this );
+			this._processStyle( fill, stroke, context.context );
+			this.context = context;
+		}
+
+	} );
+
+/*	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._curves = Path.parsePath(points, this);
@@ -1448,7 +1524,7 @@
 		}
 
 		return curves;
-	};
+	}; */
 
 	var smoothWithPrefix;
 	function smoothPrefix(ctx){
@@ -2857,6 +2933,11 @@
 
 	$.util = _;
 
-	window.Graphics2D = $;
 
-})(this);
+	if( typeof module === 'object' && typeof module.exports === 'object' ){
+		module.exports = $;
+	} else {
+		window.Graphics2D = $;
+	}
+
+})( typeof window !== 'undefined' ? window : this );

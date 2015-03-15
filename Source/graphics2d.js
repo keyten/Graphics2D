@@ -81,6 +81,11 @@
 
 	$.util = _;
 
-	window.Graphics2D = $;
 
-})(this);
+	if( typeof module === 'object' && typeof module.exports === 'object' ){
+		module.exports = $;
+	} else {
+		window.Graphics2D = $;
+	}
+
+})( typeof window !== 'undefined' ? window : this );

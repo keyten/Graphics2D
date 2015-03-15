@@ -1,4 +1,14 @@
-	$.Path = Path = new Class(Shape, {
+	$.Path = Path = new Class( Shape, {
+
+		initialize : function( points, fill, stroke, context ){
+			this._curves = Path.parsePath( points, this );
+			this._processStyle( fill, stroke, context.context );
+			this.context = context;
+		}
+
+	} );
+
+/*	$.Path = Path = new Class(Shape, {
 
 		initialize : function(points, fill, stroke, context){
 			this._curves = Path.parsePath(points, this);
@@ -258,4 +268,4 @@
 		}
 
 		return curves;
-	};
+	}; */
