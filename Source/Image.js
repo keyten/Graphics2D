@@ -8,6 +8,9 @@ function smoothPrefix(ctx){
 	return smoothWithPrefix;
 }
 
+// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
+var domurl = window.URL || window.webkitURL || window;
+
 $.Image = Img = new Class(Shape, {
 
 	initialize : function(image, x, y, width, height, context){
@@ -29,17 +32,22 @@ $.Image = Img = new Class(Shape, {
 			this._height = height;
 		}
 
+		var blob, s;
+
 		if(isString(this._image)){
 			if(this._image[0] === '#')
 				this._image = document.getElementById( this._image.substr(1) );
+			else if(this._image.indexOf('<svg') === 0){
+				blob = new Blob([this._image], {type: 'image/svg+xml;charset=utf-8'});
+				this._image = new Image();
+				this._image.src = domurl.createObjectURL(blob);
+			}
 			else {
 				x = new Image();
 				x.src = this._image;
 				this._image = x;
 			}
 		}
-
-		var s;
 
 		// image already loaded
 		if(this._image.complete){
@@ -54,6 +62,9 @@ $.Image = Img = new Class(Shape, {
 			this._width = s[0];
 			this._height = s[1];
 			this.update();
+
+			if(blob)
+				domurl.revokeObjectURL(blob);
 		}.bind(this));
 		// Video tag support
 	},
