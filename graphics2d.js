@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 16.3.2015
+ *  Last edit: 18.3.2015
  *  License: MIT / LGPL
  */
 
@@ -170,6 +170,8 @@ Context.prototype = {
 			}
 
 			e.targetObject = element;
+			e.prevent = e.preventDefault;
+			e.stop = e.stopPropagation; // new Event class ?
 
 			if(element && element.fire)
 				element.fire(event, e);
