@@ -88,4 +88,8 @@ if( typeof module === 'object' && typeof module.exports === 'object' ){
 	window.Graphics2D = $;
 }
 
+if( typeof define === 'function' && define.amd ){
+	define( [], function(){ return $; } );
+}
+
 })( typeof window !== 'undefined' ? window : this );
