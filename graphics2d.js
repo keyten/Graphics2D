@@ -281,7 +281,7 @@ $.Shape = Shape = new Class({
 		if(fill && (isString(fill) || isHash(fill))){
 			if((isHash(fill) && fill.image) || fill.indexOf
 				&& (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0 || fill.indexOf('data:image/') === 0))
-				this._style.fillStyle = new Pattern(fill, null, this.context);
+				this._style.fillStyle = new Pattern(fill, null, this.context); // todo: svg
 		}
 		if(fill instanceof Image){
 			this._style.fillStyle = new Pattern(fill, null, this.context);
@@ -433,7 +433,8 @@ $.Shape = Shape = new Class({
 			return this.update();
 		}
 		else if(fill && (fill.indexOf || isHash(fill))){
-			if((isHash(fill) && fill.image) || (fill.indexOf('http://') === 0 || fill.indexOf('.') === 0)){
+			if((isHash(fill) && fill.image) ||
+				(fill.indexOf('http://') === 0 || fill.indexOf('.') === 0 || fill.indexOf('data:image/') === 0)){
 				this._style.fillStyle = new Pattern(fill, null, this.context);
 				return this.update();
 			}
@@ -1007,6 +1008,8 @@ function transformAnimation( fx, fn ){
 ['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function( param ){
 	$.fx.step[ param ] = $.fx.step.int;
 });
+
+$.fn = Shape.prototype;
 
 $.Rect = Rect = new Class(Shape, {
 
@@ -2949,6 +2952,10 @@ if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;
 } else {
 	window.Graphics2D = $;
+}
+
+if( typeof define === 'function' && define.amd ){
+	define( [], function(){ return $; } );
 }
 
 })( typeof window !== 'undefined' ? window : this );
