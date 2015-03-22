@@ -1,39 +1,35 @@
-$.Text = Text = new Class(Shape, {
+Text = new Class(Shape, {
 
-	initialize : function(text, font, x, y, fill, stroke, context){
+	init : function(){
 		// text, [font], x, y, [fill], [stroke]
-		this._style.textBaseline = 'top';
-		this.context = context;
-
-		if(isHash(text)){
-			this._text  = text.text;
-			this._x     = text.x;
-			this._y     = text.y;
-			this._font  = this._parseFont(text.font || '10px sans-serif');
-			text.baseline !== undefined
-				&& (this._style.textBaseline = text.baseline);
-			text.align !== undefined
-				&& (this._style.textAlign = text.align);
+		var props = this._text;
+		if(isHash( props )){
+			this._text  = props.text;
+			this._x     = props.x;
+			this._y     = props.y;
+			this._font  = this._parseFont(props.font || Text.defaultFont);
+			if(props.baseline !== undefined)
+				this._style.textBaseline = props.baseline;
+			if(props.align !== undefined)
+				this._style.textAlign = props.align;
 			this._genFont();
-			this._width = text.width;
-			this._parseHash(text);
+			this._width = props.width;
+			this._parseHash(props);
 		}
 		else {
-		// "ABC", "10px", "20pt", "20pt", "black"
-			this._text = text;
-			if(!isNumber(y)){
-				stroke = fill;
-				fill = y;
-				y = x;
-				x = font;
-				font = '10px sans-serif';
+			if( !isNumber(this._y) ){ // font isn't exist
+				this._stroke = this._fill;
+				this._fill = this._y;
+				this._y = this._x;
+				this._x = this._font;
+				this._font = Text.defaultFont;
 			}
-			this._font = this._parseFont(font);
+			this._font = this._parseFont(this._font);
 			this._genFont();
-			this._x = x;
-			this._y = y;
-			this._processStyle(fill, stroke, context.context);
+			this._processStyle();
 		}
+
+		this._style.textBaseline = 'top';
 	},
 
 	// параметры
@@ -183,3 +179,6 @@ $.Text = Text = new Class(Shape, {
 // TODO: mozPathText; mozTextAlongPath
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
+
+Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
+Text.defaultFont = '10px sans-serif';

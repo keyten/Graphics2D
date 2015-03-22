@@ -1,11 +1,18 @@
 $.Shape = Shape = new Class({
 
-	initialize : function(){
+	initialize : function(args, context){
+		var props = this.constructor.props,
+			l = props.length;
+		while(l--){
+			this['_' + props[l]] = args[l];
+		}
+
 		this.listeners = {};
 		this._style = {};
 	},
 
 	_parseHash : function(object){
+
 		var s = this._style;
 		if(object.opacity !== undefined)
 			s.globalAlpha = object.opacity;
@@ -16,9 +23,17 @@ $.Shape = Shape = new Class({
 		if(object.clip !== undefined)
 			this._clip = object.clip;
 
-		this._processStyle(object.fill, object.stroke, this.context.context);
+		this._processStyle(object.fill, object.stroke, true);
 	},
 	_processStyle : function(fill, stroke){
+		if(arguments.length === 0){
+			fill = this._fill,
+			stroke = this._stroke;
+		}
+
+		this._fill = null;
+		this._stroke = null;
+
 		if(fill)
 			this._style.fillStyle = fill;
 		if(stroke)
@@ -281,7 +296,7 @@ $.Shape = Shape = new Class({
 	on : function(event, fn){
 		if(isString(fn)){
 			var method = fn,
-				args = Array.prototype.slice.call(arguments, 2);
+				args = slice.call(arguments, 2);
 			fn = function(){
 				this[method].apply(this, args);
 			};
@@ -750,7 +765,7 @@ function transformAnimation( fx, fn ){
 	'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 		Shape.prototype[event] = Context.prototype[event] = function(fn){
 			if(typeof fn === 'function' || isString(fn))
-				return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
+				return this.on.apply(this, [event].concat(slice.call(arguments)));
 			else
 				return this.fire.apply(this, arguments);
 		};

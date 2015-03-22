@@ -6,7 +6,6 @@ $.Curve = Curve = new Class({
 
 		if( name in Curve.curves ){
 			Curve.curves[ name ]( this );
-	//		extend( this, Curve.curves[ name ].prototype );
 		}
 	},
 
@@ -30,13 +29,15 @@ $.Curve = Curve = new Class({
 
 	from : function(){}, // returns from point
 
-	process : function( ctx ){
-		ctx[ this._name ].apply( ctx, this._arguments );
-
+	endsIn : function(){
 		if( this._slice )
 			return this._arguments.slice( this._slice[0], this._slice[1] );
+		return null;
+	},
 
-		return [ 0, 0 ];
+	process : function( ctx ){
+		ctx[ this.name ].apply( ctx, this._arguments );
+		return this.endsIn();
 	},
 
 	_bounds : function(){
@@ -44,32 +45,27 @@ $.Curve = Curve = new Class({
 	}
 });
 
-// to utils
-function argument( index ){
-	return function( value ){
-		return this.argument( index, value );
-	};
-}
-
 Curve.curves = {
 	moveTo : function( object ){
 		object._slice = [ , ];
+		object.points = function(){ return [this._arguments]; };
 		object.x = argument( 0 );
 		object.y = argument( 1 );
 	},
 	lineTo : function( object ){
 		Curve.curves.moveTo( object );
-		object._bounds = function( from ){
+		object._bounds = function(from){
 			return new Bounds( from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1] );
 		};
 	},
 	quadraticCurveTo : function( object ){
 		object._slice = [ 2 ];
+		object.points = function(){ return [this._arguments.slice(2), this._arguments.slice(0, 2)]; };
 		object.hx = argument( 0 );
 		object.hy = argument( 1 );
 		object.x  = argument( 2 );
 		object.y  = argument( 3 );
-		object._bounds = function( f ){ // from
+		object._bounds = function(f){ // from
 			var a = this._arguments,
 				x1 = Math.min(a[0], a[2], f[0]),
 				y1 = Math.min(a[1], a[3], f[1]),
@@ -80,13 +76,14 @@ Curve.curves = {
 	},
 	bezierCurveTo : function( object ){
 		object._slice = [ 4 ];
+		object.points = function(){ return [this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2)]; };
 		object.h1x = argument( 0 );
 		object.h1y = argument( 1 );
 		object.h2x = argument( 2 );
 		object.h2y = argument( 3 );
 		object.x   = argument( 4 );
 		object.y   = argument( 5 );
-		object._bounds = function( f ){ // from
+		object._bounds = function(f){ // from
 			var a = this._arguments,
 				x1 = Math.min(a[0], a[2], a[4], f[0]),
 				y1 = Math.min(a[1], a[3], a[5], f[1]),
@@ -96,6 +93,7 @@ Curve.curves = {
 		};
 	},
 	arc : function( object ){
+		object.points = function(){ return [this._arguments.slice(0, 2)]; };
 		object.x         = argument( 0 );
 		object.y         = argument( 1 );
 		object.radius    = argument( 2 );
@@ -103,7 +101,7 @@ Curve.curves = {
 		object.end       = argument( 4 );
 		object.clockwise = argument( 5 );
 
-		object.process = function( ctx ){
+		object.endsIn = function(){
 			// var [x, y, radius, start, end, clockwise] = this._arguments;
 			var x         = this._arguments[ 0 ],
 				y         = this._arguments[ 1 ],
@@ -112,8 +110,6 @@ Curve.curves = {
 				end       = this._arguments[ 4 ],
 				clockwise = this._arguments[ 5 ],
 				delta     = end - start;
-
-			ctx.arc( x, y, radius, start, end, clockwise );
 
 			if( clockwise )
 				delta = -delta;
@@ -125,6 +121,7 @@ Curve.curves = {
 		};
 	},
 	arcTo : function( object ){
+		object.points = function(){ return [this._arguments.slice(0, 2), this._arguments.slice(2)]; };
 		object._slice = [ 2, 4 ];
 		object.x1 = argument( 0 );
 		object.y1 = argument( 1 );
@@ -132,6 +129,17 @@ Curve.curves = {
 		object.y2 = argument( 3 );
 		object.radius = argument( 4 );
 		object.clockwise = argument( 5 );
+	}
+};
+
+Curve.byArray = function(array, path){
+	if(array === true)
+		return closePath;
+
+	switch(array.length){
+		case 2: return new Curve('lineTo', array, path);
+		case 4: return new Curve('quadraticCurveTo', array, path);
+		case 6: return new Curve('bezierCurveTo', array, path);
 	}
 };
 

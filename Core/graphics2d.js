@@ -17,8 +17,10 @@ var $ = {},
 
 // Local variables
 	emptyFunc = function(){},
-	_ = {},
 	toString = Object.prototype.toString,
+	slice = Array.prototype.slice,
+
+	_ = new function(){},
 	requestAnimationFrame = window.requestAnimationFrame		||
 	                        window.webkitRequestAnimationFrame	||
 	                        window.mozRequestAnimationFrame		||
@@ -67,11 +69,22 @@ var $ = {},
 
 // {{include utils.js}}
 
+$.Context = Context;
+$.Shape = Shape;
+$.Rect = Rect;
+$.Circle = Circle;
+$.Curve = Curve;
+$.Path = Path;
+$.Image = Img;
+$.Text = Text;
+$.TextBlock = TextBlock;
+$.Gradient = Gradient;
+$.Pattern = Pattern;
+
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element){
-	// TODO: test
-	return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
+	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query );
 };
 
 $.id = function(id){

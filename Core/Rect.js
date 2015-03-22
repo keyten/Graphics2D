@@ -1,20 +1,15 @@
-$.Rect = Rect = new Class(Shape, {
+Rect = new Class(Shape, {
 
-	initialize : function(x, y, w, h, fill, stroke, context){
-		this.context = context;
-		if(isHash(x)){
-			this._x = x.x;
-			this._y = x.y;
-			this._width = x.width;
-			this._height = x.height;
-			this._parseHash(x);
-		}
-		else {
-			this._x = x;
-			this._y = y;
-			this._width = w;
-			this._height = h;
-			this._processStyle(fill, stroke, context.context);
+	init : function(){
+		var props = this._x;
+		if(isHash( props )){
+			this._x = props.x;
+			this._y = props.y;
+			this._width  = props.width  || props.w || 0;
+			this._height = props.height || props.h || 0;
+			this._parseHash(props);
+		} else {
+			this._processStyle();
 		}
 	},
 
@@ -63,3 +58,4 @@ $.Rect = Rect = new Class(Shape, {
 	}
 
 });
+Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];

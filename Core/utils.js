@@ -120,6 +120,12 @@ function extend(a,b){
 	return a;
 }
 
+function argument( index ){
+	return function( value ){
+		return this.argument( index, value );
+	};
+}
+
 // typeofs
 function isString(a){
 	return toString.call(a) == '[object String]';

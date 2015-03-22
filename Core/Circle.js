@@ -1,18 +1,14 @@
-$.Circle = Circle = new Class(Shape, {
+Circle = new Class(Shape, {
 
-	initialize : function(cx, cy, radius, fill, stroke, context){
-		this.context = context;
-		if(isHash(cx)){
-			this._cx = cx.cx || cx.x || 0;
-			this._cy = cx.cy || cx.y || 0;
-			this._radius = cx.radius;
-			this._parseHash(cx);
-		}
-		else {
-			this._cx = cx;
-			this._cy = cy;
-			this._radius = radius;
-			this._processStyle(fill, stroke, context.context);
+	init : function(){
+		var props = this._cx;
+		if(isHash( props )){
+			this._cx = props.cx || props.x || 0;
+			this._cy = props.cy || props.y || 0;
+			this._radius = props.radius;
+			this._parseHash(props);
+		} else {
+			this._processStyle();
 		}
 	},
 
@@ -36,3 +32,4 @@ $.Circle = Circle = new Class(Shape, {
 	}
 
 });
+Circle.props = [ 'cx', 'cy', 'radius', 'fill', 'stroke' ];

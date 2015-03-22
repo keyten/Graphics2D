@@ -1,52 +1,37 @@
-$.TextBlock = TextBlock = new Class(Shape, {
-
-	initialize : function(text, font, x, y, width, fill, stroke, context){
+TextBlock = new Class(Shape, {
+	// TODO: merge the Text and TextBlock classes
+	init : function(){
 		// text, [font], x, y, [width], [fill], [stroke]
-		this.context = context;
+		var props = this._text;
+		if(isHash( props )){
+			this._text = props.text;
+			this._x    = props.x;
+			this._y    = props.y;
+			this._font = props.font || Text.defaultFont;
+			this._width = props.width !== undefined ? props.width : 'auto';
 
-		if(isHash(text)){
-			this._text  = text.text;
-			this._x     = text.x;
-			this._y     = text.y;
-			this._font  = this._parseFont(text.font);
-			text.align
-				&& (this._style.textAlign = text.align);
-			this._genFont();
-			this._width = text.width === undefined ? 'auto' : text.width;
-			text.limit !== undefined
-				&& (this._limit = text.limit);
-			this._parseHash(text);
-		}
-		else {
-		// "ABC", "10px", "20pt", "20pt", "black"
+			if(props.align)
+				this._style.textAlign = props.align;
 
-		// text, font, x, y, width
-		// text, font, x, y
-		// text, x, y, width
-		// text, x, y
-			this._text = text;
-			if(!isNumber(width)){
-				if(isNumber(font)){ // но ведь там может быть и просто-размер
-					stroke = fill;
-					fill = width;
-					width = y;
-					y = x;
-					x = font;
-					font = '10px sans-serif';
-				}
-				if(!isNumber(width)){
-					stroke = fill;
-					fill = width;
-					width = 'auto';
-				}
+			if(props.limit)
+				this._limit = props.limit;
+
+			this._parseHash(props);
+		} else {
+			if( !isNumber(this._fill) ){
+				// text, fontSize, x, y
+				// text, x, y, width
+				// ???
+				// Okay, I think, you don't use width
+				this._stroke = this._fill;
+				this._fill = this._width;
+				this._width = Infinity;
 			}
-			this._font = this._parseFont(font);
-			this._genFont();
-			this._x = x;
-			this._y = y;
-			this._width = width;
-			this._processStyle(fill, stroke, context.context);
+			this._font = this._parseFont(this._font);
+			this._processStyle();
 		}
+
+		this._genFont();
 		this._genLines();
 	},
 
@@ -190,3 +175,4 @@ $.TextBlock = TextBlock = new Class(Shape, {
 	_limit : Infinity,
 	_lineHeight : null
 });
+TextBlock.props = [ 'text', 'font', 'x', 'y', 'width', 'fill', 'stroke' ];

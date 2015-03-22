@@ -1,8 +1,8 @@
 module.exports = function(grunt){
 
 	var build = {
-		from: 'Core/graphics2d.js',
-		dest: 'graphics2d.js'
+			from: 'Core/graphics2d.js',
+			dest: 'graphics2d.js'
 		},
 		package = grunt.file.readJSON('package.json');
 

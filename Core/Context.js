@@ -10,26 +10,23 @@ Context.prototype = {
 
 	// Classes
 
-	rect : function(x, y, w, h, fill, stroke){
-		return this.push(new Rect(x, y, w, h, fill, stroke, this));
+	rect : function(){
+		return this.push( new Rect(arguments, this) );
 	},
-	circle : function(cx, cy, r, fill, stroke){
-		return this.push(new Circle(cx, cy, r, fill, stroke, this));
+	circle : function(){
+		return this.push( new Circle(arguments, this) );
 	},
-	curve : function(name, from, to, fill, stroke){
-		return this.push(new Curve(name, to, from, fill, stroke, this));
+	path : function(){
+		return this.push( new Path(arguments, this) );
 	},
-	path : function(points, fill, stroke){
-		return this.push(new Path(points, fill, stroke, this));
+	image : function(){
+		return this.push( new Img(arguments, this) );
 	},
-	image : function(img, x, y, w, h){
-		return this.push(new Img(img, x, y, w, h, this));
+	text : function(){
+		return this.push( new Text(arguments, this) );
 	},
-	text : function(text, font, x, y, fill, stroke){
-		return this.push(new Text(text, font, x, y, fill, stroke, this));
-	},
-	textblock : function(text, font, x, y, w, fill, stroke){
-		return this.push(new TextBlock(text, font, x, y, w, fill, stroke, this));
+	textblock : function(){
+		return this.push( new TextBlock(arguments, this) );
 	},
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
@@ -60,11 +57,11 @@ Context.prototype = {
 	push : function(element){
 		element.z = this.elements.length;
 		element.context = this;
-
 		this.elements.push(element);
+
+		element.init();
 		if( element.draw )
 			element.draw(this.context);
-		// todo: move here 1. element._z 2. element.context
 		return element;
 	},
 	update : function(){

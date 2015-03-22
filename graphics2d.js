@@ -17,8 +17,10 @@ var $ = {},
 
 // Local variables
 	emptyFunc = function(){},
-	_ = {},
 	toString = Object.prototype.toString,
+	slice = Array.prototype.slice,
+
+	_ = new function(){},
 	requestAnimationFrame = window.requestAnimationFrame		||
 	                        window.webkitRequestAnimationFrame	||
 	                        window.mozRequestAnimationFrame		||
@@ -55,26 +57,23 @@ Context.prototype = {
 
 	// Classes
 
-	rect : function(x, y, w, h, fill, stroke){
-		return this.push(new Rect(x, y, w, h, fill, stroke, this));
+	rect : function(){
+		return this.push( new Rect(arguments, this) );
 	},
-	circle : function(cx, cy, r, fill, stroke){
-		return this.push(new Circle(cx, cy, r, fill, stroke, this));
+	circle : function(){
+		return this.push( new Circle(arguments, this) );
 	},
-	curve : function(name, from, to, fill, stroke){
-		return this.push(new Curve(name, to, from, fill, stroke, this));
+	path : function(){
+		return this.push( new Path(arguments, this) );
 	},
-	path : function(points, fill, stroke){
-		return this.push(new Path(points, fill, stroke, this));
+	image : function(){
+		return this.push( new Img(arguments, this) );
 	},
-	image : function(img, x, y, w, h){
-		return this.push(new Img(img, x, y, w, h, this));
+	text : function(){
+		return this.push( new Text(arguments, this) );
 	},
-	text : function(text, font, x, y, fill, stroke){
-		return this.push(new Text(text, font, x, y, fill, stroke, this));
-	},
-	textblock : function(text, font, x, y, w, fill, stroke){
-		return this.push(new TextBlock(text, font, x, y, w, fill, stroke, this));
+	textblock : function(){
+		return this.push( new TextBlock(arguments, this) );
 	},
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
@@ -105,11 +104,11 @@ Context.prototype = {
 	push : function(element){
 		element.z = this.elements.length;
 		element.context = this;
-
 		this.elements.push(element);
+
+		element.init();
 		if( element.draw )
 			element.draw(this.context);
-		// todo: move here 1. element._z 2. element.context
 		return element;
 	},
 	update : function(){
@@ -247,12 +246,19 @@ Context.prototype = {
 
 $.Shape = Shape = new Class({
 
-	initialize : function(){
+	initialize : function(args, context){
+		var props = this.constructor.props,
+			l = props.length;
+		while(l--){
+			this['_' + props[l]] = args[l];
+		}
+
 		this.listeners = {};
 		this._style = {};
 	},
 
 	_parseHash : function(object){
+
 		var s = this._style;
 		if(object.opacity !== undefined)
 			s.globalAlpha = object.opacity;
@@ -263,9 +269,17 @@ $.Shape = Shape = new Class({
 		if(object.clip !== undefined)
 			this._clip = object.clip;
 
-		this._processStyle(object.fill, object.stroke, this.context.context);
+		this._processStyle(object.fill, object.stroke, true);
 	},
 	_processStyle : function(fill, stroke){
+		if(arguments.length === 0){
+			fill = this._fill,
+			stroke = this._stroke;
+		}
+
+		this._fill = null;
+		this._stroke = null;
+
 		if(fill)
 			this._style.fillStyle = fill;
 		if(stroke)
@@ -528,7 +542,7 @@ $.Shape = Shape = new Class({
 	on : function(event, fn){
 		if(isString(fn)){
 			var method = fn,
-				args = Array.prototype.slice.call(arguments, 2);
+				args = slice.call(arguments, 2);
 			fn = function(){
 				this[method].apply(this, args);
 			};
@@ -997,7 +1011,7 @@ function transformAnimation( fx, fn ){
 	'touchstart', 'touchmove', 'touchend'].forEach(function(event){
 		Shape.prototype[event] = Context.prototype[event] = function(fn){
 			if(typeof fn === 'function' || isString(fn))
-				return this.on.apply(this, [event].concat(Array.prototype.slice.call(arguments)));
+				return this.on.apply(this, [event].concat(slice.call(arguments)));
 			else
 				return this.fire.apply(this, arguments);
 		};
@@ -1010,23 +1024,18 @@ function transformAnimation( fx, fn ){
 
 $.fn = Shape.prototype;
 
-$.Rect = Rect = new Class(Shape, {
+Rect = new Class(Shape, {
 
-	initialize : function(x, y, w, h, fill, stroke, context){
-		this.context = context;
-		if(isHash(x)){
-			this._x = x.x;
-			this._y = x.y;
-			this._width = x.width;
-			this._height = x.height;
-			this._parseHash(x);
-		}
-		else {
-			this._x = x;
-			this._y = y;
-			this._width = w;
-			this._height = h;
-			this._processStyle(fill, stroke, context.context);
+	init : function(){
+		var props = this._x;
+		if(isHash( props )){
+			this._x = props.x;
+			this._y = props.y;
+			this._width  = props.width  || props.w || 0;
+			this._height = props.height || props.h || 0;
+			this._parseHash(props);
+		} else {
+			this._processStyle();
 		}
 	},
 
@@ -1075,23 +1084,19 @@ $.Rect = Rect = new Class(Shape, {
 	}
 
 });
+Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];
 
+Circle = new Class(Shape, {
 
-$.Circle = Circle = new Class(Shape, {
-
-	initialize : function(cx, cy, radius, fill, stroke, context){
-		this.context = context;
-		if(isHash(cx)){
-			this._cx = cx.cx || cx.x || 0;
-			this._cy = cx.cy || cx.y || 0;
-			this._radius = cx.radius;
-			this._parseHash(cx);
-		}
-		else {
-			this._cx = cx;
-			this._cy = cy;
-			this._radius = radius;
-			this._processStyle(fill, stroke, context.context);
+	init : function(){
+		var props = this._cx;
+		if(isHash( props )){
+			this._cx = props.cx || props.x || 0;
+			this._cy = props.cy || props.y || 0;
+			this._radius = props.radius;
+			this._parseHash(props);
+		} else {
+			this._processStyle();
 		}
 	},
 
@@ -1115,7 +1120,7 @@ $.Circle = Circle = new Class(Shape, {
 	}
 
 });
-
+Circle.props = [ 'cx', 'cy', 'radius', 'fill', 'stroke' ];
 
 $.Curve = Curve = new Class({
 	initialize : function( name, _arguments, path ){
@@ -1125,7 +1130,6 @@ $.Curve = Curve = new Class({
 
 		if( name in Curve.curves ){
 			Curve.curves[ name ]( this );
-	//		extend( this, Curve.curves[ name ].prototype );
 		}
 	},
 
@@ -1149,13 +1153,15 @@ $.Curve = Curve = new Class({
 
 	from : function(){}, // returns from point
 
-	process : function( ctx ){
-		ctx[ this._name ].apply( ctx, this._arguments );
-
+	endsIn : function(){
 		if( this._slice )
 			return this._arguments.slice( this._slice[0], this._slice[1] );
+		return null;
+	},
 
-		return [ 0, 0 ];
+	process : function( ctx ){
+		ctx[ this.name ].apply( ctx, this._arguments );
+		return this.endsIn();
 	},
 
 	_bounds : function(){
@@ -1163,32 +1169,27 @@ $.Curve = Curve = new Class({
 	}
 });
 
-// to utils
-function argument( index ){
-	return function( value ){
-		return this.argument( index, value );
-	};
-}
-
 Curve.curves = {
 	moveTo : function( object ){
 		object._slice = [ , ];
+		object.points = function(){ return [this._arguments]; };
 		object.x = argument( 0 );
 		object.y = argument( 1 );
 	},
 	lineTo : function( object ){
 		Curve.curves.moveTo( object );
-		object._bounds = function( from ){
+		object._bounds = function(from){
 			return new Bounds( from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1] );
 		};
 	},
 	quadraticCurveTo : function( object ){
 		object._slice = [ 2 ];
+		object.points = function(){ return [this._arguments.slice(2), this._arguments.slice(0, 2)]; };
 		object.hx = argument( 0 );
 		object.hy = argument( 1 );
 		object.x  = argument( 2 );
 		object.y  = argument( 3 );
-		object._bounds = function( f ){ // from
+		object._bounds = function(f){ // from
 			var a = this._arguments,
 				x1 = Math.min(a[0], a[2], f[0]),
 				y1 = Math.min(a[1], a[3], f[1]),
@@ -1199,13 +1200,14 @@ Curve.curves = {
 	},
 	bezierCurveTo : function( object ){
 		object._slice = [ 4 ];
+		object.points = function(){ return [this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2)]; };
 		object.h1x = argument( 0 );
 		object.h1y = argument( 1 );
 		object.h2x = argument( 2 );
 		object.h2y = argument( 3 );
 		object.x   = argument( 4 );
 		object.y   = argument( 5 );
-		object._bounds = function( f ){ // from
+		object._bounds = function(f){ // from
 			var a = this._arguments,
 				x1 = Math.min(a[0], a[2], a[4], f[0]),
 				y1 = Math.min(a[1], a[3], a[5], f[1]),
@@ -1215,6 +1217,7 @@ Curve.curves = {
 		};
 	},
 	arc : function( object ){
+		object.points = function(){ return [this._arguments.slice(0, 2)]; };
 		object.x         = argument( 0 );
 		object.y         = argument( 1 );
 		object.radius    = argument( 2 );
@@ -1222,7 +1225,7 @@ Curve.curves = {
 		object.end       = argument( 4 );
 		object.clockwise = argument( 5 );
 
-		object.process = function( ctx ){
+		object.endsIn = function(){
 			// var [x, y, radius, start, end, clockwise] = this._arguments;
 			var x         = this._arguments[ 0 ],
 				y         = this._arguments[ 1 ],
@@ -1231,8 +1234,6 @@ Curve.curves = {
 				end       = this._arguments[ 4 ],
 				clockwise = this._arguments[ 5 ],
 				delta     = end - start;
-
-			ctx.arc( x, y, radius, start, end, clockwise );
 
 			if( clockwise )
 				delta = -delta;
@@ -1244,6 +1245,7 @@ Curve.curves = {
 		};
 	},
 	arcTo : function( object ){
+		object.points = function(){ return [this._arguments.slice(0, 2), this._arguments.slice(2)]; };
 		object._slice = [ 2, 4 ];
 		object.x1 = argument( 0 );
 		object.y1 = argument( 1 );
@@ -1254,24 +1256,26 @@ Curve.curves = {
 	}
 };
 
+Curve.byArray = function(array, path){
+	if(array === true)
+		return closePath;
+
+	switch(array.length){
+		case 2: return new Curve('lineTo', array, path);
+		case 4: return new Curve('quadraticCurveTo', array, path);
+		case 6: return new Curve('bezierCurveTo', array, path);
+	}
+};
+
 $.curves = Curve.curves;
 
-$.Path = Path = new Class( Shape, {
+var closePath = new Curve('closePath', []);
 
-	initialize : function( points, fill, stroke, context ){
-		this._curves = Path.parsePath( points, this );
-		this._processStyle( fill, stroke, context.context );
-		this.context = context;
-	}
+Path = new Class( Shape, {
 
-} );
-
-/*	$.Path = Path = new Class(Shape, {
-
-	initialize : function(points, fill, stroke, context){
-		this._curves = Path.parsePath(points, this);
-		this._processStyle(fill, stroke, context.context);
-		this.context = context;
+	init : function(){
+		this._curves = Path.parsePath( this._curves, this );
+		this._processStyle();
 	},
 
 	// curves
@@ -1283,6 +1287,7 @@ $.Path = Path = new Class( Shape, {
 		this._curves.splice.apply(this._curves, [index, 1].concat(value));
 		return this.update();
 	},
+
 	before : function(index, value, turnToLine){
 		// if index = 0 & turnToLine then the first moveTo will be turned to lineTo
 		// turnToLine = true by default
@@ -1296,9 +1301,6 @@ $.Path = Path = new Class( Shape, {
 	},
 	after : function(index, value){
 		return this.before(index+1, value);
-//			value = Path.parsePath(value, this, index === 0 ? false : true);
-//			this._curves.splice.apply(this._curves, [index+1, 0].concat(value));
-//			return this.update();
 	},
 	remove : function(index){
 		if(index === undefined)
@@ -1311,7 +1313,7 @@ $.Path = Path = new Class( Shape, {
 			return this._curves;
 
 		if(isNumber(value[0]))
-			this._curves = Path.parsePath(Array.prototype.slice.call(arguments), this);
+			this._curves = Path.parsePath(slice.call(arguments), this);
 		else
 			this._curves = Path.parsePath(value, this);
 		return this.update();
@@ -1344,154 +1346,62 @@ $.Path = Path = new Class( Shape, {
 		return this.add('arc', [x, y, radius, start, end, !!clockwise]);
 	},
 	closePath : function(){
-		// todo: using the closePath var
-		return this.add('closePath', []);
+		return this.push( closePath );
 	},
 
 	// processing
-	allPoints : function(callback){},
-	transformPath : function(a, b, c, d, e, f, pivot){},
-	processPath : function(ctx){
-		var current = [0, 0];
-
-		ctx.beginPath();
-		this._curves.forEach(function(curve){
-			curve = curve.process(ctx, current);
-			current[0] += curve[0];
-			current[1] += curve[1];
-		});
-	},
 	merge : function(path){
 		this._curves = this._curves.concat(path._curves);
 		return this.update();
 	},
 
-	bounds : function(){}
-});
+	bounds : function(){
+		var curve, end,
+			curves = this._curves,
+			current = [0, 0],
+			i = 0,
+			l = curves.length,
+			minx = Infinity,
+			miny = Infinity,
+			maxx = -Infinity,
+			maxy = -Infinity;
 
-function argument(n){
-	return function(value){
-		return this.argument(n, value);
+		for(; i < l; i++){
+			curve = curves[i];
+			if(curve._bounds && (curve = curve._bounds(current))){
+				minx = Math.min(minx, curve.x1, curve.x2);
+				miny = Math.min(miny, curve.y1, curve.y2);
+				maxx = Math.max(maxx, curve.x1, curve.x2);
+				maxy = Math.max(maxy, curve.y1, curve.y2);
+			}
+			if(end = curves[i].endsIn()){
+				current[0] += end[0];
+				current[1] += end[1];
+			}
+		}
+		return new Bounds(minx, miny, maxx - minx, maxy - miny);
+	},
+
+	processPath : function(ctx){
+		var curve,
+			current = [0, 0],
+			curves = this._curves,
+			i = 0,
+			l = curves.length;
+
+		ctx.beginPath();
+		for(; i < l; i++){
+			curve = curves[i].process(ctx, current);
+			if(curve){
+				current[0] += curve[0];
+				current[1] += curve[1];
+			}
+		}
 	}
-}
 
-var basicLine, quadratic, bezier, arc, arcTo;
+} );
 
-Path.curves = {
-	moveTo : basicLine = new Class(Curve, {
-		process : function(ctx, point){
-			ctx[this._name].apply(ctx, this._arguments);
-			return this._arguments;
-		},
-		x : argument(0),
-		y : argument(1),
-		bounds : function(from){
-			if(this._name === 'moveTo')
-				return null;
-
-			if(this._from)
-				from = this._from;
-			return new Bounds(from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1]);
-		}
-	}),
-	lineTo : basicLine,
-	quadraticCurveTo : quadratic = new Class(Curve, {
-		process : function(ctx, point){
-			ctx[this._name].apply(ctx, this._arguments);
-			return this._arguments.slice(2);
-		},
-		x  : argument(2),
-		y  : argument(3),
-		hx : argument(0),
-		hy : argument(1),
-		bounds : function(from){
-			if(this._from)
-				from = this._from;
-			var minx = Math.min(this._arguments[0], this._arguments[2], from[0]),
-				miny = Math.min(this._arguments[1], this._arguments[3], from[1]),
-				maxx = Math.max(this._arguments[0], this._arguments[2], from[0]),
-				maxy = Math.max(this._arguments[1], this._arguments[3], from[1]);
-			return new Bounds(minx, miny, maxx-minx, maxy-miny);
-		}
-	}),
-	bezierCurveTo : bezier = new Class(Curve, {
-		process : function(ctx, point){
-			ctx[this._name].apply(ctx, this._arguments);
-			return this._arguments.slice(4);
-		},
-		x   : argument(4),
-		y   : argument(5),
-		h1x : argument(0),
-		h1y : argument(1),
-		h2x : argument(2),
-		h2y : argument(3),
-		bounds : function(from){
-			if(this._from)
-				from = this._from;
-			var minx = Math.min(this._arguments[0], this._arguments[2], this._arguments[4], from[0]),
-				miny = Math.min(this._arguments[1], this._arguments[3], this._arguments[5], from[1]),
-				maxx = Math.max(this._arguments[0], this._arguments[2], this._arguments[4], from[0]),
-				maxy = Math.max(this._arguments[1], this._arguments[3], this._arguments[5], from[1]);
-			return new Bounds(minx, miny, maxx-minx, maxy-miny);
-		}
-	}),
-	arc : arc = new Class(Curve, {
-		process : function(ctx, point){
-			ctx[this._name].apply(ctx, this._arguments);
-
-			var x = this._arguments[0],
-				y = this._arguments[1],
-				radius = this._arguments[2],
-				start  = this._arguments[3],
-				end    = this._arguments[4],
-				clockwise = this._arguments[5],
-
-				delta = end - start;
-
-			if(clockwise)
-				delta = -delta;
-
-			return [
-				x + Math.cos(delta) * radius,
-				y + Math.sin(delta) * radius
-			];
-		},
-		x : argument(0),
-		y : argument(1),
-		radius : argument(2),
-		start : argument(3),
-		end : argument(4),
-		clockwise : argument(5)
-	}),
-	arcTo : arcTo = new Class(Curve, {
-		process : function(ctx, point){
-			ctx[this._name].apply(ctx, this._arguments);
-			return this._arguments.slice(2,4);
-		},
-		x1 : argument(0),
-		y1 : argument(1),
-		x2 : argument(2),
-		y2 : argument(3),
-		radius : argument(4),
-		clockwise : argument(5)
-	})
-};
-
-var closePath = new Curve('closePath', []);
-
-function curveByArray(array, path){
-	if(array === true)
-		return closePath;
-
-	switch(array.length){
-		case 2:
-			return new basicLine('lineTo', array, path);
-		case 4:
-			return new quadratic('quadraticCurveTo', array, path);
-		case 6:
-			return new bezier('bezierCurveTo', array, path);
-	}
-}
+Path.props = [ 'curves', 'fill', 'stroke' ];
 
 Path.parsePath = function(path, pathObject, firstIsNotMove){
 	if(!path)
@@ -1516,22 +1426,22 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 			// Array
 			else {
 				if(i === 0 && !firstIsNotMove){
-					curves.push(new basicLine('moveTo', path[i], pathObject));
+					curves.push(new Curve('moveTo', path[i], pathObject));
 					continue;
 				}
-				curves.push(curveByArray(path[i], pathObject))
+				curves.push(Curve.byArray(path[i], pathObject))
 			}
 		}
 
 	}
 
 	return curves;
-}; */
+};
 
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	if(smoothWithPrefix) return smoothWithPrefix;
-	['imageSmoothingEnabled', 'mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled'].forEach(function(name){
+	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
 		if(name in ctx)
 			smoothWithPrefix = name;
 	});
@@ -1541,25 +1451,20 @@ function smoothPrefix(ctx){
 // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 var domurl = window.URL || window.webkitURL || window;
 
-$.Image = Img = new Class(Shape, {
+Img = new Class(Shape, {
 
-	initialize : function(image, x, y, width, height, context){
-		this.context = context;
-		if(x === undefined){
-			this._image = image.image;
-			this._x = image.x;
-			this._y = image.y;
-			this._width = image.width;
-			this._height = image.height;
-			this._crop = image.crop;
-			this._parseHash(image);
-		}
-		else {
-			this._image = image;
-			this._x = x;
-			this._y = y;
-			this._width = width;
-			this._height = height;
+	init : function(){
+		// Note: the 5th argument is crop
+
+		var props = this._image;
+		if(isHash(props)){
+			this._image = props.image;
+			this._x = props.x;
+			this._y = props.y;
+			this._width = props.width;
+			this._height = props.height;
+			this._crop = props.crop;
+			this._parseHash(props);
 		}
 
 		var blob, s;
@@ -1573,9 +1478,9 @@ $.Image = Img = new Class(Shape, {
 				this._image.src = domurl.createObjectURL(blob);
 			}
 			else {
-				x = new Image();
-				x.src = this._image;
-				this._image = x;
+				s = new Image();
+				s.src = this._image;
+				this._image = s;
 			}
 		}
 
@@ -1678,6 +1583,25 @@ $.Image = Img = new Class(Shape, {
 
 });
 
+Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
+
+$.fx.step.crop = function( fx ){
+	if( fx.state === 0 ){
+		fx.start = fx.elem._crop;
+		if( !fx.start ){
+			fx.start = [ 0, 0, fx.elem._image.width, fx.elem._image.height ];
+		}
+		console.log(fx.start);
+	}
+
+	fx.elem._crop = [
+		Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
+		Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
+		Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
+		Math.round(fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos)
+		];
+};
+
 /*	Img.prototype._anim.crop = {
 	// extends the Shape::_anim
 	start : function(end){
@@ -1696,42 +1620,38 @@ $.Image = Img = new Class(Shape, {
 },
  */
 
-$.Text = Text = new Class(Shape, {
+Text = new Class(Shape, {
 
-	initialize : function(text, font, x, y, fill, stroke, context){
+	init : function(){
 		// text, [font], x, y, [fill], [stroke]
-		this._style.textBaseline = 'top';
-		this.context = context;
-
-		if(isHash(text)){
-			this._text  = text.text;
-			this._x     = text.x;
-			this._y     = text.y;
-			this._font  = this._parseFont(text.font || '10px sans-serif');
-			text.baseline !== undefined
-				&& (this._style.textBaseline = text.baseline);
-			text.align !== undefined
-				&& (this._style.textAlign = text.align);
+		var props = this._text;
+		if(isHash( props )){
+			this._text  = props.text;
+			this._x     = props.x;
+			this._y     = props.y;
+			this._font  = this._parseFont(props.font || Text.defaultFont);
+			if(props.baseline !== undefined)
+				this._style.textBaseline = props.baseline;
+			if(props.align !== undefined)
+				this._style.textAlign = props.align;
 			this._genFont();
-			this._width = text.width;
-			this._parseHash(text);
+			this._width = props.width;
+			this._parseHash(props);
 		}
 		else {
-		// "ABC", "10px", "20pt", "20pt", "black"
-			this._text = text;
-			if(!isNumber(y)){
-				stroke = fill;
-				fill = y;
-				y = x;
-				x = font;
-				font = '10px sans-serif';
+			if( !isNumber(this._y) ){ // font isn't exist
+				this._stroke = this._fill;
+				this._fill = this._y;
+				this._y = this._x;
+				this._x = this._font;
+				this._font = Text.defaultFont;
 			}
-			this._font = this._parseFont(font);
+			this._font = this._parseFont(this._font);
 			this._genFont();
-			this._x = x;
-			this._y = y;
-			this._processStyle(fill, stroke, context.context);
+			this._processStyle();
 		}
+
+		this._style.textBaseline = 'top';
 	},
 
 	// параметры
@@ -1882,56 +1802,43 @@ $.Text = Text = new Class(Shape, {
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
 
+Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
+Text.defaultFont = '10px sans-serif';
 
-$.TextBlock = TextBlock = new Class(Shape, {
-
-	initialize : function(text, font, x, y, width, fill, stroke, context){
+TextBlock = new Class(Shape, {
+	// TODO: merge the Text and TextBlock classes
+	init : function(){
 		// text, [font], x, y, [width], [fill], [stroke]
-		this.context = context;
+		var props = this._text;
+		if(isHash( props )){
+			this._text = props.text;
+			this._x    = props.x;
+			this._y    = props.y;
+			this._font = props.font || Text.defaultFont;
+			this._width = props.width !== undefined ? props.width : 'auto';
 
-		if(isHash(text)){
-			this._text  = text.text;
-			this._x     = text.x;
-			this._y     = text.y;
-			this._font  = this._parseFont(text.font);
-			text.align
-				&& (this._style.textAlign = text.align);
-			this._genFont();
-			this._width = text.width === undefined ? 'auto' : text.width;
-			text.limit !== undefined
-				&& (this._limit = text.limit);
-			this._parseHash(text);
-		}
-		else {
-		// "ABC", "10px", "20pt", "20pt", "black"
+			if(props.align)
+				this._style.textAlign = props.align;
 
-		// text, font, x, y, width
-		// text, font, x, y
-		// text, x, y, width
-		// text, x, y
-			this._text = text;
-			if(!isNumber(width)){
-				if(isNumber(font)){ // но ведь там может быть и просто-размер
-					stroke = fill;
-					fill = width;
-					width = y;
-					y = x;
-					x = font;
-					font = '10px sans-serif';
-				}
-				if(!isNumber(width)){
-					stroke = fill;
-					fill = width;
-					width = 'auto';
-				}
+			if(props.limit)
+				this._limit = props.limit;
+
+			this._parseHash(props);
+		} else {
+			if( !isNumber(this._fill) ){
+				// text, fontSize, x, y
+				// text, x, y, width
+				// ???
+				// Okay, I think, you don't use width
+				this._stroke = this._fill;
+				this._fill = this._width;
+				this._width = Infinity;
 			}
-			this._font = this._parseFont(font);
-			this._genFont();
-			this._x = x;
-			this._y = y;
-			this._width = width;
-			this._processStyle(fill, stroke, context.context);
+			this._font = this._parseFont(this._font);
+			this._processStyle();
 		}
+
+		this._genFont();
 		this._genLines();
 	},
 
@@ -2075,7 +1982,7 @@ $.TextBlock = TextBlock = new Class(Shape, {
 	_limit : Infinity,
 	_lineHeight : null
 });
-
+TextBlock.props = [ 'text', 'font', 'x', 'y', 'width', 'fill', 'stroke' ];
 
 $.Gradient = Gradient = new Class({
 
@@ -2481,6 +2388,12 @@ function extend(a,b){
 			a[i] = b[i];
 	}
 	return a;
+}
+
+function argument( index ){
+	return function( value ){
+		return this.argument( index, value );
+	};
 }
 
 // typeofs
@@ -2933,11 +2846,22 @@ _.transformFunctions = {
 };
 
 
+$.Context = Context;
+$.Shape = Shape;
+$.Rect = Rect;
+$.Circle = Circle;
+$.Curve = Curve;
+$.Path = Path;
+$.Image = Img;
+$.Text = Text;
+$.TextBlock = TextBlock;
+$.Gradient = Gradient;
+$.Pattern = Pattern;
+
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element){
-	// TODO: test
-	return new Context( isString(query) ? (element || document).querySelectorAll(query)[index || 0] : query.canvas || query );
+	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query );
 };
 
 $.id = function(id){

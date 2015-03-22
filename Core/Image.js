@@ -1,7 +1,7 @@
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	if(smoothWithPrefix) return smoothWithPrefix;
-	['imageSmoothingEnabled', 'mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled'].forEach(function(name){
+	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
 		if(name in ctx)
 			smoothWithPrefix = name;
 	});
@@ -11,25 +11,20 @@ function smoothPrefix(ctx){
 // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 var domurl = window.URL || window.webkitURL || window;
 
-$.Image = Img = new Class(Shape, {
+Img = new Class(Shape, {
 
-	initialize : function(image, x, y, width, height, context){
-		this.context = context;
-		if(x === undefined){
-			this._image = image.image;
-			this._x = image.x;
-			this._y = image.y;
-			this._width = image.width;
-			this._height = image.height;
-			this._crop = image.crop;
-			this._parseHash(image);
-		}
-		else {
-			this._image = image;
-			this._x = x;
-			this._y = y;
-			this._width = width;
-			this._height = height;
+	init : function(){
+		// Note: the 5th argument is crop
+
+		var props = this._image;
+		if(isHash(props)){
+			this._image = props.image;
+			this._x = props.x;
+			this._y = props.y;
+			this._width = props.width;
+			this._height = props.height;
+			this._crop = props.crop;
+			this._parseHash(props);
 		}
 
 		var blob, s;
@@ -43,9 +38,9 @@ $.Image = Img = new Class(Shape, {
 				this._image.src = domurl.createObjectURL(blob);
 			}
 			else {
-				x = new Image();
-				x.src = this._image;
-				this._image = x;
+				s = new Image();
+				s.src = this._image;
+				this._image = s;
 			}
 		}
 
@@ -147,6 +142,25 @@ $.Image = Img = new Class(Shape, {
 	}
 
 });
+
+Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
+
+$.fx.step.crop = function( fx ){
+	if( fx.state === 0 ){
+		fx.start = fx.elem._crop;
+		if( !fx.start ){
+			fx.start = [ 0, 0, fx.elem._image.width, fx.elem._image.height ];
+		}
+		console.log(fx.start);
+	}
+
+	fx.elem._crop = [
+		Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
+		Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
+		Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
+		Math.round(fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos)
+		];
+};
 
 /*	Img.prototype._anim.crop = {
 	// extends the Shape::_anim
