@@ -1,47 +1,46 @@
 /*  Graphics2D 0.9.1
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 19.3.2015
+ *  Last edit: 22.3.2015
  *  License: MIT / LGPL
  */
 
 (function(window, undefined){
 
 // The main graphics2D class
-var $ = {};
+var $ = {},
 
 // Classes
-var Context,
-
+	Context,
 	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
-
-	Gradient, Pattern, Anim, Bounds;
+	Gradient, Pattern, Anim, Bounds,
 
 // Local variables
-var emptyFunc = function(){},
+	emptyFunc = function(){},
 	_ = {},
 	toString = Object.prototype.toString,
-	requestAnimationFrame =
-			window.requestAnimationFrame		||
-			window.webkitRequestAnimationFrame	||
-			window.mozRequestAnimationFrame		||
-			window.oRequestAnimationFrame		||
-			window.msRequestAnimationFrame		||
-			window.setTimeout,
-	cancelAnimationFrame =
-			window.cancelAnimationFrame			||
-			window.webkitCancelAnimationFrame	||
-			window.mozCancelAnimationFrame		||
-			window.oCancelAnimationFrame		||
-			window.msCancelAnimationFrame		||
+	requestAnimationFrame = window.requestAnimationFrame		||
+	                        window.webkitRequestAnimationFrame	||
+	                        window.mozRequestAnimationFrame		||
+	                        window.oRequestAnimationFrame		||
+	                        window.msRequestAnimationFrame		||
+	                        function(callback){
+	                        	return window.setTimeout(callback, 1000 / 60);
+	                        },
 
-			window.cancelRequestAnimationFrame			||
-			window.webkitCancelRequestAnimationFrame	||
-			window.mozCancelRequestAnimationFrame		||
-			window.oCancelRequestAnimationFrame			||
-			window.msCancelRequestAnimationFrame		||
+	cancelAnimationFrame = window.cancelAnimationFrame			||
+	                       window.webkitCancelAnimationFrame	||
+	                       window.mozCancelAnimationFrame		||
+	                       window.oCancelAnimationFrame			||
+	                       window.msCancelAnimationFrame		||
 
-			window.clearTimeout;
+	                       window.cancelRequestAnimationFrame		||
+	                       window.webkitCancelRequestAnimationFrame	||
+	                       window.mozCancelRequestAnimationFrame	||
+	                       window.oCancelRequestAnimationFrame		||
+	                       window.msCancelRequestAnimationFrame		||
+
+	                       window.clearTimeout;
 
 
 $.Context = Context = function(canvas){

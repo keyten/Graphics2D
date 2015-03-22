@@ -8,63 +8,62 @@
 (function(window, undefined){
 
 // The main graphics2D class
-var $ = {};
+var $ = {},
 
 // Classes
-var Context,
-
+	Context,
 	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
-
-	Gradient, Pattern, Anim, Bounds;
+	Gradient, Pattern, Anim, Bounds,
 
 // Local variables
-var emptyFunc = function(){},
+	emptyFunc = function(){},
 	_ = {},
 	toString = Object.prototype.toString,
-	requestAnimationFrame =
-			window.requestAnimationFrame		||
-			window.webkitRequestAnimationFrame	||
-			window.mozRequestAnimationFrame		||
-			window.oRequestAnimationFrame		||
-			window.msRequestAnimationFrame		||
-			window.setTimeout,
-	cancelAnimationFrame =
-			window.cancelAnimationFrame			||
-			window.webkitCancelAnimationFrame	||
-			window.mozCancelAnimationFrame		||
-			window.oCancelAnimationFrame		||
-			window.msCancelAnimationFrame		||
+	requestAnimationFrame = window.requestAnimationFrame		||
+	                        window.webkitRequestAnimationFrame	||
+	                        window.mozRequestAnimationFrame		||
+	                        window.oRequestAnimationFrame		||
+	                        window.msRequestAnimationFrame		||
+	                        function(callback){
+	                        	return window.setTimeout(callback, 1000 / 60);
+	                        },
 
-			window.cancelRequestAnimationFrame			||
-			window.webkitCancelRequestAnimationFrame	||
-			window.mozCancelRequestAnimationFrame		||
-			window.oCancelRequestAnimationFrame			||
-			window.msCancelRequestAnimationFrame		||
+	cancelAnimationFrame = window.cancelAnimationFrame			||
+	                       window.webkitCancelAnimationFrame	||
+	                       window.mozCancelAnimationFrame		||
+	                       window.oCancelAnimationFrame			||
+	                       window.msCancelAnimationFrame		||
 
-			window.clearTimeout;
+	                       window.cancelRequestAnimationFrame		||
+	                       window.webkitCancelRequestAnimationFrame	||
+	                       window.mozCancelRequestAnimationFrame	||
+	                       window.oCancelRequestAnimationFrame		||
+	                       window.msCancelRequestAnimationFrame		||
+
+	                       window.clearTimeout;
 
 
-// {{include Context.js}}
+// {{include context.js}}
 
-// {{include Shape.js}}
+// {{include shape.js}}
 
-// {{include Rect.js}}
+// {{include rect.js}}
 
-// {{include Circle.js}}
+// {{include circle.js}}
 
-// {{include Curve.js}}
+// {{include curve.js}}
 
-// {{include Path.js}}
+// {{include path.js}}
 
-// {{include Image.js}}
+// {{include image.js}}
 
-// {{include Text.js}}
+// {{include text.js}}
 
-// {{include Textblock.js}}
+// {{include textblock.js}}
 
-// {{include Gradient.js}}
+// {{include gradient.js}}
 
-// {{include Pattern.js}}
+// {{include pattern.js}}
 
 // {{include utils.js}}
 
