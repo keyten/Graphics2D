@@ -1,7 +1,7 @@
 module.exports = function(grunt){
 
 	var build = {
-		from: 'Source/graphics2d.js',
+		from: 'Core/graphics2d.js',
 		dest: 'graphics2d.js'
 		},
 		package = grunt.file.readJSON('package.json');
@@ -20,12 +20,12 @@ module.exports = function(grunt){
 			options: {
 				jshintrc: '.jshintrc'
 			},
-			files: 'Source/*.js'
+			files: 'Core/*.js'
 		},
 
 		watch: {
 			build: {
-				files: 'Source/*.js',
+				files: 'Core/*.js',
 				tasks: 'build'
 			}
 		}
