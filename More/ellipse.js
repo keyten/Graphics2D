@@ -1,97 +1,80 @@
-/*! Graphics2D Ellipse
- *  Author: Keyten aka Dmitriy Miroshnichenko
- *  License: MIT / LGPL
- */
-(function(window, $, undefined){
+Ellipse = new Class(Shape, {
 
-	var Ellipse = $.Class($.Circle, {
-		initialize : function(object){
-			this._rx = this._ry = this._radius;
-
-			if($.util.isHash(object)){
-				this._rx = object.rx;
-				this._ry = object.ry;
-				if(object.kappa !== undefined)
-					this._kappa = object.kappa;
+	init : function(){
+		var props = this._cx;
+		if(isHash( props )){
+			this._cx = props.cx || props.x || 0;
+			this._cy = props.cy || props.y || 0;
+			if(props.radius !== undefined){
+				this._rx = this._ry = props.radius;
+			} else {
+				this._rx = props.rx;
+				this._ry = props.ry;
 			}
-		},
+			if(props.kappa !== undefined)
+				this._kappa = props.kappa;
 
-		_rx : 0,
-		_ry : 0,
-		_kappa : 4/3 * (Math.sqrt(2) - 1),
-
-		radius : function(radius){
-			if(radius === undefined){
-				if(this._rx !== this._ry)
-					return null;
-				return this._rx;
-			}
-			this._rx = this._ry = radius;
-			return this.update();
-		},
-
-		rx : function(rx){
-			return this._property('rx', rx);
-		},
-		ry : function(ry){
-			return this._property('ry', ry);
-		},
-		kappa : function(kappa){
-			return this._property('kappa', kappa);
-		},
-
-		processPath : function(ctx){
-			// http://stackoverflow.com/questions/2172798/how-to-draw-an-oval-in-html5-canvas/23184724#23184724
-			ctx.beginPath();
-			if(ctx.ellipse){
-				// x, y, radiusX, radiusY, rotation, startAngle, endAngle, anticlockwise
-				ctx.ellipse(this._cx, this._cy, this._rx, this._ry, 0, 0, Math.PI * 2, true);
-				return;
-			}
-
-			var kappa = this._kappa,
-				cx = this._cx,
-				cy = this._cy,
-				rx = this._rx,
-				ry = this._ry,
-
-				ox = rx * kappa,
-				oy = ry * kappa;
-
-			ctx.moveTo(cx - rx, cy);
-			ctx.bezierCurveTo(cx - rx, cy - oy, cx - ox, cy - ry, cx, cy - ry);
-			ctx.bezierCurveTo(cx + ox, cy - ry, cx + rx, cy - oy, cx + rx, cy);
-			ctx.bezierCurveTo(cx + rx, cy + oy, cx + ox, cy + ry, cx, cy + ry);
-			ctx.bezierCurveTo(cx - ox, cy + ry, cx - rx, cy + oy, cx - rx, cy);
-			ctx.closePath(); // fix for a last corner with kappa=0
+			this._parseHash(props);
+		} else {
+			this._processStyle();
 		}
-	});
+	},
 
-	Ellipse.kappa = Ellipse.prototype._kappa;
-	$.Ellipse = Ellipse;
+	_kappa : 4/3 * (Math.sqrt(2) - 1),
 
-	// animating corners
-	$.Shape.prototype._anim.rx = $.Shape.prototype._anim.number;
-	$.Shape.prototype._anim.ry = $.Shape.prototype._anim.number;
-	$.Shape.prototype._anim.kappa = {
-		start : function(){
-			this._animData.kappaStart = this._kappa;
-		},
-		step : function(end, t){
-			this._kappa = this._animData.kappaStart * (1 - t) + end * t;
-		},
-		end : function(){
-			delete this._animData.kappaStart;
+	// parameters
+	cx : function(cx){
+		return this._property('cx', cx);
+	},
+	cy : function(cy){
+		return this._property('cy', cy);
+	},
+	rx : function(rx){
+		return this._property('rx', rx);
+	},
+	ry : function(ry){
+		return this._property('ry', ry);
+	},
+	kappa : function(kappa){
+		return this._property('kappa', kappa);
+	},
+
+	bounds : function(){
+		return new Bounds(this._cx - this._rx, this._cy - this._ry, this._rx * 2, this._ry * 2);
+	},
+	processPath : function(ctx){
+		// http://stackoverflow.com/questions/2172798/how-to-draw-an-oval-in-html5-canvas/23184724#23184724
+		ctx.beginPath();
+		if(ctx.ellipse && this._kappa === Ellipse.kappa){
+			// x, y, radiusX, radiusY, rotation, startAngle, endAngle, anticlockwise
+			ctx.ellipse(this._cx, this._cy, this._rx, this._ry, 0, 0, Math.PI * 2, true);
+			return;
 		}
-	};
 
-	$.Context.prototype.ellipse = function(cx, cy, rx, ry, fill, stroke){
-		if($.util.isNumber(ry) || (typeof ry === 'string' && ry.search(/\d+/) === 0)){
-			return this.push(new Ellipse({
-				cx:cx, cy:cy, rx:rx, ry:ry, fill:fill, stroke:stroke
-			}, null, null, null, null, this));
-		}
-		return this.push(new Ellipse(cx, cy, rx, ry, fill, this));
-	};
+		var kappa = this._kappa,
+			cx = this._cx,
+			cy = this._cy,
+			rx = this._rx,
+			ry = this._ry,
 
-})(window, Graphics2D);
+			ox = rx * kappa,
+			oy = ry * kappa;
+
+		ctx.moveTo(cx - rx, cy);
+		ctx.bezierCurveTo(cx - rx, cy - oy, cx - ox, cy - ry, cx, cy - ry);
+		ctx.bezierCurveTo(cx + ox, cy - ry, cx + rx, cy - oy, cx + rx, cy);
+		ctx.bezierCurveTo(cx + rx, cy + oy, cx + ox, cy + ry, cx, cy + ry);
+		ctx.bezierCurveTo(cx - ox, cy + ry, cx - rx, cy + oy, cx - rx, cy);
+		ctx.closePath(); // fix for a last corner with kappa=0
+	}
+
+});
+
+Ellipse.props = [ 'cx', 'cy', 'rx', 'ry', 'fill', 'stroke' ];
+Ellipse.kappa = Ellipse.prototype._kappa;
+
+Context.prototype.ellipse = function(){
+	return this.push( new Ellipse(arguments, this) );
+};
+
+$.fx.step.kappa = $.fx.step.float;

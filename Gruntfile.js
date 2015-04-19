@@ -1,8 +1,12 @@
 module.exports = function(grunt){
 
-	var build = {
-			from: 'Core/graphics2d.js',
+	var core = {
+			source: 'Core/core.js',
 			dest: 'graphics2d.js'
+		},
+		more = {
+			source: 'More/more.js',
+			dest: 'graphics2d.more.js'
 		},
 		package = grunt.file.readJSON('package.json');
 
@@ -11,7 +15,8 @@ module.exports = function(grunt){
 		uglify: {
 			main: {
 				files: {
-					'graphics2d.min.js': build.dest
+					'graphics2d.min.js': core.dest,
+					'graphics2d.more.min.js': more.dest
 				}
 			}
 		},
@@ -24,38 +29,49 @@ module.exports = function(grunt){
 		},
 
 		watch: {
-			build: {
+			core: {
 				files: 'Core/*.js',
-				tasks: 'build'
+				tasks: 'core'
+			},
+			more: {
+				files: 'More/*.js',
+				tasks: 'more'
 			}
 		}
 
 	});
 
 	// Simple build system
-	grunt.registerTask('build', function(){
-		var from = grunt.file.read(build.from),
-			today = new Date,
-			folder = build.from.replace(/\/[^\/]+$/, '');
+	function compile(source, dest){
+		var code = grunt.file.read(source),
+			today = new Date(),
+			folder = source.replace(/\/[^\/]+$/, '');
 
 		// date processing
-		from = from.replace(/\{\{date\}\}/gi, today.getDate() + '.' + (today.getMonth()+1) + '.' + today.getFullYear());
+		code = code.replace(/\{\{date\}\}/gi, today.getDate() + '.' + (today.getMonth()+1) + '.' + today.getFullYear());
 
 		// config processing
 		for(var key in package){
-			from = from.replace(new RegExp('\{\{' + key + '\}\}', 'gi'), package[key]);
+			code = code.replace(new RegExp('\{\{' + key + '\}\}', 'gi'), package[key]);
 		}
 
 		// include processing
-		from = from.replace(/(\/\/\s*)?\{\{include\s+([a-z0-9\.]+)\}\}/gi, function(a,b,c,d){
+		code = code.replace(/(\/\/\s*)?\{\{include\s+([a-z0-9\.]+)\}\}/gi, function(a,b,c,d){
 			return grunt.file.read(folder + '/' + c);
 		});
 
-		grunt.file.write(build.dest, from);
+		grunt.file.write(dest, code);
+	}
+
+	grunt.registerTask('core', function(){
+		compile(core.source, core.dest);
+	});
+	grunt.registerTask('more', function(){
+		compile(more.source, more.dest);
 	});
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-contrib-jshint');
-	grunt.registerTask('default', ['build', 'uglify']);
+	grunt.registerTask('default', ['core', 'more', 'uglify']);
 
 }

@@ -5,7 +5,8 @@ $.Curve = Curve = new Class({
 		this._arguments = _arguments;
 
 		if( name in Curve.curves ){
-			Curve.curves[ name ]( this );
+			extend( this, Curve.curves[ name ] );
+	//		Curve.curves[ name ]( this );
 		}
 	},
 
@@ -27,7 +28,19 @@ $.Curve = Curve = new Class({
 		return this.update();
 	},
 
-	from : function(){}, // returns from point
+	from : function(){ // returns the start point
+		var index = this.path._curves.indexOf( this ),
+			before = this.path._curves[ index - 1 ];
+		if( index === 0 )
+			return [0, 0];
+		if( index === -1 || !before || !('endsIn' in before && 'from' in before) )
+			return null;
+		var from = before.from(),
+			end = before.endsIn();
+		if( !from || !end )
+			return null;
+		return [ from[0] + end[0], from[1] + end[1] ];
+	},
 
 	endsIn : function(){
 		if( this._slice )
@@ -46,63 +59,71 @@ $.Curve = Curve = new Class({
 });
 
 Curve.curves = {
-	moveTo : function( object ){
-		object._slice = [ , ];
-		object.points = function(){ return [this._arguments]; };
-		object.x = argument( 0 );
-		object.y = argument( 1 );
+	moveTo : {
+		_slice : [ , ],
+		points : function(){ return [this._arguments]; },
+		x : argument( 0 ),
+		y : argument( 1 )
 	},
-	lineTo : function( object ){
-		Curve.curves.moveTo( object );
-		object._bounds = function(from){
-			return new Bounds( from[0], from[1], this._arguments[0] - from[0], this._arguments[1] - from[1] );
-		};
+	lineTo : {
+		_slice : [ , ],
+		points : function(){ return [this._arguments]; },
+		bounds : function( from ){
+			var end = this._arguments;
+			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
+		},
+		x : argument( 0 ),
+		y : argument( 1 )
 	},
-	quadraticCurveTo : function( object ){
-		object._slice = [ 2 ];
-		object.points = function(){ return [this._arguments.slice(2), this._arguments.slice(0, 2)]; };
-		object.hx = argument( 0 );
-		object.hy = argument( 1 );
-		object.x  = argument( 2 );
-		object.y  = argument( 3 );
-		object._bounds = function(f){ // from
+	quadraticCurveTo : {
+		_slice : [ 2 ],
+		points : function(){
+			return [ this._arguments.slice(2), this._arguments.slice(0, 2) ];
+		},
+		bounds : function( f ){
 			var a = this._arguments,
-				x1 = Math.min(a[0], a[2], f[0]),
-				y1 = Math.min(a[1], a[3], f[1]),
-				x2 = Math.max(a[0], a[2], f[0]),
-				y2 = Math.max(a[1], a[3], f[1]);
-			return new Bounds(x1, y1, x2 - x1, y2 - y1);
-		};
+				x1 = Math.min( a[0], a[2], f[0] ),
+				y1 = Math.min( a[1], a[3], f[1] ),
+				x2 = Math.max( a[0], a[2], f[0] ),
+				y2 = Math.max( a[1], a[3], f[1] );
+			return new Bounds( x1, y1, x2 - x1, y2 - y1 );
+		},
+		hx : argument( 0 ),
+		hy : argument( 1 ),
+		x  : argument( 2 ),
+		y  : argument( 3 )
 	},
-	bezierCurveTo : function( object ){
-		object._slice = [ 4 ];
-		object.points = function(){ return [this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2)]; };
-		object.h1x = argument( 0 );
-		object.h1y = argument( 1 );
-		object.h2x = argument( 2 );
-		object.h2y = argument( 3 );
-		object.x   = argument( 4 );
-		object.y   = argument( 5 );
-		object._bounds = function(f){ // from
+	bezierCurveTo : {
+		_slice : [ 4 ],
+		points : function(){
+			return [ this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2) ];
+		},
+		bounds : function( f ){
 			var a = this._arguments,
-				x1 = Math.min(a[0], a[2], a[4], f[0]),
-				y1 = Math.min(a[1], a[3], a[5], f[1]),
-				x2 = Math.max(a[0], a[2], a[4], f[0]),
-				y2 = Math.max(a[1], a[3], a[5], f[1]);
-			return new Bounds(x1, y1, x2 - x1, y2 - y1);
-		};
+				x1 = Math.min( a[0], a[2], a[4], f[0] ),
+				y1 = Math.min( a[1], a[3], a[5], f[1] ),
+				x2 = Math.max( a[0], a[2], a[4], f[0] ),
+				y2 = Math.max( a[1], a[3], a[5], f[1] );
+			return new Bounds( x1, y1, x2 - x1, y2 - y1 );
+		},
+		h1x : argument( 0 ),
+		h1y : argument( 1 ),
+		h2x : argument( 2 ),
+		h2y : argument( 3 ),
+		x   : argument( 4 ),
+		y   : argument( 5 )
 	},
-	arc : function( object ){
-		object.points = function(){ return [this._arguments.slice(0, 2)]; };
-		object.x         = argument( 0 );
-		object.y         = argument( 1 );
-		object.radius    = argument( 2 );
-		object.start     = argument( 3 );
-		object.end       = argument( 4 );
-		object.clockwise = argument( 5 );
-
-		object.endsIn = function(){
-			// var [x, y, radius, start, end, clockwise] = this._arguments;
+	arc : {
+		points : function(){
+			return [ this._arguments.slice(0, 2) ];
+		},
+		x         : argument( 0 ),
+		y         : argument( 1 ),
+		radius    : argument( 2 ),
+		start     : argument( 3 ),
+		end       : argument( 4 ),
+		clockwise : argument( 5 ),
+		endsIn : function(){
 			var x         = this._arguments[ 0 ],
 				y         = this._arguments[ 1 ],
 				radius    = this._arguments[ 2 ],
@@ -110,31 +131,36 @@ Curve.curves = {
 				end       = this._arguments[ 4 ],
 				clockwise = this._arguments[ 5 ],
 				delta     = end - start;
-
+			
 			if( clockwise )
 				delta = -delta;
-// why?.. is it must be in the base functionality?
+
 			return [
 				x + Math.cos( delta ) * radius,
 				y + Math.sin( delta ) * radius
 			];
-		};
+		}
 	},
-	arcTo : function( object ){
-		object.points = function(){ return [this._arguments.slice(0, 2), this._arguments.slice(2)]; };
-		object._slice = [ 2, 4 ];
-		object.x1 = argument( 0 );
-		object.y1 = argument( 1 );
-		object.x2 = argument( 2 );
-		object.y2 = argument( 3 );
-		object.radius = argument( 4 );
-		object.clockwise = argument( 5 );
+	arcTo : {
+		_slice : [ 2, 4 ],
+		points : function(){
+			return [ this._arguments.slice(0, 2), this._arguments.slice(2) ];
+		},
+		x1        : argument( 0 ),
+		y1        : argument( 1 ),
+		x2        : argument( 2 ),
+		y2        : argument( 3 ),
+		radius    : argument( 4 ),
+		clockwise : argument( 5 )
 	}
 };
 
 Curve.byArray = function(array, path){
 	if(array === true)
 		return closePath;
+
+	if(array[0] in Curve.curves)
+		return new Curve(array[0], array.slice(1), path);
 
 	switch(array.length){
 		case 2: return new Curve('lineTo', array, path);

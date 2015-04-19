@@ -1,4 +1,4 @@
-/*  Graphics2D {{version}}
+/*  Graphics2D Core {{version}}
  * 
  *  Author: {{author}}
  *  Last edit: {{date}}
@@ -13,14 +13,17 @@ var $ = {},
 // Classes
 	Context,
 	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
-	Gradient, Pattern, Anim, Bounds,
+	Gradient, Pattern, Bounds,
 
 // Local variables
+	document = window.document,
 	emptyFunc = function(){},
 	toString = Object.prototype.toString,
 	slice = Array.prototype.slice,
+	reFloat = /^\d*\.\d+$/,
+	domurl = window.URL || window.webkitURL || window,
 
-	_ = new function(){},
+	_ = new emptyFunc,
 	requestAnimationFrame = window.requestAnimationFrame		||
 	                        window.webkitRequestAnimationFrame	||
 	                        window.mozRequestAnimationFrame		||
@@ -61,8 +64,6 @@ var $ = {},
 
 // {{include text.js}}
 
-// {{include textblock.js}}
-
 // {{include gradient.js}}
 
 // {{include pattern.js}}
@@ -91,17 +92,15 @@ $.id = function(id){
 	return new Context( document.getElementById(id) );
 };
 
-$.util = _;
+$.util = $._ = _; // deprecated
 
 
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;
+} else if( typeof define === 'function' && define.amd ){
+	define( [], function(){ return $; } );
 } else {
 	window.Graphics2D = $;
-}
-
-if( typeof define === 'function' && define.amd ){
-	define( [], function(){ return $; } );
 }
 
 })( typeof window !== 'undefined' ? window : this );

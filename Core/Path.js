@@ -28,20 +28,23 @@ Path = new Class( Shape, {
 		this._curves.splice.apply(this._curves, [index, 0].concat(value));
 		return this.update();
 	},
+	
 	after : function(index, value){
 		return this.before(index+1, value);
 	},
+	
 	remove : function(index){
 		if(index === undefined)
 			return Shape.prototype.remove.call(this);
 		this._curves.splice(index, 1);
 		return this.update();
 	},
+	
 	curves : function(value){
 		if(value === undefined)
 			return this._curves;
 
-		if(isNumber(value[0]))
+		if(isNumberLike(value[0]))
 			this._curves = Path.parsePath(slice.call(arguments), this);
 		else
 			this._curves = Path.parsePath(value, this);
@@ -53,27 +56,35 @@ Path = new Class( Shape, {
 		this._curves.push(curve);
 		return this.update();
 	},
+
 	add : function(name, arg){
-		return this.push(new Path.curves[name](name, arg, this));
+		return this.push(new Curve(name, arg, this));
 	},
+	
 	moveTo : function(x, y){
 		return this.add('moveTo', [x, y]);
 	},
+	
 	lineTo : function(x, y){
 		return this.add('lineTo', [x, y]);
 	},
+	
 	quadraticCurveTo : function(hx, hy, x, y){
 		return this.add('quadraticCurveTo', [hx, hy, x, y]);
 	},
+	
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
 		return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 	},
+	
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
 		return this.add('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 	},
+	
 	arc : function(x, y, radius, start, end, clockwise){
 		return this.add('arc', [x, y, radius, start, end, !!clockwise]);
 	},
+	
 	closePath : function(){
 		return this.push( closePath );
 	},
@@ -90,8 +101,8 @@ Path = new Class( Shape, {
 			current = [0, 0],
 			i = 0,
 			l = curves.length,
-			minx = Infinity,
-			miny = Infinity,
+			minx =  Infinity,
+			miny =  Infinity,
 			maxx = -Infinity,
 			maxy = -Infinity;
 
@@ -136,21 +147,21 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 	if(!path)
 		return [];
 
-	if(path instanceof Curve)
+	if(path instanceof Curve) // todo: path.path = pathObject;
 		return [path];
 
 	var curves = [];
 	if(isArray(path)){
 
 		// fix for [x,y] instead of [[x,y]]
-		if(isNumber(path[0]))
+		if(isNumberLike(path[0]))
 			path = [path];
 
 		for(var i = 0, l = path.length; i < l; i++){
 
 			// Curve
 			if(path[i] instanceof Curve)
-				curves.push(path[i]);
+				curves.push(path[i]); // path[i].path = pathObject;
 
 			// Array
 			else {
@@ -158,7 +169,7 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 					curves.push(new Curve('moveTo', path[i], pathObject));
 					continue;
 				}
-				curves.push(Curve.byArray(path[i], pathObject))
+				curves.push(Curve.byArray(path[i], pathObject));
 			}
 		}
 

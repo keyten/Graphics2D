@@ -3,11 +3,11 @@ Text = new Class(Shape, {
 	init : function(){
 		// text, [font], x, y, [fill], [stroke]
 		var props = this._text;
-		if(isHash( props )){
+		if(isObject( props )){
 			this._text  = props.text;
 			this._x     = props.x;
 			this._y     = props.y;
-			this._font  = this._parseFont(props.font || Text.defaultFont);
+			this._font  = this._parseFont(props.font || Text.font);
 			if(props.baseline !== undefined)
 				this._style.textBaseline = props.baseline;
 			if(props.align !== undefined)
@@ -17,22 +17,63 @@ Text = new Class(Shape, {
 			this._parseHash(props);
 		}
 		else {
-			if( !isNumber(this._y) ){ // font isn't exist
+			if( !isNumberLike(this._y) ){ // font isn't exist
 				this._stroke = this._fill;
 				this._fill = this._y;
 				this._y = this._x;
 				this._x = this._font;
-				this._font = Text.defaultFont;
+				this._font = Text.font;
 			}
 			this._font = this._parseFont(this._font);
 			this._genFont();
 			this._processStyle();
 		}
-
-		this._style.textBaseline = 'top';
+		this._genLines();
 	},
 
-	// параметры
+	_breaklines: true,
+
+	_genLines : function(){
+		var text = this._text,
+			lines = this._lines = [],
+			size = this._lineHeight || this._font.size || 10,
+			ctx = this.context.context,
+			width = this._width || Infinity,
+			countline = 1,
+			align = this._style.textAlign,
+			x = (align === 'center') ? (width/2) : ((width === 'right') ? width : 0);
+
+		this._applyStyle();
+
+		text.split('\n').forEach(function(line){
+			// Do we need split line to lines?
+			if(ctx.measureText(line).width > width){
+				var words = line.split(' '),
+					useline = '',
+					testline, i, len;
+
+				for(i = 0, len = words.length; i < len; i++){
+					testline = useline + words[i] + ' ';
+
+					if(ctx.measureText(testline).width > width){
+						lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
+						useline = words[i] + ' ';
+					}
+					else {
+						useline = testline;
+					}
+				}
+				lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
+			}
+			else
+				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
+
+		});
+		ctx.restore();
+		return this;
+	},
+
+	// options
 	text : function(t){
 		return this._property('text', t);
 	},
@@ -41,6 +82,9 @@ Text = new Class(Shape, {
 	},
 	y : function(y){
 		return this._property('y', y);
+	},
+	breaklines : function(a){
+		return this._property('breaklines', a);
 	},
 	font : function(font){
 		if(font === true)
@@ -59,13 +103,15 @@ Text = new Class(Shape, {
 	_genFont : function(){
 		var str = '',
 			font = this._font;
-		font.italic && (str += 'italic ');
-		font.bold && (str += 'bold ');
+		if(font.italic)
+			str += 'italic ';
+		if(font.bold)
+			str += 'bold ';
 		return this._setstyle('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
 		// font.size can't be 0? unexpected behavior
 	},
 	_parseFont : function(font){
-		if(isHash(font)){
+		if(isObject(font)){
 			font.size = _.distance(font.size);
 			return font;
 		}
@@ -109,14 +155,22 @@ Text = new Class(Shape, {
 		return this._property('underline', !!val);
 	},
 	width : function(w){
-		if(w === undefined && this._width === undefined){
-			var ctx = this.context.context;
-			this._applyStyle();
-			var m = ctx.measureText( this._text ).width;
-			ctx.restore();
-			return m;
+		if(w === undefined){
+			if(!this._width){
+				var ctx = this.context.context;
+				this._applyStyle();
+				var max = 0;
+				this._lines.forEach(function(line){
+					max = Math.max( max, ctx.measureText( line.text ).width );
+				});
+				ctx.restore();
+				return max;
+			} else
+				return this._width;
 		}
-		return this._property('width', w);
+		this._width = w;
+		this._genLines();
+		return this.update();
 	},
 
 	// text.font('2px')
@@ -127,6 +181,7 @@ Text = new Class(Shape, {
 	// text.baseline(0)
 
 	isPointIn : function(x, y){
+		// transforms?
 		var b = this.bounds();
 		return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
 	},
@@ -134,7 +189,7 @@ Text = new Class(Shape, {
 		var align = this._style.textAlign || 'left',
 			baseline = this._style.textBaseline || 'top',
 			width = this.width(),
-			size = parseInt(this._font.size) * 1.15, //magic number (from LibCanvas? :))
+			size = Number(this._font.size),
 			x = this._x,
 			y = this._y;
 
@@ -149,21 +204,38 @@ Text = new Class(Shape, {
 			y -= size;
 		else if(baseline === 'alphabetic')
 			y -= size * 0.8;
-		return new Bounds(x, y, width, size);
+		// 0.15 -- magic number (from LibCanvas? :))
+		return new Bounds(x, y, width, size * (this._limit || this._lines.length) + size * 0.15);
 	},
 	draw : function(ctx){
 		if(!this._visible)
 			return;
 		this._applyStyle();
-		var params = [this._text, this._x, this._y];
-		if(this._width)
-			params.push(this.width());
-		if(this._style.fillStyle)
-			ctx.fillText.apply(ctx, params);
-		if(this._style.strokeStyle)
-			ctx.strokeText.apply(ctx, params);
 
-		// underline
+		var x = this._x,
+			y = this._y,
+			i = 0,
+			l = this._lines.length,
+			draw = emptyFunc,
+			line;
+
+		if(this._style.fillStyle){
+			if(this._style.strokeStyle)
+				draw = function(t, x, y){
+					ctx.fillText(t, x, y);
+					ctx.strokeText(t, x, y);
+				};
+			else
+				draw = ctx.fillText;
+		} else
+			draw = ctx.strokeText;
+
+		for(; i < l; i++){
+			line = this._lines[i];
+			draw.call(ctx, line.text, x + line.x, y + line.y);
+		}
+
+/*		// underline
 		if(this._underline){
 			var b = this.bounds(),
 				height = Math.round(this._font.size / 5);
@@ -173,7 +245,8 @@ Text = new Class(Shape, {
 			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
 			ctx.lineWidth   = Math.round(this._font.size / 15);
 			ctx.stroke();
-		}
+		} */
+
 		ctx.restore();
 	}
 // TODO: mozPathText; mozTextAlongPath
@@ -181,4 +254,5 @@ Text = new Class(Shape, {
 });
 
 Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
-Text.defaultFont = '10px sans-serif';
+Text.font = '10px sans-serif';
+//Text.distances = [ false, false, true, true ];

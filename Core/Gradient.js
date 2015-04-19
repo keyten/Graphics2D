@@ -1,51 +1,40 @@
 $.Gradient = Gradient = new Class({
 
 	initialize : function(type, colors, from, to, context){
-		if(isHash(type)){
+		// distance in from & to
+		this.context = context;
+		if(isObject(type)){
 			this._type = type.type || 'linear';
-			this._colors = isArray(type.colors) ? this._parseColors(type.colors) : type.colors;
-
-			this._from = type.from || [];
-			this._to = type.to || [];
-
-			// radial
-			if(type.center){
-				this._to[0] = type.center[0]; // TODO: distance
-				this._to[1] = type.center[1];
-			}
-
-			if(type.hilite){
-				this._from[0] = this._to[0] + type.hilite[0];
-				this._from[1] = this._to[1] + type.hilite[1];
-			}
-			else if(!type.from){
-				this._from[0] = this._to[0];
-				this._from[1] = this._to[1];
-			}
-
-			if(isNumber(type.radius))
-				this._to[2] = _.distance(type.radius);
-			else if(isArray(type.radius))
-				this._to[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.radius[0], 2) + Math.pow(this._to[1] - type.radius[1], 2) ));
-			
-			if(isNumber(type.startRadius))
-				this._from[2] = _.distance(type.startRadius);
-			else if(isArray(type.startRadius))
-				this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - type.startRadius[0], 2) + Math.pow(this._to[1] - type.startRadius[1], 2) ));
+			this._from = type.from;
+			this._to = type.to;
+			if( type.cache !== undefined )
+				this._cache = type.cache;
+			colors = type.colors;
 		}
 		else {
-			if(to === undefined){
-				to = from;
-				from = colors;
-				colors = type;
-				type = 'linear';
+			if( from === undefined || (to === undefined && ( isArray(type) || isObject(type) )) ){ // (type & to undefined) or (type or to undefined)
+				if(type === 'radial'){
+					this._from = 'center';
+					this._to = 'center';
+				} else {
+					to = from;
+					from = colors;
+					colors = type;
+					type = 'linear';
+				}
 			}
-			this._type = type || 'linear';
-			this._colors = isArray(colors) ? this._parseColors(colors) : colors;
+			this._type = type;
 			this._from = from;
 			this._to = to;
 		}
-		this.context = context;
+		this._colors = isArray(colors) ? this._parseColors(colors) : colors;
+
+		if(Gradient.gradients[ this._type ]){
+			var grad = Gradient.gradients[ this._type ];
+			extend(this, grad);
+			if( grad.init )
+				grad.init.call(this, type);
+		}
 	},
 
 	_parseColors : function(colors){
@@ -66,7 +55,15 @@ $.Gradient = Gradient = new Class({
 			if(keys[i] == t)
 				return _.color(stops[keys[i]]);
 			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
-				return _.interpolate( _.color(stops[last]), _.color(stops[keys[i]]), (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last)) );
+				var c1 = _.color(stops[last]),
+					c2 = _.color(stops[keys[i]]);
+				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
+				return [
+					c1[0] + (c2[0] - c1[0]) * t | 0,
+					c1[1] + (c2[1] - c1[1]) * t | 0,
+					c1[2] + (c2[2] - c1[2]) * t | 0,
+					c1[3] + (c2[3] - c1[3]) * t
+				];
 			}
 			last = keys[i];
 		}
@@ -78,6 +75,7 @@ $.Gradient = Gradient = new Class({
 		this._colors[i] = color;
 		return this.update();
 	},
+
 	colors : function(colors){
 		if(colors === undefined)
 			return this._colors;
@@ -85,9 +83,21 @@ $.Gradient = Gradient = new Class({
 		return this.update();
 	},
 
+	reverse : function(){
+		var colors = this._colors,
+			new_colors = {},
+			i;
+		for(i in colors){
+			if($.has(colors, i))
+				new_colors[1-i] = colors[i];
+		}
+		this._colors = new_colors;
+		return this.update();
+	},
+
 	// general
 	from : function(x,y,r){
-		if(isString(x) && x in _.corners){
+		if(isString(x) && x in $.corners){
 			this._from = x;
 			return this.update();
 		}
@@ -105,8 +115,9 @@ $.Gradient = Gradient = new Class({
 		if(r !== undefined) this._from[2] = r;
 		return this.update();
 	},
+
 	to : function(x,y,r){
-		if(isString(x) && x in _.corners){
+		if(isString(x) && x in $.corners){
 			this._from = x;
 			return this.update();
 		}
@@ -125,64 +136,8 @@ $.Gradient = Gradient = new Class({
 		return this.update();
 	},
 
-	// radial
-	radius : function(radius, y){
-		if(radius === undefined)
-			return this._to[2];
-
-		if(y !== undefined)
-			radius = [radius, y];
-
-		if(!isNumber(radius)){
-			var vx = this._to[0] - radius[0];
-			var vy = this._to[1] - radius[1];
-
-			this._to[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-		}
-		else {
-			this._to[2] = _.distance(radius);
-		}
-		return this.update();
-	},
-	startRadius : function(radius, y){
-		if(radius === undefined)
-			return this._from[2];
-
-		if(y !== undefined)
-			radius = [radius, y];
-
-		if(!isNumber(radius)){
-			var vx = this._to[0] - radius[0];
-			var vy = this._to[1] - radius[1];
-
-			this._from[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-		}
-		else {
-			this._from[2] = _.distance(radius);
-		}
-		return this.update();
-	},
-	center : function(x, y){
-		if(x === undefined)
-			return this._to.slice(0, 2);
-		if(y === undefined){
-			y = x[1];
-			x = x[0];
-		}
-		this._to[0] = x;
-		this._to[1] = y;
-		return this.update();
-	},
-	hilite : function(x, y){
-		if(x === undefined)
-			return [this._from[0] - this._to[0], this._from[1] - this._to[1]];
-		if(y === undefined){
-			y = x[1];
-			x = x[0];
-		}
-		this._from[0] = this._to[0] + x;
-		this._from[1] = this._to[1] + y;
-		return this.update();
+	clone : function(){
+		return $.clone(this);
 	},
 
 	// drawing and _set
@@ -190,28 +145,27 @@ $.Gradient = Gradient = new Class({
 		this.context.update();
 		return this;
 	},
+
 	_cache : true,
+
 	toCanvasStyle : function(ctx, element){
 		var grad,
 			from = this._from,
 			to = this._to;
 
 		// for corners like 'top left'
-		if(isString(from)){
-			if(/^\d+(px|pt)?/.test(from))
+		if(!isArray(from)){
+			if(isString(from) && /^\d+(px|pt)?/.test(from))
 				this._from = from = _.distance(from);
 			else
 				from = element.corner(from);
 		}
-		if(isString(to)){
-			if(/^\d+(px|pt)?/.test(to))
+		if(!isArray(to)){
+			if(isString(from) && /^\d+(px|pt)?/.test(to))
 				this._to = to = _.distance(to);
 			else
 				to = element.corner(to);
 		}
-
-		// TODO: add {x:10, y:10, from:'left'}
-		// it's not a string :)
 
 		// Cache
 		var key = this.key(from, to);
@@ -232,8 +186,135 @@ $.Gradient = Gradient = new Class({
 		this.context._cache[key] = grad;
 		return grad;
 	},
+
 	key : function(from, to){
 		return [this._type, from, to, JSON.stringify(this._colors)].join(',');
 	}
 
 });
+
+Gradient.gradients = {
+	linear: {
+		init: function(){
+			var from = this._from;
+			switch(from){
+				case 'vertical':
+					this._from = 'top';
+					this._to = 'bottom';
+					break;
+				case 'horizontal':
+					this._from = 'left';
+					this._to = 'right';
+					break;
+				case 'diag1':
+					this._from = 'top left';
+					this._to = 'bottom right';
+					break;
+				case 'diag2':
+					this._from = 'top right';
+					this._to = 'bottom left';
+					break;
+				default: break;
+			}
+		}
+	},
+	radial: {
+		init: function(options){
+			if( !isObject(options) )
+				return;
+
+			if( !this._to ) this._to = [0,0];
+			if( !this._from ) this._from = [0,0];
+
+			// to: center & ( radius | dest )
+			// from: startRadius & hilite
+			if( options.center ){
+				// 'center' or other corner?
+				this._to = slice.call(options.center, 0, 2);
+			}
+			if( options.hilite ){
+				this._from = [
+					this._to[0] + options.hilite[0],
+					this._to[1] + options.hilite[1],
+					this._from[2]
+				];
+			} else if( !options.from ){
+				this._from = slice.call(this._to);
+			}
+			if( options.radius ){
+				if(isNumberLike( options.radius ))
+					this._to[2] = options.radius;
+				else
+					this._to[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.radius[0], 2) + Math.pow(this._to[1] - options.radius[1], 2) ));
+			}
+			if( options.startRadius ){
+				if(isNumberLike( options.startRadius ))
+					this._from[2] = options.startRadius;
+				else
+					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.startRadius[0], 2) + Math.pow(this._to[1] - options.startRadius[1], 2) ));
+			}
+		},
+
+		radius : function(radius, y){
+			if(radius === undefined)
+				return this._to[2];
+
+			if(y !== undefined)
+				radius = [radius, y];
+
+			if(!isNumberLike(radius)){
+				var vx = this._to[0] - radius[0];
+				var vy = this._to[1] - radius[1];
+
+				this._to[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
+			}
+			else {
+				this._to[2] = _.distance(radius);
+			}
+			return this.update();
+		},
+
+		startRadius : function(radius, y){
+			if(radius === undefined)
+				return this._from[2];
+
+			if(y !== undefined)
+				radius = [radius, y];
+
+			if(!isNumberLike(radius)){
+				var vx = this._to[0] - radius[0];
+				var vy = this._to[1] - radius[1];
+
+				this._from[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
+			}
+			else {
+				this._from[2] = _.distance(radius);
+			}
+			return this.update();
+		},
+
+		center : function(x, y){
+			if(x === undefined)
+				return this._to.slice(0, 2);
+			if(y === undefined){
+				y = x[1];
+				x = x[0];
+			}
+			this._to[0] = x;
+			this._to[1] = y;
+			return this.update();
+		},
+
+		hilite : function(x, y){
+			if(x === undefined)
+				return [this._from[0] - this._to[0], this._from[1] - this._to[1]];
+			if(y === undefined){
+				y = x[1];
+				x = x[0];
+			}
+			this._from[0] = this._to[0] + x;
+			this._from[1] = this._to[1] + y;
+			return this.update();
+		}
+	}
+};

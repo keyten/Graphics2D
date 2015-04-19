@@ -1,22 +1,26 @@
+// Easing functions
 // Mootools :) partially
 $.easing = {
-	linear : function(x){ return x; },
-	half : function(x){ return Math.sqrt(x); },
+	linear : function(x){
+		return x;
+	},
+	root : function(x){
+		return Math.sqrt(x);
+	},
 	pow : function(t, v){
 		return Math.pow(t, v || 6);
 	},
 	expo : function(t, v){
-		return Math.pow(v || 2, 8 * (t-1));
+		return Math.pow( v || 2, 8 * (t-1) );
 	},
 	circ : function(t){
-		return 1 - Math.sin(Math.acos(t));
+		return 1 - Math.sin( Math.acos(t) );
 	},
 	sine : function(t){
 		return 1 - Math.cos(t * Math.PI / 2);
 	},
 	back : function(t, v){
-		v = v || 1.618;
-		return Math.pow(t, 2) * ((v + 1) * t - v);
+		return Math.pow(t, 2) * ( (v || 1.618) * (t - 1) + t);
 	},
 	bounce : function(t){
 		for(var a = 0, b = 1; 1; a += b, b /= 2){
@@ -35,23 +39,23 @@ $.easing = {
 
 function processEasing(func){
 	$.easing[i + 'In'] = func;
-	$.easing[i + 'Out'] = function(t){
-		return 1 - func(1 - t);
+	$.easing[i + 'Out'] = function(t, v){
+		return 1 - func(1 - t, v);
 	};
-	$.easing[i + 'InOut'] = function(t){
-		return t <= 0.5 ? func(2 * t) / 2 : (2 - func(2 * (1 - t))) / 2;
+	$.easing[i + 'InOut'] = function(t, v){
+		return t <= 0.5 ? func(2 * t, v) / 2 : (2 - func(2 * (1 - t), v)) / 2;
 	};
 }
 
 for(var i in $.easing){
-	// don't make functions within a loop
+	// don't make functions within a loop -- jshint
 	if(Object.prototype.hasOwnProperty.call($.easing, i))
 		processEasing($.easing[i]);
 }
 
 
-
-function Bounds(x,y,w,h){
+// Bounds class
+function Bounds(x, y, w, h){
 	this.x = this.x1 = x;
 	this.y = this.y1 = y;
 	this.w = this.width  = w;
@@ -62,8 +66,7 @@ function Bounds(x,y,w,h){
 	this.cy = y + h / 2;
 }
 
-
-
+// Class
 function Class(parent, properties, base){
 
 	if(!properties) properties = parent, parent = null;
@@ -109,9 +112,7 @@ function Class(parent, properties, base){
 
 }
 
-$.Class = Class;
-
-
+// utils
 function extend(a,b){
 	for(var i in b){
 		if(Object.prototype.hasOwnProperty.call(b,i))
@@ -126,44 +127,73 @@ function argument( index ){
 	};
 }
 
+// wrapper for quick calls
+function wrap(args){
+	var fn = args[1];
+	args = slice.call(args, 2);
+	return function(){
+		this[fn].apply(this, args);
+	};
+}
+
+function trim(str){
+	return str.replace(/^\s+/, '').replace(/\s+$/, '');
+}
+
 // typeofs
 function isString(a){
-	return toString.call(a) == '[object String]';
+	return toString.call(a) === '[object String]';
+}
+function isBoolean(a){
+	return toString.call(a) === '[object Boolean]';
 }
 function isArray(a) {
-	return toString.call(a) == '[object Array]';
+	return toString.call(a) === '[object Array]';
 }
-function isHash(a){
-//		try {
-//			JSON.stringify(a); // only hashes
-		return toString.call(a) == '[object Object]';
-//		}
-//		catch(e){
-//			return false;
-//		}
+function isObject(a){
+	return toString.call(a) === '[object Object]';
 }
-function isNumber(value){
-	if(toString.call(value) == '[object Number]')
+function isNumber(a){
+	return toString.call(a) === '[object Number]';
+}
+function isNumberLike(value){
+	if( isNumber(value) )
 		return true;
 	if( isString(value) && /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/.test(value) )
 		return true;
 	return false;
 }
-//	function isPoint(a){
-//		return isNumber(a) || typeof a == 'object';
-//	}
+function isPatternLike(value){
+	return value instanceof Image ||
+			(isObject(value) && $.has(value, 'image')) ||
+			(isString(value) && !(
+				value.indexOf('http://') &&
+				value.indexOf('https://') &&
+				value.indexOf('./') &&
+				value.indexOf('../') &&
+				value.indexOf('data:image/') &&
+				value.indexOf('<svg')
+			) );
+}
 
-_.has = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
-_.Bounds = Bounds;
-_.extend = extend;
-_.isString = isString;
-_.isArray = isArray;
-_.isHash = isHash;
-_.isNumber = isNumber;
+$.has = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
+$.Class = Class;
+$.Bounds = Bounds;
+$.extend = extend;
+$.argument = argument;
+$.wrap = wrap;
+$.trim = trim;
+$.isString = isString;
+$.isBoolean = isBoolean;
+$.isArray = isArray;
+$.isObject = isObject;
+$.isNumberLike = isNumberLike;
+$.isNumber = isNumber;
+$.isPatternLike = isPatternLike;
+
 
 // constants
-
-_.dashes = {
+$.dashes = {
 	shortdash:			[4, 1],
 	shortdot:			[1, 1],
 	shortdashdot:		[4, 1, 1, 1],
@@ -176,14 +206,7 @@ _.dashes = {
 	longdashdotdot:		[8, 3, 1, 3, 1, 3]
 };
 
-_.reg = {
-//		decimal : /^\d*\.\d+$/,
-//		distance : /^\d*(\.\d*)?(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
-//		number : /^\d*$/,
-//		distanceValue : /[^\d]*/
-};
-
-_.corners = {
+$.corners = {
 	'left'  : [0, 0.5],
 	'right' : [1, 0.5],
 	'top'   : [0.5, 0],
@@ -208,16 +231,7 @@ _.corners = {
 	'br'	: [1, 1]
 };
 
-_.pathStrFunctions = {
-	'M' : 'moveTo',
-	'L' : 'lineTo',
-	'B' : 'bezierCurveTo',
-	'Q' : 'quadraticCurveTo',
-	'R' : 'rect',
-	'A' : 'arc'
-};
-
-_.colors = { // http://www.w3.org/TR/css3-color/#svg-color
+$.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 	'aliceblue': 'f0f8ff',
 	'antiquewhite': 'faebd7',
 	'aqua': '0ff',
@@ -370,19 +384,22 @@ _.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 
 
 // Clear functions
-_.move = function(from, to){ // moves an element of array
-	// TODO: use splice?
-	if(from < to) to++;
-	var first = this.slice(0,to),
-		last  = this.slice(to),
-		res = first.concat([this[from]]).concat(last);
-	if(from > to) from++;
-	first = res.slice(0,from);
-	last  = res.slice(from+1);
-	return first.concat(last);
+_.clone = $.clone = function(object){
+	var result = new object.constructor();
+	for(var i in object){
+		if(Object.prototype.hasOwnProperty.call(object, i)){
+			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
+				result[i] = _.clone(object[i]);
+			} else {
+				result[i] = object[i];
+			}
+		}
+	}
+	return result;
 };
 
-_.multiply = function(m1, m2){ // multiplies two matrices
+
+_.multiply = $.multiply = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
 		m1[1] * m2[0] + m1[3] * m2[1],
@@ -393,16 +410,8 @@ _.multiply = function(m1, m2){ // multiplies two matrices
 	];
 };
 
-_.interpolate = function(from, to, t){ // for example: interpolate(0, 5, 0.5) => 2.5
-	return from + (to - from) * t;
-};
-
-_.transformPoint = function(x,y, m){
-	return [x * m[0] + y * m[2] + m[4], x * m[1] + y * m[3] + m[5]];
-};
-
 // DOM
-_.coordsOfElement = function(element){ // returns coords of a DOM element
+_.coordsOfElement = $.coordsOfElement = function(element){ // returns coords of a DOM element
 
 	var box = element.getBoundingClientRect(),
 		style = window.getComputedStyle(element);
@@ -414,12 +423,12 @@ _.coordsOfElement = function(element){ // returns coords of a DOM element
 
 };
 
-_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+_.color = $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined) return;
 
 	var test;
-	if(value in _.colors)
-		return _.color('#' + _.colors[value]);
+	if(value in $.colors)
+		return _.color('#' + $.colors[value]);
 
 	// rgba(255, 100, 20, 0.5)
 	if(test = value.match(/^rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\)/))
@@ -443,134 +452,48 @@ _.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, 
 	return [0, 0, 0, 0];
 };
 
-_.distanceUnits = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
+$.angleUnit = 'grad';
+$.unit = 'px';
 
-_.distance = function(value){
+var units = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
+var defaultUnits = {
+	// my values; may be different on different screens / browsers / devices / etc
+	px: 1, ch: 8, cm: 37.78125, em: 16,
+	ex: 7.15625, 'in': 96, mm: 3.765625,
+	pc: 16, pt: 1.328125, rem: 16, v: 16,
+	vmax: 13.65625, vmin: 4.78125, wvh: 16
+};
+
+_.distance = $.distance = function(value){
 	if(value === undefined) return;
 	if(!value) return 0;
-	if(toString.call(value) == '[object Number]') // not isNumber :(
+	if( isNumber(value) ){
+		if( $.unit !== 'px')
+			return _.distance( value + '' + $.unit );
+
 		return value;
+	}
 
-	if((value + '').indexOf('px') == (value + '').length-2)
-		return parseInt((value + '').replace(/[^\d]*/, ''));
+	value += '';
+	if(value.indexOf('px') === value.length-2)
+		return parseInt(value.replace(/[^\d]*/, ''));
 
-	if(!_.units){
+	if(!$.units){
+
+		if( !document )
+			$.units = defaultUnits;
+
 		var div = document.createElement('div');
 		document.body.appendChild(div); // FF don't need this :)
-		_.units = {};
-		_.distanceUnits.forEach(function(unit){
+		$.units = {};
+		units.forEach(function(unit){
 			div.style.width = '1' + unit;
-			_.units[unit] = parseFloat(getComputedStyle(div).width);
+			$.units[unit] = parseFloat(getComputedStyle(div).width);
 		});
 		document.body.removeChild(div);
 	}
 
 	var unit = value.replace(/[\d\.]+?/gi, '');
 	value = value.replace(/[^\d\.]+?/gi, '');
-	return (_.units[unit] * value)|0;
-};
-
-// Animation
-_.animTransformConstants = {
-	rotate : 0,
-	scale : 1,
-	scaleX : 1,
-	scaleY : 1,
-	skew : 0,
-	skewX : 0,
-	skewY : 0,
-	translate : 0,
-	translateX : 0,
-	translateY : 0
-};
-
-// TODO: move animation to a new file;
-// TODO: move the path utils to the path file
-
-// Path
-_.pathFunctions = {
-	moveTo: { name:'moveTo', params:['x','y'] },
-	lineTo: { name:'lineTo', params:['x','y'] },
-	quadraticCurveTo: { name:'quadraticCurveTo', params:['hx','hy', 'x','y'] },
-	bezierCurveTo: { name:'bezierCurveTo', params:['h1x','h1y', 'h2x','h2y', 'x','y'] },
-	closePath: { name:'closePath', params:[] }
-};
-var proto = {
-	arguments : function(value){
-		if(value === undefined)
-			return this._arguments;
-		if(arguments.length > 1)
-			value = Array.prototype.slice.call(arguments);
-
-		this._arguments = value;
-		for(var i = 0; i < this.base.params.length;i++)
-			this[this.base.params[i]] = value[i];
-		this.update();
-		return this;
-	},
-	set : function(name, value){
-		var index = this.base.params.indexOf(name);
-		this._arguments[index] = value;
-		this[name] = value;
-		this.update();
-		return this;
-	},
-	process : function(ctx){
-		ctx[this.name].apply(ctx, this._arguments);
-	}
-};
-
-for(var cm in _.pathFunctions){
-	if(Object.prototype.hasOwnProperty.call(_.pathFunctions, cm)){
-		var cur = _.pathFunctions[cm];
-		_.pathFunctions[cm] = function(numbers, curves, path){
-			this.name = this.base.name;
-			this._arguments = numbers;
-			this.update = path.update.bind(path);
-			for(var i = 0; i < this.base.params.length;i++)
-				this[this.base.params[i]] = numbers[i];
-		};
-		_.pathFunctions[cm].prototype = extend({
-			base: cur
-		}, proto);
-	}
-}
-// It's not real SVG!
-_.svgFunctions = { M:'moveTo', L:'lineTo', C:'bezierCurveTo', Q:'quadraticCurveTo', Z:'closePath',
-	m:'moveTo', l:'lineTo', c:'bezierCurveTo', q:'quadraticCurveTo', z:'closePath' };
-_.svgPathLengths = { M:2, L:2, C:6, Q:4, Z:0, m:2, l:2, c:6, q:4, z:0 };
-
-_.transformFunctions = {
-	scale : function(x, y){
-		if(isArray(x)){
-			y = x[1];
-			x = x[0];
-		}
-		if(y === undefined)
-			y = x;
-		return [x, 0, 0, y, 0, 0];
-	},
-	rotate : function(angle, unit){
-		if(unit !== 'rad')
-			angle = angle * Math.PI / 180;
-		return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0];
-	},
-	skew : function(x, y){
-		if(isArray(x)){
-			y = x[1];
-			x = x[0];
-		}
-		if(y === undefined)
-			y = x;
-		return [1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0];
-	},
-	translate : function(x, y){
-		if(isArray(x)){
-			y = x[1];
-			x = x[0];
-		}
-		if(y === undefined)
-			y = x;
-		return [1, 0, 0, 1, x, y];
-	}
+	return Math.round($.units[unit] * value);
 };

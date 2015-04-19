@@ -8,16 +8,13 @@ function smoothPrefix(ctx){
 	return smoothWithPrefix;
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
-var domurl = window.URL || window.webkitURL || window;
-
 Img = new Class(Shape, {
 
 	init : function(){
 		// Note: the 5th argument is crop
 
 		var props = this._image;
-		if(isHash(props)){
+		if(isObject(props)){
 			this._image = props.image;
 			this._x = props.x;
 			this._y = props.y;
@@ -32,6 +29,8 @@ Img = new Class(Shape, {
 		if(isString(this._image)){
 			if(this._image[0] === '#')
 				this._image = document.getElementById( this._image.substr(1) );
+
+// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 			else if(this._image.indexOf('<svg') === 0){
 				blob = new Blob([this._image], {type: 'image/svg+xml;charset=utf-8'});
 				this._image = new Image();
@@ -51,8 +50,7 @@ Img = new Class(Shape, {
 			this._height = s[1];
 		}
 		
-		this._image.addEventListener('load', function(){
-			this.fire('load');
+		this._image.addEventListener('load', function(e){
 			s = this._computeSize(this._width, this._height, this._image);
 			this._width = s[0];
 			this._height = s[1];
@@ -60,13 +58,20 @@ Img = new Class(Shape, {
 
 			if(blob)
 				domurl.revokeObjectURL(blob);
+
+			this.fire('load', e);
 		}.bind(this));
+
+		this._image.addEventListener('error', function(e){
+			this.fire('error', e);
+		}.bind(this));
+
 		// Video tag support
 	},
 	
 	_computeSize : function(w, h, image){
 		// num, num
-		if(isNumber(w) && isNumber(h))
+		if(isNumberLike(w) && isNumberLike(h))
 			return [w, h];
 
 		// 'native', 'native' or 'auto', 'auto'
@@ -99,7 +104,7 @@ Img = new Class(Shape, {
 		if(h === undefined) return this._height;
 		return this._property('height', this._computeSize(this._width, h, this._image)[1]);
 	},
-	bounds : Rect.prototype.bounds,
+	_bounds : Rect.prototype._bounds,
 	processPath : Rect.prototype.processPath, // for event listeners
 
 	crop : function(arr){
@@ -144,6 +149,7 @@ Img = new Class(Shape, {
 });
 
 Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
+Img.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
 
 $.fx.step.crop = function( fx ){
 	if( fx.state === 0 ){
@@ -151,7 +157,6 @@ $.fx.step.crop = function( fx ){
 		if( !fx.start ){
 			fx.start = [ 0, 0, fx.elem._image.width, fx.elem._image.height ];
 		}
-		console.log(fx.start);
 	}
 
 	fx.elem._crop = [
@@ -161,21 +166,3 @@ $.fx.step.crop = function( fx ){
 		Math.round(fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos)
 		];
 };
-
-/*	Img.prototype._anim.crop = {
-	// extends the Shape::_anim
-	start : function(end){
-		this._animData.cropStart = this._crop || [0, 0, this._width, this._height];
-	},
-	process :function(end, t, property){
-		var start = this._animData.cropStart,
-			i = 1 - t;
-		this._crop = [
-			start[0] * i + end[0] * t,
-			start[1] * i + end[1] * t,
-			start[2] * i + end[2] * t,
-			start[3] * i + end[3] * t
-		];
-	}
-},
- */

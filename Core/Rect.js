@@ -2,7 +2,7 @@ Rect = new Class(Shape, {
 
 	init : function(){
 		var props = this._x;
-		if(isHash( props )){
+		if(isObject( props )){
 			this._x = props.x;
 			this._y = props.y;
 			this._width  = props.width  || props.w || 0;
@@ -49,7 +49,7 @@ Rect = new Class(Shape, {
 			this._property('height', y - this._y);
 	},
 
-	bounds : function(){
+	_bounds : function(){
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
 	processPath : function(ctx){
@@ -59,3 +59,4 @@ Rect = new Class(Shape, {
 
 });
 Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];
+Rect.distances = [ true, true, true, true ];

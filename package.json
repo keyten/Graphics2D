@@ -2,7 +2,7 @@
 	"name": "Graphics2D",
 	"title": "JavaScript library for drawing and interaction with canvas.",
 	"homepage": "http://keyten.github.io/graphics2d",
-	"version": "0.9.1",
+	"version": "1.9.0",
 	"author": "Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>",
 	"repository": {
 		"type": "git",

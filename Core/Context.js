@@ -1,4 +1,4 @@
-$.Context = Context = function(canvas){
+Context = function(canvas){
 	this.context   = canvas.getContext('2d'); // rename to the context2d?
 	this.canvas    = canvas;
 	this.elements  = [];
@@ -13,24 +13,31 @@ Context.prototype = {
 	rect : function(){
 		return this.push( new Rect(arguments, this) );
 	},
+
 	circle : function(){
 		return this.push( new Circle(arguments, this) );
 	},
+
 	path : function(){
 		return this.push( new Path(arguments, this) );
 	},
+
 	image : function(){
 		return this.push( new Img(arguments, this) );
 	},
+
 	text : function(){
 		return this.push( new Text(arguments, this) );
 	},
+
 	textblock : function(){
 		return this.push( new TextBlock(arguments, this) );
 	},
+
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
 	},
+
 	pattern : function(image, repeat){
 		return new Pattern(image, repeat, this);
 	},
@@ -38,24 +45,27 @@ Context.prototype = {
 
 	// Path slices
 
-	line : function(fx, fy, tx, ty, stroke){ // todo: curves instead of paths
-		return this.push(new Path([[fx, fy], [tx, ty]], null, stroke, this));
+	line : function(fx, fy, tx, ty, stroke){
+		return this.path([ [fx, fy], [tx, ty] ], null, stroke);
 	},
+
 	quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
-		return this.push(new Path([[fx, fy], [tx, ty, hx, hy]], null, stroke, this));
+		return this.path([ [fx, fy], [tx, ty, hx, hy] ], null, stroke);
 	},
+
 	bezier : function(fx, fy, tx, ty, h1x, h1y, h2x, h2y, stroke){
-		return this.push(new Path([[fx, fy], [tx, ty, h1x, h1y, h2x, h2y]], null, stroke, this));
+		return this.path([ [fx, fy], [tx, ty, h1x, h1y, h2x, h2y] ], null, stroke);
 	},
+
 	arcTo : function(fx, fy, tx, ty, radius, clockwise, stroke){
-		return this.push(new Path([{ f:'moveTo', arg:[fx, fy] }, { f:'arcTo', arg:[fx, fy, tx, ty, radius, clockwise] }], null, stroke, this));
+		return this.path([ [fx, fy], ['arcTo', fx, fy, tx, ty, radius, clockwise] ], null, stroke);
 	},
 
 
 	// Methods
 
 	push : function(element){
-		element.z = this.elements.length;
+		element._z = this.elements.length;
 		element.context = this;
 		this.elements.push(element);
 
@@ -64,6 +74,7 @@ Context.prototype = {
 			element.draw(this.context);
 		return element;
 	},
+
 	update : function(){
 		if(this._timer)
 			return;
@@ -73,6 +84,7 @@ Context.prototype = {
 			this._timer = null;
 		}.bind(this), 1);
 	},
+
 	_update : function(){
 		var ctx = this.context;
 		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -81,12 +93,13 @@ Context.prototype = {
 		});
 		this.fire('update');
 	},
+
 	getObjectInPoint : function(x, y, mouse){
 		var elements = this.elements,
 			i = elements.length;
 
 		while(i--){
-		// mouse=true : don't return element with _events=false
+		// mouse=true : pass elements with _events=false
 			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
 				(elements[i]._events || !mouse) )
 				return elements[i];
@@ -98,7 +111,9 @@ Context.prototype = {
 	// Events
 
 	hoverElement : null,
+
 	focusElement : null,
+
 	listener : function(event){
 		if(this.listeners[event])
 			return;
@@ -107,10 +122,15 @@ Context.prototype = {
 
 		this.canvas.addEventListener(event, function(e){
 			var element,
+				propagation = true,
 				coords = _.coordsOfElement(this.canvas);
 
 			e.contextX = e.clientX - coords.x;
 			e.contextY = e.clientY - coords.y;
+			// use e.stop to prevent event firing on context
+			e.stop = function(){
+				propagation = false;
+			};
 
 			if(event === 'mouseout'){
 				element = this.hoverElement;
@@ -125,7 +145,8 @@ Context.prototype = {
 			if(element && element.fire)
 				element.fire(event, e);
 
-			this.fire(event, e);
+			if(propagation)
+				this.fire(event, e);
 		}.bind(this));
 
 		switch(event){
@@ -144,6 +165,7 @@ Context.prototype = {
 
 		return this.listeners[event];
 	},
+
 	listenerSpecial : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
 		// mouseover, mouseout, hover, mousemove
 		// focus, blur, focus, mousedown
@@ -163,13 +185,15 @@ Context.prototype = {
 		}.bind(this));
 		return this;
 	},
+
 	on : function(event, fn){
-		if(toString.call(event) === '[object Number]')
+		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
 
 		(this.listeners[ event ] || this.listener(event)).push(fn);
 		return this;
 	},
+
 	once : function(event, fn){ // doesn't works with .off
 		var proxy;
 		this.on(event, proxy = function(e){
@@ -177,6 +201,7 @@ Context.prototype = {
 			this.off(event, proxy);
 		}.bind(this));
 	},
+
 	off : function(event, fn){
 		if(!fn)
 			this.listeners[event] = [];
@@ -185,6 +210,7 @@ Context.prototype = {
 		this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
 		return this;
 	},
+
 	fire : function(event, data){
 		var listeners = this.listeners[ event ];
 		if(!listeners) return this;

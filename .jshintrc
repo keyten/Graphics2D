@@ -1,5 +1,5 @@
 {
-	"maxerr"		: 50, // Max errors before stopping
+	"maxerr"		: 100, // Max errors before stopping
 
 	"freeze"		: true, // prohibits overwriting prototypes of native objects
 	"forin"			: true, // for..in with {}.hasOwnProperty
