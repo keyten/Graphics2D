@@ -476,21 +476,23 @@ _.distance = $.distance = function(value){
 
 	value += '';
 	if(value.indexOf('px') === value.length-2)
-		return parseInt(value.replace(/[^\d]*/, ''));
+		return +value.replace(/[^\d]*/, '');
 
 	if(!$.units){
 
 		if( !document )
 			$.units = defaultUnits;
 
-		var div = document.createElement('div');
-		document.body.appendChild(div); // FF don't need this :)
-		$.units = {};
-		units.forEach(function(unit){
-			div.style.width = '1' + unit;
-			$.units[unit] = parseFloat(getComputedStyle(div).width);
-		});
-		document.body.removeChild(div);
+		else {
+			var div = document.createElement('div');
+			document.body.appendChild(div); // FF don't need this :)
+			$.units = {};
+			units.forEach(function(unit){
+				div.style.width = '1' + unit;
+				$.units[unit] = parseFloat(getComputedStyle(div).width);
+			});
+			document.body.removeChild(div);
+		}
 	}
 
 	var unit = value.replace(/[\d\.]+?/gi, '');

@@ -9,7 +9,7 @@ $.fx.step.curve = function( fx ){
 		if( !fx.elem._matrix )
 			fx.elem._matrix = [1, 0, 0, 1, 0, 0];
 
-		if( fx.elem._bounds ){
+		if( fx.elem._bounds || (fx.elem.bounds && fx.elem.bounds !== Shape.prototype.bounds) ){
 			var b = fx.elem.bounds();
 			fx.elem._matrix[4] -= b.cx;
 			fx.elem._matrix[5] -= b.cy;
