@@ -1,43 +1,36 @@
 <!DOCTYPE html>
 <html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="css/stylesheet.css" />
+</head>
+<body>
 
-	<head>
-		<meta charset='utf-8'>
-		<meta http-equiv="X-UA-Compatible" content="chrome=1">
-		<meta name="description" content="Graphics2D : JavaScript canvas library">
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="">Home</a>
+				<a href="sandbox/">Sandbox</a>
+				<a href="examples/">Examples</a>
+				<a href="docs/">Docs</a>
+				<a href="download/">Download</a>
+				<a href="plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
 
-		<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet.css">
-		<link rel="stylesheet" type="text/css" media="screen" href="../css/codemirror.css">
-		<script src="../js/Graphics2D.js"></script>
-		<script src="../js/codemirror.js"></script>
-		<script src="../js/codemirror-js.js"></script>
-		<script src="../js/script.js"></script>
-		<title>Graphics2D - sandbox</title>
-	</head>
-
-	<body>
-		<!-- HEADER -->
-		<div id="header_wrap" class="outer">
-				<header class="inner">
-					<div id="header_menu">
-						<a href="../">Home</a>
-						<a href="../sandbox/">Sandbox</a>
-						<a href="../examples/">Examples</a>
-						<a href="../docs/">Docs</a>
-						<a href="../download/">Download</a>
-						<a href="../plugins/">Plugins</a>
-					</div>
-					<h1 id="project_title">graphics2d</h1>
-					<span id="project_tagline">simple canvas library</span>
-				</header>
-		</div>
-
-		<!-- MAIN CONTENT -->
-		<div id="main_content_wrap" class="outer">
-			<section id="main_content" class="inner" style="max-width:900px;">
-				<div style="display:inline-block;width:100%;">
-					<div style="width:50%;float:left;padding:5px;">
-						<textarea id="code">ctx.circle(100, 100, 30, 'red');
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<div style="display:inline-block;width:100%;">
+	<div style="width:50%;float:left;padding:5px;">
+		<textarea id="code">ctx.circle(100, 100, 30, 'red');
 
 
 
@@ -58,48 +51,32 @@
 
 
 </textarea>
-					</div>
-					<div style="padding:5px">
-						<canvas style="background:white;border:solid 1px #eee; box-shadow:0 0 5px #eee" width="400" height="299" id="canvas"></canvas>
-					</div>
-				</div>
-				<div id="block-2">
-					<span style="font-size:11pt;margin-right:25px">Plugins:</span>
-					<a href="#">Sprite</a>
-					<a href="#">ImageAnim</a>
-					<a href="#">CatmullRom</a>
-				</div>
-			</section>
-		</div>
+	</div>
+	<div style="padding:5px">
+		<canvas style="background:white;border:solid 1px #eee; box-shadow:0 0 5px #eee" width="400" height="299" id="canvas"></canvas>
+	</div>
+</div><!--
+<div id="block-2">
+	<span style="font-size:11pt;margin-right:25px">Plugins:</span>
+	<a href="#">Sprite</a>
+	<a href="#">ImageAnim</a>
+	<a href="#">CatmullRom</a>
+</div> -->
+		</section>
+	</div>
 
-		<!-- FOOTER	-->
-		<div id="footer_wrap" class="outer">
-			<footer class="inner">
-				<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a></p>
-			</footer>
-		</div>
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://keyten.github.io/Graphics2D/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://keyten.github.io/Graphics2D/ru/'">Russian</option>
+			</select>
 
-		<script>
-			var delay,
-				editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-					lineNumbers: true,
-					matchBrackets: true,
-					autofocus: true,
-					indentUnit: 4,
-				}),
-				ctx = Graphics2D.id('canvas');
-			ctx.circle(100, 100, 30, 'red');
-			CodeMirror.on(editor, 'change', function(){
-				clearTimeout(delay);
-				delay = setTimeout(function(){
-					ctx._elements = [];
-					var cnv = document.getElementById('canvas'),
-						ct = cnv.getContext('2d');
-					ct.clearRect(0,0,1000,1000);
-					eval(editor.getValue());
-				}, 300);
-			});
-		</script>
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
 
-	</body>
+</body>
+</head>
 </html>
