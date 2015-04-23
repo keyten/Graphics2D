@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Context</h1>
+
+<p>Basic Graphics2D context. You can use on of this functions:
+	var ctx = Graphics2D.id(&#39;mycanvas&#39;);
+	var ctx = Graphics2D.query(&#39;canvas&#39;); // the first canvas
+	var ctx = Graphics2D.query(&#39;canvas&#39;, 1); // the second canvas
+	var ctx = Graphics2D.query( document.getElementById(&#39;mycanvas&#39;) );</p>
+
+<p>Or
+	var cnv = document.createElement(&#39;canvas&#39;);
+	var ctx = new Graphics2D.Context(cnv);</p>
+
+<h2>Methods</h2>
+
+<p>All methods returns their context instead of undefined.</p>
+
+<h3>getObjectInPoint( x, y, [mouse] )</h3>
+
+<p>Returns an object in <strong>(x, y)</strong> or null. Mouse - pass hidden (using <code>hide</code> method) objects.
+	var first = ctx.rect(0, 0, 10, 10, &#39;red&#39;),
+		second = ctx.rect(5, 5, 10, 10, &#39;blue&#39;);
+	second.mouse(false);
+	ctx.getObjectInPoint(7, 7); // == second
+	ctx.getObjectInPoint(7, 7, true); // == first</p>
+
+<h3>push( object )</h3>
+
+<p>Adds <em>object</em> to redraw and event processing. More is (/tutorials/native/)[here].
+	ctx.push({
+		draw : function(ctx){
+			ctx.fillRect(0, 0, 1, 1);
+		}
+	});</p>
+
+<h3>update</h3>
+
+<p>Redraws canvas in 1 ms (without repeating):
+	ctx.update();
+	ctx.update();
+	ctx.update(); // 3 calls, 1 update
+<em>Note: use ctx.__update() for instant update.</em>
+<em>Note2: you don&#39;t need this function, all objects update canvas themselves.</em></p>
+
+<h3>on( event, function )</h3>
+
+<p>Adds listener to canvas. Event object have 3 special properties.
+	ctx.on(&#39;click&#39;, function(e){
+		// this == ctx
+		e.targetObject; // object or null
+		e.contextX; // coordinates of mouse on context
+		e.contextY;
+	});</p>
+
+<p><em>Note: you can use timers:</em>
+	ctx.on(1000, function(e){
+		// this is still == ctx
+	});</p>
+
+<h3>once( event, function )</h3>
+
+<p>Listener, that will be removed after first call.</p>
+
+<h3>off( [event, [function]] )</h3>
+
+<p>Removes: 1. One listener. 2. All listeners on one event. 3. All listeners.
+	ctx.off(&#39;click&#39;, callback);
+	ctx.off(&#39;click&#39;);
+	ctx.off();</p>
+
+<h3>fire( event, [data] )</h3>
+
+<p>Calls all the listeners of event.
+	ctx.on(&#39;click&#39;, function(data){
+		console.log(data.text);
+	});
+	ctx.fire(&#39;click&#39;, { text:&#39;anytext&#39; });
+	// -> &#39;anytext&#39; to console</p>
+
+<h3>Aliases</h3>
+
+<p>With argument = <code>on</code>, without = <code>fire</code>.
+	ctx.click(function(e){
+		console.log(3);
+	});
+	ctx.click(); // = fire(&#39;click&#39;);
+<code>click</code>, <code>dblclick</code>, <code>mousedown</code>, <code>mouseup</code>, <code>mousemove</code>, <code>mouseover</code>, <code>mouseout</code>, <code>mousewheel</code>, <code>focus</code>, <code>blur</code>.
+<em>TODO: fix (add the passed aliases)</em></p>
+
+<h3>Elements</h3>
+
+<p>See other objects.
+	ctx.rect(10, 10, 200, 200, &#39;black&#39;);</p>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>

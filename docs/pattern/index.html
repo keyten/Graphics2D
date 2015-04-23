@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Graphics2D.Gradient</h1>
+
+<p><code>Graphics2D.Gradient</code> - градиент.</p>
+
+<p>Градиенты бывают линейные (<code>linear</code>) и радиальные (<code>radial</code>).</p>
+
+<p>У линейных есть 2 точки - начало и конец.</p>
+
+<p>У радиальных - эти точки ещё и имеют радиус. Кроме того, можно регулировать другими параметрами - <code>center</code> (центр), <code>hilite</code> (смещение, блик), <code>radius</code> (конечный радиус), <code>startRadius</code> (начальный радиус), <code>destination</code> (вместо радиуса - точка, до которой распространяется градиент).</p>
+
+<p><code></code>`js
+var g = ctx.gradient(&#39;linear&#39;, [&#39;green&#39;, &#39;blue&#39;], &#39;top&#39;, &#39;bottom&#39;);
+var j = ctx.gradient(&#39;radial&#39;, { &quot;0&quot;: &#39;blue&#39;, &quot;0.5&quot;: &#39;red&#39; }, [100,100,0], [100,100,100]);
+var l = ctx.gradient({
+  type: &#39;radial&#39;,
+  colors: [&#39;red&#39;, &#39;orange&#39;, &#39;yellow&#39;, &#39;green&#39;, &#39;cyan&#39;, &#39;blue&#39;, &#39;purple&#39;],
+  center: &#39;center&#39;,
+  startRadius: 10,
+  radius: 100
+});</p>
+
+<p>ctx.rect(0, 0, 10, 10, g);
+<code></code>`</p>
+
+<p>Кроме того, мы можем создать инлайновый градиент.
+<code>js
+ctx.rect(0, 0, 10, 10, {
+  colors: [&#39;red&#39;, &#39;transparent&#39;],
+  from: &#39;top&#39;,
+  to: &#39;bottom&#39;,
+  type: &#39;linear&#39;
+});
+</code></p>
+
+<h3>Методы</h3>
+
+<h4>colorMix(index)</h4>
+
+<p>Высчитывает средний цвет (возвращает массив).
+<code>js
+ctx.gradient(&#39;linear&#39;, [&#39;white&#39;, &#39;black&#39;], &#39;top&#39;, &#39;bottom&#39;)
+    .colorMix(0.5); // -> [128, 128, 128, 1]
+</code></p>
+
+<h4>color(index, [value])</h4>
+
+<p>Возвращает / устанавливает цвет.
+<code>js
+grad.color(0); // -> &quot;red&quot;
+grad.color(0, &#39;green&#39;);
+</code></p>
+
+<h4>colors([value])</h4>
+
+<p>Все цвета (возвращает в виде хэша <code>{индекс:цвет}</code>).
+<code>js
+grad.colors(); // -> {0:&#39;red&#39;, 0.5:&#39;green&#39;, 1:&#39;blue&#39;}
+grad.colors([&#39;red&#39;, &#39;blue&#39;]);
+</code></p>
+
+<h4>from / to</h4>
+
+<p>Возвращает / устанавливает. Работают все точки, как и у трансформаций (<code>left top</code>, <code>top</code>, <code>tl</code>, <code>[0,0]</code>, <code>{x:10, y:10}</code>).</p>
+
+<p>С радиальными градиентами юзать массивы из 3 значений.</p>
+
+<h4>startRadius([value]) / radius([value])</h4>
+
+<h4>center([x, y]) / hilite([x, y]) / destination([x, y])</h4>
+
+<p>Возвращают / устанавливают. Для <code>center</code> / <code>hilite</code> / <code>destination</code> можно передать 2 координаты, либо массив из 2 координат.</p>
+
+<h3>Отдельный момент</h3>
+
+<p>Изменение градиента обновляет все залитые им фигуры. Например:
+<code>js
+var grad = ctx.gradient(&#39;linear&#39;, [&#39;red&#39;, &#39;blue&#39;], &#39;top&#39;, &#39;bottom&#39;);
+var rect = ctx.rect(10, 10, 200, 200, grad);
+grad.color(0.5, &#39;yellow&#39;); // rect обновится с новым градиентом
+</code></p>
+
+<p>А также можно сделать так:
+<code>js
+rect.fill().color(0); // -> ...
+</code></p>
+
+<p>Стоит быть осторожным, если вы заливаете одним градиентом несколько объектов сразу.</p>
+
+<h1>Graphics2D.Pattern</h1>
+
+<p><code>Graphics2D.Pattern</code> - текстура (тоже самое, что и изображение, но умеет повторяться + можно ей залить фигуру).</p>
+
+<p>Тоже умеет быть инлайновой.</p>
+
+<p><code></code>`js
+// второй параметр - повторяться ли (true, false, &#39;x&#39;, &#39;y&#39;). По умолч. - true
+var pat = ctx.pattern(&#39;./img.png&#39;);
+var pt2 = ctx.pattern(&#39;#image&#39;, &#39;x&#39;);
+var i = new Image;
+i.src = &#39;../img.jpg&#39;;
+var pt3 = ctx.pattern({
+  image: i,
+  repeat: false
+});</p>
+
+<p>ctx.rect(0, 0, 1, 1, &#39;./img.jpg&#39;);
+// ссылка должна начинаться с &#39;http://&#39; или с &#39;.&#39;
+ctx.rect(1, 1, 1, 1, {
+  image: &#39;./png.jpg.gif&#39;,
+  repeat: &#39;y&#39;
+});
+<code></code>`</p>
+
+<h3>Методы</h3>
+
+<h4>repeat([value])</h4>
+
+<p>Возвращает / устанавливает. Допустимые варианты: <code>true</code>, <code>false</code>, <code>&#39;x&#39;</code>, <code>&#39;y&#39;</code>.</p>
+
+<p>Изменение параметра обновляет все залитые текстурой фигуры.</p>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>

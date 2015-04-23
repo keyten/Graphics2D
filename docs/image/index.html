@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Graphics2D.Image</h1>
+
+<p><code>Graphics2D.Image</code> - изображение.</p>
+
+<h3>Создание</h3>
+
+<p><code></code>`js
+// image, x, y, [width], [height]
+ctx.image(&#39;./image.jpg&#39;, 10, 10);</p>
+
+<p>// document.getElementById(&#39;img&#39;)
+ctx.image(&#39;#img&#39;, 10, 10, 200, 200);</p>
+
+<p>var i = new Image;
+i.src = &#39;abc&#39;;
+ctx.image({
+  image:i,
+  x:10,
+  y:10,
+  width: &#39;auto&#39;, // сохраняются пропорции
+  height:200,
+  crop: [0,0,50,50] // обрезка в координатах картинки
+});
+<code></code>`</p>
+
+<h3>Методы</h3>
+
+<h4>x / y / width / height</h4>
+
+<h4>x1 / y1 / x2 / y2</h4>
+
+<p>Работают аналогично аналогичным методам <code>Graphics2D.Rect</code>. Только <code>width</code> и <code>height</code> ещё умеют возвращать размеры самой картинки.</p>
+
+<h4>crop</h4>
+
+<p>Обрезается картинка по прямоугольнику (используются координаты самой картинки).</p>
+
+<p>Можно передать 4 аргумента; массив; или же ничего не передавать, тогда вернёт массив.
+<code>js
+image.crop(); // -> [0,0,10,10]
+image.crop(10, 10, 200, 200);
+image.crop([10, 10, 200, 200]);
+</code></p>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>{{#title}}{{title}} -- {{/title}}Graphics2D.js</title>
+	<title>Graphics2D.js</title>
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
@@ -28,28 +28,18 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			{{content}}
+			
 		</section>
 	</div>
 
 	<!-- FOOTER	-->
 	<div id="footer_wrap" class="outer">
 		<footer class="inner">
-			{{!-- english version --}}
-			{{#nequals url0 'ru'}}
 			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
 				<option>English</option>
 				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
 			</select>
-			{{/nequals}}
 
-			{{!-- russian version --}}
-			{{#equals url0 'ru'}}
-			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/'">
-				<option onclick="location.href = 'http://graphics2d.js.org/'">English</option>
-				<option selected>Русский</option>
-			</select>
-			{{/equals}}
 
 			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
 		</footer>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>{{#title}}{{title}} -- {{/title}}Graphics2D.js</title>
+	<title>Graphics2D.js</title>
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
@@ -28,28 +28,61 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			{{content}}
+			<h1>Graphics2D.Rect</h1>
+
+<p><code>Graphics2D.Rect</code> -- самый обычный прямоугольник.</p>
+
+<h3>Создание</h3>
+
+<p><code>js
+// x, y, width, height, [fill], [stroke]
+ctx.rect(10, 10, 200, 200, &#39;black&#39;)
+ctx.rect({
+  x: 10,
+  y: 10,
+  width: 200,
+  height:200,
+  fill:&#39;red&#39;
+});
+</code></p>
+
+<h3>Методы</h3>
+
+<h4>x, y, width, height</h4>
+
+<p><code>js
+var rect = ctx.rect(10, 10, 200, 200);
+rect.x(); // -> 10
+rect.width(100);
+rect.width(); // -> 100
+</code>
+При вызове без параметров - возвращают. С параметром - устанавливают.</p>
+
+<h4>x1, y1, x2, y2</h4>
+
+<p>Немного другой принцип: 1 точка - левый верхний угол прямоугольника, 2 - правый нижний. Мы можем получать их координаты и менять (причём: при изменении первой, координаты второй точки меняться не будут!)
+<code></code>`js
+var rect = ctx.rect(10, 10, 200, 200);
+rect.x1(); // -> 10
+rect.x2(); // -> 210</p>
+
+<p>rect.x1(0);
+rect.width(); // -> 210</p>
+
+<p>rect.x2(50);
+rect.width(); // -> 50
+<code></code>`</p>
 		</section>
 	</div>
 
 	<!-- FOOTER	-->
 	<div id="footer_wrap" class="outer">
 		<footer class="inner">
-			{{!-- english version --}}
-			{{#nequals url0 'ru'}}
 			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
 				<option>English</option>
 				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
 			</select>
-			{{/nequals}}
 
-			{{!-- russian version --}}
-			{{#equals url0 'ru'}}
-			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/'">
-				<option onclick="location.href = 'http://graphics2d.js.org/'">English</option>
-				<option selected>Русский</option>
-			</select>
-			{{/equals}}
 
 			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
 		</footer>

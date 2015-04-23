@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Graphics2D.Path</h1>
+
+<p><code>Graphics2D.Path</code> - путь.</p>
+
+<h3>Создание</h3>
+
+<p><code></code>`js
+// points, x, y, fill, stroke
+ctx.path(&#39;M10,10 L200,200 z&#39;, 10, 10, null, &#39;15px blue&#39;);</p>
+
+<p>ctx.path({
+	points: &#39;M10,10&#39;, // это не совсем svg
+	x:200,
+	y:200
+});</p>
+
+<p>// кроме того, можно передавать точки так:
+ctx.path([[10, 10], [100,100], [200,200,200,200]]);
+// 1 - moveTo, остальные: 2 параметра - lineTo, 4 - quadratic, 6 - bezier</p>
+
+<p>ctx.path([{f:&#39;moveTo&#39;, arg:[10,10]}, {f:&#39;lineTo&#39;, x:200, y:200}]);
+// можно передать массив аргументов, или же параметры отдельно</p>
+
+<p>ctx.path()
+	.moveTo(10,10)
+	.lineTo(200,200); // или даже так
+<code></code>`</p>
+
+<h3>Методы</h3>
+
+<h4>x / y</h4>
+
+<p><code>
+path.x(); // -> 10
+path.x(200);
+</code>
+С параметром - устанавливают, без - возвращают.</p>
+
+<h4>closed</h4>
+
+<p>Закрыт или открыт путь (также он может быть закрыт внутри переданной closePath, тогда не регулируется).
+<code>js
+path.closed(); // -> false
+path.closed(true);
+</code></p>
+
+<h4>close</h4>
+
+<p>Просто закрывает.</p>
+
+<h4>allPoints([func])</h4>
+
+<p>Возвращает все точки фигуры (например, у bezier - 3 точки), либо - если передана функция - работает как [].map. Может возвратить новые координаты (тогда координаты будут изменены), либо false - тогда ничего не будет.
+<code>js
+path.allPoints(); // -> [[0,0], [10,10], ...]
+path.allPoints(function(x, y){
+  if(x < 0 &amp;&amp; y < 0)
+    return false; // если точка < [0,0], то ничего не делаем
+  return [x + 10, y + 10]; // все остальные точки сдвигаем на 10,10
+});
+</code></p>
+
+<h4>transformPoints</h4>
+
+<p>Трансформирует путь. Отличие от <code>transform</code> в том, что изменяются координаты точек (а в <code>transform</code> происходит постизменение, т.е. изменение координат точек после трансформации там подвержено ей же, а здесь - нет).
+<code></code>`js
+var p = ctx.path(&#39;M10,10 L200,200&#39;);
+p.point(0); // moveTo 10 10</p>
+
+<p>p.rotate(90);
+p.point(0); // moveTo 10 10
+// фигура повернулась, однако (!) координаты всё те же</p>
+
+<p>p.transformPoints(&#39;rotate&#39;, 90);
+p.point(0); // moveTo 200 10
+<code></code><code>
+Доступны следующие варианты использования:
+- </code>&#39;translate&#39;, x, y<code>
+- </code>&#39;scale&#39;, x, y, pivot<code>
+- </code>&#39;scale&#39;, size, pivot<code>
+- </code>&#39;rotate&#39;, angle, pivot<code>
+- </code>&#39;skew&#39;, x, y, pivot<code>
+- </code>&#39;skew&#39;, size, pivot<code>
+- </code>m11, m12, m21, m22, dx, dy`</p>
+
+<p><code>pivot</code> - центр трансформации (напр. центр вращения), можно указывать как и в обычных функциях трансформации (<code>top left</code>, <code>[10,10]</code> и т.д.).</p>
+
+<p>В <code>skew</code> и <code>rotate</code> - градусы.</p>
+
+<h3>Функции рисования</h3>
+
+<p><em>Примечание: немного нарушен стандартный порядок параметров <code>quadratic</code> и <code>bezier</code>. Например, если в обычном canvas - <code>hx, hy, x, y</code>, то здесь <code>x, y, hx, hy</code>.</em></p>
+
+<h5>moveTo(x, y)</h5>
+
+<h5>lineTo(x, y)</h5>
+
+<h5>quadraticCurveTo(x, y, hx, hy)</h5>
+
+<h5>bezierCurveTo(x, y, h1x, h1y, h2x, h2y)</h5>
+
+<h5>arcTo(x1, y1, x2, y2, radius, clockwise)</h5>
+
+<h5>arc(x, y, radius, start, end, clockwise)</h5>
+
+<h4>point(index, [value])</h4>
+
+<p>Без параметра - возвращает точку с индексом index. С параметром - устанавливает (можно передать сразу несколько).
+<code></code>`js
+var p = ctx.path(&#39;M10,10 L200,200&#39;);</p>
+
+<p>p.point(0); // -> { f:&#39;moveTo&#39;, arg:[10,10], x:10, y:10 }
+p.point(1); // -> { f:&#39;lineTo&#39;, arg:[200,200], x:200, y:200 }</p>
+
+<p>p.point(1, &#39;L100,100 L100,200&#39;); // меняем одну точку на сразу несколько
+p.point(1); // lineTo 100 100
+p.point(2); // lineTo 100 200
+<code></code>`</p>
+
+<h4>points([value])</h4>
+
+<p>Сразу все точки.
+<code>js
+p.points(); // -> [{f:&#39;moveTo&#39;, ...}, {f:&#39;lineTo&#39;, ...}]
+p.points(&#39;M0,0 L0,100&#39;);
+p.points([ [10,10], [200,200] ])
+</code></p>
+
+<h4>before(index, point)</h4>
+
+<p>Вставляет новые точки перед точкой с индексом index.
+<code>js
+var p = ctx.path(&#39;M10,10 L0,0&#39;);
+p.before(1, &#39;L0,10&#39;);
+// M10,10 L0,10 L0,0
+</code></p>
+
+<h4>after(index, point)</h4>
+
+<p>После.</p>
+
+<h4>remove([index]);</h4>
+
+<p>Переопределённая унаследованная от <code>Shape</code> функция: если мы передаём индекс точки - удаляет её, ничего не передаём - всё также удаляет всю фигуру.</p>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>
