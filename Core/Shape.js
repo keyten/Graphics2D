@@ -653,9 +653,12 @@ Shape = new Class({
 			else
 				value = { duration: value, easing: options, callback: arguments[4], queue: false };
 
+			value = $.extend({}, value);
 			for( var i in prop ){
-				if( $.has( prop, i ) )
+				if( $.has( prop, i ) ){
 					this.animate( i, prop[i], value, options, arguments[4] );
+					value.callback = null;
+				}
 			}
 			return this;
 		}
