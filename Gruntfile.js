@@ -56,7 +56,7 @@ module.exports = function(grunt){
 		}
 
 		// include processing
-		code = code.replace(/(\/\/\s*)?\{\{include\s+([a-z0-9\.]+)\}\}/gi, function(a,b,c,d){
+		code = code.replace(/(\/\/\s*)?\{\{include\s+([a-z0-9_\.]+)\}\}/gi, function(a,b,c,d){
 			return grunt.file.read(folder + '/' + c);
 		});
 

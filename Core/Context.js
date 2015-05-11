@@ -30,10 +30,6 @@ Context.prototype = {
 		return this.push( new Text(arguments, this) );
 	},
 
-	textblock : function(){
-		return this.push( new TextBlock(arguments, this) );
-	},
-
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
 	},
@@ -82,7 +78,7 @@ Context.prototype = {
 		this._timer = requestAnimationFrame(function(){
 			this._update();
 			this._timer = null;
-		}.bind(this), 1);
+		}.bind(this));
 	},
 
 	_update : function(){
@@ -116,7 +112,7 @@ Context.prototype = {
 
 	listener : function(event){
 		if(this.listeners[event])
-			return;
+			return this.listeners[event];
 
 		this.listeners[event] = [];
 
@@ -190,7 +186,7 @@ Context.prototype = {
 		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
 
-		(this.listeners[ event ] || this.listener(event)).push(fn);
+		(this.listeners[event] || this.listener(event)).push(fn);
 		return this;
 	},
 

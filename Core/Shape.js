@@ -344,6 +344,7 @@ Shape = new Class({
 			else {
 				// '1px 1px 2px red'
 				// can't use rgba
+				// and px (!)
 				name = trim(name.replace(/\d+([a-z]+)?/gi, function(dist){
 					switch(i){
 						case 0: style.shadowOffsetX = $.distance(dist); break;
@@ -388,7 +389,6 @@ Shape = new Class({
 		this.context.listener(event);
 		(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 		return this;
-
 	},
 	
 	once : function(event, fn){
@@ -654,11 +654,15 @@ Shape = new Class({
 				value = { duration: value, easing: options, callback: arguments[4], queue: false };
 
 			value = $.extend({}, value);
-			for( var i in prop ){
-				if( $.has( prop, i ) ){
-					this.animate( i, prop[i], value, options, arguments[4] );
-					value.callback = null;
-				}
+			var c = value.callback,
+				keys = Object.keys( prop ),
+				i = 0;
+			value.callback = null;
+			
+			for(; i < keys.length; i++){
+				if( i === keys.length-1 )
+					value.callback = c;
+				this.animate( keys[i], prop[keys[i]], value );
 			}
 			return this;
 		}

@@ -1,73 +1,34 @@
-/*! Graphics2D Filters 1.0
- *  Author: Keyten aka Dmitriy Miroshnichenko
- *  License: MIT / LGPL
- */
-(function(window, $, undefined){
+//# Composites
 
-	var oldDraw = $.Image.prototype.draw;
+$.composites = {
 
-	$.Image.prototype.filter = function(filter, options){
-		var data = this.context.context.getImageData(this._x, this._y, this._width, this._height);
-		if($.filters[filter].call(this, data.data, options || {}) !== false){
-			this._imageData = data;
-			this.context.context.putImageData(data, this._x, this._y);
-		}
-		return this;
-	};
+// https://gist.github.com/Elringus/d21c8b0f87616ede9014
+// http://en.wikipedia.org/wiki/Blend_modes
+// http://w3.org/TR/compositing
+// http://www.adobe.com/content/dam/Adobe/en/devnet/pdf/pdfs/pdf_reference_archives/blend_modes.pdf
+// http://habrahabr.ru/post/256439/
+	// func gray(c): c.r * 0.299 + c.g * 0.587 + c.b * 0.114;
 
-	$.Image.prototype.draw = function(ctx){
-		if(this._imageData){
-			ctx.putImageData(this._imageData, this._x, this._y);
-		}
-		else oldDraw.call(this, ctx);
-	};
-
-	$.filters = {
-		vertex: function(data, callback){
-			var w = this._width,
-				h = this._height,
-				result = this.context.context.createImageData(w, h),
-				rdata = result.data,
-				pixel;
-			for(var i = 0; i < data.length; i+=4){
-				pixel = callback(
-					(i / 4) % w, Math.floor(i / 4 / w),
-					data[i], data[i+1], data[i+2], data[i+3],
-					i);
-				pixel = (w * pixel.y + pixel.x) * 4; // is it wrong?
-				rdata[pixel] = data[i];
-				rdata[pixel+1] = data[i+1];
-				rdata[pixel+2] = data[i+2];
-				rdata[pixel+3] = data[i+3];
-			}
-			this._imageData = result;
-			this.update();
-			return false;
-		},
-
-		pixel: function(data, options){
-			var pixel, i;
-			if(typeof options === 'function'){
-				for(i = 0; i < data.length; i+= 4){
-					pixel = options(data[i], data[i+1], data[i+2], data[i+3]);
-					data[i]   = pixel.r;
-					data[i+1] = pixel.g;
-					data[i+2] = pixel.b;
-					data[i+3] = pixel.a;
-				}
-			}
-			else {
-				var callback = options.callback,
-					opacity  = options.opacity,
-					interpolate = $.util.interpolate;
-				for(i = 0; i < data.length; i+= 4){
-					pixel = callback(data[i], data[i+1], data[i+2], data[i+3]); // TODO: x, y
-					data[i]   = interpolate(data[i], pixel.r, opacity);
-					data[i+1] = interpolate(data[i+1], pixel.g, opacity);
-					data[i+2] = interpolate(data[i+2], pixel.b, opacity);
-				}
-			}
-		}
-	};
-
-})(window, Graphics2D);
+	// func darken(a, b): min(a, b);
+	// func multiply(a, b): a * b;
+	// func colorBurn(a, b): 255 - (255 - a) / b;
+	// func linearBurn(a, b): a + b - 255;
+	// func darkerColor(a, b): gray(a) < gray(b) ? a : b;
+	// func lighten(a, b): max(a, b);
+	// func screen(a, b): 255 - (255 - a) * (255 - b);
+	// func colorDodge(a, b): a / (255 - b);
+	// func linearDodge(a, b): a + b;
+	// func lighterColor(a, b): gray(a) > gray(b) ? a : b;
+	// func overlay(a, b): a > 127 ? 255 - 2 * (255 - a) * (255 - b) : 2 * a * b;
+	// (127 = 255/2) -- make a parameter?
+	// func softLight(a, b): (255 - a) * a * b + a * (255 - (255 - a) * (255 - b));
+	// func hardLight(a, b): b > 127 ? 255 - (255 - a) * (255 - 2 * (b - 127)) : a * (510 - b);
+	// func vividLight(a, b): b > 127 ? a / (255 - (b - 127) * 510) : 255 - (255 - a) / (b * 2);
+	// func linearLight(a, b): b > 127 ? a + 2 * (b - 127) : a + 2 * b - 255;
+	// func pinLight(a, b): b > 127 ? max(a, 2 * (b - 127)) : min(a, 2 * b)
+	// func hardMix(a, b): b > (127 - a) ? 255 : 0;
+	// func difference(a, b): abs(a - b);
+	// func exclusion(a, b): a + b - 2 * a * b; // (a-b)^2
+	// func subtract(a, b): a - b;
+	// func divide(a, b): a / b;
+};

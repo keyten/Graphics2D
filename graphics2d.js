@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 19.4.2015
+ *  Last edit: 11.5.2015
  *  License: MIT / LGPL
  */
 
@@ -80,10 +80,6 @@ Context.prototype = {
 		return this.push( new Text(arguments, this) );
 	},
 
-	textblock : function(){
-		return this.push( new TextBlock(arguments, this) );
-	},
-
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
 	},
@@ -132,7 +128,7 @@ Context.prototype = {
 		this._timer = requestAnimationFrame(function(){
 			this._update();
 			this._timer = null;
-		}.bind(this), 1);
+		}.bind(this));
 	},
 
 	_update : function(){
@@ -166,7 +162,7 @@ Context.prototype = {
 
 	listener : function(event){
 		if(this.listeners[event])
-			return;
+			return this.listeners[event];
 
 		this.listeners[event] = [];
 
@@ -240,7 +236,7 @@ Context.prototype = {
 		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
 
-		(this.listeners[ event ] || this.listener(event)).push(fn);
+		(this.listeners[event] || this.listener(event)).push(fn);
 		return this;
 	},
 
@@ -619,6 +615,7 @@ Shape = new Class({
 			else {
 				// '1px 1px 2px red'
 				// can't use rgba
+				// and px (!)
 				name = trim(name.replace(/\d+([a-z]+)?/gi, function(dist){
 					switch(i){
 						case 0: style.shadowOffsetX = $.distance(dist); break;
@@ -663,7 +660,6 @@ Shape = new Class({
 		this.context.listener(event);
 		(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 		return this;
-
 	},
 	
 	once : function(event, fn){
@@ -928,9 +924,16 @@ Shape = new Class({
 			else
 				value = { duration: value, easing: options, callback: arguments[4], queue: false };
 
-			for( var i in prop ){
-				if( $.has( prop, i ) )
-					this.animate( i, prop[i], value, options, arguments[4] );
+			value = $.extend({}, value);
+			var c = value.callback,
+				keys = Object.keys( prop ),
+				i = 0;
+			value.callback = null;
+			
+			for(; i < keys.length; i++){
+				if( i === keys.length-1 )
+					value.callback = c;
+				this.animate( keys[i], prop[keys[i]], value );
 			}
 			return this;
 		}
@@ -1379,7 +1382,7 @@ Curve.curves = {
 	lineTo : {
 		_slice : [ , ],
 		points : function(){ return [this._arguments]; },
-		bounds : function( from ){
+		_bounds : function( from ){
 			var end = this._arguments;
 			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
 		},
@@ -1391,7 +1394,7 @@ Curve.curves = {
 		points : function(){
 			return [ this._arguments.slice(2), this._arguments.slice(0, 2) ];
 		},
-		bounds : function( f ){
+		_bounds : function( f ){
 			var a = this._arguments,
 				x1 = Math.min( a[0], a[2], f[0] ),
 				y1 = Math.min( a[1], a[3], f[1] ),
@@ -1409,7 +1412,7 @@ Curve.curves = {
 		points : function(){
 			return [ this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2) ];
 		},
-		bounds : function( f ){
+		_bounds : function( f ){
 			var a = this._arguments,
 				x1 = Math.min( a[0], a[2], a[4], f[0] ),
 				y1 = Math.min( a[1], a[3], a[5], f[1] ),
@@ -1505,7 +1508,7 @@ Path = new Class( Shape, {
 		// if index = 0 & turnToLine then the first moveTo will be turned to lineTo
 		// turnToLine = true by default
 		if(turnToLine !== false && index === 0){
-			this._curves[0]._name = 'lineTo';
+			this._curves[0].name = 'lineTo';
 		}
 
 		value = Path.parsePath(value, this, index === 0 ? false : true);
@@ -2948,21 +2951,23 @@ _.distance = $.distance = function(value){
 
 	value += '';
 	if(value.indexOf('px') === value.length-2)
-		return parseInt(value.replace(/[^\d]*/, ''));
+		return +value.replace(/[^\d]*/, '');
 
 	if(!$.units){
 
 		if( !document )
 			$.units = defaultUnits;
 
-		var div = document.createElement('div');
-		document.body.appendChild(div); // FF don't need this :)
-		$.units = {};
-		units.forEach(function(unit){
-			div.style.width = '1' + unit;
-			$.units[unit] = parseFloat(getComputedStyle(div).width);
-		});
-		document.body.removeChild(div);
+		else {
+			var div = document.createElement('div');
+			document.body.appendChild(div); // FF don't need this :)
+			$.units = {};
+			units.forEach(function(unit){
+				div.style.width = '1' + unit;
+				$.units[unit] = parseFloat(getComputedStyle(div).width);
+			});
+			document.body.removeChild(div);
+		}
 	}
 
 	var unit = value.replace(/[\d\.]+?/gi, '');

@@ -21,7 +21,7 @@ Path = new Class( Shape, {
 		// if index = 0 & turnToLine then the first moveTo will be turned to lineTo
 		// turnToLine = true by default
 		if(turnToLine !== false && index === 0){
-			this._curves[0]._name = 'lineTo';
+			this._curves[0].name = 'lineTo';
 		}
 
 		value = Path.parsePath(value, this, index === 0 ? false : true);

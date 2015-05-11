@@ -1,7 +1,7 @@
 //# Filters
-var nativeDraw = Image.prototype.draw;
+var nativeDraw = Img.prototype.draw;
 
-Image.prototype.filter = function(filter, options){
+Img.prototype.filter = function(filter, options){
 	if(!this._image.complete){
 		return this.on('load', function(){
 			this.filter(filter, options);
@@ -27,7 +27,7 @@ Image.prototype.filter = function(filter, options){
 	return this;
 };
 
-Image.prototype.draw = function(ctx){
+Img.prototype.draw = function(ctx){
 	// unknown bug in Chrome 43
 	if(this._imageData)
 		ctx.putImageData(this._imageData, this._x, this._y);

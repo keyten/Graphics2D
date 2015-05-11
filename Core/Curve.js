@@ -68,7 +68,7 @@ Curve.curves = {
 	lineTo : {
 		_slice : [ , ],
 		points : function(){ return [this._arguments]; },
-		bounds : function( from ){
+		_bounds : function( from ){
 			var end = this._arguments;
 			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
 		},
@@ -80,7 +80,7 @@ Curve.curves = {
 		points : function(){
 			return [ this._arguments.slice(2), this._arguments.slice(0, 2) ];
 		},
-		bounds : function( f ){
+		_bounds : function( f ){
 			var a = this._arguments,
 				x1 = Math.min( a[0], a[2], f[0] ),
 				y1 = Math.min( a[1], a[3], f[1] ),
@@ -98,7 +98,7 @@ Curve.curves = {
 		points : function(){
 			return [ this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2) ];
 		},
-		bounds : function( f ){
+		_bounds : function( f ){
 			var a = this._arguments,
 				x1 = Math.min( a[0], a[2], a[4], f[0] ),
 				y1 = Math.min( a[1], a[3], a[5], f[1] ),

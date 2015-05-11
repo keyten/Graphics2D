@@ -22,48 +22,51 @@
 		isHash = $.isObject,
 		isObject = $.isObject,
 		isString = $.isString,
-		extend = $.extend;
+		extend = $.extend,
+		Bounds = $.Bounds;
 
 	var Ellipse, Polygon, Star,
 
 	pi2 = Math.PI * 2,
 	emptyFunc = function(){};
 
+//# Shapes
+
 // {{include ellipse.js}}
-
 // {{include polygon.js}}
-
 // {{include star.js}}
-
 // {{include roundrect.js}}
 
 
+//# Curves
+
 // {{include catmullrom.js}}
-
 // {{include bezier.js}}
-
 // {{include curves.js}}
+// {{don't include paths.js}}
 
-// {{include animation.js}}
+//# Animation
+// {{include pathanim.js}} // -- bezier
 
+//# Images
 
 // {{include filter.js}}
-
-// {{include fullscreen.js}}
-
 // {{include imageanim.js}}
-
 // {{don't include sprite.js}}
+// {{don't include composites.js}}
 
-// {{don't include layers.js}}
-
-// {{don't include particles.js}}
+//# SVG
 
 // {{don't include svgpath.js}}
 
-// {{don't include composites.js}}
 
-// {{include events_keyboard.js}}
+//# Utilities
+
+// {{include fullscreen.js}}
+// {{don't include layers.js}}
+// {{don't include particles.js}}
+// {{don't include camera.js}}
+// {{don't include events_keyboard.js}}
 
 $.Ellipse = Ellipse;
 $.Polygon = Polygon;

@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 19.4.2015
+ *  Last edit: 11.5.2015
  *  License: MIT / LGPL
  */
 
@@ -22,12 +22,15 @@
 		isHash = $.isObject,
 		isObject = $.isObject,
 		isString = $.isString,
-		extend = $.extend;
+		extend = $.extend,
+		Bounds = $.Bounds;
 
 	var Ellipse, Polygon, Star,
 
 	pi2 = Math.PI * 2,
 	emptyFunc = function(){};
+
+//# Shapes
 
 Ellipse = new Class(Shape, {
 
@@ -109,7 +112,6 @@ Context.prototype.ellipse = function(){
 };
 
 $.fx.step.kappa = $.fx.step.float;
-
 Polygon = new Class(Shape, {
 
 	init : function(){
@@ -170,7 +172,6 @@ Context.prototype.polygon = function(){
 };
 
 $.fx.step.sides = $.fx.step.int;
-
 Star = new Class(Shape, {
 
 	init : function(){
@@ -247,7 +248,6 @@ $.fx.step.radius1 = $.fx.step.int;
 $.fx.step.radius2 = $.fx.step.int;
 $.fx.step.points = $.fx.step.int;
 $.fx.step.distortion = $.fx.step.float;
-
 //# RoundRect
 Rect.prototype._rx = 0;
 Rect.prototype._ry = 0;
@@ -309,28 +309,60 @@ $.fx.step.rx = $.fx.step.int;
 $.fx.step.ry = $.fx.step.int;
 
 
+//# Curves
+
 //# Catmull-Rom Curves
 Curve.curves.catmullRom = {
-	pointAt : function(t){},
+
+	params : function(){
+		var from = this.from(),
+			arg = this._arguments;
+		return {
+			x1  : from[0],
+			y1  : from[1],
+			x2  : arg[2],
+			y2  : arg[3],
+			h1x : arg[0],
+			h1y : arg[1],
+			h2x : arg[4],
+			h2y : arg[5]
+		};
+	},
+
+	pointAt : function(t){
+		var p = this.params();
+		return CRPoint( p.h1x, p.h1y, p.x1, p.y1, p.x2, p.y2, p.h2x, p.h2y, t );
+	},
+
+	tangentAt : function(t){
+		var p = this.params();
+		return Math.atan2(
+			0.5 * ( 3*t*t*(-p.h1y+3*p.y1-3*p.y2+p.h2y) + 2*t*(2*p.h1y-5*p.y1+4*p.y2-p.h2y) + (-p.h1y+p.y2)  ),
+			0.5 * ( 3*t*t*(-p.h1x+3*p.x1-3*p.x2+p.h2x) + 2*t*(2*p.h1x-5*p.x1+4*p.x2-p.h2x) + (-p.h1x+p.x2)  )
+		) / Math.PI * 180;
+	},
+
 	process : function( ctx, current ){
 		var point,
 			a = this._arguments,
-			detail = this._detail,
-			i = 0;
-		for(; i < detail; i++){
+			i = 0,
+			detail = this._detail;
+		for(; i <= detail; i++){
 			point = CRPoint( a[0], a[1], current[0], current[1], a[2], a[3], a[4], a[5], i / detail );
 			ctx.lineTo( point.x, point.y );
 		}
 		return [ a[4], a[5] ];
 	},
-	_detail : 50,
+	_detail : 20,
 	h1x : argument( 0 ),
 	h1y : argument( 1 ),
 	h2x : argument( 4 ),
 	h2y : argument( 5 ),
 	x   : argument( 2 ),
 	y   : argument( 3 ),
-	_slice : [ 4 ]
+	_slice : [ 4 ],
+
+	toCubic : function(){}
 };
 
 function CRPoint(x1, y1, x2, y2, x3, y3, x4, y4, t){
@@ -352,18 +384,7 @@ function argument( index ){
 	};
 }
 
-/*
-	catmullRom.angleAt = function(x1, y1, x2, y2, x3, y3, x4, y4, t){
-		var dx = 0.5 * (x3 - x1)
-					+ 2*t*(2*x1 - 5*x2 + 4*x3 - x4)
-					+ 3*t*t*(3*x2 + x4 - x1 - 3*x3),
-			dy = 0.5 * (y3 - y1)
-					+ 2*t*(2*y1 - 5*y2 + 4*y3 - y4)
-					+ 3*t*t*(3*y2 + y4 - y1 - 3*y3);
-		return Math.atan2(dy, dx);
-	};
- */
-
+$.CRPoint = CRPoint;
 //# Bezier Curves
 Curve.curves.bezier = {
 	pointAt : function(t){},
@@ -414,12 +435,14 @@ function bezier(points, t){
 	}
 	return result;
 }
-
 //# Curves
+Curve.detail = 10;
+Curve.delta = 0.0001;
+
 extend(Curve.prototype, {
 	tangentAt : function(t, delta){
 		if(delta === undefined)
-			delta = 0.0001;
+			delta = Curve.delta;
 
 		var t1 = t - delta,
 			t2 = t + delta;
@@ -436,12 +459,12 @@ extend(Curve.prototype, {
 	},
 
 	normalAt : function(t, delta){
-		return this.tangentAt(t, delta) + 90;
+		return this.tangentAt(t, delta) - 90;
 	},
 
 	nearest : function(x, y, detail){
 		if(detail === undefined)
-			detail = 10;
+			detail = Curve.detail;
 
 		var point, min = Infinity, minPoint, distance;
 		for(var t = 0; t <= detail; t++){
@@ -459,9 +482,9 @@ extend(Curve.prototype, {
 
 	approximate : function(detail){
 		if(detail === undefined)
-			detail = 10;
+			detail = Curve.detail;
 
-		var lines = [], detail, last = this.pointAt(0);
+		var lines = [], last = this.pointAt(0), point;
 		for(var t = 1; t <= detail; t++){
 			point = this.pointAt(t / detail);
 			// round coords?
@@ -469,6 +492,22 @@ extend(Curve.prototype, {
 			last = point;
 		}
 		return lines;
+	},
+
+	toLines : function(detail){
+		if(detail === undefined)
+			detail = Curve.detail;
+
+		var curves = this.path._curves,
+			index = curves.indexOf(this),
+			lines = [],
+			point;
+		for(var t = 0; t <= detail; t++){
+			point = this.pointAt(t / detail);
+			lines.push( new Curve('lineTo', [point.x, point.y], this.path) );
+		}
+		curves.splice.apply(curves, [index, 1].concat(lines));
+		return this.update();
 	},
 
 	length : function(detail){
@@ -480,24 +519,39 @@ extend(Curve.prototype, {
 		return length;
 	},
 
-	bounds : function(detail){
-		var lines = this.approximate(detail),
-			minx =  Infinity,
-			miny =  Infinity,
-			maxx = -Infinity,
-			maxy = -Infinity;
-		for(var i = 0, l = lines.length; i < l; i++){
-			minx = Math.min(minx, lines[i].x1, lines[i].x2);
-			miny = Math.min(miny, lines[i].y1, lines[i].y2);
-			maxx = Math.min(maxx, lines[i].x1, lines[i].x2);
-			maxy = Math.min(maxy, lines[i].y1, lines[i].y2);
+	_bounds : function(detail){
+		if(!this.pointAt)
+			return null;
+
+		if(detail === undefined)
+			detail = Curve.detail;
+
+		var point,
+			x1 =  Infinity,
+			y1 =  Infinity,
+			x2 = -Infinity,
+			y2 = -Infinity;
+		for(var t = 0; t <= detail; t++){
+			point = this.pointAt(t / detail);
+			if(point.x < x1)
+				x1 = point.x;
+			if(point.y < y1)
+				y1 = point.y;
+			if(point.x > x2)
+				x2 = point.x;
+			if(point.y > y2)
+				y2 = point.y;
 		}
-		return new Bounds(minx, miny, maxx - minx, maxy - miny);
+		return new Bounds(x1, y1, x2 - x1, y2 - y1);
+	},
+
+	curvature : function(){
+		return null;
 	}
 });
 
 extend(Curve.curves.lineTo, {
-	pointAt : function(t, from){
+	pointAt : function(t){
 		var from = this.from();
 		var to = this._arguments;
 		return {
@@ -518,66 +572,125 @@ extend(Curve.curves.lineTo, {
 		return Math.sqrt( Math.pow(to[1] - from[1], 2) + Math.pow(to[0] - from[0], 2) );
 	},
 
+	curvature : function(){
+		return 0;
+	},
+
 	divide : function(t){
+		if(t);
 		return [];
+	},
+
+	solve : function(coord){
+		if('t' in coord)
+			throw new Error('Use pointAt(t) function instead solve.');
+		// solve({ x:5 }) -> {x, y, t}
+		// solve({ y:100 }) -> {x, y, t}
+		// solve({ x, y })
 	}
 });
 
 extend(Curve.curves.quadraticCurveTo, {
-	pointAt : function(t, from){
-		var fx = this.from()[0],
-			fy = this.from()[1],
-			hx = this._arguments[0],
-			hy = this._arguments[1],
-			tx = this._arguments[2],
-			ty = this._arguments[3];
-		var i = 1 - t;
+	params : function(){
+		var from = this.from(),
+			arg = this._arguments;
 		return {
-			x: (i*i*fx) + (2*t*i*hx) + (t*t*tx),
-			y: (i*i*fy) + (2*t*i*hy) + (t*t*ty)
+			x1 : from[0],
+			y1 : from[1],
+			x2 : arg[2],
+			y2 : arg[3],
+			hx : arg[0],
+			hy : arg[1]
 		};
 	},
 
-	toCubic : function(){
-		var from = this.from(),
-			hx = this._arguments[0],
-			hy = this._arguments[1],
-			tx = this._arguments[2],
-			ty = this._arguments[3],
+	pointAt : function(t){
+		var p = this.params(),
+			i = 1 - t;
+		return {
+			x: (i*i*p.x1) + (2*t*i*p.hx) + (t*t*p.x2),
+			y: (i*i*p.y1) + (2*t*i*p.hy) + (t*t*p.y2)
+		};
+	},
+
+	tangentAt : function(t){
+		var p = this.params(),
+			i = 1 - t;
+		return Math.atan2(-2*p.y1*i + 2*p.hy*(1-2*t) + 2*p.y2*t, -2*p.x1*i + 2*p.hx*(1-2*t) + 2*p.x2*t) / Math.PI * 180;
+	},
+
+	toCubic : function(c){
+		if(c === undefined)
 			c = 2/3;
-		this._name = 'bezierCurveTo';
+
+		var p = this.params();
+
+		this.name = 'bezierCurveTo';
 		this._arguments = [
-			from[0] + c * (hx - from[0]),
-			from[1] + c * (hy - from[1]),
-			tx + c * (hx - from[0]),
-			ty + c * (hy - from[1])
+			p.x1 + c * (p.hx - p.x1),
+			p.y1 + c * (p.hy - p.y1),
+			p.x2 + c * (p.hx - p.x2),
+			p.y2 + c * (p.hy - p.y2),
+			p.x2, p.y2
 		];
+		extend(this, Curve.curves.bezierCurveTo);
+		return this;
 	}
 });
 
 extend(Curve.curves.bezierCurveTo, {
-	pointAt : function(t, from){
-		var fx  = this.from()[0],
-			fy  = this.from()[1],
-			h1x = this._arguments[0],
-			h1y = this._arguments[1],
-			h2x = this._arguments[2],
-			h2y = this._arguments[3],
-			tx  = this._arguments[4],
-			ty  = this._arguments[5];
-		var i = 1 - t;
+	params : function(){
+		var from = this.from(),
+			arg = this._arguments;
 		return {
-			x: (i*i*i*fx) + (3*t*i*i*h1x) + (3*t*t*i*h2x) + t*t*t*tx,
-			y: (i*i*i*fy) + (3*t*i*i*h1y) + (3*t*t*i*h2y) + t*t*t*ty
+			x1  : from[0],
+			y1  : from[1],
+			x2  : arg[4],
+			y2  : arg[5],
+			h1x : arg[0],
+			h1y : arg[1],
+			h2x : arg[2],
+			h2y : arg[3]
 		};
-	}
+	},
+
+	pointAt : function(t){
+		var p = this.params(),
+			i = 1 - t;
+		return {
+			x: (i*i*i*p.x1) + (3*t*i*i*p.h1x) + (3*t*t*i*p.h2x) + t*t*t*p.x2,
+			y: (i*i*i*p.y1) + (3*t*i*i*p.h1y) + (3*t*t*i*p.h2y) + t*t*t*p.y2
+		};
+	},
+
+	tangentAt : function(t){
+		var p = this.params(),
+			i = 1 - t;
+		return Math.atan2(
+			-3*p.y1*i*i + 3*p.h1y*(i*i - 2*t*i) + 3*p.h2y*(2*t*i - t*t) + 3*t*t*p.y2,
+			-3*p.x1*i*i + 3*p.h1x*(i*i - 2*t*i) + 3*p.h2x*(2*t*i - t*t) + 3*t*t*p.x2
+			) / Math.PI * 180;
+	},
 });
 // Arc
 extend(Curve.curves.arc, {
-	pointAt : function(t, from){
-		var fx = this.from()[0],
-			fy = this.from()[1],
-			x, y, radius, start, end, clockwise;
+	params : function(){
+		var from = this.from(),
+			arg = this._arguments;
+		return {
+			x1     : from[0],
+			y1     : from[1],
+			x2     : arg[0],
+			y2     : arg[1],
+			radius : arg[2],
+			start  : arg[3],
+			end    : arg[4],
+			clockwise : arg[5]
+		};
+	},
+	pointAt : function(){
+		var p = this.params();
+		return p;
 	}
 });
 
@@ -597,7 +710,9 @@ extend(Curve.curves.arc, {
 		// allPoints
 	
 //		TODO: animate by curve
+// {{don't include paths.js}}
 
+//# Animation
 //# Animation
 // 1. Path to path.
 // 2. Move by path.
@@ -609,7 +724,7 @@ $.fx.step.curve = function( fx ){
 		if( !fx.elem._matrix )
 			fx.elem._matrix = [1, 0, 0, 1, 0, 0];
 
-		if( fx.elem._bounds ){
+		if( fx.elem._bounds || (fx.elem.bounds && fx.elem.bounds !== Shape.prototype.bounds) ){
 			var b = fx.elem.bounds();
 			fx.elem._matrix[4] -= b.cx;
 			fx.elem._matrix[5] -= b.cy;
@@ -650,13 +765,14 @@ $.fx.step.curveAngle = function( fx ){
 	fx.elem.rotate(angle);
 	fx.pointLast = point;
 	fx.ang = angle;
-};
+}; // -- bezier
 
+//# Images
 
 //# Filters
-var nativeDraw = Image.prototype.draw;
+var nativeDraw = Img.prototype.draw;
 
-Image.prototype.filter = function(filter, options){
+Img.prototype.filter = function(filter, options){
 	if(!this._image.complete){
 		return this.on('load', function(){
 			this.filter(filter, options);
@@ -682,7 +798,7 @@ Image.prototype.filter = function(filter, options){
 	return this;
 };
 
-Image.prototype.draw = function(ctx){
+Img.prototype.draw = function(ctx){
 	// unknown bug in Chrome 43
 	if(this._imageData)
 		ctx.putImageData(this._imageData, this._x, this._y);
@@ -735,102 +851,6 @@ $.filters = {
 	}
 
 };
-
-var elProto = window.Element.prototype,
-	prefix,
-	funcName = 'requestFullScreen',
-	cancName = 'cancelFullScreen',
-	eventName = 'fullscreenchange',
-	elementName = 'fullScreenElement',
-	enabledName = 'fullScreenEnabled';
-
-if('mozRequestFullScreen' in elProto)
-	prefix = 'moz';
-else if('webkitRequestFullScreen' in elProto)
-	prefix = 'webkit';
-
-if(prefix){
-	funcName = camelPrefix(prefix, funcName);
-	cancName = camelPrefix(prefix, cancName);
-	eventName = prefix + eventName;
-	elementName = camelPrefix(prefix, elementName);
-	enabledName = camelPrefix(prefix, enabledName);
-}
-
-Context.prototype.fullscreen = function(resizecanvas){
-	if(this.isFullscreen())
-		return;
-
-	this.canvas[funcName]();
-	if(resizecanvas){
-		this.normalState = {
-			width: this.canvas.width,
-			height: this.canvas.height
-		};
-		setTimeout(function(){
-			this.canvas.width = window.innerWidth;
-			this.canvas.height = window.innerHeight;
-			this.update();
-		}.bind(this), 10);
-
-		this._resizeListener = function(e){
-			if(document[elementName] === null){
-				document.removeEventListener(eventName, this._resizeListener);
-				this.fire('exitfull', e);
-				this.canvas.width = this.normalState.width;
-				this.canvas.height = this.normalState.height;
-				this.normalState = null;
-				this._resizeListener = null;
-				this.update();
-			}
-		}.bind(this);
-		document.addEventListener(eventName, this._resizeListener);
-	}
-	else {
-		this._resizeListener = function(e){
-			if(document[elementName] === null){
-				document.removeEventListener(eventName, this._resizeListener);
-				this.fire('exitfull', e);
-			}
-		}.bind(this);
-		document.addEventListener(eventName, this._resizeListener);
-	}
-	this.fire('fullscreen'); // TODO: move this to the listener
-};
-
-Context.prototype.isFullscreen = function(){
-	return document[elementName] === this.canvas;
-};
-
-Context.prototype.exitfull = function(){
-	if(!this.isFullscreen())
-		return;
-
-	document[cancName]();
-	this.fire('exitfull');
-	if(this._resizeListener){
-		document.removeEventListener(eventName, this._resizeListener);
-		this._resizeListener = null;
-	}
-	if(this.normalState){
-		this.canvas.width = this.normalState.width;
-		this.canvas.height = this.normalState.height;
-		this.normalState = null;
-		this.update();
-	}
-};
-
-function camelPrefix(prefix, name){
-	return prefix + name[0].toUpperCase() + name.substr(1);
-}
-
-if(!prefix && !('requestFullScreen' in elProto)){
-	// Fullscreen API isn't supported.
-	Context.prototype.fullscreen = function(){};
-	Context.prototype.isFullscreen = function(){};
-	Context.prototype.exitfull = function(){};
-}
-
 //# ImageAnim
 
 $.Context.prototype.imageanim = function(){
@@ -998,18 +1018,114 @@ var ImageAnim = $.Class(Img, {
 
 ImageAnim.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
 ImageAnim.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
-
 // {{don't include sprite.js}}
+// {{don't include composites.js}}
 
-// {{don't include layers.js}}
-
-// {{don't include particles.js}}
+//# SVG
 
 // {{don't include svgpath.js}}
 
-// {{don't include composites.js}}
 
-// {{include events_keyboard.js}}
+//# Utilities
+
+var elProto = window.Element.prototype,
+	prefix,
+	funcName = 'requestFullScreen',
+	cancName = 'cancelFullScreen',
+	eventName = 'fullscreenchange',
+	elementName = 'fullScreenElement',
+	enabledName = 'fullScreenEnabled';
+
+if('mozRequestFullScreen' in elProto)
+	prefix = 'moz';
+else if('webkitRequestFullScreen' in elProto)
+	prefix = 'webkit';
+
+if(prefix){
+	funcName = camelPrefix(prefix, funcName);
+	cancName = camelPrefix(prefix, cancName);
+	eventName = prefix + eventName;
+	elementName = camelPrefix(prefix, elementName);
+	enabledName = camelPrefix(prefix, enabledName);
+}
+
+Context.prototype.fullscreen = function(resizecanvas){
+	if(this.isFullscreen())
+		return;
+
+	this.canvas[funcName]();
+	if(resizecanvas){
+		this.normalState = {
+			width: this.canvas.width,
+			height: this.canvas.height
+		};
+		setTimeout(function(){
+			this.canvas.width = window.innerWidth;
+			this.canvas.height = window.innerHeight;
+			this.update();
+		}.bind(this), 10);
+
+		this._resizeListener = function(e){
+			if(document[elementName] === null){
+				document.removeEventListener(eventName, this._resizeListener);
+				this.fire('exitfull', e);
+				this.canvas.width = this.normalState.width;
+				this.canvas.height = this.normalState.height;
+				this.normalState = null;
+				this._resizeListener = null;
+				this.update();
+			}
+		}.bind(this);
+		document.addEventListener(eventName, this._resizeListener);
+	}
+	else {
+		this._resizeListener = function(e){
+			if(document[elementName] === null){
+				document.removeEventListener(eventName, this._resizeListener);
+				this.fire('exitfull', e);
+			}
+		}.bind(this);
+		document.addEventListener(eventName, this._resizeListener);
+	}
+	this.fire('fullscreen'); // TODO: move this to the listener
+};
+
+Context.prototype.isFullscreen = function(){
+	return document[elementName] === this.canvas;
+};
+
+Context.prototype.exitfull = function(){
+	if(!this.isFullscreen())
+		return;
+
+	document[cancName]();
+	this.fire('exitfull');
+	if(this._resizeListener){
+		document.removeEventListener(eventName, this._resizeListener);
+		this._resizeListener = null;
+	}
+	if(this.normalState){
+		this.canvas.width = this.normalState.width;
+		this.canvas.height = this.normalState.height;
+		this.normalState = null;
+		this.update();
+	}
+};
+
+function camelPrefix(prefix, name){
+	return prefix + name[0].toUpperCase() + name.substr(1);
+}
+
+if(!prefix && !('requestFullScreen' in elProto)){
+	// Fullscreen API isn't supported.
+	Context.prototype.fullscreen = function(){};
+	Context.prototype.isFullscreen = function(){};
+	Context.prototype.exitfull = function(){};
+}
+// {{don't include layers.js}}
+// {{don't include particles.js}}
+// {{don't include camera.js}}
+// {{don't include events_keyboard.js}}
 
 $.Ellipse = Ellipse;
 $.Polygon = Polygon;
