@@ -28,40 +28,17 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			<div style="display:inline-block;width:100%;">
-	<div style="width:50%;float:left;padding:5px;">
-		<textarea id="code">ctx.circle(100, 100, 30, 'red');
+			<h1>Native context using</h1>
 
+<p>You can add your objects to redrawing &amp; event processing:
+	var point = {
+		draw : function(ctx){
+			ctx.fillRect(0, 0, 1, 1);
+		}
+	};
+	ctx.push(point);</p>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</textarea>
-	</div>
-	<div style="padding:5px">
-		<canvas style="background:white;border:solid 1px #eee; box-shadow:0 0 5px #eee" width="400" height="299" id="canvas"></canvas>
-	</div>
-</div><!--
-<div id="block-2">
-	<span style="font-size:11pt;margin-right:25px">Plugins:</span>
-	<a href="#">Sprite</a>
-	<a href="#">ImageAnim</a>
-	<a href="#">CatmullRom</a>
-</div> -->
+<p>...</p>
 		</section>
 	</div>
 

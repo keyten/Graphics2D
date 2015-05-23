@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Shape</h1>
+
+<p>Abstract class for shapes (all drawing objects inherits it).</p>
+
+<p>You can create any object in two ways:
+	// parameters
+	ctx.rect(10, 10, 200, 200, &#39;black&#39;, &#39;2px blue&#39;);</p>
+
+<pre><code>// or object
+ctx.rect({
+    x: 10,
+    y: 10,
+    width: 200,
+    height: 200,
+    fill: &#39;black&#39;,
+    stroke: &#39;2px blue&#39;,
+    opacity: 0.5 // additional property
+});</code></pre>
+
+<p>Available properties: <code>opacity</code>, <code>composite</code>, <code>visible</code>, <code>clip</code>.</p>
+
+<p>Btw, you can create hidden objects - they will respond to events.</p>
+
+<p>And you can use css units:
+	ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39;, &#39;1em&#39;);</p>
+
+<h4>fill</h4>
+
+<p>Filling of the object:
+	rect.fill(&#39;red&#39;);
+	rect.fill(); // -> &#39;red&#39;</p>
+
+<p>Object with <code>colors</code> property is gradient.
+	rect.fill({ colors:[&#39;red&#39;, &#39;green&#39;], from:&#39;top&#39;, to:&#39;bottom&#39; });
+	rect.fill().from(); // -> &#39;top&#39;</p>
+
+<p>Image, object with <code>image</code> property, string starts from <code>http://</code>, <code>https://</code>, <code>./</code>, <code>../</code>, <code>data:image/</code>, <code><svg</code> - is pattern.
+	rect.fill(&#39;./image.jpg&#39;);</p>
+
+<h4>stroke</h4>
+
+<p>Object stroke:
+	rect.stroke(); // -> { fill : &#39;black&#39;, width : 2 }
+	rect.stroke({ fill:&#39;red&#39; });
+	rect.stroke(&#39;black 4pt&#39;);
+<strong>Note: width - always in pixels.</strong></p>
+
+<p>Available parameters:
+ - <code>width</code> -- <code>2px</code>, <code>0.5em</code>, <code>8</code>...
+ - <code>color</code> -- <code>#f00</code>, <code>green</code>, <code>rgb(0, 0, 0)</code>...
+ - <code>join</code> -- <code>miter</code> / <code>bevel</code> / <code>round</code>.
+ - <code>cap</code> -- <code>butt</code> / <code>square</code> / <code>round</code>.
+ - <code>dash</code> -- <code>[1,2,2]</code>, <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.
+ - opacity -- only in string; example: <code>green 0.5</code> instead of <code>rgba(0, 128, 0, 0.5)</code>.</p>
+
+<pre><code>rect.stroke(&#39;0.5em round square [1,2] green 0.5&#39;);</code></pre>
+
+<p>Removing stroke:
+	rect.stroke(null);</p>
+
+<h4>opacity</h4>
+
+<p>Opacity (float from 0 to 1).</p>
+
+<h4>composite</h4>
+
+<p>Blend mode.</p>
+
+<p>Standart: <code>source-over</code>, <code>source-atop</code>, <code>source-in</code>, <code>source-out</code>, <code>destination-over</code>, <code>destination-atop</code>, <code>destination-in</code>, <code>destination-out</code>, <code>lighter</code>, <code>darker</code>, <code>copy</code>, <code>xor</code>.</p>
+
+<p>In some browsers can be using: <code>normal</code>, <code>multiply</code>, <code>screen</code>, <code>overlay</code>, <code>darken</code>, <code>lighten</code>, <code>color-dodge</code>, <code>color-burn</code>, <code>hard-light</code>, <code>soft-light</code>, <code>difference</code>, <code>exclusion</code>, <code>hue</code>, <code>saturation</code>, <code>color</code>, <code>luminosity</code>.</p>
+
+<p>W3C: http://dev.w3.org/fxtf/compositing-1
+MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing</p>
+
+<h4>hide, show</h4>
+
+<p>Makes the object hidden / visible.</p>
+
+<h4>cursor</h4>
+
+<p>Sets a cursor to object:
+	rect.cursor(&#39;pointer&#39;);</p>
+
+<h4>z</h4>
+
+<p>Z-index.</p>
+
+<p>In Graphics2D z-index -- is the element index in context elements collection. Each element has his unique z-index; objects with larger z-index will be drawn over objects with less z-index.
+	var a = ctx.rect(10, 10, 200, 200);
+	var b = ctx.circle(100, 100, 50);
+	a.z(); // -> 0
+	b.z(); // -> 1</p>
+
+<pre><code>b.z(0);
+b.z(); // -> 0
+a.z(); // -> 1</code></pre>
+
+<p>You can also use <code>top</code> value:
+	rect.z(&#39;top&#39;);</p>
+
+<h4>isPointIn(x, y)</h4>
+
+<p>Returns <code>true</code> if point <em>(x, y)</em> is in the shape.</p>
+
+<h4>clip(object)</h4>
+
+<p>Adds clip.
+	var rect = ctx.rect(10, 10, 100, 100, &#39;red&#39;),
+		circle = ctx.circle(10, 10, 50);</p>
+
+<pre><code>rect.clip(circle);
+rect.clip(); // -> circle</code></pre>
+
+<p>Removing clip:
+	rect.clip(null);</p>
+
+<p>And:
+	// clipping by rect
+	object.clip(x, y, width, height);</p>
+
+<pre><code>// clipping by circle
+object.clip(cx, cy, radius);
+
+// clipping by path
+object.clip([[10, 10], [100, 100], [100,10], true]);
+
+// clipping by custom path
+object.clip({
+	processPath : function(ctx){
+		ctx.beginPath();
+		ctx.moveTo(0, 0);
+		ctx.lineTo(100, 0);
+		ctx.lineTo(50, 100);
+		ctx.closePath();
+	}
+});</code></pre>
+
+<p>You can change the clip:
+	object.clip(100, 100, 100, 100);
+	object.clip().animate(&#39;rotate&#39;, 45);</p>
+
+<h4>mouse(state)</h4>
+
+<p>Switches on / off mouse events on element.
+	rect.mouse(false);</p>
+
+<h4>clone(instance, events)</h4>
+
+<p>Clones object.</p>
+
+<p>Instance = true: don&#39;t clone the style (any style changing will change the clone too).<br/>vents = true: don&#39;t clone the events.</p>
+
+<pre><code>var r = ctx.rect(10, 10, 50, 50, &#39;red&#39;);
+var g = r.clone();
+var b = r.clone(true); // b is an instance
+
+g.fill(&#39;green&#39;); // r and b still is red
+b.fill(&#39;blue&#39;); // then r is blue too</code></pre>
+
+<h4>shadow(style)</h4>
+
+<p>With object:
+	element.shadow({
+		x: 0, y: 5, blur: 5, color:&#39;gray&#39;
+	});
+<strong>Note: you can use <code>opacity</code> property.</strong></p>
+
+<p>One parameter:
+	element.shadow(&#39;x&#39;, &#39;10px&#39;);
+	element.shadow(&#39;x&#39;); // -> 10</p>
+
+<p>CSS-style:
+	element.shadow(&#39;1px 1px 2px red&#39;);</p>
+
+<p>Removing:
+	element.shadow(null);</p>
+
+<h4>corner(corner, options)</h4>
+
+<p>Returns coords of the corner on object bounds.
+	element.corner(&#39;top right&#39;);</p>
+
+<p>Options: transform (true / false), stroke (true / false).
+	element.corner(&#39;center&#39;, {
+		transform: true,
+		stroke: false
+	})</p>
+
+<p>Also:
+	element.corner({ from:&#39;bottom left&#39;, x:10, y:10 });</p>
+
+<h4>bounds(options)</h4>
+
+<p>Returns bound box of the object.
+<code>points</code> at options:
+	object.bounds(&#39;points&#39;); // -> { lt:[x, y], rt, lb, rb }
+	// lt = left top, rb = right bottom</p>
+
+<p>Or options is object with transform (true / false) and stroke (true / false / <code>exclude</code>).
+	var b = object.bounds();
+	var b = object.bounds({ transform: true, stroke: &#39;exclude&#39; })</p>
+
+<h4>remove()</h4>
+
+<p>Removes the object.</p>
+
+<h4>on(event, callback)</h4>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>

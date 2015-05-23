@@ -46,7 +46,7 @@
 
 <h3>getObjectInPoint( x, y, [mouse] )</h3>
 
-<p>Returns an object in <strong>(x, y)</strong> or null. Mouse - pass hidden (using <code>hide</code> method) objects.
+<p>Returns an object in <strong>(x, y)</strong> or null. <code>Mouse = true</code> - pass objects without mouse processing (the <code>mouse</code> method to switch off).
 	var first = ctx.rect(0, 0, 10, 10, &#39;red&#39;),
 		second = ctx.rect(5, 5, 10, 10, &#39;blue&#39;);
 	second.mouse(false);
@@ -68,7 +68,7 @@
 	ctx.update();
 	ctx.update();
 	ctx.update(); // 3 calls, 1 update
-<em>Note: use ctx.__update() for instant update.</em>
+<em>Note: use ctx._update() for instant update.</em>
 <em>Note2: you don&#39;t need this function, all objects update canvas themselves.</em></p>
 
 <h3>on( event, function )</h3>
@@ -76,14 +76,14 @@
 <p>Adds listener to canvas. Event object have 3 special properties.
 	ctx.on(&#39;click&#39;, function(e){
 		// this == ctx
-		e.targetObject; // object or null
-		e.contextX; // coordinates of mouse on context
+		e.targetObject; // object on canvas or null
+		e.contextX; // mouse coordinates on context
 		e.contextY;
 	});</p>
 
 <p><em>Note: you can use timers:</em>
 	ctx.on(1000, function(e){
-		// this is still == ctx
+		// this == ctx
 	});</p>
 
 <h3>once( event, function )</h3>
@@ -112,9 +112,25 @@
 	ctx.click(function(e){
 		console.log(3);
 	});
-	ctx.click(); // = fire(&#39;click&#39;);
-<code>click</code>, <code>dblclick</code>, <code>mousedown</code>, <code>mouseup</code>, <code>mousemove</code>, <code>mouseover</code>, <code>mouseout</code>, <code>mousewheel</code>, <code>focus</code>, <code>blur</code>.
-<em>TODO: fix (add the passed aliases)</em></p>
+	ctx.click(); // = fire(&#39;click&#39;);</p>
+
+<p>Available aliases:
+ - <code>click</code>
+ - <code>dblclick</code>
+ - <code>mousedown</code>
+ - <code>mouseup</code>
+ - <code>mousemove</code>
+ - <code>mouseover</code>
+ - <code>mouseout</code>
+ - <code>mousewheel</code>
+ - <code>focus</code>
+ - <code>blur</code>
+ - <code>touchstart</code>
+ - <code>touchmove</code>
+ - <code>touchend</code>
+ - <code>keypress</code>
+ - <code>keydown</code>
+ - <code>keyup</code></p>
 
 <h3>Elements</h3>
 

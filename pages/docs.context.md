@@ -14,7 +14,7 @@ Or
 All methods returns their context instead of undefined.
 
 ### getObjectInPoint( x, y, [mouse] )
-Returns an object in **(x, y)** or null. Mouse - pass hidden (using `hide` method) objects.
+Returns an object in **(x, y)** or null. `Mouse = true` - pass objects without mouse processing (the `mouse` method to switch off).
 	var first = ctx.rect(0, 0, 10, 10, 'red'),
 		second = ctx.rect(5, 5, 10, 10, 'blue');
 	second.mouse(false);
@@ -34,21 +34,21 @@ Redraws canvas in 1 ms (without repeating):
 	ctx.update();
 	ctx.update();
 	ctx.update(); // 3 calls, 1 update
-*Note: use ctx.__update() for instant update.*
+*Note: use ctx._update() for instant update.*
 *Note2: you don't need this function, all objects update canvas themselves.*
 
 ### on( event, function )
 Adds listener to canvas. Event object have 3 special properties.
 	ctx.on('click', function(e){
 		// this == ctx
-		e.targetObject; // object or null
-		e.contextX; // coordinates of mouse on context
+		e.targetObject; // object on canvas or null
+		e.contextX; // mouse coordinates on context
 		e.contextY;
 	});
 
 *Note: you can use timers:*
 	ctx.on(1000, function(e){
-		// this is still == ctx
+		// this == ctx
 	});
 
 ### once( event, function )
@@ -74,8 +74,24 @@ With argument = `on`, without = `fire`.
 		console.log(3);
 	});
 	ctx.click(); // = fire('click');
-`click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseover`, `mouseout`, `mousewheel`, `focus`, `blur`.
-*TODO: fix (add the passed aliases)*
+
+Available aliases:
+ - `click`
+ - `dblclick`
+ - `mousedown`
+ - `mouseup`
+ - `mousemove`
+ - `mouseover`
+ - `mouseout`
+ - `mousewheel`
+ - `focus`
+ - `blur`
+ - `touchstart`
+ - `touchmove`
+ - `touchend`
+ - `keypress`
+ - `keydown`
+ - `keyup`
 
 ### Elements
 See other objects.

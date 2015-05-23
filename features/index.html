@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graphics2D.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+</head>
+<body>
+
+	<!-- HEADER -->
+	<div id="header_wrap" class="outer">
+		<header class="inner">
+			<div id="header_menu">
+				<a href="/">Home</a>
+				<a href="/sandbox/">Sandbox</a>
+				<a href="/examples/">Examples</a>
+				<a href="/docs/">Docs</a>
+				<a href="/download/">Download</a>
+				<a href="/plugins/">Plugins</a>
+			</div>
+			<h1 id="project_title">Graphics2D.js</h1>
+			<span id="project_tagline">canvas framework</span>
+		</header>
+	</div>
+
+	<!-- MAIN CONTENT -->
+	<div id="main_content_wrap" class="outer">
+		<section id="main_content" class="inner">
+			<h1>Features</h1>
+
+<h3>Object-oriented</h3>
+
+<p>Use objects instead of redraw loop:
+	var rect = context.rect(10, 10, 200, 200, &#39;black&#39;);
+	rect.x(40); // new coordinates
+	rect.y(30);
+	rect.stroke(&#39;3px blue&#39;);</p>
+
+<h3>Events</h3>
+
+<pre><code>rect.on(&#39;click&#39;, function(e){
+	rect.x1(e.contextX);
+});</code></pre>
+
+<h3>Caching</h3>
+
+<p>Rasterization:
+	var object = ctx.rect(100, 100, 100, 100, {
+		colors: [&#39;red&#39;, &#39;green&#39;, &#39;blue&#39;],
+		from: &#39;top&#39;,
+		to: &#39;bottom&#39;
+	}, &#39;4px blue&#39;).rotate(45);
+	var raster = object.rasterize();
+	// and you can use raster instead of object:
+	// raster is image, it&#39;s lighter to draw</p>
+
+<h3>Animation</h3>
+
+<p>Animation...</p>
+
+<h3>Touch devices support</h3>
+
+<p>Touch events; ...</p>
+
+<h3>HDPI devices</h3>
+
+<p>Just use relative css units:
+	var rect = context.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;2em&#39;, &#39;2em&#39;, {
+		// gradient
+		from: &#39;top left&#39;,
+		to: &#39;bottom right&#39;,
+		colors: [&#39;green&#39;, &#39;blue&#39;]
+	});</p>
+
+<h3>API style</h3>
+
+<p>jQuery-style:
+	var value = rect.x(); // getter
+	rect.x( value + 5 ); // setter
+	// setters call context redraw</p>
+
+<p>Quick calls:
+	rect.click(&#39;fill&#39;, &#39;red&#39;);
+	// instead of:
+	rect.click(function(){
+		this.fill(&#39;red&#39;);
+	});</p>
+
+<h3>Shapes, creating your shapes &amp; classes</h3>
+
+<p>XX basic shapes: rect, circle, in Core; ellipse, round rect, polygon, star in More.
+And you can make new shapes:
+	...</p>
+
+<h3>Serialization, deserialization</h3>
+
+<pre><code>// serialize
+var els = JSON.stringify( ctx.elements );
+
+// deserialize
+ctx.elements = JSON.parse( els );</code></pre>
+		</section>
+	</div>
+
+	<!-- FOOTER	-->
+	<div id="footer_wrap" class="outer">
+		<footer class="inner">
+			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+				<option>English</option>
+				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+			</select>
+
+
+			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+		</footer>
+	</div>
+
+</body>
+</head>
+</html>

@@ -1,4 +1,4 @@
-var Handlebars, markdown = {};
+var Handlebars, markdown = {}, isLog = true;
 
 module.exports = function(grunt) {
 
@@ -39,6 +39,8 @@ module.exports = function(grunt) {
 				return;
 			}
 
+			if(isLog)
+				grunt.log.writeln('Page processing: ' + path);
 			grunt.file.write(url, content);
 		});
 	});
