@@ -1,28 +1,35 @@
-﻿Graphics2D.Circle
+﻿Circle
 ===================
+A circle. Parameters: `cx`, `cy` (center x, y), `radius`.
+	var circle = ctx.circle(300, 300, 50, 'red', 'blue 2px');
 
-`Graphics2D.Circle` -- круг.
+Or
+	var circle = ctx.circle({
+		cx: 300,
+		cy: 300,
+		radius: 50,
+		fill: 'red',
+		stroke: 'blue 2px'
+	});
 
-Параметры: `cx`, `cy`, `radius` -- координаты центра и радиус.
+## Methods
+### cx, cy, radius
+Sets / returns properties.
+	circle.cx(); // -> 300
+	circle.cx(200);
 
-### Создание
-```js
-// cx, cy, radius, [fill], [stroke]
-ctx.circle(300, 300, 100, 'black')
-ctx.circle({
-  cx: 300,
-  cy: 300,
-  radius: 200,
-  fill:'red'
-});
-```
+	circle.cy(); // -> 300
+	circle.cy(200);
 
-### Методы
-#### cx, cy, radius
-```js
-var circ = ctx.circle(200, 200, 50);
-rect.cx(); // -> 200
-rect.radius(100);
-rect.radius(); // -> 100
-```
-При вызове без параметров - возвращают. С параметром - устанавливают.
+	circle.radius(); // -> 50
+	circle.radius(100);
+
+## Object
+`Graphics2D.Circle` -- class.
+	circle.radius === Graphics2D.Circle.prototype.radius;
+
+`Graphics2D.circle` -- abstract objects without context.
+	var circle = Graphics2D.circle(200, 200, 50);
+	var b = circle.bounds();
+	
+	ctx.push(circle);

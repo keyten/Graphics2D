@@ -28,50 +28,64 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			<h1>Graphics2D.Rect</h1>
+			<h1>Rect</h1>
 
-<p><code>Graphics2D.Rect</code> -- самый обычный прямоугольник.</p>
+<p>A rect. Parameters: <code>x</code>, <code>y</code> (left top corner coords), <code>width</code>, <code>height</code>.
+	var rect = ctx.rect(10, 10, 200, 200, &#39;red&#39;, &#39;blue 2px&#39;);</p>
 
-<h3>Создание</h3>
+<p>Or
+	var rect = ctx.rect({
+		x: 10,
+		y: 10,
+		width: 200,
+		height: 200,</p>
 
-<p><code>js
-// x, y, width, height, [fill], [stroke]
-ctx.rect(10, 10, 200, 200, &#39;black&#39;)
-ctx.rect({
-  x: 10,
-  y: 10,
-  width: 200,
-  height:200,
-  fill:&#39;red&#39;
-});
-</code></p>
+<pre><code>	fill: &#39;red&#39;,
+	stroke: &#39;blue 2px&#39;
+});</code></pre>
 
-<h3>Методы</h3>
+<h2>Methods</h2>
 
-<h4>x, y, width, height</h4>
+<h3>x, y, width, height</h3>
 
-<p><code>js
-var rect = ctx.rect(10, 10, 200, 200);
-rect.x(); // -> 10
+<p>Sets / returns properties.
+	rect.x(); // -> 10
+	rect.x(20);</p>
+
+<pre><code>rect.y(); // -> 10
+rect.y(20);
+
+rect.width(); // -> 200
 rect.width(100);
-rect.width(); // -> 100
-</code>
-При вызове без параметров - возвращают. С параметром - устанавливают.</p>
 
-<h4>x1, y1, x2, y2</h4>
+rect.height(); // -> 200
+rect.height(100);</code></pre>
 
-<p>Немного другой принцип: 1 точка - левый верхний угол прямоугольника, 2 - правый нижний. Мы можем получать их координаты и менять (причём: при изменении первой, координаты второй точки меняться не будут!)
-<code></code>`js
-var rect = ctx.rect(10, 10, 200, 200);
-rect.x1(); // -> 10
-rect.x2(); // -> 210</p>
+<h3>x1, y1, x2, y2</h3>
 
-<p>rect.x1(0);
-rect.width(); // -> 210</p>
+<p>Top left corner and right bottom corner.
+	rect.x1(); // -> 10
+	rect.x1(0); // x: 0, width: 210</p>
 
-<p>rect.x2(50);
-rect.width(); // -> 50
-<code></code>`</p>
+<pre><code>rect.y1(); // -> 10
+rect.y1(0); // y: 0, height: 210
+
+rect.x2(); // -> 210
+rect.x2(200); // x: 0, width: 200
+
+rect.y2();
+rect.y2(200); // y: 0, height: 200</code></pre>
+
+<h2>Object</h2>
+
+<p><code>Graphics2D.Rect</code> -- class.
+	rect.width === Graphics2D.Rect.prototype.width;</p>
+
+<p><code>Graphics2D.rect</code> -- abstract objects without context.
+	var rect = Graphics2D.rect(100, 100, 100, 100);
+	rect.fill(&#39;red&#39;);
+	rect.rotate(45);
+	ctx.push(rect);</p>
 		</section>
 	</div>
 
