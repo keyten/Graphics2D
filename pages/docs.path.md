@@ -1,6 +1,7 @@
 Path
 ===================
 A path (contains curves).
+
 	var path = ctx.path([
 		[10, 10],
 		[200, 200],
@@ -12,7 +13,6 @@ A path (contains curves).
  - 4 arguments -- quadraticCurveTo.
  - 6 arguments -- bezierCurveTo.
  - `true` -- closePath.
-
  - First argument is string -- curve.
 
 	var path = ctx.path([
@@ -21,6 +21,7 @@ A path (contains curves).
 	]);
 
  - Curve:
+
 	var path = ctx.path([
 		new Graphics2D.Curve('lineTo', [10, 10])
 	]);
@@ -28,6 +29,7 @@ A path (contains curves).
 ## Methods
 ### curve
 Returns / replaces a curve.
+
 	var curve = path.curve(1);
 	curve.x(); // -> 200
 
@@ -35,10 +37,11 @@ Returns / replaces a curve.
 	path.curve(1, ['moveTo', 100, 100]);
 
 	// replace 2nd curve to two curves
-	path.curve(1, [[100, 100], ['moveTo', 200, 200]])
+	path.curve(1, [[100, 100], ['moveTo', 200, 200]]);
 
 ### curves
 Returns / replaces all the curves.
+
 	var curves = path.curves();
 	// array with Curve objects
 
@@ -46,6 +49,7 @@ Returns / replaces all the curves.
 
 ### before
 Puts a curve before other.
+
 	// put a lineTo before 2nd
 	path.before(1, [100, 100]);
 
@@ -54,6 +58,7 @@ Puts a curve after.
 
 ### remove
 Removes a curve.
+
 	// remove the 2nd curve
 	path.remove(1);
 
@@ -62,10 +67,12 @@ Removes a curve.
 
 ### push
 Pushes a curve. Is used by other functions.
+
 	path.push( new Graphics2D.Curve('lineTo', [100, 100]) );
 
 ### add
 Adds a curve.
+
 	path.add('lineTo', [200, 200]);
 
 ### Curve functions
@@ -84,13 +91,16 @@ Adds a curve.
 
 ### merge
 Merges a path with other.
+
 	path.merge(path2);
 
 ## Object
 `Graphics2D.Path` -- class.
+
 	path.curve === Graphics2D.Path.prototype.curve;
 
 `Graphics2D.path` -- abstract object without context.
+
 	var path = Graphics2D.path([]);
 	path.moveTo(10, 10);
 	path.lineTo(200, 200);

@@ -28,7 +28,99 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			
+			<h1>Text</h1>
+
+<p>A text. Parameters: <code>text</code>, <code>[font]</code>, <code>x</code>, <code>y</code>, <code>fill</code>, <code>stroke</code>.</p>
+
+<pre><code>var text = ctx.text(&#39;Hello, world\n:)&#39;, 10, 10, &#39;black&#39;);
+var text2 = ctx.text(&#39;Kyle Katarn, at your service...&#39;, &#39;Arial 12pt&#39;, 10, 50, &#39;red&#39;);</code></pre>
+
+<p>Or</p>
+
+<pre><code>var text = ctx.text({
+	text: loremIpsumText,
+	font: &#39;Arial 15pt&#39;,
+	x: 10,
+	y: 10,
+
+	align: &#39;center&#39;,
+	width: 100,
+	baseline: &#39;top&#39;,
+
+	fill: &#39;blue&#39;
+});</code></pre>
+
+<p><em>Note: if you&#39;re using width (the block&#39;s width), then adding auto breaklines.</em></p>
+
+<h2>Methods</h2>
+
+<h3>x, y</h3>
+
+<p>Sets / returns properties.</p>
+
+<pre><code>text.x(); // -> 10
+text.x(20);
+
+text.y(); // -> 10
+text.y(20);</code></pre>
+
+<h3>width</h3>
+
+<p>The block&#39;s max width.</p>
+
+<pre><code>text.width(); // -> 200
+text.width(100);</code></pre>
+
+<p>Or the text width:</p>
+
+<pre><code>var t = ctx.text(&#39;Hey, G2D :P&#39;, 10, 10);
+t.width(); // -> (number in pixels)</code></pre>
+
+<h3>breaklines</h3>
+
+<p>Boolean.</p>
+
+<pre><code>text.breaklines(false);</code></pre>
+
+<h3>font</h3>
+
+<pre><code>text.font(); // -> { family (string), size (int), bold, italic (bool) }
+
+text.font(true); // -> &#39;Arial 12px&#39;
+
+text.font(&#39;Comic Sans MS 2px bold&#39;);
+// or:
+text.font(&#39;bold 2px Comic Sans MS&#39;);
+// or:
+text.font(&#39;Comic 2px Sans bold MS&#39;);
+
+// P.S. Don&#39;t use Comic Sans
+
+// text.font({ family: &#39;Arial&#39;, bold: true });</code></pre>
+
+<h3>align</h3>
+
+<p>Default: <code>left</code>. Also: <code>center</code>, <code>right</code>.</p>
+
+<pre><code>text.align();
+text.align(&#39;center&#39;);</code></pre>
+
+<h3>baseline</h3>
+
+<p>Vertical align.</p>
+
+<h2>Object</h2>
+
+<p><code>Graphics2D.Text</code> -- class.</p>
+
+<pre><code>text.width === Graphics2D.Text.prototype.width;</code></pre>
+
+<p><code>Graphics2D.text</code> -- abstract objects without context.</p>
+
+<pre><code>var text = Graphics2D.text(&#39;There is no spoon&#39;, 10, 10);
+text.fill(&#39;red&#39;);
+text.rotate(3);
+ctx.push(text);</code></pre>
 		</section>
 	</div>
 

@@ -32,11 +32,12 @@
 
 <p>Abstract class for shapes (all drawing objects inherits it).</p>
 
-<p>You can create any object in two ways:
-	// parameters
-	ctx.rect(10, 10, 200, 200, &#39;black&#39;, &#39;2px blue&#39;);</p>
+<p>You can create any object in two ways:</p>
 
-<pre><code>// or object
+<pre><code>// parameters
+ctx.rect(10, 10, 200, 200, &#39;black&#39;, &#39;2px blue&#39;);
+
+// or object
 ctx.rect({
     x: 10,
     y: 10,
@@ -51,29 +52,35 @@ ctx.rect({
 
 <p>Btw, you can create hidden objects - they will respond to events.</p>
 
-<p>And you can use css units:
-	ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39;, &#39;1em&#39;);</p>
+<p>And you can use css units:</p>
+
+<pre><code>ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39;, &#39;1em&#39;);</code></pre>
 
 <h4>fill</h4>
 
-<p>Filling of the object:
-	rect.fill(&#39;red&#39;);
-	rect.fill(); // -> &#39;red&#39;</p>
+<p>Filling of the object:</p>
 
-<p>Object with <code>colors</code> property is gradient.
-	rect.fill({ colors:[&#39;red&#39;, &#39;green&#39;], from:&#39;top&#39;, to:&#39;bottom&#39; });
-	rect.fill().from(); // -> &#39;top&#39;</p>
+<pre><code>rect.fill(&#39;red&#39;);
+rect.fill(); // -> &#39;red&#39;</code></pre>
 
-<p>Image, object with <code>image</code> property, string starts from <code>http://</code>, <code>https://</code>, <code>./</code>, <code>../</code>, <code>data:image/</code>, <code><svg</code> - is pattern.
-	rect.fill(&#39;./image.jpg&#39;);</p>
+<p>Object with <code>colors</code> property is gradient.</p>
+
+<pre><code>rect.fill({ colors:[&#39;red&#39;, &#39;green&#39;], from:&#39;top&#39;, to:&#39;bottom&#39; });
+rect.fill().from(); // -> &#39;top&#39;</code></pre>
+
+<p>Image, object with <code>image</code> property, string starts from <code>http://</code>, <code>https://</code>, <code>./</code>, <code>../</code>, <code>data:image/</code>, <code><svg</code> - is pattern.</p>
+
+<pre><code>rect.fill(&#39;./image.jpg&#39;);</code></pre>
 
 <h4>stroke</h4>
 
-<p>Object stroke:
-	rect.stroke(); // -> { fill : &#39;black&#39;, width : 2 }
-	rect.stroke({ fill:&#39;red&#39; });
-	rect.stroke(&#39;black 4pt&#39;);
-<strong>Note: width - always in pixels.</strong></p>
+<p>Object stroke:</p>
+
+<pre><code>rect.stroke(); // -> { fill : &#39;black&#39;, width : 2 }
+rect.stroke({ fill:&#39;red&#39; });
+rect.stroke(&#39;black 4pt&#39;);</code></pre>
+
+<p><strong>Note: width - always in pixels.</strong></p>
 
 <p>Available parameters:
  - <code>width</code> -- <code>2px</code>, <code>0.5em</code>, <code>8</code>...
@@ -85,8 +92,9 @@ ctx.rect({
 
 <pre><code>rect.stroke(&#39;0.5em round square [1,2] green 0.5&#39;);</code></pre>
 
-<p>Removing stroke:
-	rect.stroke(null);</p>
+<p>Removing stroke:</p>
+
+<pre><code>rect.stroke(null);</code></pre>
 
 <h4>opacity</h4>
 
@@ -109,25 +117,33 @@ MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Composi
 
 <h4>cursor</h4>
 
-<p>Sets a cursor to object:
-	rect.cursor(&#39;pointer&#39;);</p>
+<p>Sets a cursor to object:</p>
+
+<pre><code>rect.cursor(&#39;pointer&#39;);
+rect.cursor(); // -> &#39;pointer&#39;</code></pre>
+
+<p>Removing:</p>
+
+<pre><code>rect.cursor(null);</code></pre>
 
 <h4>z</h4>
 
 <p>Z-index.</p>
 
-<p>In Graphics2D z-index -- is the element index in context elements collection. Each element has his unique z-index; objects with larger z-index will be drawn over objects with less z-index.
-	var a = ctx.rect(10, 10, 200, 200);
-	var b = ctx.circle(100, 100, 50);
-	a.z(); // -> 0
-	b.z(); // -> 1</p>
+<p>In Graphics2D z-index -- is the element index in context elements collection. Each element has his unique z-index; objects with larger z-index will be drawn over objects with less z-index.</p>
 
-<pre><code>b.z(0);
+<pre><code>var a = ctx.rect(10, 10, 200, 200);
+var b = ctx.circle(100, 100, 50);
+a.z(); // -> 0
+b.z(); // -> 1
+
+b.z(0);
 b.z(); // -> 0
 a.z(); // -> 1</code></pre>
 
-<p>You can also use <code>top</code> value:
-	rect.z(&#39;top&#39;);</p>
+<p>You can also use <code>top</code> value:</p>
+
+<pre><code>rect.z(&#39;top&#39;);</code></pre>
 
 <h4>isPointIn(x, y)</h4>
 
@@ -135,21 +151,24 @@ a.z(); // -> 1</code></pre>
 
 <h4>clip(object)</h4>
 
-<p>Adds clip.
-	var rect = ctx.rect(10, 10, 100, 100, &#39;red&#39;),
-		circle = ctx.circle(10, 10, 50);</p>
+<p>Adds clip.</p>
 
-<pre><code>rect.clip(circle);
+<pre><code>var rect = ctx.rect(10, 10, 100, 100, &#39;red&#39;),
+	circle = ctx.circle(10, 10, 50);
+
+rect.clip(circle);
 rect.clip(); // -> circle</code></pre>
 
-<p>Removing clip:
-	rect.clip(null);</p>
+<p>Removing clip:</p>
 
-<p>And:
-	// clipping by rect
-	object.clip(x, y, width, height);</p>
+<pre><code>rect.clip(null);</code></pre>
 
-<pre><code>// clipping by circle
+<p>And:</p>
+
+<pre><code>// clipping by rect
+object.clip(x, y, width, height);
+
+// clipping by circle
 object.clip(cx, cy, radius);
 
 // clipping by path
@@ -166,14 +185,10 @@ object.clip({
 	}
 });</code></pre>
 
-<p>You can change the clip:
-	object.clip(100, 100, 100, 100);
-	object.clip().animate(&#39;rotate&#39;, 45);</p>
+<p>You can change the clip:</p>
 
-<h4>mouse(state)</h4>
-
-<p>Switches on / off mouse events on element.
-	rect.mouse(false);</p>
+<pre><code>object.clip(100, 100, 100, 100);
+object.clip().animate(&#39;rotate&#39;, 45);</code></pre>
 
 <h4>clone(instance, events)</h4>
 
@@ -185,57 +200,330 @@ object.clip({
 var g = r.clone();
 var b = r.clone(true); // b is an instance
 
-g.fill(&#39;green&#39;); // r and b still is red
-b.fill(&#39;blue&#39;); // then r is blue too</code></pre>
+g.fill(&#39;green&#39;); // now g is green, r and b still is red
+b.fill(&#39;blue&#39;);  // then r is blue too, because `b` is instance of `r`</code></pre>
 
 <h4>shadow(style)</h4>
 
-<p>With object:
-	element.shadow({
-		x: 0, y: 5, blur: 5, color:&#39;gray&#39;
-	});
-<strong>Note: you can use <code>opacity</code> property.</strong></p>
+<p>With object:</p>
 
-<p>One parameter:
-	element.shadow(&#39;x&#39;, &#39;10px&#39;);
-	element.shadow(&#39;x&#39;); // -> 10</p>
+<pre><code>element.shadow({
+	x: 0, y: 5, blur: 5, color:&#39;gray&#39;
+});</code></pre>
 
-<p>CSS-style:
-	element.shadow(&#39;1px 1px 2px red&#39;);</p>
+<p><strong>Note: you can use <code>opacity</code> property.</strong></p>
 
-<p>Removing:
-	element.shadow(null);</p>
+<p>One parameter:</p>
+
+<pre><code>element.shadow(&#39;x&#39;, &#39;10px&#39;);
+element.shadow(&#39;x&#39;); // -> 10</code></pre>
+
+<p>CSS-style:</p>
+
+<pre><code>element.shadow(&#39;1px 1px 2px red&#39;);</code></pre>
+
+<p>Removing:</p>
+
+<pre><code>element.shadow(null);</code></pre>
 
 <h4>corner(corner, options)</h4>
 
-<p>Returns coords of the corner on object bounds.
-	element.corner(&#39;top right&#39;);</p>
+<p>Returns coords of the corner on object bounds.</p>
 
-<p>Options: transform (true / false), stroke (true / false).
-	element.corner(&#39;center&#39;, {
-		transform: true,
-		stroke: false
-	})</p>
+<pre><code>element.corner(&#39;top right&#39;); // -> [x, y]</code></pre>
 
-<p>Also:
-	element.corner({ from:&#39;bottom left&#39;, x:10, y:10 });</p>
+<p>Options: transform (true / false), stroke (true / false). See <code>bounds</code>.</p>
+
+<pre><code>element.corner(&#39;center&#39;, {
+	transform: true,
+	stroke: false
+});</code></pre>
+
+<p>Also:</p>
+
+<pre><code>element.corner({ from:&#39;bottom left&#39;, x:10, y:10 });
+// bottom left + [10, 10]
+
+element.corner({ from:&#39;bottom left&#39;, x:10, y:10 }, { stroke:&#39;exclude&#39;, transform:false });</code></pre>
 
 <h4>bounds(options)</h4>
 
 <p>Returns bound box of the object.
-<code>points</code> at options:
-	object.bounds(&#39;points&#39;); // -> { lt:[x, y], rt, lb, rb }
-	// lt = left top, rb = right bottom</p>
+<code>points</code> at options:</p>
 
-<p>Or options is object with transform (true / false) and stroke (true / false / <code>exclude</code>).
-	var b = object.bounds();
-	var b = object.bounds({ transform: true, stroke: &#39;exclude&#39; })</p>
+<pre><code>object.bounds(&#39;points&#39;); // -> { lt:[x, y], rt, lb, rb }
+// lt = left top, rb = right bottom</code></pre>
+
+<p>Or options is object with transform (true / false) and stroke (true / false / <code>exclude</code>).</p>
+
+<pre><code>var b = object.bounds();
+var b = object.bounds({ transform: true, stroke: &#39;exclude&#39; });</code></pre>
 
 <h4>remove()</h4>
 
 <p>Removes the object.</p>
 
-<h4>on(event, callback)</h4>
+<h4>mouse(state)</h4>
+
+<p>Switches on / off mouse events on element.</p>
+
+<pre><code>rect.mouse(false);</code></pre>
+
+<h3>on( event, function )</h3>
+
+<p>Adds listener to element. Event object have 3 special properties.</p>
+
+<pre><code>circle.on(&#39;click&#39;, function(e){
+	// this == circle
+	e.targetObject; // == circle
+	e.contextX; // mouse coordinates on context
+	e.contextY;
+});</code></pre>
+
+<p><em>Note: you can use timers:</em></p>
+
+<pre><code>circle.on(1000, function(e){
+	// this == circle
+});</code></pre>
+
+<p><em>Quick calls:</em></p>
+
+<pre><code>circle.on(&#39;click&#39;, &#39;fill&#39;, &#39;red&#39;);
+
+// or:
+
+circle.on(&#39;click&#39;, function(){
+	this.fill(&#39;red&#39;);
+});</code></pre>
+
+<h3>once( event, function )</h3>
+
+<p>Listener, that will be removed after first call.</p>
+
+<h3>off( [event, [function]] )</h3>
+
+<p>Removes: 1. One listener. 2. All the listeners of an event. 3. All the listeners.</p>
+
+<pre><code>shape.off(&#39;click&#39;, callback);
+shape.off(&#39;click&#39;);
+shape.off();</code></pre>
+
+<h3>fire( event, [data] )</h3>
+
+<p>Calls all the listeners of event.</p>
+
+<pre><code>shape.on(&#39;click&#39;, function(data){
+	console.log(data.text);
+});
+
+shape.fire(&#39;click&#39;, { text:&#39;anytext&#39; });
+// -> &#39;anytext&#39; to console</code></pre>
+
+<h3>Aliases</h3>
+
+<p>With argument = <code>on</code>, without = <code>fire</code>.</p>
+
+<pre><code>ctx.click(function(e){
+	console.log(3);
+});
+ctx.click(); // = ctx.fire(&#39;click&#39;);</code></pre>
+
+<p>Available aliases:
+ - <code>click</code>
+ - <code>dblclick</code>
+ - <code>mousedown</code>
+ - <code>mouseup</code>
+ - <code>mousemove</code>
+ - <code>mouseover</code>
+ - <code>mouseout</code>
+ - <code>mousewheel</code>
+ - <code>focus</code>
+ - <code>blur</code>
+ - <code>touchstart</code>
+ - <code>touchmove</code>
+ - <code>touchend</code>
+ - <code>keypress</code>
+ - <code>keydown</code>
+ - <code>keyup</code></p>
+
+<h4>draw( context2D )</h4>
+
+<p>Draws an object to the native 2D context.</p>
+
+<pre><code>var context = canvas.getContext(&#39;2d&#39;);
+object.draw(context);</code></pre>
+
+<h4>transform( m11, m21, m12, m22, m13, m23, [pivot] )</h4>
+
+<p>Sets a transform:</p>
+
+<pre><code>shape.transform();
+// -> [m11, m21, m12, m22, m13, m23]
+
+shape.transform(1, 0, 0, 1, 0, 0);
+// nothing changed
+
+shape.transform(2, 0, 0, 0.5, 0, 0);
+// scale to 2 by x and to 0.5 by y
+
+shape.transform(1, 0, 0, 1, 10, 20);
+// translate to [10, 20]
+
+var pid4 = Math.PI / 4;
+shape.transform(Math.cos(pid4), Math.sin(pid4), -Math.sin(pid4), Math.cos(pid4), 0, 0);
+// rotate to 45 deg
+
+shape.transform(1, Math.tan(Math.PI / 4), Math.tan(Math.PI / 6), 1, 0, 0);
+// skew to 45 deg (pi/4) by y and to 30 deg (pi/6) by x</code></pre>
+
+<p>With pivot:</p>
+
+<pre><code>var pid4 = Math.PI / 4;
+shape.transform(Math.cos(pid4), Math.sin(pid4), -Math.sin(pid4), Math.cos(pid4), 0, 0, &#39;center&#39;);
+// rotation around the shape&#39;s center</code></pre>
+
+<p>Removing:</p>
+
+<pre><code>shape.transform(null);</code></pre>
+
+<h4>scale( x, y, [pivot] )</h4>
+
+<pre><code>shape.scale(2);
+// to 2 by x, y
+
+shape.scale(2, 3);
+// to 2 by x and to 3 by y
+
+// with pivot (by default -- &#39;center&#39;)
+shape.scale(2, &#39;top left&#39;);
+shape.scale(2, 2, &#39;center&#39;);</code></pre>
+
+<h4>rotate( angle, [pivot] )</h4>
+
+<pre><code>shape.rotate(45);
+
+// around the top left corner
+shape.rotate(10, &#39;top left&#39;);
+
+// radians:
+Graphics2D.angleUnit = &#39;rad&#39;;
+shape.rotate( Math.PI / 3 );</code></pre>
+
+<h4>skew( x, y, [pivot] )</h4>
+
+<p>Also angles (degrees by default).</p>
+
+<pre><code>shape.skew(10); // by x and y
+
+shape.skew(10, 10);
+
+shape.skew(10, &#39;top left&#39;);
+
+shape.skew(45, 0, &#39;top&#39;);
+
+Graphics2D.angleUnit = &#39;rad&#39;;
+shape.skew( Math.PI / 3, 0 );</code></pre>
+
+<h4>translate( x, y )</h4>
+
+<p>Translates.</p>
+
+<h4>toDataURL( [type, [bounds] ] )</h4>
+
+<p>Bounds needed if the object hasn&#39;t <code>_bounds</code> method.</p>
+
+<pre><code>img = shape.toDataURL(&#39;image/jpeg&#39;);
+img = shape.toDataURL(&#39;image/png&#39;, shape2.bounds() );</code></pre>
+
+<h4>rasterize( [type, [bounds]] )</h4>
+
+<p>Rasterizes object.</p>
+
+<pre><code>var raster = path.rasterize();
+path.remove();
+path = raster;</code></pre>
+
+<p><em>Note: rasters are faster then big paths and complex objects with gradients, patterns, transforms and other.</em>
+Example:</p>
+
+<pre><code>// generate chaotic gradient
+var gradient = ctx.gradient([&#39;red&#39;, &#39;green&#39;], &#39;top&#39;, &#39;bottom&#39;);
+for(var i = 0; i < 50; i++)
+	gradient.color(i / 50, randcolor());
+
+// the shape
+var path = ctx.path([[0, 0]], gradient, &#39;blue 3px&#39;);
+for(var i = 0; i < 50; i++)
+	path.lineTo( Math.random() * 300, Math.random() * 300 );
+
+path.scale(0.5);
+
+// we will animate the raster instead of the path
+var raster = path.rasterize();
+path.remove();
+
+setInterval(function(){
+
+	raster.rotate(1);
+
+}, 10);
+
+function randcolor(){
+	return &#39;rgb(&#39; + [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)].join(&#39;,&#39;) + &#39;)&#39;;
+}</code></pre>
+
+<h4>animate( property, value, duration, easing, callback )</h4>
+
+<pre><code>shape.animate(&#39;rotate&#39;, 45);
+
+// duration = 1000 ms (1s)
+shape.animate(&#39;scale&#39;, 2, 1000);
+
+// easing
+shape.animate(&#39;translate&#39;, [0, 100], 500, &#39;bounceOut&#39;);
+
+// callback
+shape.animate(&#39;opacity&#39;, 0, 1000, &#39;sine&#39;, function(){
+	this.remove();
+});</code></pre>
+
+<p>With properties in object:</p>
+
+<pre><code>shape.animate({
+	opacity: 1,
+	translate: [-10, 10],
+	rotate: 45,
+	origin: &#39;top&#39; // origin for transform
+}, 1000, &#39;elasticOut&#39;);</code></pre>
+
+<p>With parameters in object:</p>
+
+<pre><code>shape.animate(&#39;rotate&#39;, 10, {
+	duration: 450,
+	easing: function(n){
+		// n is a percent of the animation
+		// (float, from 0 to 1)
+		return Math.sin(n * Math.PI);
+	}
+});
+
+shape.animate({
+	rotate: 10,
+	scale: 2,
+	origin: [0, 0]
+}, {
+	duration: 1000
+});</code></pre>
+
+<p>Queues:</p>
+
+<pre><code>shape.animate(&#39;fill&#39;, &#39;red&#39;);
+shape.animate(&#39;stroke&#39;, &#39;10pt green&#39;);
+
+// ignoring the queue:
+shape.animate(&#39;rotate&#39;, 30, {
+	queue: false
+});</code></pre>
 		</section>
 	</div>
 

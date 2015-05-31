@@ -30,48 +30,51 @@
 		<section id="main_content" class="inner">
 			<h1>Path</h1>
 
-<p>A path (contains curves).
-	var path = ctx.path([
-		[10, 10],
-		[200, 200],
-		[400, 10]
-	], &#39;red&#39;, &#39;blue 5&#39;);</p>
+<p>A path (contains curves).</p>
 
-<ul><li>First point -- moveTo.</li><li>2 arguments -- lineTo.</li><li>4 arguments -- quadraticCurveTo.</li><li>6 arguments -- bezierCurveTo.</li><li><p><code>true</code> -- closePath.</p></li><li><p>First argument is string -- curve.</p><p>var path = ctx.path([
+<pre><code>var path = ctx.path([
+	[10, 10],
+	[200, 200],
+	[400, 10]
+], &#39;red&#39;, &#39;blue 5&#39;);</code></pre>
+
+<ul><li>First point -- moveTo.</li><li>2 arguments -- lineTo.</li><li>4 arguments -- quadraticCurveTo.</li><li>6 arguments -- bezierCurveTo.</li><li><code>true</code> -- closePath.</li><li><p>First argument is string -- curve.</p><p>var path = ctx.path([
 	[10, 10],
 	[&#39;arc&#39;, 100, 100, ...]
-]);</p></li><li><p>Curve:
-	var path = ctx.path([
-		new Graphics2D.Curve(&#39;lineTo&#39;, [10, 10])
-	]);</p></li></ul>
+]);</p></li><li><p>Curve:</p><p>var path = ctx.path([
+	new Graphics2D.Curve(&#39;lineTo&#39;, [10, 10])
+]);</p></li></ul>
 
 <h2>Methods</h2>
 
 <h3>curve</h3>
 
-<p>Returns / replaces a curve.
-	var curve = path.curve(1);
-	curve.x(); // -> 200</p>
+<p>Returns / replaces a curve.</p>
 
-<pre><code>// replace 2nd curve to moveTo
+<pre><code>var curve = path.curve(1);
+curve.x(); // -> 200
+
+// replace 2nd curve to moveTo
 path.curve(1, [&#39;moveTo&#39;, 100, 100]);
 
 // replace 2nd curve to two curves
-path.curve(1, [[100, 100], [&#39;moveTo&#39;, 200, 200]])</code></pre>
+path.curve(1, [[100, 100], [&#39;moveTo&#39;, 200, 200]]);</code></pre>
 
 <h3>curves</h3>
 
-<p>Returns / replaces all the curves.
-	var curves = path.curves();
-	// array with Curve objects</p>
+<p>Returns / replaces all the curves.</p>
 
-<pre><code>path.curves([[100, 100], [200, 200]]);</code></pre>
+<pre><code>var curves = path.curves();
+// array with Curve objects
+
+path.curves([[100, 100], [200, 200]]);</code></pre>
 
 <h3>before</h3>
 
-<p>Puts a curve before other.
-	// put a lineTo before 2nd
-	path.before(1, [100, 100]);</p>
+<p>Puts a curve before other.</p>
+
+<pre><code>// put a lineTo before 2nd
+path.before(1, [100, 100]);</code></pre>
 
 <h3>after</h3>
 
@@ -79,22 +82,25 @@ path.curve(1, [[100, 100], [&#39;moveTo&#39;, 200, 200]])</code></pre>
 
 <h3>remove</h3>
 
-<p>Removes a curve.
-	// remove the 2nd curve
-	path.remove(1);</p>
+<p>Removes a curve.</p>
 
-<pre><code>// without parameters -- removes the path, inherited from Shape
+<pre><code>// remove the 2nd curve
+path.remove(1);
+
+// without parameters -- removes the path, inherited from Shape
 path.remove();</code></pre>
 
 <h3>push</h3>
 
-<p>Pushes a curve. Is used by other functions.
-	path.push( new Graphics2D.Curve(&#39;lineTo&#39;, [100, 100]) );</p>
+<p>Pushes a curve. Is used by other functions.</p>
+
+<pre><code>path.push( new Graphics2D.Curve(&#39;lineTo&#39;, [100, 100]) );</code></pre>
 
 <h3>add</h3>
 
-<p>Adds a curve.
-	path.add(&#39;lineTo&#39;, [200, 200]);</p>
+<p>Adds a curve.</p>
+
+<pre><code>path.add(&#39;lineTo&#39;, [200, 200]);</code></pre>
 
 <h3>Curve functions</h3>
 
@@ -105,21 +111,24 @@ path.closePath();</p></li></ul>
 
 <h3>merge</h3>
 
-<p>Merges a path with other.
-	path.merge(path2);</p>
+<p>Merges a path with other.</p>
+
+<pre><code>path.merge(path2);</code></pre>
 
 <h2>Object</h2>
 
-<p><code>Graphics2D.Path</code> -- class.
-	path.curve === Graphics2D.Path.prototype.curve;</p>
+<p><code>Graphics2D.Path</code> -- class.</p>
 
-<p><code>Graphics2D.path</code> -- abstract object without context.
-	var path = Graphics2D.path([]);
-	path.moveTo(10, 10);
-	path.lineTo(200, 200);
-	path.fill(&#39;red&#39;);</p>
+<pre><code>path.curve === Graphics2D.Path.prototype.curve;</code></pre>
 
-<pre><code>ctx.push(path);</code></pre>
+<p><code>Graphics2D.path</code> -- abstract object without context.</p>
+
+<pre><code>var path = Graphics2D.path([]);
+path.moveTo(10, 10);
+path.lineTo(200, 200);
+path.fill(&#39;red&#39;);
+
+ctx.push(path);</code></pre>
 		</section>
 	</div>
 

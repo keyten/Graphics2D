@@ -1,9 +1,11 @@
 Rect
 ===================
 A rect. Parameters: `x`, `y` (left top corner coords), `width`, `height`.
+
 	var rect = ctx.rect(10, 10, 200, 200, 'red', 'blue 2px');
 
 Or
+
 	var rect = ctx.rect({
 		x: 10,
 		y: 10,
@@ -17,6 +19,7 @@ Or
 ## Methods
 ### x, y, width, height
 Sets / returns properties.
+
 	rect.x(); // -> 10
 	rect.x(20);
 
@@ -31,6 +34,7 @@ Sets / returns properties.
 
 ### x1, y1, x2, y2
 Top left corner and right bottom corner.
+
 	rect.x1(); // -> 10
 	rect.x1(0); // x: 0, width: 210
 
@@ -45,9 +49,11 @@ Top left corner and right bottom corner.
 
 ## Object
 `Graphics2D.Rect` -- class.
+
 	rect.width === Graphics2D.Rect.prototype.width;
 
 `Graphics2D.rect` -- abstract objects without context.
+
 	var rect = Graphics2D.rect(100, 100, 100, 100);
 	rect.fill('red');
 	rect.rotate(45);

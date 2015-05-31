@@ -30,27 +30,30 @@
 		<section id="main_content" class="inner">
 			<h1>Circle</h1>
 
-<p>A circle. Parameters: <code>cx</code>, <code>cy</code> (center x, y), <code>radius</code>.
-	var circle = ctx.circle(300, 300, 50, &#39;red&#39;, &#39;blue 2px&#39;);</p>
+<p>A circle. Parameters: <code>cx</code>, <code>cy</code> (center x, y), <code>radius</code>.</p>
 
-<p>Or
-	var circle = ctx.circle({
-		cx: 300,
-		cy: 300,
-		radius: 50,
-		fill: &#39;red&#39;,
-		stroke: &#39;blue 2px&#39;
-	});</p>
+<pre><code>var circle = ctx.circle(300, 300, 50, &#39;red&#39;, &#39;blue 2px&#39;);</code></pre>
+
+<p>Or</p>
+
+<pre><code>var circle = ctx.circle({
+	cx: 300,
+	cy: 300,
+	radius: 50,
+	fill: &#39;red&#39;,
+	stroke: &#39;blue 2px&#39;
+});</code></pre>
 
 <h2>Methods</h2>
 
 <h3>cx, cy, radius</h3>
 
-<p>Sets / returns properties.
-	circle.cx(); // -> 300
-	circle.cx(200);</p>
+<p>Sets / returns properties.</p>
 
-<pre><code>circle.cy(); // -> 300
+<pre><code>circle.cx(); // -> 300
+circle.cx(200);
+
+circle.cy(); // -> 300
 circle.cy(200);
 
 circle.radius(); // -> 50
@@ -58,14 +61,16 @@ circle.radius(100);</code></pre>
 
 <h2>Object</h2>
 
-<p><code>Graphics2D.Circle</code> -- class.
-	circle.radius === Graphics2D.Circle.prototype.radius;</p>
+<p><code>Graphics2D.Circle</code> -- class.</p>
 
-<p><code>Graphics2D.circle</code> -- abstract objects without context.
-	var circle = Graphics2D.circle(200, 200, 50);
-	var b = circle.bounds();</p>
+<pre><code>circle.radius === Graphics2D.Circle.prototype.radius;</code></pre>
 
-<pre><code>ctx.push(circle);</code></pre>
+<p><code>Graphics2D.circle</code> -- abstract objects without context.</p>
+
+<pre><code>var circle = Graphics2D.circle(200, 200, 50);
+var b = circle.bounds();
+
+ctx.push(circle);</code></pre>
 		</section>
 	</div>
 
