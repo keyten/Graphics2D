@@ -119,7 +119,7 @@ Context.prototype = {
 		this.canvas.addEventListener(event, function(e){
 			var element,
 				propagation = true,
-				coords = _.coordsOfElement(this.canvas);
+				coords = $.coordsOfElement(this.canvas);
 
 			e.contextX = e.clientX - coords.x;
 			e.contextY = e.clientY - coords.y;

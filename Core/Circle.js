@@ -14,15 +14,15 @@ Circle = new Class(Shape, {
 
 	// parameters
 	cx : function(cx){
-		return this._property('cx', cx);
+		return this.prop('cx', cx);
 	},
 
 	cy : function(cy){
-		return this._property('cy', cy);
+		return this.prop('cy', cy);
 	},
 	
 	radius : function(r){
-		return this._property('radius', r);
+		return this.prop('radius', r);
 	},
 
 	_bounds : function(){

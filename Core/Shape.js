@@ -1,6 +1,6 @@
 Shape = new Class({
 
-	initialize : function(args, context){
+	initialize : function(args){
 		var props = this.constructor.props,
 			dists = this.constructor.distances || [],
 			l = props.length;
@@ -33,6 +33,7 @@ Shape = new Class({
 
 		this._processStyle( object.fill, object.stroke, true );
 	},
+
 	_processStyle : function(fill, stroke){
 		if(arguments.length === 0){
 			// called from init function
@@ -66,6 +67,7 @@ Shape = new Class({
 
 		// TODO: gradient stroke
 	},
+
 	_applyStyle : function(){
 		var ctx = this.context.context;
 		ctx.save();
@@ -73,23 +75,31 @@ Shape = new Class({
 			if($.has(this._style, i))
 				ctx[i] = this._style[i];
 		}
+
 		if(this._clip){
 			if(this._clip._matrix){
 				ctx.save();
 				ctx.transform.apply(ctx, this._clip._matrix);
-				this._clip.processPath(ctx);
+				this._clip.processPath(ctx); // todo: replace to the setTransform?
 				ctx.restore();
 			}
 			else
 				this._clip.processPath(ctx);
 			ctx.clip();
 		}
-		if(this._matrix)
+
+		if(this._matrix){
 			ctx.transform.apply(ctx, this._matrix);
-		if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle)
+		}
+
+		if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle){
 			ctx.fillStyle = this._style.fillStyle.toCanvasStyle(ctx, this);
-		if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle)
+		}
+
+		if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle){
 			ctx.strokeStyle = this._style.strokeStyle.toCanvasStyle(ctx, this);
+		}
+
 		if(this._style._lineDash){
 			if(ctx.setLineDash) // webkit
 				ctx.setLineDash(this._style._lineDash);
@@ -97,6 +107,7 @@ Shape = new Class({
 				ctx.mozDash = this._style._lineDash;
 		}
 	},
+
 	_parseStroke : function(value){
 		var opacity, l, val,
 			style = {};
@@ -131,7 +142,7 @@ Shape = new Class({
 				opacity = parseFloat( val );
 
 			else if( isNumberLike( val ) )
-				style.lineWidth = _.distance( val );
+				style.lineWidth = $.distance( val );
 
 			else if( val === 'miter' || val === 'bevel' )
 				style.lineJoin = val;
@@ -154,12 +165,13 @@ Shape = new Class({
 				style.strokeStyle = val;
 		}
 		if( opacity ){
-			value = _.color( style.strokeStyle );
+			value = $.color( style.strokeStyle );
 			value[3] *= opacity;
 			style.strokeStyle = 'rgba(' + value.join(',') + ')';
 		}
 		return style;
 	},
+
 	draw : function(ctx){
 		if(!this._visible)
 			return;
@@ -171,26 +183,30 @@ Shape = new Class({
 			ctx.stroke();
 		ctx.restore();
 	},
+
 	update : function(){
 		return this.context.update(), this;
 	},
 
 	// properties
-	_property : function(name, value){
+	prop : function(name, value){
 		if(value === undefined)
 			return this['_' + name];
 		this['_' + name] = value;
 		return this.update();
 	},
-	_setstyle : function(name, value){
+
+	style : function(name, value){
 		if(value === undefined)
 			return this._style[name];
 		this._style[name] = value;
 		return this.update();
 	},
+
 	mouse : function(state){
-		return this._property('events', !!state);
+		return this.prop('events', !!state);
 	},
+
 	z : function(z){
 		if(z === undefined)
 			return this._z;
@@ -201,6 +217,7 @@ Shape = new Class({
 		this._z = z;
 		return this.update();
 	},
+
 	clip : function(clip, a, b, c){
 		if(clip === undefined)
 			return this._clip;
@@ -217,6 +234,7 @@ Shape = new Class({
 			this._clip = new Path(clip, null, null, this.context);
 		return this.update();
 	},
+
 	clone : function(instance, events){
 	// instance = don't clone the style
 		var clone = new this.constructor([], this.context);
@@ -226,7 +244,7 @@ Shape = new Class({
 						this[i] !== null &&
 						i !== '_image' && // for images
 						(instance !== true || i !== '_style')){
-					clone[i] = _.clone(this[i]);
+					clone[i] = $.clone(this[i]);
 				}
 				else
 					clone[i] = this[i];
@@ -238,24 +256,24 @@ Shape = new Class({
 
 		return this.context.push( clone );
 	},
+
 	remove : function(){
 		this.context.elements.splice(this._z, 1);
 		return this.update();
 	},
+
 	fill : function(fill){
 		if(isObject(fill) && fill.colors){
 			this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
 			return this.update();
 		}
-		else if(fill && (fill.indexOf || isObject(fill))){
-			if((isObject(fill) && fill.image) ||
-				(fill.indexOf('http://') === 0 || fill.indexOf('.') === 0 || fill.indexOf('data:image/') === 0)){
-				this._style.fillStyle = new Pattern(fill, null, this.context);
-				return this.update();
-			}
+		else if(isPatternLike(fill)){
+			this._style.fillStyle = new Pattern(fill, null, this.context);
+			return this.update();
 		}
-		return this._setstyle('fillStyle', fill);
+		return this.style('fillStyle', fill);
 	},
+
 	stroke : function(stroke){
 		// element.stroke() => { fill : 'black', width:2 }
 		// element.stroke({ fill:'black', width:3 });
@@ -269,7 +287,7 @@ Shape = new Class({
 				join  : style.lineJoin,
 				dash  : style._lineDash
 			};
-		if(stroke === null){
+		if(stroke === null){ // todo: don't use delete ?
 			delete style.strokeStyle;
 			delete style.lineWidth;
 			delete style.lineCap;
@@ -279,18 +297,23 @@ Shape = new Class({
 		extend(style, this._parseStroke(stroke));
 		return this.update();
 	},
+
 	opacity : function(opacity){
-		return this._setstyle('globalAlpha', opacity);
+		return this.style('globalAlpha', opacity);
 	},
+
 	composite : function(composite){
-		return this._setstyle('globalCompositeOperation', composite);
+		return this.style('globalCompositeOperation', composite);
 	},
+
 	hide : function(){
-		return this._property('visible', false);
+		return this.prop('visible', false);
 	},
+
 	show : function(){
-		return this._property('visible', true);
+		return this.prop('visible', true);
 	},
+
 	cursor : function(value){
 		if( value === undefined )
 			return this._cursor;
@@ -316,6 +339,7 @@ Shape = new Class({
 
 		return this;
 	},
+
 	shadow : function(name, value){
 		// shape.shadow({ x, y, color, blur });
 		// shape.shadow('x')
@@ -328,7 +352,8 @@ Shape = new Class({
 				'color': 'shadowColor',
 				'blur': 'shadowBlur'
 			},
-			i = 0;
+			i = 0,
+			color;
 		if(isString(name)){
 			if( name in shadowToStyle ){
 				if(value === undefined){
@@ -364,15 +389,15 @@ Shape = new Class({
 		}
 		else {
 			value = name;
-			if(value.opacity){
-				value.color = _.color(value.color || style.shadowColor || 'black');
-				value.color[3] *= value.opacity;
-				value.color = 'rgba(' + value.color.join(',') + ')';
-			}
 			for(name in value){
-				if( $.has(value, name) ){
+				if( $.has(value, name) && name in shadowToStyle ){
 					style[shadowToStyle[name]] = value[name];
 				}
+			}
+			if(value.opacity){
+				color = $.color(value.color || style.shadowColor || 'black');
+				color[3] *= value.opacity;
+				this._style.shadowColor = 'rgba(' + color.join(',') + ')';
 			}
 		}
 		return this.update();
@@ -382,6 +407,10 @@ Shape = new Class({
 	on : function(event, fn){
 		if(isString(fn))
 			fn = wrap(arguments);
+
+		if( isObject(event) ){
+			// и в контекст добавить
+		}
 
 		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
@@ -396,7 +425,7 @@ Shape = new Class({
 			fn = wrap(arguments, this);
 		var proxy;
 		this.on(event, fn);
-		this.on(event, proxy = function(e){
+		this.on(event, proxy = function(){
 			this.off(event, fn);
 		});
 		proxy.proxy = fn;
@@ -448,6 +477,7 @@ Shape = new Class({
 		ctx.restore();
 		return is;
 	},
+
 	corner : function(corner, options){
 		if(isArray(corner))
 			return corner;
@@ -469,6 +499,7 @@ Shape = new Class({
 			bounds.y + bounds.h * $.corners[corner][1]
 		];
 	},
+
 	bounds : function(options){
 		// options.transform == true / false
 		// options.stroke == true / false / 'exclude';
@@ -492,7 +523,6 @@ Shape = new Class({
 				a = m[0], b = m[1],
 				c = m[2], d = m[3],
 				e = m[4], f = m[5];
-
 			ltx = [ltx * a + lty * c + e, lty = ltx * b + lty * d + f][0];
 			rtx = [rtx * a + rty * c + e, rty = rtx * b + rty * d + f][0];
 			lbx = [lbx * a + lby * c + e, lby = lbx * b + lby * d + f][0];
@@ -506,6 +536,12 @@ Shape = new Class({
 			bounds.x2 = Math.max(ltx, rtx, lbx, rbx);
 			bounds.y1 = Math.min(lty, rty, lby, rby);
 			bounds.y2 = Math.max(lty, rty, lby, rby);
+			bounds.width = bounds.x2 - bounds.x1;
+			bounds.height = bounds.y2 - bounds.y1;
+			bounds.w = bounds.width;
+			bounds.h = bounds.height;
+			bounds.x = bounds.x1;
+			bounds.y = bounds.y1;
 		} else if( options === 'points' ){
 			return {
 				lt: [bounds.x1, bounds.y1],
@@ -515,6 +551,7 @@ Shape = new Class({
 			};
 		}
 
+
 		if( lw && (options.stroke === true || options.stroke === 'exclude') ){
 			if( options.stroke === 'exclude' )
 				lw = -lw;
@@ -523,6 +560,12 @@ Shape = new Class({
 			bounds.y1 -= lw;
 			bounds.x2 += lw;
 			bounds.y2 += lw;
+			bounds.width += 2 * lw;
+			bounds.height += 2 * lw;
+			bounds.w += 2 * lw;
+			bounds.h += 2 * lw;
+			bounds.x -= lw;
+			bounds.y -= lw;
 		}
 
 		return bounds;
@@ -551,7 +594,7 @@ Shape = new Class({
 				];
 
 		if(this._matrix)
-			matrix = _.multiply(this._matrix, matrix);
+			matrix = $.multiply(this._matrix, matrix);
 		
 		this._matrix = matrix;
 		return this.update();
@@ -601,6 +644,7 @@ Shape = new Class({
 	toPath : function(){
 		return null;
 	},
+
 	toDataURL : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
@@ -630,6 +674,7 @@ Shape = new Class({
 
 		return image;
 	},
+
 	rasterize : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
@@ -803,12 +848,12 @@ $.fx.step = {
 
 	fill: function( fx ){
 		if( fx.state === 0 ){
-			fx.start = _.color( fx.elem._style.fillStyle );
+			fx.start = $.color( fx.elem._style.fillStyle );
 
 			if( fx.end === 'transparent' ){
 				fx.end = fx.start.slice(0, 3).concat([ 0 ]);
 			} else
-				fx.end = _.color( fx.end );
+				fx.end = $.color( fx.end );
 
 			if( fx.elem._style.fillStyle === 'transparent' ||
 				fx.elem._style.fillStyle === undefined )
@@ -824,14 +869,14 @@ $.fx.step = {
 	stroke: function( fx ){
 		if( fx.state === 0 ){
 			var end = Shape.prototype._parseStroke( fx.end );
-			fx.color1 = _.color( fx.elem._style.strokeStyle );
+			fx.color1 = $.color( fx.elem._style.strokeStyle );
 			fx.width1 = fx.elem._style.lineWidth || 0;
 			fx.width2 = end.lineWidth;
 
 			if( end.strokeStyle === 'transparent' )
 				fx.color2 = fx.color1.slice(0, 3).concat([ 0 ]);
 			else if( end.strokeStyle )
-				fx.color2 = _.color( end.strokeStyle );
+				fx.color2 = $.color( end.strokeStyle );
 
 			if( (fx.elem._style.strokeStyle === 'transparent' ||
 				fx.elem._style.strokeStyle === undefined) && end.strokeStyle )
@@ -911,9 +956,9 @@ function transformAnimation( fx, fn ){
 	matrix[4] += fx.corner[0] - fx.corner[0]*matrix[0] - fx.corner[1]*matrix[2];
 	matrix[5] += fx.corner[1] - fx.corner[0]*matrix[1] - fx.corner[1]*matrix[3];
 
-	fx.elem._matrixCur = _.multiply( fx.elem._matrixCur, matrix );
+	fx.elem._matrixCur = $.multiply( fx.elem._matrixCur, matrix );
 	fx.elem._matrixCur.now = fx.now;
-	fx.elem._matrix = _.multiply( fx.elem._matrixStart, fx.elem._matrixCur );
+	fx.elem._matrix = $.multiply( fx.elem._matrixStart, fx.elem._matrixCur );
 }
 
 // events slices

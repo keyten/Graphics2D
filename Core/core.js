@@ -92,8 +92,6 @@ $.id = function(id){
 	return new Context( document.getElementById(id) );
 };
 
-$.util = $._ = _; // deprecated
-
 
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;

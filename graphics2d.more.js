@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 11.5.2015
+ *  Last edit: 13.6.2015
  *  License: MIT / LGPL
  */
 
@@ -967,9 +967,10 @@ var ImageAnim = $.Class(Img, {
 		if(!fps)
 			fps = 60;
 
-		if(typeof loop === 'function')
-			callback = loop,
+		if(typeof loop === 'function'){
+			callback = loop;
 			loop = true;
+		}
 
 		if(loop === undefined)
 			loop = true;

@@ -15,38 +15,38 @@ Rect = new Class(Shape, {
 
 	// parameters
 	x : function(x){
-		return this._property('x', x);
+		return this.prop('x', x);
 	},
 	y : function(y){
-		return this._property('y', y);
+		return this.prop('y', y);
 	},
 	width : function(w){
-		return this._property('width', w);
+		return this.prop('width', w);
 	},
 	height : function(h){
-		return this._property('height', h);
+		return this.prop('height', h);
 	},
 	x1 : function(x){
 		return x === undefined ?
 			this._x :
-			this._property('width', this._width - x + this._x)
-				._property('x', x);
+			this.prop('width', this._width - x + this._x)
+				.prop('x', x);
 	},
 	y1 : function(y){
 		return y === undefined ?
 			this._y :
-			this._property('height', this._height - y + this._y)
-				._property('y', y);
+			this.prop('height', this._height - y + this._y)
+				.prop('y', y);
 	},
 	x2 : function(x){
 		return x === undefined ?
 			this._x + this._width :
-			this._property('width', x - this._x);
+			this.prop('width', x - this._x);
 	},
 	y2 : function(y){
 		return y === undefined ?
 			this._y + this._height :
-			this._property('height', y - this._y);
+			this.prop('height', y - this._y);
 	},
 
 	_bounds : function(){

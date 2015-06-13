@@ -83,7 +83,10 @@ Img = new Class(Shape, {
 		if(w === 'native' || h === 'native')
 			return [w === 'native' ? image.width : w,
 					h === 'native' ? image.height : h];
-	
+
+		if(image.width === 0 || image.height === 0)
+			return [image.width, image.height];
+
 		// auto
 		if(w === 'auto' || h === 'auto')
 			return [w === 'auto' ? image.width * (h / image.height) : w,
@@ -98,14 +101,29 @@ Img = new Class(Shape, {
 	y2 : Rect.prototype.y2,
 	width : function(w){
 		if(w === undefined) return this._width;
-		return this._property('width', this._computeSize(w, this._height, this._image)[0]);
+
+		if(!this._image.complete)
+			return this.on('load', 'width', w); // todo: once?
+
+		return this.prop('width', this._computeSize(w, this._height, this._image)[0]);
 	},
 	height : function(h){
 		if(h === undefined) return this._height;
-		return this._property('height', this._computeSize(this._width, h, this._image)[1]);
+
+		if(!this._image.complete)
+			return this.on('load', 'height', h);
+
+		return this.prop('height', this._computeSize(this._width, h, this._image)[1]);
 	},
 	_bounds : Rect.prototype._bounds,
 	processPath : Rect.prototype.processPath, // for event listeners
+
+	load : function(fn){
+		if(typeof fn === 'function' || isString(fn))
+			return this.on.apply(this, ['load'].concat(slice.call(arguments)));
+		else
+			return this.fire.apply(this, arguments);
+	},
 
 	crop : function(arr){
 		if(arguments.length === 0)

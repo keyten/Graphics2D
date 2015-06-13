@@ -114,9 +114,10 @@ var ImageAnim = $.Class(Img, {
 		if(!fps)
 			fps = 60;
 
-		if(typeof loop === 'function')
-			callback = loop,
+		if(typeof loop === 'function'){
+			callback = loop;
 			loop = true;
+		}
 
 		if(loop === undefined)
 			loop = true;

@@ -56,6 +56,14 @@ for(var i in $.easing){
 
 // Bounds class
 function Bounds(x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
 	this.x = this.x1 = x;
 	this.y = this.y1 = y;
 	this.w = this.width  = w;
@@ -249,6 +257,7 @@ $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 	'cadetblue': '5f9ea0',
 	'chartreuse': '7fff00',
 	'chocolate': 'd2691e',
+	'chucknorris': 'c00000',
 	'coral': 'ff7f50',
 	'cornflowerblue': '6495ed',
 	'cornsilk': 'fff8dc',
@@ -384,10 +393,10 @@ $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 
 
 // Clear functions
-_.clone = $.clone = function(object){
+$.clone = function(object){
 	var result = new object.constructor();
 	for(var i in object){
-		if(Object.prototype.hasOwnProperty.call(object, i)){
+		if($.has(object, i)){
 			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
 				result[i] = _.clone(object[i]);
 			} else {
@@ -399,7 +408,7 @@ _.clone = $.clone = function(object){
 };
 
 
-_.multiply = $.multiply = function(m1, m2){ // multiplies two 2D-transform matrices
+$.multiply = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
 		m1[1] * m2[0] + m1[3] * m2[1],
@@ -411,7 +420,7 @@ _.multiply = $.multiply = function(m1, m2){ // multiplies two 2D-transform matri
 };
 
 // DOM
-_.coordsOfElement = $.coordsOfElement = function(element){ // returns coords of a DOM element
+$.coordsOfElement = function(element){ // returns coords of a DOM element
 
 	var box = element.getBoundingClientRect(),
 		style = window.getComputedStyle(element);
@@ -423,31 +432,44 @@ _.coordsOfElement = $.coordsOfElement = function(element){ // returns coords of 
 
 };
 
-_.color = $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+$.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined) return;
 
-	var test;
-	if(value in $.colors)
-		return _.color('#' + $.colors[value]);
-
 	// rgba(255, 100, 20, 0.5)
-	if(test = value.match(/^rgba?\((\d{1,3})\,\s*(\d{1,3})\,\s*(\d{1,3})(\,\s*([0-9\.]{1,4}))?\)/))
-		return [parseInt(test[1]), parseInt(test[2]), parseInt(test[3]), parseFloat(test[5] || 1)];
+	if(value.indexOf('rgb') === 0){
+		value = value.substring(value.indexOf('(') + 1, value.length-1).split(' ').join('').split(',').map(function(v){
+			// rgba(100%, 0%, 50%, 1)
+			if(v.indexOf('%') > 0)
+				return Math.round(parseInt(v) * 2.55);
+			return parseInt(v);
+		});
 
-	// rgba(100%, 0%, 50%, 1)
-	if(test = value.match(/^rgba?\((\d{1,3})\%?\,\s*(\d{1,3})\%?\,\s*(\d{1,3})\%?(\,\s*([0-9\.]{1,4}))?\)/))
-		return [ Math.round(parseInt(test[1]) * 2.55), Math.round(parseInt(test[2]) * 2.55), Math.round(parseInt(test[3]) * 2.55), parseFloat(test[5] || 1) ];
+		if(value.length === 3)
+			value.push(1);
 
+		return value;
+	}
 	// #bebebe
-	if(test = value.match(/^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i))
-		return [parseInt(test[1], 16), parseInt(test[2], 16), parseInt(test[3], 16), 1];
+	else if(value.indexOf('#') === 0){
+		// remove the # and turn into array
+		value = value.substring(1);
 
-	// #555
-	if(test = value.match(/^\#([0-9a-f])([0-9a-f])([0-9a-f])/i))
-		return [parseInt(test[1] + test[1], 16), parseInt(test[2] + test[2], 16), parseInt(test[3] + test[3], 16), 1];
+		// #555
+		if(value.length === 3)
+			value = value.split('').map(function(v){
+				// 'f0a' -> 'ff00aa'
+				return v + v;
+			}).join('');
+			// value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
 
-	if(value === 'rand')
-		return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), Number(Math.random().toFixed(2))];
+		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
+	}
+	// 'red'
+	else if(value in $.colors)
+		return $.color('#' + $.colors[value]);
+
+	else if(value === 'rand')
+		return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), 1];
 
 	return [0, 0, 0, 0];
 };
@@ -464,19 +486,19 @@ var defaultUnits = {
 	vmax: 13.65625, vmin: 4.78125, wvh: 16
 };
 
-_.distance = $.distance = function(value){
+$.distance = function(value){
 	if(value === undefined) return;
 	if(!value) return 0;
 	if( isNumber(value) ){
 		if( $.unit !== 'px')
-			return _.distance( value + '' + $.unit );
+			return $.distance( value + '' + $.unit );
 
 		return value;
 	}
 
 	value += '';
 	if(value.indexOf('px') === value.length-2)
-		return +value.replace(/[^\d]*/, '');
+		return parseInt(value);
 
 	if(!$.units){
 

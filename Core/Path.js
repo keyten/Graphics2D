@@ -95,7 +95,7 @@ Path = new Class( Shape, {
 		return this.update();
 	},
 
-	bounds : function(){
+	_bounds : function(){
 		var curve, end,
 			curves = this._curves,
 			current = [0, 0],
@@ -108,17 +108,18 @@ Path = new Class( Shape, {
 
 		for(; i < l; i++){
 			curve = curves[i];
+
 			if(curve._bounds && (curve = curve._bounds(current))){
 				minx = Math.min(minx, curve.x1, curve.x2);
 				miny = Math.min(miny, curve.y1, curve.y2);
 				maxx = Math.max(maxx, curve.x1, curve.x2);
 				maxy = Math.max(maxy, curve.y1, curve.y2);
 			}
-			if(end = curves[i].endsIn()){
-				current[0] += end[0];
-				current[1] += end[1];
+			if( (end = curves[i].endsIn()) ){
+				current = end;
 			}
 		}
+
 		return new Bounds(minx, miny, maxx - minx, maxy - miny);
 	},
 
@@ -132,10 +133,13 @@ Path = new Class( Shape, {
 		ctx.beginPath();
 		for(; i < l; i++){
 			curve = curves[i].process(ctx, current);
-			if(curve){
-				current[0] += curve[0];
-				current[1] += curve[1];
-			}
+//			if(curve){
+//				current[0] += curve[0];
+//				current[1] += curve[1];
+//			}
+			
+			if(curve)
+				current = curve;
 		}
 	}
 
@@ -147,8 +151,10 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 	if(!path)
 		return [];
 
-	if(path instanceof Curve) // todo: path.path = pathObject;
+	if(path instanceof Curve){
+		path.path = pathObject;
 		return [path];
+	}
 
 	var curves = [];
 	if(isArray(path)){
@@ -160,8 +166,10 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 		for(var i = 0, l = path.length; i < l; i++){
 
 			// Curve
-			if(path[i] instanceof Curve)
-				curves.push(path[i]); // path[i].path = pathObject;
+			if(path[i] instanceof Curve){
+				curves.push(path[i]);
+				path[i].path = pathObject;
+			}
 
 			// Array
 			else {

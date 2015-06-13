@@ -6,19 +6,17 @@ $.Curve = Curve = new Class({
 
 		if( name in Curve.curves ){
 			extend( this, Curve.curves[ name ] );
-	//		Curve.curves[ name ]( this );
 		}
 	},
 
-	// todo: extendsBy to the classes
-	_property : Shape.prototype._property,
+	prop : Shape.prototype.prop,
 	update : function(){
 		this.path.update();
 		return this;
 	},
 
 	arguments : function(){
-		return this._property( 'arguments', arguments.length > 1 ? arguments : arguments[0] );
+		return this.prop( 'arguments', arguments.length > 1 ? arguments : arguments[0] );
 	},
 
 	argument : function( index, value ){
@@ -29,17 +27,21 @@ $.Curve = Curve = new Class({
 	},
 
 	from : function(){ // returns the start point
+		if(!this.path)
+			throw 'Error: the curve hasn\'t path.';
+
 		var index = this.path._curves.indexOf( this ),
 			before = this.path._curves[ index - 1 ];
+
 		if( index === 0 )
 			return [0, 0];
-		if( index === -1 || !before || !('endsIn' in before && 'from' in before) )
-			return null;
-		var from = before.from(),
-			end = before.endsIn();
-		if( !from || !end )
-			return null;
-		return [ from[0] + end[0], from[1] + end[1] ];
+		if( index === -1 || !before || !('endsIn' in before) )
+			return null; // todo: throw new error
+
+		var end = before.endsIn();
+		if( !end )
+			return null; // todo: throw
+		return end;
 	},
 
 	endsIn : function(){

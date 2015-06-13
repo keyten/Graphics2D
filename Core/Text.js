@@ -75,16 +75,16 @@ Text = new Class(Shape, {
 
 	// options
 	text : function(t){
-		return this._property('text', t);
+		return this.prop('text', t);
 	},
 	x : function(x){
-		return this._property('x', x);
+		return this.prop('x', x);
 	},
 	y : function(y){
-		return this._property('y', y);
+		return this.prop('y', y);
 	},
 	breaklines : function(a){
-		return this._property('breaklines', a);
+		return this.prop('breaklines', a);
 	},
 	font : function(font){
 		if(font === true)
@@ -107,7 +107,7 @@ Text = new Class(Shape, {
 			str += 'italic ';
 		if(font.bold)
 			str += 'bold ';
-		return this._setstyle('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
+		return this.style('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
 		// font.size can't be 0? unexpected behavior
 	},
 	_parseFont : function(font){
@@ -144,15 +144,15 @@ Text = new Class(Shape, {
 		return this._setFont('italic', i === undefined ? undefined : !!i) || false;
 	},
 	align : function(a){
-		return this._setstyle('textAlign', a);
+		return this.style('textAlign', a);
 	},
 	baseline : function(b){
-		return this._setstyle('textBaseline', b);
+		return this.style('textBaseline', b);
 	},
 	underline : function(val){
 		if(val === undefined)
 			return !!this._underline;
-		return this._property('underline', !!val);
+		return this.prop('underline', !!val);
 	},
 	width : function(w){
 		if(w === undefined){
