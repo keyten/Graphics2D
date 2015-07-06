@@ -3,6 +3,14 @@
 // 2. Move by path.
 // 3. Gradient to gradient.
 
+
+$.fx.step.position = function( fx ){
+	if( fx.state === 0 ){
+		;
+	}
+};
+
+/*
 // Moving by path
 $.fx.step.curve = function( fx ){
 	if( fx.state === 0 ){
@@ -50,4 +58,4 @@ $.fx.step.curveAngle = function( fx ){
 	fx.elem.rotate(angle);
 	fx.pointLast = point;
 	fx.ang = angle;
-};
+}; */

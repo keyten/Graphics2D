@@ -185,3 +185,9 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 
 	return curves;
 };
+
+$.path = function(){
+	var path = new Path(arguments);
+	path.init();
+	return path;
+};

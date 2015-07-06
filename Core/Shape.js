@@ -77,14 +77,15 @@ Shape = new Class({
 		}
 
 		if(this._clip){
-			if(this._clip._matrix){
+			var clip = this._clip;
+			if(clip._matrix){
 				ctx.save();
-				ctx.transform.apply(ctx, this._clip._matrix);
-				this._clip.processPath(ctx); // todo: replace to the setTransform?
+				ctx.transform.apply(ctx, clip._matrix);
+				clip.processPath(ctx);
 				ctx.restore();
 			}
 			else
-				this._clip.processPath(ctx);
+				clip.processPath(ctx);
 			ctx.clip();
 		}
 
@@ -185,6 +186,7 @@ Shape = new Class({
 	},
 
 	update : function(){
+		if(!this.context) return this;
 		return this.context.update(), this;
 	},
 
@@ -226,12 +228,16 @@ Shape = new Class({
 
 		if(clip.processPath)
 			this._clip = clip;
-		else if(c !== undefined)
-			this._clip = new Rect(clip, a, b, c, null, null, this.context);
-		else if(b !== undefined)
-			this._clip = new Circle(clip, a, b, null, null, this.context);
-		else
-			this._clip = new Path(clip, null, null, this.context);
+		else {
+			if(c !== undefined)
+				this._clip = new Rect([clip, a, b, c, null, null]);
+			else if(b !== undefined)
+				this._clip = new Circle([clip, a, b, null, null]);
+			else
+				this._clip = new Path([clip, null, null]);
+			this._clip.context = this.context;
+			this._clip.init();
+		}
 		return this.update();
 	},
 
@@ -409,7 +415,15 @@ Shape = new Class({
 			fn = wrap(arguments);
 
 		if( isObject(event) ){
-			// и в контекст добавить
+			for(var i in event){
+				if($.has(event, i)){
+					if(isArray(event[i]))
+						this.on.apply(this, [i].concat(event[i]));
+					else
+						this.on(i, event[i]);
+				}
+			}
+			return this;
 		}
 
 		if( isNumber(event) )
@@ -648,7 +662,7 @@ Shape = new Class({
 	toDataURL : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
-				bounds = this.bounds();
+				bounds = this.bounds({ transform: true, stroke: true });
 			else
 				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
@@ -678,7 +692,7 @@ Shape = new Class({
 	rasterize : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
-				bounds = this.bounds();
+				bounds = this.bounds({ transform: true, stroke: true });
 			else
 				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}

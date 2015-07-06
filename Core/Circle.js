@@ -38,3 +38,9 @@ Circle = new Class(Shape, {
 });
 Circle.props = [ 'cx', 'cy', 'radius', 'fill', 'stroke' ];
 Circle.distances = [true, true, true];
+
+$.circle = function(){
+	var circle = new Circle(arguments);
+	circle.init();
+	return circle;
+};

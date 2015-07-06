@@ -113,6 +113,10 @@ extend(Curve.prototype, {
 	}
 });
 
+extend(Curve.curves.moveTo, {
+	length: null
+});
+
 extend(Curve.curves.lineTo, {
 	pointAt : function(t){
 		var from = this.from();

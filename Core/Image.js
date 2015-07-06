@@ -24,13 +24,19 @@ Img = new Class(Shape, {
 			this._parseHash(props);
 		}
 
+		if(isNumberLike(this._width))
+			this._width = $.distance(this._width);
+
+		if(isNumberLike(this._height))
+			this._height = $.distance(this._height);
+
 		var blob, s;
 
 		if(isString(this._image)){
 			if(this._image[0] === '#')
 				this._image = document.getElementById( this._image.substr(1) );
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
+			// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 			else if(this._image.indexOf('<svg') === 0){
 				blob = new Blob([this._image], {type: 'image/svg+xml;charset=utf-8'});
 				this._image = new Image();
@@ -43,17 +49,8 @@ Img = new Class(Shape, {
 			}
 		}
 
-		// image already loaded
-		if(this._image.complete){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
-		}
 		
 		this._image.addEventListener('load', function(e){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
 			this.update();
 
 			if(blob)
@@ -66,31 +63,7 @@ Img = new Class(Shape, {
 			this.fire('error', e);
 		}.bind(this));
 
-		// Video tag support
-	},
-	
-	_computeSize : function(w, h, image){
-		// num, num
-		if(isNumberLike(w) && isNumberLike(h))
-			return [w, h];
-
-		// 'native', 'native' or 'auto', 'auto'
-		// and undefined, undefined
-		if((isString(w) && isString(h)) || (w === undefined && h === undefined))
-			return [image.width, image.height];
-
-		// native
-		if(w === 'native' || h === 'native')
-			return [w === 'native' ? image.width : w,
-					h === 'native' ? image.height : h];
-
-		if(image.width === 0 || image.height === 0)
-			return [image.width, image.height];
-
-		// auto
-		if(w === 'auto' || h === 'auto')
-			return [w === 'auto' ? image.width * (h / image.height) : w,
-					h === 'auto' ? image.height * (w / image.width) : h];
+		// Video tag support?
 	},
 
 	x  : Rect.prototype.x,
@@ -100,23 +73,45 @@ Img = new Class(Shape, {
 	x2 : Rect.prototype.x2,
 	y2 : Rect.prototype.y2,
 	width : function(w){
-		if(w === undefined) return this._width;
+		if(w === undefined){
+			if(this._width === 'auto')
+				return this._image.width * (this._height / this._image.height);
+			else if(this._width === 'native' || this._width == null)
+				return this._image.width;
+			return this._width;
+		}
 
 		if(!this._image.complete)
-			return this.on('load', 'width', w); // todo: once?
+			return this.once('load', 'width', w); // todo: once?
 
-		return this.prop('width', this._computeSize(w, this._height, this._image)[0]);
+		if(isNumberLike(w))
+			w = $.distance(w);
+
+		return this.prop('width', w);
 	},
 	height : function(h){
-		if(h === undefined) return this._height;
+		if(h === undefined){
+			if(this._height === 'auto')
+				return this._image.height * (this._width / this._image.width);
+			else if(this._height === 'native' || this._height == null)
+				return this._image.height;
+			return this._height;
+		}
 
 		if(!this._image.complete)
-			return this.on('load', 'height', h);
+			return this.once('load', 'height', h);
 
-		return this.prop('height', this._computeSize(this._width, h, this._image)[1]);
+		if(isNumberLike(h))
+			h = $.distance(h);
+
+		return this.prop('height', h);
 	},
 	_bounds : Rect.prototype._bounds,
-	processPath : Rect.prototype.processPath, // for event listeners
+
+	processPath : function(ctx){ // for event listeners
+		ctx.beginPath();
+		ctx.rect(this._x, this._y, this.width(), this.height());
+	},
 
 	load : function(fn){
 		if(typeof fn === 'function' || isString(fn))
@@ -152,22 +147,41 @@ Img = new Class(Shape, {
 			return;
 		this._applyStyle();
 
+		var image = this._image,
+			w = this._width,
+			h = this._height;
+
+		if(w === 'auto')
+			w = image.width * (h / image.height);
+		else if(w === 'native' || w == null)
+			w = image.width;
+
+		if(h === 'auto')
+			h = image.height * (w / image.width);
+		else if(h === 'native' || h == null)
+			h = image.height;
+
 		if(this._crop !== undefined)
-			ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
-		else if(this._width !== undefined)
-			ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
-		else
-			ctx.drawImage(this._image, this._x, this._y);
+			ctx.drawImage(image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
+		else if(w != null || h != null)
+			ctx.drawImage(image, this._x, this._y, w, h);
 
 		if(this._style.strokeStyle !== undefined)
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
+
 		ctx.restore();
 	}
 
 });
 
 Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-Img.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
+Img.distances = [false, true, true]; // TODO: check on errors! 'auto', 'native' values?
+
+$.image = function(){
+	var image = new Img(arguments);
+	image.init();
+	return image;
+};
 
 $.fx.step.crop = function( fx ){
 	if( fx.state === 0 ){

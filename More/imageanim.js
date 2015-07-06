@@ -56,16 +56,16 @@ var ImageAnim = $.Class(Img, {
 		this._image = this._frames[0];
 
 		// image already loaded
-		if(this._image.complete){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
-		}
+//		if(this._image.complete){
+//			s = this._computeSize(this._width, this._height, this._image);
+//			this._width = s[0];
+//			this._height = s[1];
+//		}
 
 		this._image.addEventListener('load', function(e){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
+//			s = this._computeSize(this._width, this._height, this._image);
+//			this._width = s[0];
+//			this._height = s[1];
 			this.update();
 
 			this.fire('load', e);
@@ -165,4 +165,6 @@ var ImageAnim = $.Class(Img, {
 });
 
 ImageAnim.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-ImageAnim.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
+ImageAnim.distances = [false, true, true]; // TODO: check on errors! 'auto', 'native' values?
+
+$.ImageAnim = ImageAnim;

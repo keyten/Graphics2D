@@ -32,26 +32,30 @@
 
 //# Shapes
 
-// {{include ellipse.js}}
-// {{include polygon.js}}
-// {{include star.js}}
-// {{include roundrect.js}}
+// {{include Shape.Ellipse.js}}
+// {{include Shape.Polygon.js}}
+// {{include Shape.Star.js}}
+// {{include Shape.RoundRect.js}}
+
+
+//# Typography
+// {{include Typography.Letters.js}}
 
 
 //# Curves
 
-// {{include catmullrom.js}}
-// {{include bezier.js}}
-// {{include curves.js}}
-// {{don't include paths.js}}
+// {{include Curves.CatmullRom.js}}
+// {{include Curves.Bezier.js}}
+// {{include Curves.Utils.js}}
+// {{include PathUtils.js}}
 
 //# Animation
-// {{include pathanim.js}} // -- bezier
+// {{include Animation.Curves.js}} // -- bezier
 
 //# Images
 
-// {{include filter.js}}
-// {{include imageanim.js}}
+// {{include Filter.js}}
+// {{include Imageanim.js}}
 // {{don't include sprite.js}}
 // {{don't include composites.js}}
 
@@ -62,15 +66,11 @@
 
 //# Utilities
 
-// {{include fullscreen.js}}
+// {{include Fullscreen.js}}
+// {{include Colors.js}}
 // {{don't include layers.js}}
 // {{don't include particles.js}}
 // {{don't include camera.js}}
 // {{don't include events_keyboard.js}}
-
-$.Ellipse = Ellipse;
-$.Polygon = Polygon;
-$.Star = Star;
-$.ImageAnim = ImageAnim;
 
 })( typeof window !== 'undefined' ? window : this, Graphics2D );

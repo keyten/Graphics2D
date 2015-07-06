@@ -78,3 +78,5 @@ Context.prototype.ellipse = function(){
 };
 
 $.fx.step.kappa = $.fx.step.float;
+
+$.Ellipse = Ellipse;

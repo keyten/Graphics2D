@@ -84,14 +84,15 @@ $.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 
-$.query = function(query, index, element){
-	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query );
+$.query = function(query, index, element, renderer){
+	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
 };
 
-$.id = function(id){
-	return new Context( document.getElementById(id) );
+$.id = function(id, renderer){
+	return new Context( document.getElementById(id), renderer );
 };
 
+$.renderers = {};
 
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;

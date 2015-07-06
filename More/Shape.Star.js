@@ -74,3 +74,5 @@ $.fx.step.radius1 = $.fx.step.int;
 $.fx.step.radius2 = $.fx.step.int;
 $.fx.step.points = $.fx.step.int;
 $.fx.step.distortion = $.fx.step.float;
+
+$.Star = Star;

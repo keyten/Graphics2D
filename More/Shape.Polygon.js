@@ -58,3 +58,5 @@ Context.prototype.polygon = function(){
 };
 
 $.fx.step.sides = $.fx.step.int;
+
+$.Polygon = Polygon;

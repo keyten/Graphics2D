@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 13.6.2015
+ *  Last edit: 6.7.2015
  *  License: MIT / LGPL
  */
 
@@ -112,6 +112,8 @@ Context.prototype.ellipse = function(){
 };
 
 $.fx.step.kappa = $.fx.step.float;
+
+$.Ellipse = Ellipse;
 Polygon = new Class(Shape, {
 
 	init : function(){
@@ -172,6 +174,8 @@ Context.prototype.polygon = function(){
 };
 
 $.fx.step.sides = $.fx.step.int;
+
+$.Polygon = Polygon;
 Star = new Class(Shape, {
 
 	init : function(){
@@ -248,6 +252,8 @@ $.fx.step.radius1 = $.fx.step.int;
 $.fx.step.radius2 = $.fx.step.int;
 $.fx.step.points = $.fx.step.int;
 $.fx.step.distortion = $.fx.step.float;
+
+$.Star = Star;
 //# RoundRect
 Rect.prototype._rx = 0;
 Rect.prototype._ry = 0;
@@ -307,6 +313,145 @@ Rect.prototype.ry = function(ry){
 
 $.fx.step.rx = $.fx.step.int;
 $.fx.step.ry = $.fx.step.int;
+
+
+//# Typography
+var TextImproved = new Class(Text, {
+
+	_letterSpace: 0,
+	_wordSpace: 0,
+
+	draw: function(ctx){
+		if(!this._visible)
+			return;
+		this._applyStyle();
+
+		var x = this._x,
+			y = this._y,
+			i = 0,
+			l = this._lines.length,
+			draw = emptyFunc,
+			underline,
+			line;
+
+		if(this._style.fillStyle){
+			if(this._style.strokeStyle)
+				draw = function(t, x, y){
+					ctx.fillText(t, x, y);
+					ctx.strokeText(t, x, y);
+				};
+			else
+				draw = ctx.fillText;
+		} else
+			draw = ctx.strokeText;
+
+		if(this._underline){
+			var height = Math.round(this._font.size / 5),
+				lw = Math.round(this._font.size / 15),
+				oldSize = this._style.lineWidth || lw;
+
+			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
+			underline = function(x, y, width){
+				ctx.lineWidth = lw;
+				ctx.beginPath();
+				ctx.moveTo(x, y + height);
+				ctx.lineTo(x + width, y + height);
+				ctx.stroke();
+				ctx.lineWidth = oldSize;
+			};
+		}
+
+		for(; i < l; i++){
+			line = this._lines[i];
+			draw.call(ctx, line.text, x + line.x, y + line.y + this._lineSpace * i);
+			if(underline !== undefined)
+				underline(line.x + x, y + line.y + this._lineSpace * i, ctx.measureText(line.text).width);
+		}
+
+		ctx.restore();
+	}
+
+});
+
+TextImproved.props = Text.props;
+
+Text.prototype.improve = function(){
+	$.extend(this, TextImproved.prototype);
+	return this;
+};
+
+Context.prototype.textImproved = function(){
+	return this.push( new TextImproved(arguments, this) );
+};
+
+/* var textNativeDraw = Text.prototype.draw;
+$.extend(Text.prototype, {
+	
+	_letterSpace: 0,
+	letterSpace: function(space){
+		return this.prop('letterSpace', space);
+	},
+
+	letter: function(index, style){
+		if(style){
+			if(!this._letterStyle)
+				this._letterStyle = {};
+			if(!this._letterStyle[index])
+				this._letterStyle[index] = {};
+			$.extend(this._letterStyle[index], style);
+			this.update();
+		}
+		return this._letterStyle[index];
+	},
+
+	draw: function(ctx){
+		if(this._letterSpace === 0 && this._letterStyle == null){
+			return textNativeDraw.call(this, ctx);
+		}
+
+		if(!this._visible)
+			return;
+		this._applyStyle();
+
+		var x = this._x,
+			y = this._y,
+			i = 0,
+			l = this._lines.length,
+			draw = emptyFunc,
+			line,
+			j,
+			letterX,
+			style;
+
+		if(this._style.fillStyle){
+			if(this._style.strokeStyle)
+				draw = function(t, x, y){
+					ctx.fillText(t, x, y);
+					ctx.strokeText(t, x, y);
+				};
+			else
+				draw = ctx.fillText;
+		} else
+			draw = ctx.strokeText;
+
+		for(; i < l; i++){
+			line = this._lines[i];
+			letterX = 0;
+			for(j = 0; j < line.text.length; j++){
+				draw.call(ctx, line.text[j], x + line.x + letterX, y + line.y + this._lineSpace * i);
+				letterX += ctx.measureText(line.text[j]).width + this._letterSpace;
+			}
+		}
+	}
+
+});
+
+$.fx.step.letterSpace = $.fx.step.float;
+/*
+	- letterSpace.
+	- letter.
+
+*/
 
 
 //# Curves
@@ -550,6 +695,10 @@ extend(Curve.prototype, {
 	}
 });
 
+extend(Curve.curves.moveTo, {
+	length: null
+});
+
 extend(Curve.curves.lineTo, {
 	pointAt : function(t){
 		var from = this.from();
@@ -710,7 +859,52 @@ extend(Curve.curves.arc, {
 		// allPoints
 	
 //		TODO: animate by curve
-// {{don't include paths.js}}
+//# Path Utils
+
+extend(Path.prototype, {
+
+	curveAt: function(t){
+		var lengths = [],
+			i = 0,
+			currentLength,
+			totalLength = 0;
+
+		for(; i < this._curves.length; i++){
+			if(this._curves[i].length){
+				currentLength = this._curves[i].length(detail);
+				totalLength += currentLength;
+				lengths.push( currentLength );
+			}
+		}
+
+		totalLength *= t;
+		currentLength = 0;
+
+		for(i = 0; i < this._curves.length; i++){
+			if(this._curves[i].length){
+				currentLength += this._curves[i].length(detail);
+				if(currentLength <= totalLength)
+					return this._curves[i];
+			}
+		}
+	},
+
+	pointAt: function(t, detail){
+
+		return totalLength * t;
+	},
+
+	length: function(detail){
+		var totalLength = 0,
+			i = 0;
+		for(; i < this._curves.length; i++){
+			if(this._curves[i].length)
+				totalLength += this._curves[i].length(detail);
+		}
+		return totalLength;
+	}
+
+});
 
 //# Animation
 //# Animation
@@ -718,6 +912,14 @@ extend(Curve.curves.arc, {
 // 2. Move by path.
 // 3. Gradient to gradient.
 
+
+$.fx.step.position = function( fx ){
+	if( fx.state === 0 ){
+		;
+	}
+};
+
+/*
 // Moving by path
 $.fx.step.curve = function( fx ){
 	if( fx.state === 0 ){
@@ -765,7 +967,7 @@ $.fx.step.curveAngle = function( fx ){
 	fx.elem.rotate(angle);
 	fx.pointLast = point;
 	fx.ang = angle;
-}; // -- bezier
+}; */ // -- bezier
 
 //# Images
 
@@ -909,16 +1111,16 @@ var ImageAnim = $.Class(Img, {
 		this._image = this._frames[0];
 
 		// image already loaded
-		if(this._image.complete){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
-		}
+//		if(this._image.complete){
+//			s = this._computeSize(this._width, this._height, this._image);
+//			this._width = s[0];
+//			this._height = s[1];
+//		}
 
 		this._image.addEventListener('load', function(e){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
+//			s = this._computeSize(this._width, this._height, this._image);
+//			this._width = s[0];
+//			this._height = s[1];
 			this.update();
 
 			this.fire('load', e);
@@ -1018,7 +1220,9 @@ var ImageAnim = $.Class(Img, {
 });
 
 ImageAnim.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-ImageAnim.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
+ImageAnim.distances = [false, true, true]; // TODO: check on errors! 'auto', 'native' values?
+
+$.ImageAnim = ImageAnim;
 // {{don't include sprite.js}}
 // {{don't include composites.js}}
 
@@ -1123,14 +1327,159 @@ if(!prefix && !('requestFullScreen' in elProto)){
 	Context.prototype.isFullscreen = function(){};
 	Context.prototype.exitfull = function(){};
 }
+//# Colors
+
+// $.color = function(color, from, to){}
+
+$.colorSpaces = {
+	cmy: {
+		from: function(c, m, y){
+			return {
+				r: (100 - c) * 2.55,
+				g: (100 - m) * 2.55,
+				b: (100 - y) * 2.55
+			};
+		},
+		to: function(r, g, b){
+			return {
+				c: (255 - r) / 2.55,
+				m: (255 - g) / 2.55,
+				y: (255 - b) / 2.55
+			};
+		},
+		max: 100,
+		min: 0,
+		round: true
+	},
+
+	hsl: {
+		from: function(h, s, l){
+
+			function hue2rgb(v1, v2, vh){
+				if( vh < 0 )
+					vh += 1;
+				else if( vh > 1 )
+					vh -= 1;
+
+				if( (6 * vh) < 1 )
+					return v1 + (v2 - v1) * 6 * vh;
+				if( (2 * vh) < 1 )
+					return v2;
+				if( (3 * vh) < 2 )
+					return v1 + (v2 - v1) * ( 2/3 - vh ) * 6;
+				return v1;
+			}
+
+			var v1, v2;
+			if( s === 0 ){
+				return {
+					r: l * 255,
+					g: l * 255,
+					b: l * 255
+				};
+			}
+			else {
+				if( l < 0.5 )
+					v2 = l * (1 + s);
+				else
+					v2 = (l + s) - (s * l);
+
+				v1 = 2 * l - v2;
+
+				return {
+					r: 255 * hue2rgb( v1, v2, h + 1/3 ),
+					g: 255 * hue2rgb( v1, v2, h ),
+					b: 255 * hue2rgb( v1, v2, h - 1/3 )
+				};
+			}
+		},
+		to: function(r, g, b){
+			r /= 255;
+			g /= 255;
+			b /= 255;
+
+			var min = Math.min(r, g, b),
+				max = Math.max(r, g, b),
+				delta = max - min,
+				l = (max + min) / 2,
+				h, s,
+				dr, dg, db;
+
+			if( delta === 0 ){
+				return {
+					h: 0,
+					s: 0,
+					l: l * 100
+				};
+			}
+			else {
+				if( l < 0.5 )
+					s = delta / (max + min);
+				else
+					s = delta / (2 - max - min);
+
+				dr = (((max - r) / 6) + (delta / 2)) / delta;
+				dg = (((max - g) / 6) + (delta / 2)) / delta;
+				db = (((max - b) / 6) + (delta / 2)) / delta;
+
+				if( r === max )
+					h = db - dg;
+				else if( g === max )
+					h = 1/3 + dr - db;
+				else if( b === max )
+					h = 2/3 + dg - dr;
+
+				if( h < 0 )
+					h += 1;
+				else if( h > 1 )
+					h -= 1;
+			}
+			return {
+				h: h * 360,
+				s: s * 100,
+				l: l * 100
+			};
+		},
+		round: true,
+		period: [360, 0, 0]
+	},
+
+	xyz: {
+		from: function(x, y, z){
+			x /= 100;
+			y /= 100;
+			z /= 100;
+
+			var r =  x * 3.2406 - y * 1.5372 - z * 0.4986,
+				g = -x * 0.9689 + y * 1.8758 + z * 0.0415,
+				b =  x * 0.0557 - y * 0.2040 + z * 1.0570;
+
+			if( r > 0.0031308 )
+				r = 1.055 * (r ^ (1 / 2.4)) - 0.055;
+			else
+				r *= 12.92;
+
+			if( g > 0.0031308 )
+				g = 1.055 * (g ^ (1 / 2.4)) - 0.055;
+			else
+				g *= 12.92;
+
+			if( b > 0.0031308 )
+				b = 1.055 * (b ^ (1 / 2.4)) - 0.055;
+			else
+				b *= 12.92;
+
+			return {
+				r: r * 255,
+				g: g * 255,
+				b: b * 255
+			}
+		}
+	}
+};
 // {{don't include layers.js}}
 // {{don't include particles.js}}
 // {{don't include camera.js}}
 // {{don't include events_keyboard.js}}
-
-$.Ellipse = Ellipse;
-$.Polygon = Polygon;
-$.Star = Star;
-$.ImageAnim = ImageAnim;
 
 })( typeof window !== 'undefined' ? window : this, Graphics2D );

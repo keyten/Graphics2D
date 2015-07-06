@@ -60,3 +60,9 @@ Rect = new Class(Shape, {
 });
 Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];
 Rect.distances = [ true, true, true, true ];
+
+$.rect = function(){
+	var rect = new Rect(arguments);
+	rect.init();
+	return rect;
+};

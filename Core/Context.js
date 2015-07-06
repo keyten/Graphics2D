@@ -1,9 +1,15 @@
-Context = function(canvas){
-	this.context   = canvas.getContext('2d'); // rename to the context2d?
+Context = function(canvas, renderer){
+	if(renderer && renderer !== '2d')
+		extend(this, $.renderers[renderer]);
+	else
+		this.context   = canvas.getContext('2d'); // rename to the context2d?
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
 	this._cache    = {}; // for gradients
+
+	if(this.init)
+		this.init();
 };
 
 Context.prototype = {
@@ -185,6 +191,13 @@ Context.prototype = {
 	on : function(event, fn){
 		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
+
+		if( isObject(event) ){
+			for(var i in event)
+				if($.has(event, i))
+					this.on(i, event[i]);
+			return this;
+		}
 
 		(this.listeners[event] || this.listener(event)).push(fn);
 		return this;

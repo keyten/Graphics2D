@@ -32,9 +32,10 @@ Text = new Class(Shape, {
 	},
 
 	_breaklines: true,
+	_lineSpace: 0,
 
 	_genLines : function(){
-		var text = this._text,
+		var text = this._text + '',
 			lines = this._lines = [],
 			size = this._lineHeight || this._font.size || 10,
 			ctx = this.context.context,
@@ -83,6 +84,9 @@ Text = new Class(Shape, {
 	y : function(y){
 		return this.prop('y', y);
 	},
+	lineSpace : function(s){
+		return this.prop('lineSpace', s);
+	},
 	breaklines : function(a){
 		return this.prop('breaklines', a);
 	},
@@ -112,7 +116,7 @@ Text = new Class(Shape, {
 	},
 	_parseFont : function(font){
 		if(isObject(font)){
-			font.size = _.distance(font.size);
+			font.size = $.distance(font.size);
 			return font;
 		}
 
@@ -123,7 +127,7 @@ Text = new Class(Shape, {
 			else if(val === 'italic')
 				obj.italic = true;
 			else if(/^\d+(px|pt)?/.test(val))
-				obj.size = _.distance(val);
+				obj.size = $.distance(val);
 			else
 				obj.family += ' ' + val;
 		});
@@ -135,7 +139,7 @@ Text = new Class(Shape, {
 		return this._setFont('family', f);
 	},
 	size : function(s){
-		return this._setFont('size', s === undefined ? undefined : _.distance(s));
+		return this._setFont('size', s === undefined ? undefined : $.distance(s));
 	},
 	bold : function(b){
 		return this._setFont('bold', b === undefined ? undefined : !!b) || false;
@@ -217,6 +221,7 @@ Text = new Class(Shape, {
 			i = 0,
 			l = this._lines.length,
 			draw = emptyFunc,
+			underline,
 			line;
 
 		if(this._style.fillStyle){
@@ -230,22 +235,28 @@ Text = new Class(Shape, {
 		} else
 			draw = ctx.strokeText;
 
-		for(; i < l; i++){
-			line = this._lines[i];
-			draw.call(ctx, line.text, x + line.x, y + line.y);
+		if(this._underline){
+			var height = Math.round(this._font.size / 5),
+				lw = Math.round(this._font.size / 15),
+				oldSize = this._style.lineWidth || lw;
+
+			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
+			underline = function(x, y, width){
+				ctx.lineWidth = lw;
+				ctx.beginPath();
+				ctx.moveTo(x, y + height);
+				ctx.lineTo(x + width, y + height);
+				ctx.stroke();
+				ctx.lineWidth = oldSize;
+			};
 		}
 
-/*		// underline
-		if(this._underline){
-			var b = this.bounds(),
-				height = Math.round(this._font.size / 5);
-			ctx.beginPath();
-			ctx.moveTo(b.x, b.y + b.h - height);
-			ctx.lineTo(b.x + b.w, b.y + b.h - height);
-			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
-			ctx.lineWidth   = Math.round(this._font.size / 15);
-			ctx.stroke();
-		} */
+		for(; i < l; i++){
+			line = this._lines[i];
+			draw.call(ctx, line.text, x + line.x, y + line.y + this._lineSpace * i);
+			if(underline !== undefined)
+				underline(line.x + x, y + line.y + this._lineSpace * i, ctx.measureText(line.text).width);
+		}
 
 		ctx.restore();
 	}
@@ -256,3 +267,11 @@ Text = new Class(Shape, {
 Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
 Text.font = '10px sans-serif';
 //Text.distances = [ false, false, true, true ];
+
+$.text = function(){
+	var text = new Text(arguments);
+	text.init();
+	return text;
+};
+
+$.fx.step.lineSpace = $.fx.step.float;

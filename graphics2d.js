@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 13.6.2015
+ *  Last edit: 6.7.2015
  *  License: MIT / LGPL
  */
 
@@ -48,12 +48,18 @@ var $ = {},
 	                       window.clearTimeout;
 
 
-Context = function(canvas){
-	this.context   = canvas.getContext('2d'); // rename to the context2d?
+Context = function(canvas, renderer){
+	if(renderer && renderer !== '2d')
+		extend(this, $.renderers[renderer]);
+	else
+		this.context   = canvas.getContext('2d'); // rename to the context2d?
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
 	this._cache    = {}; // for gradients
+
+	if(this.init)
+		this.init();
 };
 
 Context.prototype = {
@@ -236,6 +242,13 @@ Context.prototype = {
 		if( isNumber(event) )
 			return window.setTimeout(fn.bind(this), event), this;
 
+		if( isObject(event) ){
+			for(var i in event)
+				if($.has(event, i))
+					this.on(i, event[i]);
+			return this;
+		}
+
 		(this.listeners[event] || this.listener(event)).push(fn);
 		return this;
 	},
@@ -348,14 +361,15 @@ Shape = new Class({
 		}
 
 		if(this._clip){
-			if(this._clip._matrix){
+			var clip = this._clip;
+			if(clip._matrix){
 				ctx.save();
-				ctx.transform.apply(ctx, this._clip._matrix);
-				this._clip.processPath(ctx); // todo: replace to the setTransform?
+				ctx.transform.apply(ctx, clip._matrix);
+				clip.processPath(ctx);
 				ctx.restore();
 			}
 			else
-				this._clip.processPath(ctx);
+				clip.processPath(ctx);
 			ctx.clip();
 		}
 
@@ -456,6 +470,7 @@ Shape = new Class({
 	},
 
 	update : function(){
+		if(!this.context) return this;
 		return this.context.update(), this;
 	},
 
@@ -497,12 +512,16 @@ Shape = new Class({
 
 		if(clip.processPath)
 			this._clip = clip;
-		else if(c !== undefined)
-			this._clip = new Rect(clip, a, b, c, null, null, this.context);
-		else if(b !== undefined)
-			this._clip = new Circle(clip, a, b, null, null, this.context);
-		else
-			this._clip = new Path(clip, null, null, this.context);
+		else {
+			if(c !== undefined)
+				this._clip = new Rect([clip, a, b, c, null, null]);
+			else if(b !== undefined)
+				this._clip = new Circle([clip, a, b, null, null]);
+			else
+				this._clip = new Path([clip, null, null]);
+			this._clip.context = this.context;
+			this._clip.init();
+		}
 		return this.update();
 	},
 
@@ -680,7 +699,15 @@ Shape = new Class({
 			fn = wrap(arguments);
 
 		if( isObject(event) ){
-			// и в контекст добавить
+			for(var i in event){
+				if($.has(event, i)){
+					if(isArray(event[i]))
+						this.on.apply(this, [i].concat(event[i]));
+					else
+						this.on(i, event[i]);
+				}
+			}
+			return this;
 		}
 
 		if( isNumber(event) )
@@ -919,7 +946,7 @@ Shape = new Class({
 	toDataURL : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
-				bounds = this.bounds();
+				bounds = this.bounds({ transform: true, stroke: true });
 			else
 				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
@@ -949,7 +976,7 @@ Shape = new Class({
 	rasterize : function(type, bounds){
 		if( bounds === undefined ){
 			if( typeof this.bounds === 'function' )
-				bounds = this.bounds();
+				bounds = this.bounds({ transform: true, stroke: true });
 			else
 				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
@@ -1316,6 +1343,12 @@ Rect = new Class(Shape, {
 Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];
 Rect.distances = [ true, true, true, true ];
 
+$.rect = function(){
+	var rect = new Rect(arguments);
+	rect.init();
+	return rect;
+};
+
 Circle = new Class(Shape, {
 
 	init : function(){
@@ -1356,6 +1389,12 @@ Circle = new Class(Shape, {
 });
 Circle.props = [ 'cx', 'cy', 'radius', 'fill', 'stroke' ];
 Circle.distances = [true, true, true];
+
+$.circle = function(){
+	var circle = new Circle(arguments);
+	circle.init();
+	return circle;
+};
 
 $.Curve = Curve = new Class({
 	initialize : function( name, _arguments, path ){
@@ -1720,6 +1759,12 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 	return curves;
 };
 
+$.path = function(){
+	var path = new Path(arguments);
+	path.init();
+	return path;
+};
+
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	if(smoothWithPrefix) return smoothWithPrefix;
@@ -1746,13 +1791,19 @@ Img = new Class(Shape, {
 			this._parseHash(props);
 		}
 
+		if(isNumberLike(this._width))
+			this._width = $.distance(this._width);
+
+		if(isNumberLike(this._height))
+			this._height = $.distance(this._height);
+
 		var blob, s;
 
 		if(isString(this._image)){
 			if(this._image[0] === '#')
 				this._image = document.getElementById( this._image.substr(1) );
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
+			// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 			else if(this._image.indexOf('<svg') === 0){
 				blob = new Blob([this._image], {type: 'image/svg+xml;charset=utf-8'});
 				this._image = new Image();
@@ -1765,17 +1816,8 @@ Img = new Class(Shape, {
 			}
 		}
 
-		// image already loaded
-		if(this._image.complete){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
-		}
 		
 		this._image.addEventListener('load', function(e){
-			s = this._computeSize(this._width, this._height, this._image);
-			this._width = s[0];
-			this._height = s[1];
 			this.update();
 
 			if(blob)
@@ -1788,31 +1830,7 @@ Img = new Class(Shape, {
 			this.fire('error', e);
 		}.bind(this));
 
-		// Video tag support
-	},
-	
-	_computeSize : function(w, h, image){
-		// num, num
-		if(isNumberLike(w) && isNumberLike(h))
-			return [w, h];
-
-		// 'native', 'native' or 'auto', 'auto'
-		// and undefined, undefined
-		if((isString(w) && isString(h)) || (w === undefined && h === undefined))
-			return [image.width, image.height];
-
-		// native
-		if(w === 'native' || h === 'native')
-			return [w === 'native' ? image.width : w,
-					h === 'native' ? image.height : h];
-
-		if(image.width === 0 || image.height === 0)
-			return [image.width, image.height];
-
-		// auto
-		if(w === 'auto' || h === 'auto')
-			return [w === 'auto' ? image.width * (h / image.height) : w,
-					h === 'auto' ? image.height * (w / image.width) : h];
+		// Video tag support?
 	},
 
 	x  : Rect.prototype.x,
@@ -1822,23 +1840,45 @@ Img = new Class(Shape, {
 	x2 : Rect.prototype.x2,
 	y2 : Rect.prototype.y2,
 	width : function(w){
-		if(w === undefined) return this._width;
+		if(w === undefined){
+			if(this._width === 'auto')
+				return this._image.width * (this._height / this._image.height);
+			else if(this._width === 'native' || this._width == null)
+				return this._image.width;
+			return this._width;
+		}
 
 		if(!this._image.complete)
-			return this.on('load', 'width', w); // todo: once?
+			return this.once('load', 'width', w); // todo: once?
 
-		return this.prop('width', this._computeSize(w, this._height, this._image)[0]);
+		if(isNumberLike(w))
+			w = $.distance(w);
+
+		return this.prop('width', w);
 	},
 	height : function(h){
-		if(h === undefined) return this._height;
+		if(h === undefined){
+			if(this._height === 'auto')
+				return this._image.height * (this._width / this._image.width);
+			else if(this._height === 'native' || this._height == null)
+				return this._image.height;
+			return this._height;
+		}
 
 		if(!this._image.complete)
-			return this.on('load', 'height', h);
+			return this.once('load', 'height', h);
 
-		return this.prop('height', this._computeSize(this._width, h, this._image)[1]);
+		if(isNumberLike(h))
+			h = $.distance(h);
+
+		return this.prop('height', h);
 	},
 	_bounds : Rect.prototype._bounds,
-	processPath : Rect.prototype.processPath, // for event listeners
+
+	processPath : function(ctx){ // for event listeners
+		ctx.beginPath();
+		ctx.rect(this._x, this._y, this.width(), this.height());
+	},
 
 	load : function(fn){
 		if(typeof fn === 'function' || isString(fn))
@@ -1874,22 +1914,41 @@ Img = new Class(Shape, {
 			return;
 		this._applyStyle();
 
+		var image = this._image,
+			w = this._width,
+			h = this._height;
+
+		if(w === 'auto')
+			w = image.width * (h / image.height);
+		else if(w === 'native' || w == null)
+			w = image.width;
+
+		if(h === 'auto')
+			h = image.height * (w / image.width);
+		else if(h === 'native' || h == null)
+			h = image.height;
+
 		if(this._crop !== undefined)
-			ctx.drawImage(this._image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, this._width, this._height);
-		else if(this._width !== undefined)
-			ctx.drawImage(this._image, this._x, this._y, this._width, this._height);
-		else
-			ctx.drawImage(this._image, this._x, this._y);
+			ctx.drawImage(image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
+		else if(w != null || h != null)
+			ctx.drawImage(image, this._x, this._y, w, h);
 
 		if(this._style.strokeStyle !== undefined)
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
+
 		ctx.restore();
 	}
 
 });
 
 Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-Img.distances = [false, true, true, true, true]; // TODO: check on errors! 'auto', 'native' values?
+Img.distances = [false, true, true]; // TODO: check on errors! 'auto', 'native' values?
+
+$.image = function(){
+	var image = new Img(arguments);
+	image.init();
+	return image;
+};
 
 $.fx.step.crop = function( fx ){
 	if( fx.state === 0 ){
@@ -1941,9 +2000,10 @@ Text = new Class(Shape, {
 	},
 
 	_breaklines: true,
+	_lineSpace: 0,
 
 	_genLines : function(){
-		var text = this._text,
+		var text = this._text + '',
 			lines = this._lines = [],
 			size = this._lineHeight || this._font.size || 10,
 			ctx = this.context.context,
@@ -1992,6 +2052,9 @@ Text = new Class(Shape, {
 	y : function(y){
 		return this.prop('y', y);
 	},
+	lineSpace : function(s){
+		return this.prop('lineSpace', s);
+	},
 	breaklines : function(a){
 		return this.prop('breaklines', a);
 	},
@@ -2021,7 +2084,7 @@ Text = new Class(Shape, {
 	},
 	_parseFont : function(font){
 		if(isObject(font)){
-			font.size = _.distance(font.size);
+			font.size = $.distance(font.size);
 			return font;
 		}
 
@@ -2032,7 +2095,7 @@ Text = new Class(Shape, {
 			else if(val === 'italic')
 				obj.italic = true;
 			else if(/^\d+(px|pt)?/.test(val))
-				obj.size = _.distance(val);
+				obj.size = $.distance(val);
 			else
 				obj.family += ' ' + val;
 		});
@@ -2044,7 +2107,7 @@ Text = new Class(Shape, {
 		return this._setFont('family', f);
 	},
 	size : function(s){
-		return this._setFont('size', s === undefined ? undefined : _.distance(s));
+		return this._setFont('size', s === undefined ? undefined : $.distance(s));
 	},
 	bold : function(b){
 		return this._setFont('bold', b === undefined ? undefined : !!b) || false;
@@ -2126,6 +2189,7 @@ Text = new Class(Shape, {
 			i = 0,
 			l = this._lines.length,
 			draw = emptyFunc,
+			underline,
 			line;
 
 		if(this._style.fillStyle){
@@ -2139,22 +2203,28 @@ Text = new Class(Shape, {
 		} else
 			draw = ctx.strokeText;
 
-		for(; i < l; i++){
-			line = this._lines[i];
-			draw.call(ctx, line.text, x + line.x, y + line.y);
+		if(this._underline){
+			var height = Math.round(this._font.size / 5),
+				lw = Math.round(this._font.size / 15),
+				oldSize = this._style.lineWidth || lw;
+
+			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
+			underline = function(x, y, width){
+				ctx.lineWidth = lw;
+				ctx.beginPath();
+				ctx.moveTo(x, y + height);
+				ctx.lineTo(x + width, y + height);
+				ctx.stroke();
+				ctx.lineWidth = oldSize;
+			};
 		}
 
-/*		// underline
-		if(this._underline){
-			var b = this.bounds(),
-				height = Math.round(this._font.size / 5);
-			ctx.beginPath();
-			ctx.moveTo(b.x, b.y + b.h - height);
-			ctx.lineTo(b.x + b.w, b.y + b.h - height);
-			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
-			ctx.lineWidth   = Math.round(this._font.size / 15);
-			ctx.stroke();
-		} */
+		for(; i < l; i++){
+			line = this._lines[i];
+			draw.call(ctx, line.text, x + line.x, y + line.y + this._lineSpace * i);
+			if(underline !== undefined)
+				underline(line.x + x, y + line.y + this._lineSpace * i, ctx.measureText(line.text).width);
+		}
 
 		ctx.restore();
 	}
@@ -2165,6 +2235,14 @@ Text = new Class(Shape, {
 Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
 Text.font = '10px sans-serif';
 //Text.distances = [ false, false, true, true ];
+
+$.text = function(){
+	var text = new Text(arguments);
+	text.init();
+	return text;
+};
+
+$.fx.step.lineSpace = $.fx.step.float;
 
 $.Gradient = Gradient = new Class({
 
@@ -3084,14 +3162,15 @@ $.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 
-$.query = function(query, index, element){
-	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query );
+$.query = function(query, index, element, renderer){
+	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
 };
 
-$.id = function(id){
-	return new Context( document.getElementById(id) );
+$.id = function(id, renderer){
+	return new Context( document.getElementById(id), renderer );
 };
 
+$.renderers = {};
 
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;
