@@ -1,6 +1,18 @@
 //# Colors
 
-// $.color = function(color, from, to){}
+var _color = $.color;
+$.color = function(color, from, to){
+
+	if(arguments.length == 1)
+		return _color(color);
+
+	if(!(from in $.colorSpaces) || !(to in $.colorSpaces)){
+		throw 'Unknown colorspace (given: ' + from + ', ' + to + ')';
+	}
+
+	return $.colorSpaces[to].to( $.colorSpaces[from].from(color) );
+
+}
 
 $.colorSpaces = {
 	cmy: {

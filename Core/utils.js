@@ -113,6 +113,11 @@ function Class(parent, properties, base){
 	}
 	if(base)
 		extend(cls, base);
+	if(properties.mixins){
+		mixins.forEach(function(mixin){
+			extend(cls.prototype, mixin);
+		});
+	}
 
 	extend(cls.prototype, properties);
 
@@ -437,7 +442,7 @@ $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, 
 
 	// rgba(255, 100, 20, 0.5)
 	if(value.indexOf('rgb') === 0){
-		value = value.substring(value.indexOf('(') + 1, value.length-1).split(' ').join('').split(',').map(function(v){
+		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',').map(function(v){
 			// rgba(100%, 0%, 50%, 1)
 			if(v.indexOf('%') > 0)
 				return Math.round(parseInt(v) * 2.55);
@@ -484,9 +489,17 @@ var defaultUnits = {
 	ex: 7.15625, 'in': 96, mm: 3.765625,
 	pc: 16, pt: 1.328125, rem: 16, v: 16,
 	vmax: 13.65625, vmin: 4.78125, wvh: 16
+	// values from p5.js:
+	// pt: 1.25
+	// pc: 15
+	// mm: 3.543307
+	// cm: 35.43307
+	// in: 90
 };
 
 $.distance = function(value){
+	// todo: snap to pixels
+	// $.snapToPix = 1: round all the distances
 	if(value === undefined) return;
 	if(!value) return 0;
 	if( isNumber(value) ){

@@ -47,6 +47,7 @@
 // {{include Curves.CatmullRom.js}}
 // {{include Curves.Bezier.js}}
 // {{include Curves.Utils.js}}
+// {{include Curves.Gradients.js}}
 // {{include PathUtils.js}}
 
 //# Animation
@@ -66,6 +67,7 @@
 
 //# Utilities
 
+// {{include Layers.js}}
 // {{include Fullscreen.js}}
 // {{include Colors.js}}
 // {{don't include layers.js}}

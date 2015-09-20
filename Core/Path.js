@@ -133,10 +133,6 @@ Path = new Class( Shape, {
 		ctx.beginPath();
 		for(; i < l; i++){
 			curve = curves[i].process(ctx, current);
-//			if(curve){
-//				current[0] += curve[0];
-//				current[1] += curve[1];
-//			}
 			
 			if(curve)
 				current = curve;

@@ -2,7 +2,7 @@
  *  Author: Keyten aka Dmitriy Miroshnichenko
  *  License: MIT / LGPL
  */
-
+/*
 var on = Context.prototype.on;
 Context.prototype.on = function(event, keys, fn){
 	if( typeof keys === 'function' ){

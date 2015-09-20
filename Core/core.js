@@ -13,7 +13,7 @@ var $ = {},
 // Classes
 	Context,
 	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
-	Gradient, Pattern, Bounds,
+	Gradient, Pattern, Bounds, Style,
 
 // Local variables
 	document = window.document,
@@ -48,7 +48,11 @@ var $ = {},
 	                       window.clearTimeout;
 
 
+// {{include base.js}}
+
 // {{include context.js}}
+
+// {{include style.js}}
 
 // {{include shape.js}}
 

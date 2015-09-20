@@ -1,7 +1,14 @@
+// TODO: eventhooks in core.
+// и id событий в core
+// и простой парсинг параметров
+$.events.keyholdon = function(){};
+$.events.keyholdoff = function(){};
+
 /*! Graphics2D Events 1.0
  *  Author: Keyten aka Dmitriy Miroshnichenko
  *  License: MIT / LGPL
  */
+ /*
 (function(window, $, undefined){
 
 	var on = $.Context.prototype.on;
@@ -104,15 +111,17 @@
 
 		// keydown(shift+z)
 		if(event.indexOf('key') > -1 && event.indexOf('(') > -1){
+			// var keys = $.parseKeys(event);
 			var keys = event.split('(')[1].replace(')', '').split(',');
 			event = event.split('(')[0];
 			var f = func;
 			func = function(e){
+				// Bug: breaks native browser property (!)
 				if(e.which in $.keyMap)
 					e.key = $.keyMap[e.which];
 				else
 					e.key = String.fromCharCode(e.which);
-				
+
 				if(keys.indexOf(e.key) &&
 					(!keys.indexOf('shift') || e.shiftKey) &&
 					(!keys.indexOf('alt') || e.altKey) &&
@@ -183,4 +192,18 @@
 		145: 'ScrollLock'
 	};
 
-})(window, Graphics2D);
+})(window, Graphics2D); */
+
+/*
+	Using:
+		- .on('keydown(Shift+K, 5, Delete)#anyid', func);
+		- .changeEvent('anyid', 'delete', 'Shift+L');
+		- .changeEvent('anyid', 'add', '8');
+		- .changeEvent('anyid', 'off');
+		- .changeEvent('anyid', 'on');
+
+		- .on('mousedown(x: 0 10, y: 0 50)#anyid', func); -- coordinates on object or ctx
+		- .on('mousemove(minDelta: 5, maxDelta: 8)', func);
+		- .on('mousedrag', func);
+		- .changeEvent('anyid', 'minDelta', 0);
+ */

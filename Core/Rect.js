@@ -7,9 +7,17 @@ Rect = new Class(Shape, {
 			this._y = props.y;
 			this._width  = props.width  || props.w || 0;
 			this._height = props.height || props.h || 0;
-			this._parseHash(props);
+
+			this.parseFromObject(props);
 		} else {
-			this._processStyle();
+			if(this._fill){
+				this.fill(this._fill);
+				delete this._fill;
+			}
+			if(this._stroke){
+				this.stroke(this._stroke);
+				delete this._stroke;
+			}
 		}
 	},
 

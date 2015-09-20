@@ -1,4 +1,4 @@
-Shape = new Class({
+Shape = new Class(Style, {
 
 	initialize : function(args){
 		var props = this.constructor.props,
@@ -12,10 +12,9 @@ Shape = new Class({
 		}
 
 		this.listeners = {}; // object to store event listeners
-		this._style = {}; // context2d properties (filLStyle, lineWidth and other)
 	},
 
-	_parseHash : function(object){
+/*	_parseHash : function(object){
 		var s = this._style;
 
 		if( object.opacity !== undefined ){
@@ -171,16 +170,17 @@ Shape = new Class({
 			style.strokeStyle = 'rgba(' + value.join(',') + ')';
 		}
 		return style;
-	},
+	}, */
 
 	draw : function(ctx){
 		if(!this._visible)
 			return;
-		this._applyStyle();
+		ctx.save();
+		this.toContext(ctx);
 		this.processPath(ctx);
-		if(this._style.fillStyle)
+		if(this.styles.fillStyle)
 			ctx.fill();
-		if(this._style.strokeStyle)
+		if(this.styles.strokeStyle)
 			ctx.stroke();
 		ctx.restore();
 	},
@@ -195,13 +195,6 @@ Shape = new Class({
 		if(value === undefined)
 			return this['_' + name];
 		this['_' + name] = value;
-		return this.update();
-	},
-
-	style : function(name, value){
-		if(value === undefined)
-			return this._style[name];
-		this._style[name] = value;
 		return this.update();
 	},
 
@@ -267,7 +260,7 @@ Shape = new Class({
 		this.context.elements.splice(this._z, 1);
 		return this.update();
 	},
-
+/*
 	fill : function(fill){
 		if(isObject(fill) && fill.colors){
 			this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
@@ -280,28 +273,50 @@ Shape = new Class({
 		return this.style('fillStyle', fill);
 	},
 
-	stroke : function(stroke){
+	stroke : function(stroke, value){
 		// element.stroke() => { fill : 'black', width:2 }
 		// element.stroke({ fill:'black', width:3 });
 		// element.stroke('black 4pt');
 		var style = this._style;
-		if(stroke === undefined)
-			return {
-				color : style.strokeStyle, // todo: add default values?
-				width : style.lineWidth,
-				cap   : style.lineCap,
-				join  : style.lineJoin,
-				dash  : style._lineDash
-			};
-		if(stroke === null){ // todo: don't use delete ?
-			delete style.strokeStyle;
-			delete style.lineWidth;
-			delete style.lineCap;
-			delete style.lineJoin;
-			delete style._lineDash;
+		switch(stroke){
+			// return as object
+			case undefined: {
+				return {
+					color: style.strokeStyle,
+					width: style.lineWidth,
+					cap:   style.lineCap,
+					join:  style.lineJoin,
+					dash:  style._lineDash
+				};
+			}
+
+			// return as a string
+			case true: {
+				return [style.strokeStyle, style.lineWidth, style.lineCap, style.lineJoin, style._lineDash]
+							.filter(function(n){ return n != null; })
+							.join(' ');
+			}
+
+			// remove all the properties
+			case null: {
+				delete style.strokeStyle;
+				delete style.lineWidth;
+				delete style.lineCap;
+				delete style.lineJoin;
+				delete style._lineDash;
+				return this;
+			}
+
+			// todo: { property: name }
+			//       { property: null }
+			//       'prop', val
+			//       'prop', null
+			//       'string'
+			default: {
+				extend(style, this._parseStroke(stroke));
+				return this.update();
+			}
 		}
-		extend(style, this._parseStroke(stroke));
-		return this.update();
 	},
 
 	opacity : function(opacity){
@@ -310,7 +325,7 @@ Shape = new Class({
 
 	composite : function(composite){
 		return this.style('globalCompositeOperation', composite);
-	},
+	}, */
 
 	hide : function(){
 		return this.prop('visible', false);
@@ -345,7 +360,7 @@ Shape = new Class({
 
 		return this;
 	},
-
+/*
 	shadow : function(name, value){
 		// shape.shadow({ x, y, color, blur });
 		// shape.shadow('x')
@@ -407,7 +422,7 @@ Shape = new Class({
 			}
 		}
 		return this.update();
-	},
+	}, */
 
 	// events
 	on : function(event, fn){
@@ -614,45 +629,13 @@ Shape = new Class({
 		return this.update();
 	},
 
-	scale : function(x, y, pivot){
-		if(pivot === undefined && (isString(y) || isArray(y))){
-			pivot = y;
-			y = x;
-		}
-		if( y === undefined ){
-			y = x;
-		}
+	scale : Context.prototype.scale,
 
-		return this.transform( x, 0, 0, y, 0, 0, pivot);
-	},
+	rotate : Context.prototype.rotate,
 
-	rotate : function(angle, pivot){
-		if($.angleUnit === 'grad')
-			angle = angle * Math.PI / 180;
+	skew : Context.prototype.skew,
 
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
-	},
-
-	skew : function(x, y, pivot){
-		if(pivot === undefined && (isString(y) || isArray(y))){
-			pivot = y;
-			y = x;
-		}
-		if( y === undefined ){
-			y = x;
-		}
-
-		if($.angleUnit === 'grad'){
-			x = x * Math.PI / 180;
-			y = y * Math.PI / 180;
-		}
-
-		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
-	},
-
-	translate : function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
-	},
+	translate : Context.prototype.translate,
 
 	// conversions
 	toPath : function(){

@@ -36,7 +36,7 @@ $.Pattern = Pattern = new Class({
 		this.context = context;
 	},
 
-	// параметры
+	// parameters
 	repeat : function(repeat){
 		if(repeat === undefined)
 			return from[this._repeat];
@@ -44,7 +44,7 @@ $.Pattern = Pattern = new Class({
 		return this.update();
 	},
 
-	// отрисовка
+	// drawing
 	update : Gradient.prototype.update,
 	toCanvasStyle : function(context){
 		if( !this._image.complete )

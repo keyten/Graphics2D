@@ -1,5 +1,7 @@
+var Context;
+
 Context = function(canvas, renderer){
-	if(renderer && renderer !== '2d')
+	if(renderer in $.renderers)
 		extend(this, $.renderers[renderer]);
 	else
 		this.context   = canvas.getContext('2d'); // rename to the context2d?
@@ -7,6 +9,7 @@ Context = function(canvas, renderer){
 	this.elements  = [];
 	this.listeners = {};
 	this._cache    = {}; // for gradients
+	this.matrix = new Matrix();
 
 	if(this.init)
 		this.init();
@@ -88,12 +91,22 @@ Context.prototype = {
 	},
 
 	_update : function(){
-		var ctx = this.context;
+		var ctx = this.context,
+			matrix = this.matrix;
+
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+		if(matrix)
+			ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d,
+				matrix.e, matrix.f);
+
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.fire('update');
+		ctx.restore();
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -144,8 +157,13 @@ Context.prototype = {
 
 			e.targetObject = element;
 
-			if(element && element.fire)
-				element.fire(event, e);
+			if(element && element.fire){
+				if(!element.fire(event, e)){
+					e.stopPropagation();
+					e.preventDefault();
+					return;
+				}
+			}
 
 			if(propagation)
 				this.fire(event, e);
@@ -193,9 +211,8 @@ Context.prototype = {
 			return window.setTimeout(fn.bind(this), event), this;
 
 		if( isObject(event) ){
-			for(var i in event)
-				if($.has(event, i))
-					this.on(i, event[i]);
+			for(var key in event) if($.has(event, key))
+				this.on(key, event[key]);
 			return this;
 		}
 
@@ -228,6 +245,71 @@ Context.prototype = {
 			func.call(this, data);
 		}.bind(this));
 		return this;
+	},
+
+	// transforms
+	transform: function(a, b, c, d, e, f, pivot){
+/*		var matrix;
+
+		if(pivot){
+			var cx = this.canvas.width * $.corners[pivot][0],
+				cy = this.canvas.height * $.corners[pivot][1];
+			matrix = [a, b, c, d, -cx*a - cy*c + e + cx, -cx*b - cy*d + f + cy];
+		}
+		else {
+			matrix = [a, b, c, d, e, f];
+		}
+
+		if(!this.matrix)
+			this.matrix = matrix;
+		else
+			this.matrix = $.multiply(this._matrix, [a, b, c, d, e, f]);
+		return this.update(); */
+
+		// you can get the matrix: ctx.matrix
+		// so you don't need ctx.transform() or something like this
+		this.matrix.transform(a, b, c, d, e, f);
+		return this.update();
+	},
+
+	translate: function(x, y){
+		return this.transform(1, 0, 0, 1, x, y);
+	},
+
+	rotate: function(angle, pivot){
+		if($.angleUnit === 'grad')
+			angle = angle * Math.PI / 180;
+
+		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
+	},
+
+	scale: function(x, y, pivot){
+		if(pivot === undefined && !isNumber(y)){
+			pivot = y;
+			y = x;
+		}
+
+		if(y === undefined)
+			y = x;
+
+		return this.transform(x, 0, 0, y, 0, 0, pivot);
+	},
+
+	skew : function(x, y, pivot){
+		if(pivot === undefined && !isNumber(y)){
+			pivot = y;
+			y = x;
+		}
+		if( y === undefined ){
+			y = x;
+		}
+
+		if($.angleUnit === 'grad'){
+			x = x * Math.PI / 180;
+			y = y * Math.PI / 180;
+		}
+
+		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
 	}
 
 };

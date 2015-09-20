@@ -70,7 +70,7 @@ Img = new Class(Shape, {
 	y  : Rect.prototype.y,
 	x1 : Rect.prototype.x1,
 	y1 : Rect.prototype.y1,
-	x2 : Rect.prototype.x2,
+	x2 : Rect.prototype.x2, // wrong!!! with 'auto', 'native'
 	y2 : Rect.prototype.y2,
 	width : function(w){
 		if(w === undefined){
