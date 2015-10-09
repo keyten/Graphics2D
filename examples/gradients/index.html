@@ -6,6 +6,11 @@
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
 	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet.css" />
+	<script>
+		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
+			location.href = location.href.replace('keyten.github.io/Graphics2D/', 'graphics2d.js.org');
+		}
+	</script>
 </head>
 <body>
 
@@ -28,7 +33,19 @@
 	<!-- MAIN CONTENT -->
 	<div id="main_content_wrap" class="outer">
 		<section id="main_content" class="inner">
-			
+							<div class="breadcrumbs">
+					<a href="../">Examples</a>
+						<span class="arrow">&gt;</span>
+					<span class="page">Gradients</span>
+				</div>
+				<div style="margin-top:10px;">
+					<canvas id="example_gradients" class="canvas" width="760" height="350"></canvas>
+				</div>
+				<div id="block-2">
+					<strong style="font-size:11pt;padding-right:30px">Source</strong>
+					<a href="example.js" target="_blank">example.js</a>
+				</div>
+		<script src="example.js"></script>
 		</section>
 	</div>
 
