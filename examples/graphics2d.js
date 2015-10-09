@@ -1,7 +1,7 @@
 /*  Graphics2D 0.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 18.11.2014
+ *  Last edit: 17.11.2014
  *  License: MIT / LGPL
  */
 
@@ -402,8 +402,6 @@
 		z : function(z){
 			if(z === undefined)
 				return this._z;
-			if(z === 'top')
-				z = this.context.elements.length;
 			this.context.elements = _.move.call(this.context.elements, this._z, z);
 			this._z = z;
 			return this.update();
@@ -2331,15 +2329,23 @@
 
 	// DOM
 	_.coordsOfElement = function(element){ // returns coords of DOM element
+		var x = 0, y = 0,
+			temp = element.getBoundingClientRect();
+		x += temp.x;
+		y += temp.y;
 
-		var box = element.getBoundingClientRect();
-		return { x:box.left, y:box.top };
+		temp = element.ownerDocument.documentElement;
+		x += temp.clientLeft || 0;
+		y += temp.clientTop  || 0;
 
+		temp = window.getComputedStyle(element);
+		x += parseInt(temp.borderLeftWidth);
+		x += parseInt(temp.paddingLeft);
+		y += parseInt(temp.borderTopWidth);
+		y += parseInt(temp.paddingTop);
+
+		return { x: x, y: y };
 	};
-
-	_.scrollOfElement = function(element){
-		return { x: document.body.scrollLeft, y: document.body.scrollTop }
-	}
 
 	_.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 		if(value === undefined) return;
