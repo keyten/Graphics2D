@@ -12,6 +12,7 @@ Shape = new Class(Style, {
 		}
 
 		this.listeners = {}; // object to store event listeners
+		this.style = new Style;
 	},
 
 /*	_parseHash : function(object){
@@ -176,7 +177,7 @@ Shape = new Class(Style, {
 		if(!this._visible)
 			return;
 		ctx.save();
-		this.toContext(ctx);
+//		this.style.toContext(ctx);
 		this.processPath(ctx);
 		if(this.styles.fillStyle)
 			ctx.fill();

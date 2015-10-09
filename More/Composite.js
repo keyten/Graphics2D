@@ -32,3 +32,5 @@ $.composites = {
 	// func subtract(a, b): a - b;
 	// func divide(a, b): a / b;
 };
+
+function drawComposite(){}

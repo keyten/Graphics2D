@@ -1,9 +1,18 @@
+var shadowProps = {
+	x: 'shadowOffsetX',
+	y: 'shadowOffsetY',
+	color: 'shadowColor',
+	blur: 'shadowBlur'
+};
+
 // for objects with style
 Style = new Class({
 
 	initialize: function(){
 		this.styles = {};
 	},
+
+	update: function(){},
 
 	parseFromObject: function(object){
 		if($.has(object, 'opacity'))
@@ -50,13 +59,13 @@ Style = new Class({
 					width: styles.lineWidth,
 					cap: styles.lineCap,
 					join: styles.lineJoin,
-					dash: styles._lineDash
+					dash: this._lineDash
 				};
 			} break;
 
 			// return as string
 			case true: {
-				return [style.strokeStyle, style.lineWidth, style.lineCap, style.lineJoin, style._lineDash]
+				return [styles.strokeStyle, styles.lineWidth, styles.lineCap, styles.lineJoin, this._lineDash]
 							.filter(function(n){ return n !== undefined; })
 							.join(' ');
 			} break;
@@ -67,7 +76,7 @@ Style = new Class({
 				delete styles.lineWidth;
 				delete styles.lineCap;
 				delete styles.lineJoin;
-				delete styles._lineDash;
+				delete this._lineDash;
 				return this;
 			} break;
 
@@ -80,9 +89,17 @@ Style = new Class({
 			case 'cap':   { return this.style('lineCap', value); } break;
 			case 'join':  { return this.style('lineJoin', value); } break;
 			case 'dash':  {
-				if(isString(value))
-					value = $.dashes[value];
-				return this.style('_lineDash', value);
+				if(value === undefined)
+					return this._lineDash;
+				if(value === null)
+					delete this._lineDash;
+				else {
+					if(isString(value))
+						this._lineDash = $.dashes[value];
+					else
+						this._lineDash = value;
+				}
+				return this.update();
 			} break;
 			case 'opacity': {
 				var color = $.color(styles.strokeStyle);
@@ -93,17 +110,19 @@ Style = new Class({
 			} break;
 
 			default: {
-				if(isObject(name)){
-					for(var k in name){
-						if($.has(name, k)){
-							this.style(k, name[k]);
+				value = name;
+
+				if(isObject(value)){
+					for(var k in value){
+						if($.has(value, k)){
+							this.style(k, value[k]);
 						}
 					}
 					return this;
 				}
 
-				if(!isString(name))
-					throw ('Can\'t parse stroke ' + name);
+				if(!isString(value))
+					throw ('Can\'t parse stroke ' + value);
 
 				// remove spaces from colors & dashes
 				value = value.replace(/\,\s/g, ',');
@@ -118,7 +137,7 @@ Style = new Class({
 
 					// width
 					else if(isNumberLike(value[l]))
-						styles.strokeStyle = $.distance(value[l]);
+						styles.lineWidth = $.distance(value[l]);
 
 					// join
 					else if(value[l] === 'miter' || value[l] === 'bevel')
@@ -130,11 +149,11 @@ Style = new Class({
 
 					// dash (array)
 					else if(value[l][0] === '[')
-						styles._lineDash = value[l].substr(1, value[l].length-2).split(',');
+						this._lineDash = value[l].substr(1, value[l].length-2).split(',');
 
 					// dash (name)
 					else if(value[l] in $.dashes)
-						styles._lineDash = $.dashes[value[l]];
+						this._lineDash = $.dashes[value[l]];
 
 					// color
 					else
@@ -160,31 +179,27 @@ Style = new Class({
 	},
 
 	shadow: function(name, value){
-		var styles = this.styles,
-			props = {
-				x: 'shadowOffsetX',
-				y: 'shadowOffsetY',
-				color: 'shadowColor',
-				blur: 'shadowBlur'
-			};
+		var styles = this.styles;
 		if(isString(name)){
 			// prop, val
-			if(name in props){
+			if(name in shadowProps){
 				if(value === undefined)
-					return styles[props[name]];
+					return styles[shadowProps[name]];
 
 				if(name === 'color')
-					styles[props[name]] = value;
+					styles[shadowProps[name]] = value;
 				else
-					styles[props[name]] = $.distance(value);
+					styles[shadowProps[name]] = $.distance(value);
 			}
 			// css-like
 			else {
+				value = name;
+
 				// remove spaces from color
 				value = value.replace(/\,\s/g, ',');
 				value = value.split(' ');
 
-				props = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+				var props = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
 
 				for(var i = 0; i < value.length; i++){
 					if(isNumberLike(value[i]))
@@ -194,11 +209,44 @@ Style = new Class({
 				}
 			}
 		}
+		else if(name === null){
+			delete styles.shadowOffsetX;
+			delete styles.shadowOffsetY;
+			delete styles.shadowBlur;
+			delete styles.shadowColor;
+		}
+		else if(name === undefined){
+			return {
+				x: styles.shadowOffsetX,
+				y: styles.shadowOffsetY,
+				blur: styles.shadowBlur,
+				color: styles.shadowColor
+			};
+		}
+		return this.update();
 	},
 
-	clip: function(){},
-	hide: function(){},
-	show: function(){},
+	clip : function(clip, a, b, c){
+		if(clip === undefined)
+			return this._clip;
+		if(clip === null)
+			delete this._clip;
+
+		if(clip.processPath)
+			this._clip = clip;
+		else if(c !== undefined){
+			this._clip = new Rect([clip, a, b, c, null, null]);
+		}
+		else if(b !== undefined)
+			this._clip = new Circle([clip, a, b, null, null]);
+		else
+			this._clip = new Path([clip, null, null]);
+		// problems with path
+
+		this._clip.context = this.context;
+//		this._clip.init();
+		return this.update();
+	},
 
 	toContext: function(ctx){
 		for(var k in this.styles){
@@ -206,9 +254,30 @@ Style = new Class({
 				ctx[k] = this.styles[k];
 			}
 		}
+
+		if(this.styles.fillStyle && this.styles.fillStyle.toCanvasStyle){
+			ctx.fillStyle = this.styles.fillStyle.toCanvasStyle(ctx, this);
+		}
+		if(this.styles.strokeStyle && this.styles.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = this.styles.strokeStyle.toCanvasStyle(ctx, this);
+		}
+
+		if(this._lineDash){
+			if(ctx.setLineDash) // webkit
+				ctx.setLineDash(this._lineDash);
+			else
+				ctx.mozDash = this._lineDash;
+		}
+
+		if(this._clip){
+			this._clip.processPath(ctx);
+			ctx.clip();
+		}
 	}
 
 });
+
+$.Style = Style;
 /*
 	this.style = new Style;
 	extend(this, StyleMixin);

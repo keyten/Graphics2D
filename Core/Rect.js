@@ -8,7 +8,8 @@ Rect = new Class(Shape, {
 			this._width  = props.width  || props.w || 0;
 			this._height = props.height || props.h || 0;
 
-			this.parseFromObject(props);
+			;
+		//	this.style.parseFromObject(props);
 		} else {
 			if(this._fill){
 				this.fill(this._fill);
