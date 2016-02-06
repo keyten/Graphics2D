@@ -11,24 +11,15 @@ function smoothPrefix(ctx){
 Img = new Class(Shape, {
 
 	init : function(){
-		// Note: the 5th argument is crop
-
-		var props = this._image;
-		if(isObject(props)){
-			this._image = props.image;
-			this._x = props.x;
-			this._y = props.y;
-			this._width = props.width;
-			this._height = props.height;
-			this._crop = props.crop;
-			this._parseHash(props);
+		if(this.object){
+			var object = this.object;
+			this._image = object.image;
+			this._x = $.distance(object.x); // distance
+			this._y = $.distance(object.y);
+			this._width = $.distance(object.width);
+			this._height = $.distance(object.height);
+			this._crop = object.crop;
 		}
-
-		if(isNumberLike(this._width))
-			this._width = $.distance(this._width);
-
-		if(isNumberLike(this._height))
-			this._height = $.distance(this._height);
 
 		var blob, s;
 
@@ -49,7 +40,7 @@ Img = new Class(Shape, {
 			}
 		}
 
-		
+
 		this._image.addEventListener('load', function(e){
 			this.update();
 
@@ -145,8 +136,8 @@ Img = new Class(Shape, {
 	draw : function(ctx){
 		if(!this._visible)
 			return;
-		this._applyStyle();
-
+		ctx.save();
+		this.style.toContext(ctx);
 		var image = this._image,
 			w = this._width,
 			h = this._height;
@@ -166,16 +157,17 @@ Img = new Class(Shape, {
 		else if(w != null || h != null)
 			ctx.drawImage(image, this._x, this._y, w, h);
 
-		if(this._style.strokeStyle !== undefined)
+		if(this.style.props.strokeStyle !== undefined)
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
-
 		ctx.restore();
 	}
 
 });
 
 Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-Img.distances = [false, true, true]; // TODO: check on errors! 'auto', 'native' values?
+Img.processStyle = true;
+Img.firstObject = true; // parse the first argument if it is object
+Img.propHandlers = [null, distance, distance, distance, distance]; // TODO: check on errors! 'auto', 'native' values?
 
 $.image = function(){
 	var image = new Img(arguments);

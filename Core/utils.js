@@ -51,6 +51,7 @@ for(var i in $.easing){
 	// don't make functions within a loop -- jshint
 	if(Object.prototype.hasOwnProperty.call($.easing, i))
 		processEasing($.easing[i]);
+	// todo: make this code better :P
 }
 
 
@@ -99,7 +100,8 @@ function Class(parent, properties, base){
 					inits[i].apply(this, arguments);
 			}
 
-			return (cls.prototype.initialize || emptyFunc).apply(this,arguments);
+			if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize)
+				return cls.prototype.initialize.apply(this,arguments);
 		};
 
 
@@ -111,6 +113,8 @@ function Class(parent, properties, base){
 		cls.prototype.constructor = cls;
 
 	}
+
+	// why?
 	if(base)
 		extend(cls, base);
 	if(properties.mixins){
@@ -176,6 +180,7 @@ function isNumberLike(value){
 		return true;
 	return false;
 }
+// todo: Pattern.isPatternLike();
 function isPatternLike(value){
 	return value instanceof Image ||
 			(isObject(value) && $.has(value, 'image')) ||
@@ -397,7 +402,7 @@ $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 };
 
 
-// Clear functions
+// Clean functions
 $.clone = function(object){
 	var result = new object.constructor();
 	for(var i in object){
@@ -439,6 +444,8 @@ $.coordsOfElement = function(element){ // returns coords of a DOM element
 
 $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined) return;
+	if(!isString(value))
+		throw 'Not a color: ' + value.toString();
 
 	// rgba(255, 100, 20, 0.5)
 	if(value.indexOf('rgb') === 0){
@@ -461,6 +468,7 @@ $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, 
 
 		// #555
 		if(value.length === 3)
+			// todo: make this code faster & better
 			value = value.split('').map(function(v){
 				// 'f0a' -> 'ff00aa'
 				return v + v;
@@ -497,11 +505,14 @@ var defaultUnits = {
 	// in: 90
 };
 
-$.distance = function(value){
-	// todo: snap to pixels
-	// $.snapToPix = 1: round all the distances
+$.snapToPixels = 0;
+
+function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
+	if($.snapToPixels && !dontsnap)
+		return Math.round($.distance(value, true) / $.snapToPixels) * $.snapToPixels;
+
 	if( isNumber(value) ){
 		if( $.unit !== 'px')
 			return $.distance( value + '' + $.unit );
@@ -530,7 +541,11 @@ $.distance = function(value){
 		}
 	}
 
-	var unit = value.replace(/[\d\.]+?/gi, '');
-	value = value.replace(/[^\d\.]+?/gi, '');
+	var unit = value.replace(/[\d\.]+?/g, ''); // why gi? maybe just g?
+	value = value.replace(/[^\d\.]+?/g, '');
+	if(unit === '')
+		return value;
 	return Math.round($.units[unit] * value);
-};
+}
+
+$.distance = distance;

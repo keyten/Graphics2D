@@ -19,7 +19,7 @@
 
 			this.context = context;
 
-			context.clearColor(1, 1, 1, 1);
+			context.clearColor(1, 1, 1, 1); // maybe 0,0,0,0?
 			context.viewport(0, 0, canvas.width, canvas.height);
 			context.clear(context.COLOR_BUFFER_BIT);
 		},
@@ -70,6 +70,8 @@
 			if(!gl.getShaderParameter(vshader, gl.COMPILE_STATUS)){
 				// Compiling shader error
 				console.log('Compiling shader error');
+				// todo: throw internal g2d error (that switches to other renderer)
+				// $.rendererError('Compiling shader error', this.context);
 				gl.deleteShader(vshader);
 			}
 

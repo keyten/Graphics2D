@@ -9,7 +9,6 @@ Context = function(canvas, renderer){
 	this.elements  = [];
 	this.listeners = {};
 	this._cache    = {}; // for gradients
-	this.matrix = new Matrix();
 
 	if(this.init)
 		this.init();
@@ -77,6 +76,7 @@ Context.prototype = {
 		element.init();
 		if( element.draw )
 			element.draw(this.context);
+
 		return element;
 	},
 
@@ -99,8 +99,7 @@ Context.prototype = {
 		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
 		if(matrix)
-			ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d,
-				matrix.e, matrix.f);
+			ctx.transform.apply(ctx, matrix);
 
 		this.elements.forEach(function(object){
 			object.draw(ctx);
@@ -247,13 +246,21 @@ Context.prototype = {
 		return this;
 	},
 
-	// transforms
+	// Transforms
+
 	transform: function(a, b, c, d, e, f, pivot){
-/*		var matrix;
+		// you can get the matrix: ctx.matrix
+		// so you don't need ctx.transform() or something like this
+		var matrix;
 
 		if(pivot){
-			var cx = this.canvas.width * $.corners[pivot][0],
-				cy = this.canvas.height * $.corners[pivot][1];
+			if(isString(pivot))
+				pivot = $.corners[pivot];
+			else if(isObject(pivot)){
+				;
+			}
+			var cx = this.canvas.width * pivot[0],
+				cy = this.canvas.height * pivot[1];
 			matrix = [a, b, c, d, -cx*a - cy*c + e + cx, -cx*b - cy*d + f + cy];
 		}
 		else {
@@ -263,13 +270,10 @@ Context.prototype = {
 		if(!this.matrix)
 			this.matrix = matrix;
 		else
-			this.matrix = $.multiply(this._matrix, [a, b, c, d, e, f]);
-		return this.update(); */
-
-		// you can get the matrix: ctx.matrix
-		// so you don't need ctx.transform() or something like this
-		this.matrix.transform(a, b, c, d, e, f);
+			this.matrix = $.multiply(this.matrix, [a, b, c, d, e, f]);
 		return this.update();
+
+		// works wrong!
 	},
 
 	translate: function(x, y){

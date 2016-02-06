@@ -8,8 +8,10 @@ var shadowProps = {
 // for objects with style
 Style = new Class({
 
-	initialize: function(){
-		this.styles = {};
+	initialize: function(updfunc){
+		this.props = {};
+		if(updfunc)
+			this.update = updfunc;
 	},
 
 	update: function(){},
@@ -31,53 +33,60 @@ Style = new Class({
 
 	style: function(name, value){
 		if(value === undefined)
-			return this.styles[name];
+			return this.props[name];
 		if(value === null)
-			delete this.styles[name];
+			delete this.props[name];
 		else
-			this.styles[name] = value;
+			this.props[name] = value;
 		return this.update();
 	},
 
 	fill: function(value){
-		if(isObject(value) && value.colors){
-			value = new Gradient(fill, null, null, null, this.context);
+		// todo: move conditions to function (because they are used in stroke too)
+
+		// object with gradient { type, colors, from, to, ... }
+		if(isObject(value) && value.colors && !(value instanceof Gradient)){
+			value = new Gradient(value, null, null, null, this.context);
 		}
+		// object, string or image with pattern
 		else if(isPatternLike(value)){
-			value = new Pattern(fill, null, this.context);
+			value = new Pattern(value, null, this.context);
+		}
+		// function
+		else if(value instanceof Function){
+			value = { toCanvasStyle: value.bind(this) };
 		}
 		return this.style('fillStyle', value);
 	},
 
 	stroke: function(name, value){
-		var styles = this.styles;
+		var props = this.props;
 		switch(name){
 			// return as object
 			case undefined: {
 				return {
-					color: styles.strokeStyle,
-					width: styles.lineWidth,
-					cap: styles.lineCap,
-					join: styles.lineJoin,
+					color: props.strokeStyle,
+					width: props.lineWidth,
+					cap: props.lineCap,
+					join: props.lineJoin,
 					dash: this._lineDash
 				};
 			} break;
 
 			// return as string
 			case true: {
-				return [styles.strokeStyle, styles.lineWidth, styles.lineCap, styles.lineJoin, this._lineDash]
+				return [props.strokeStyle, props.lineWidth, props.lineCap, props.lineJoin, this._lineDash]
 							.filter(function(n){ return n !== undefined; })
 							.join(' ');
 			} break;
 
 			// delete all values
 			case null: {
-				delete styles.strokeStyle;
-				delete styles.lineWidth;
-				delete styles.lineCap;
-				delete styles.lineJoin;
+				delete props.strokeStyle;
+				delete props.lineWidth;
+				delete props.lineCap;
+				delete props.lineJoin;
 				delete this._lineDash;
-				return this;
 			} break;
 
 			case 'width': {
@@ -85,7 +94,18 @@ Style = new Class({
 					value = $.distance(value);
 				return this.style('lineWidth', value);
 			} break;
-			case 'color': { return this.style('strokeStyle', value); } break;
+			case 'color': {
+				if(isObject(value) && value.colors && !(value instanceof Gradient)){
+					value = new Gradient(value, null, null, null, this.context);
+				}
+				else if(isPatternLike(value)){
+					value = new Pattern(value, null, this.context);
+				}
+				else if(value instanceof Function){
+					value = { toCanvasStyle: value.bind(this) };
+				}
+				return this.style('strokeStyle', value);
+			} break;
 			case 'cap':   { return this.style('lineCap', value); } break;
 			case 'join':  { return this.style('lineJoin', value); } break;
 			case 'dash':  {
@@ -101,8 +121,8 @@ Style = new Class({
 				}
 				return this.update();
 			} break;
-			case 'opacity': {
-				var color = $.color(styles.strokeStyle);
+			case 'opacity': { // gradients / patterns support?
+				var color = $.color(props.strokeStyle);
 				if(value === undefined)
 					return color[3];
 				color[3] = value;
@@ -115,7 +135,7 @@ Style = new Class({
 				if(isObject(value)){
 					for(var k in value){
 						if($.has(value, k)){
-							this.style(k, value[k]);
+							this.stroke(k, value[k]);
 						}
 					}
 					return this;
@@ -137,15 +157,21 @@ Style = new Class({
 
 					// width
 					else if(isNumberLike(value[l]))
-						styles.lineWidth = $.distance(value[l]);
+						props.lineWidth = $.distance(value[l]);
+
+					// join & cap
+					else if(value[l] === 'round'){ // wrong
+						props.lineJoin = props.lineJoin || 'round';
+						props.lineCap = props.lineCap || 'round';
+					}
 
 					// join
 					else if(value[l] === 'miter' || value[l] === 'bevel')
-						styles.lineJoin = value[l];
+						props.lineJoin = value[l];
 
 					// cap
 					else if(value[l] === 'butt' || value[l] === 'square')
-						styles.lineCap = value[l];
+						props.lineCap = value[l];
 
 					// dash (array)
 					else if(value[l][0] === '[')
@@ -157,13 +183,13 @@ Style = new Class({
 
 					// color
 					else
-						styles.strokeStyle = value[l];
+						props.strokeStyle = value[l];
 				}
 
 				if(opacity){
-					value = $.color(styles.strokeStyle);
+					value = $.color(props.strokeStyle);
 					value[3] = opacity;
-					styles.strokeStyle = 'rgba(' + value.join(',') + ')';
+					props.strokeStyle = 'rgba(' + value.join(',') + ')';
 				}
 			} break;
 		}
@@ -179,17 +205,17 @@ Style = new Class({
 	},
 
 	shadow: function(name, value){
-		var styles = this.styles;
+		var props = this.props;
 		if(isString(name)){
 			// prop, val
 			if(name in shadowProps){
 				if(value === undefined)
-					return styles[shadowProps[name]];
+					return props[shadowProps[name]];
 
 				if(name === 'color')
-					styles[shadowProps[name]] = value;
+					props[shadowProps[name]] = value;
 				else
-					styles[shadowProps[name]] = $.distance(value);
+					props[shadowProps[name]] = $.distance(value);
 			}
 			// css-like
 			else {
@@ -203,24 +229,24 @@ Style = new Class({
 
 				for(var i = 0; i < value.length; i++){
 					if(isNumberLike(value[i]))
-						styles[props[i]] = $.distance(value[i]);
+						props[props[i]] = $.distance(value[i]);
 					else
-						styles.shadowColor = value[i];
+						props.shadowColor = value[i];
 				}
 			}
 		}
 		else if(name === null){
-			delete styles.shadowOffsetX;
-			delete styles.shadowOffsetY;
-			delete styles.shadowBlur;
-			delete styles.shadowColor;
+			delete props.shadowOffsetX;
+			delete props.shadowOffsetY;
+			delete props.shadowBlur;
+			delete props.shadowColor;
 		}
 		else if(name === undefined){
 			return {
-				x: styles.shadowOffsetX,
-				y: styles.shadowOffsetY,
-				blur: styles.shadowBlur,
-				color: styles.shadowColor
+				x: props.shadowOffsetX,
+				y: props.shadowOffsetY,
+				blur: props.shadowBlur,
+				color: props.shadowColor
 			};
 		}
 		return this.update();
@@ -234,9 +260,8 @@ Style = new Class({
 
 		if(clip.processPath)
 			this._clip = clip;
-		else if(c !== undefined){
+		else if(c !== undefined)
 			this._clip = new Rect([clip, a, b, c, null, null]);
-		}
 		else if(b !== undefined)
 			this._clip = new Circle([clip, a, b, null, null]);
 		else
@@ -244,22 +269,31 @@ Style = new Class({
 		// problems with path
 
 		this._clip.context = this.context;
-//		this._clip.init();
+//		this._clip.init(); // maybe need only if clip.context == undefined (before the last operation)
 		return this.update();
 	},
 
+	hide : function(){
+		return this.prop('visible', false);
+	},
+
+	show : function(){
+		return this.prop('visible', true);
+	},
+
 	toContext: function(ctx){
-		for(var k in this.styles){
-			if($.has(this.styles, k)){
-				ctx[k] = this.styles[k];
+		// replace to extend(ctx, this.props);
+		for(var k in this.props){
+			if($.has(this.props, k)){
+				ctx[k] = this.props[k];
 			}
 		}
 
-		if(this.styles.fillStyle && this.styles.fillStyle.toCanvasStyle){
-			ctx.fillStyle = this.styles.fillStyle.toCanvasStyle(ctx, this);
+		if(this.props.fillStyle && this.props.fillStyle.toCanvasStyle){
+			ctx.fillStyle = this.props.fillStyle.toCanvasStyle(ctx, this);
 		}
-		if(this.styles.strokeStyle && this.styles.strokeStyle.toCanvasStyle){
-			ctx.strokeStyle = this.styles.strokeStyle.toCanvasStyle(ctx, this);
+		if(this.props.strokeStyle && this.props.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = this.props.strokeStyle.toCanvasStyle(ctx, this);
 		}
 
 		if(this._lineDash){
@@ -270,7 +304,14 @@ Style = new Class({
 		}
 
 		if(this._clip){
-			this._clip.processPath(ctx);
+			if(this._clip._matrix){
+				ctx.save();
+				ctx.transform.apply(ctx, this._clip._matrix);
+				this._clip.processPath(ctx);
+				ctx.restore();
+			}
+			else
+				this._clip.processPath(ctx);
 			ctx.clip();
 		}
 	}
@@ -278,7 +319,3 @@ Style = new Class({
 });
 
 $.Style = Style;
-/*
-	this.style = new Style;
-	extend(this, StyleMixin);
- */

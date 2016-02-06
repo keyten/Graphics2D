@@ -1,28 +1,18 @@
 Rect = new Class(Shape, {
 
 	init : function(){
-		var props = this._x;
-		if(isObject( props )){
-			this._x = props.x;
-			this._y = props.y;
-			this._width  = props.width  || props.w || 0;
-			this._height = props.height || props.h || 0;
-
-			;
-		//	this.style.parseFromObject(props);
-		} else {
-			if(this._fill){
-				this.fill(this._fill);
-				delete this._fill;
-			}
-			if(this._stroke){
-				this.stroke(this._stroke);
-				delete this._stroke;
-			}
+		if(this.object){
+			var object = this.object;
+			this._x = object.x;
+			this._y = object.y;
+			this._width = object.width;
+			this._height = object.height;
+			delete this.object;
 		}
 	},
 
-	// parameters
+	// Parameters
+
 	x : function(x){
 		return this.prop('x', x);
 	},
@@ -58,20 +48,27 @@ Rect = new Class(Shape, {
 			this.prop('height', y - this._y);
 	},
 
-	_bounds : function(){
+	// todo: rename _bounds to originalBounds
+	bounds : function(){
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		ctx.rect(this._x, this._y, this._width, this._height);
 	}
 
 });
-Rect.props = [ 'x', 'y', 'width', 'height', 'fill', 'stroke' ];
-Rect.distances = [ true, true, true, true ];
+
+Rect.props = [ 'x', 'y', 'width', 'height' ];
+Rect.processStyle = true;
+Rect.firstObject = true; // parse the first argument if it is object
+Rect.propHandlers = [distance, distance, distance, distance];
 
 $.rect = function(){
 	var rect = new Rect(arguments);
 	rect.init();
 	return rect;
 };
+
+// todo: x1, y1, x2, y2 animation

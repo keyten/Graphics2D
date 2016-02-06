@@ -2,6 +2,7 @@ $.Gradient = Gradient = new Class({
 
 	initialize : function(type, colors, from, to, context){
 		// distance in from & to
+		// todo: { from: 'top', relative: false }
 		this.context = context;
 		if(isObject(type)){
 			this._type = type.type || 'linear';
@@ -28,6 +29,7 @@ $.Gradient = Gradient = new Class({
 			this._to = to;
 		}
 		this._colors = isArray(colors) ? this._parseColors(colors) : colors;
+		// todo: move _parseColors to Gradient.parseColors.
 
 		if(Gradient.gradients[ this._type ]){
 			var grad = Gradient.gradients[ this._type ];
@@ -59,7 +61,7 @@ $.Gradient = Gradient = new Class({
 					c2 = _.color(stops[keys[i]]);
 				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
 				return [
-					c1[0] + (c2[0] - c1[0]) * t | 0,
+					c1[0] + (c2[0] - c1[0]) * t | 0, // todo: Math.round
 					c1[1] + (c2[1] - c1[1]) * t | 0,
 					c1[2] + (c2[2] - c1[2]) * t | 0,
 					c1[3] + (c2[3] - c1[3]) * t
@@ -72,6 +74,8 @@ $.Gradient = Gradient = new Class({
 	color : function(i, color){
 		if(color === undefined)
 			return this._colors[i];
+		if(color === null)
+			;
 		this._colors[i] = color;
 		return this.update();
 	},
@@ -97,6 +101,8 @@ $.Gradient = Gradient = new Class({
 
 	// general
 	from : function(x,y,r){
+		if(arguments.length === 0)
+			;
 		if(isString(x) && x in $.corners){
 			this._from = x;
 			return this.update();
@@ -117,8 +123,10 @@ $.Gradient = Gradient = new Class({
 	},
 
 	to : function(x,y,r){
+		if(arguments.length === 0)
+			;
 		if(isString(x) && x in $.corners){
-			this._from = x;
+			this._to = x;
 			return this.update();
 		}
 		if(isArray(x)){
@@ -127,8 +135,8 @@ $.Gradient = Gradient = new Class({
 			x = x[0];
 		}
 
-		if(!isArray(this._from))
-			this._from = [];
+		if(!isArray(this._to))
+			this._to = [];
 
 		if(x !== undefined) this._to[0] = x;
 		if(y !== undefined) this._to[1] = y;
@@ -189,6 +197,10 @@ $.Gradient = Gradient = new Class({
 
 	key : function(from, to){
 		return [this._type, from, to, JSON.stringify(this._colors)].join(',');
+	},
+
+	toString: function(){
+		return '{ Gradient(' + this._type + ')[' + this._from + ',' + this._to + ']: ' + JSON.stringify(this._colors) + ' }';
 	}
 
 });

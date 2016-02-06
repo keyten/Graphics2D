@@ -1,5 +1,5 @@
 /*  Graphics2D Core {{version}}
- * 
+ *
  *  Author: {{author}}
  *  Last edit: {{date}}
  *  License: {{license}}
@@ -47,8 +47,6 @@ var $ = {},
 
 	                       window.clearTimeout;
 
-
-// {{include base.js}}
 
 // {{include context.js}}
 

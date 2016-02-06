@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 16.7.2015
+ *  Last edit: 6.2.2016
  *  License: MIT / LGPL
  */
 
@@ -1080,7 +1080,7 @@ Img.prototype.filter = function(filter, options){
 		if( $.filters[filter] === undefined ){
 			throw new Error('Filter \"' + filter + '\" is not defined.');
 		}
-		
+
 		filter = $.filters[filter];
 	}
 
@@ -1133,7 +1133,7 @@ $.filters = {
 				(i / 4) % w, Math.floor(i / 4 / w),
 				data[i], data[i+1], data[i+2], data[i+3],
 				i);
-			pixel = (w * pixel[1] + pixel[0]) * 4;
+			pixel = ((w * pixel[1] + pixel[0]) * 4) | 0;
 			rdata[pixel] = data[i];
 			rdata[pixel+1] = data[i+1];
 			rdata[pixel+2] = data[i+2];
@@ -1573,7 +1573,19 @@ if(!prefix && !('requestFullScreen' in elProto)){
 }
 //# Colors
 
-// $.color = function(color, from, to){}
+var _color = $.color;
+$.color = function(color, from, to){
+
+	if(arguments.length == 1)
+		return _color(color);
+
+	if(!(from in $.colorSpaces) || !(to in $.colorSpaces)){
+		throw 'Unknown colorspace (given: ' + from + ', ' + to + ')';
+	}
+
+	return $.colorSpaces[to].to( $.colorSpaces[from].from(color) );
+
+}
 
 $.colorSpaces = {
 	cmy: {

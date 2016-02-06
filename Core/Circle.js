@@ -1,18 +1,17 @@
 Circle = new Class(Shape, {
 
 	init : function(){
-		var props = this._cx;
-		if(isObject( props )){
-			this._cx = props.cx || props.x || 0;
-			this._cy = props.cy || props.y || 0;
-			this._radius = props.radius;
-			this._parseHash(props);
-		} else {
-			this._processStyle();
+		if(this.object){
+			var object = this.object;
+			this._cx = object.cx;
+			this._cy = object.cy;
+			this._radius = object.radius;
+			delete this.object;
 		}
 	},
 
-	// parameters
+	// Parameters
+	
 	cx : function(cx){
 		return this.prop('cx', cx);
 	},
@@ -25,7 +24,7 @@ Circle = new Class(Shape, {
 		return this.prop('radius', r);
 	},
 
-	_bounds : function(){
+	bounds : function(){
 		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
 	},
 	
@@ -36,8 +35,12 @@ Circle = new Class(Shape, {
 	}
 
 });
-Circle.props = [ 'cx', 'cy', 'radius', 'fill', 'stroke' ];
-Circle.distances = [true, true, true];
+
+Circle.props = [ 'cx', 'cy', 'radius' ];
+Circle.processStyle = true;
+Circle.firstObject = true;
+Circle.propHandlers = [distance, distance, distance];
+
 
 $.circle = function(){
 	var circle = new Circle(arguments);

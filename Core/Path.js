@@ -3,8 +3,11 @@ var closePath = new Curve('closePath', []);
 Path = new Class( Shape, {
 
 	init : function(){
+		if(this.object){
+			this._curves = this.object._curves;
+			delete this.object;
+		}
 		this._curves = Path.parsePath( this._curves, this );
-		this._processStyle();
 	},
 
 	// curves
@@ -141,7 +144,9 @@ Path = new Class( Shape, {
 
 } );
 
-Path.props = [ 'curves', 'fill', 'stroke' ];
+Path.props = [ 'curves' ];
+Path.processStyle = true;
+Path.firstObject = true;
 
 Path.parsePath = function(path, pathObject, firstIsNotMove){
 	if(!path)

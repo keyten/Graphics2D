@@ -1,187 +1,50 @@
-Shape = new Class(Style, {
+Shape = new Class({
 
 	initialize : function(args){
-		var props = this.constructor.props,
-			dists = this.constructor.distances || [],
-			l = props.length;
-		while(l--){
-			if( dists[l] && isString(args[l]) )
-				this['_' + props[l]] = $.distance(args[l]);
-			else
-				this['_' + props[l]] = args[l];
-		}
-
 		this.listeners = {}; // object to store event listeners
-		this.style = new Style;
-	},
+		this.style = new Style();
 
-/*	_parseHash : function(object){
-		var s = this._style;
+		var props = this.constructor.props,
+			handlers = this.constructor.propHandlers || {},
+			l;
 
-		if( object.opacity !== undefined ){
-			s.globalAlpha = object.opacity;
+		if(isObject(args[0]) && this.constructor.firstObject){
+			this.object = args[0];
+			if(this.constructor.processStyle)
+				this.style.parseFromObject(args[0]);
 		}
-		if( object.composite !== undefined ){
-			s.globalCompositeOperation = object.composite;
-		}
-		if( object.visible !== undefined ){
-			this._visible = object.visible;
-		}
-		if( object.clip !== undefined ){
-			this._clip = object.clip;
-		}
+		else if(props){
+			l = Math.min(props.length, args.length);
+			if(this.constructor.processStyle){
+				if(args.length - props.length > 1)
+					this.style.stroke(args[l + 1]);
 
-		this._processStyle( object.fill, object.stroke, true );
-	},
-
-	_processStyle : function(fill, stroke){
-		if(arguments.length === 0){
-			// called from init function
-			fill = this._fill;
-			stroke = this._stroke;
-		}
-
-		this._fill = null;
-		this._stroke = null;
-
-		if(fill)
-			this._style.fillStyle = fill;
-		if(stroke)
-			extend(this._style, this._parseStroke(stroke));
-
-		// gradients, patterns
-		if(fill && typeof fill.toCanvasStyle === 'function')
-			return;
-
-		if(typeof fill === 'function')
-			this._style.fillStyle = { toCanvasStyle:fill.bind(this) };
-
-		// object with gradient { type, colors, from, to, ... }
-		if(isObject(fill) && fill.colors)
-			this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
-
-		// object, string or image with pattern
-		if(isPatternLike(fill)){
-			this._style.fillStyle = new Pattern(fill, null, this.context);
-		}
-
-		// TODO: gradient stroke
-	},
-
-	_applyStyle : function(){
-		var ctx = this.context.context;
-		ctx.save();
-		for(var i in this._style){
-			if($.has(this._style, i))
-				ctx[i] = this._style[i];
-		}
-
-		if(this._clip){
-			var clip = this._clip;
-			if(clip._matrix){
-				ctx.save();
-				ctx.transform.apply(ctx, clip._matrix);
-				clip.processPath(ctx);
-				ctx.restore();
+				if(args.length - props.length > 0)
+					this.style.fill(args[l]);
 			}
-			else
-				clip.processPath(ctx);
-			ctx.clip();
-		}
-
-		if(this._matrix){
-			ctx.transform.apply(ctx, this._matrix);
-		}
-
-		if(this._style.fillStyle && this._style.fillStyle.toCanvasStyle){
-			ctx.fillStyle = this._style.fillStyle.toCanvasStyle(ctx, this);
-		}
-
-		if(this._style.strokeStyle && this._style.strokeStyle.toCanvasStyle){
-			ctx.strokeStyle = this._style.strokeStyle.toCanvasStyle(ctx, this);
-		}
-
-		if(this._style._lineDash){
-			if(ctx.setLineDash) // webkit
-				ctx.setLineDash(this._style._lineDash);
-			else // gecko
-				ctx.mozDash = this._style._lineDash;
-		}
-	},
-
-	_parseStroke : function(value){
-		var opacity, l, val,
-			style = {};
-
-		// object with properties
-		if( isObject( value ) ){
-			if( value.width !== undefined )
-				style.lineWidth   = value.width;
-			if( value.color )
-				style.strokeStyle = value.color;
-			if( value.cap )
-				style.lineCap     = value.cap;
-			if( value.join )
-				style.lineJoin    = value.join;
-			if( value.dash )
-				// string - 'dot', 'dash', etc
-				// else - array with values
-				style._lineDash   = isString(value.dash) ? $.dashes[value.dash] : value.dash;
-
-			return style;
-		}
-
-		if( !isString( value ) )
-			throw new Error('Can\'t parse stroke: ' + value);
-
-		value = value.split(' ');
-		l = value.length;
-		while(l--){
-			val = value[l];
-
-			if( reFloat.test( val ) )
-				opacity = parseFloat( val );
-
-			else if( isNumberLike( val ) )
-				style.lineWidth = $.distance( val );
-
-			else if( val === 'miter' || val === 'bevel' )
-				style.lineJoin = val;
-
-			else if( val === 'butt' || val === 'square' )
-				style.lineCap = val;
-
-			else if( val === 'round' ){
-				style.lineCap  = style.lineCap  || val;
-				style.lineJoin = style.lineJoin || val;
+			while(l--){
+				if(handlers[l])
+					this['_' + props[l]] = handlers[l](args[l]);
+				else
+					this['_' + props[l]] = args[l];
 			}
-
-			else if( val[ 0 ] === '[' )
-				style._lineDash = val.substr( 1, val.length - 2 ).split(',');
-
-			else if( val in $.dashes )
-				style._lineDash = $.dashes[ val ];
-
-			else
-				style.strokeStyle = val;
 		}
-		if( opacity ){
-			value = $.color( style.strokeStyle );
-			value[3] *= opacity;
-			style.strokeStyle = 'rgba(' + value.join(',') + ')';
-		}
-		return style;
-	}, */
+
+		this.style.update = this.update.bind(this);
+	},
 
 	draw : function(ctx){
 		if(!this._visible)
 			return;
 		ctx.save();
-//		this.style.toContext(ctx);
+		this.style.toContext(ctx);
+		if(this._matrix){
+			ctx.transform.apply(ctx, this._matrix);
+		}
 		this.processPath(ctx);
-		if(this.styles.fillStyle)
+		if(this.style.props.fillStyle)
 			ctx.fill();
-		if(this.styles.strokeStyle)
+		if(this.style.props.strokeStyle)
 			ctx.stroke();
 		ctx.restore();
 	},
@@ -214,27 +77,6 @@ Shape = new Class(Style, {
 		return this.update();
 	},
 
-	clip : function(clip, a, b, c){
-		if(clip === undefined)
-			return this._clip;
-		if(clip === null)
-			delete this._clip;
-
-		if(clip.processPath)
-			this._clip = clip;
-		else {
-			if(c !== undefined)
-				this._clip = new Rect([clip, a, b, c, null, null]);
-			else if(b !== undefined)
-				this._clip = new Circle([clip, a, b, null, null]);
-			else
-				this._clip = new Path([clip, null, null]);
-			this._clip.context = this.context;
-			this._clip.init();
-		}
-		return this.update();
-	},
-
 	clone : function(instance, events){
 	// instance = don't clone the style
 		var clone = new this.constructor([], this.context);
@@ -242,15 +84,17 @@ Shape = new Class(Style, {
 			if($.has(this, i) && i[0] === '_'){
 				if(typeof this[i] === 'object' &&
 						this[i] !== null &&
+						// todo: !(i instanceof Image)
 						i !== '_image' && // for images
 						(instance !== true || i !== '_style')){
+					// and what about listeners here? (see after)
 					clone[i] = $.clone(this[i]);
 				}
 				else
 					clone[i] = this[i];
 			}
 		}
-		
+
 		if(events === true)
 			clone.listeners = this.listeners;
 
@@ -261,84 +105,13 @@ Shape = new Class(Style, {
 		this.context.elements.splice(this._z, 1);
 		return this.update();
 	},
-/*
-	fill : function(fill){
-		if(isObject(fill) && fill.colors){
-			this._style.fillStyle = new Gradient(fill, null, null, null, this.context);
-			return this.update();
-		}
-		else if(isPatternLike(fill)){
-			this._style.fillStyle = new Pattern(fill, null, this.context);
-			return this.update();
-		}
-		return this.style('fillStyle', fill);
-	},
-
-	stroke : function(stroke, value){
-		// element.stroke() => { fill : 'black', width:2 }
-		// element.stroke({ fill:'black', width:3 });
-		// element.stroke('black 4pt');
-		var style = this._style;
-		switch(stroke){
-			// return as object
-			case undefined: {
-				return {
-					color: style.strokeStyle,
-					width: style.lineWidth,
-					cap:   style.lineCap,
-					join:  style.lineJoin,
-					dash:  style._lineDash
-				};
-			}
-
-			// return as a string
-			case true: {
-				return [style.strokeStyle, style.lineWidth, style.lineCap, style.lineJoin, style._lineDash]
-							.filter(function(n){ return n != null; })
-							.join(' ');
-			}
-
-			// remove all the properties
-			case null: {
-				delete style.strokeStyle;
-				delete style.lineWidth;
-				delete style.lineCap;
-				delete style.lineJoin;
-				delete style._lineDash;
-				return this;
-			}
-
-			// todo: { property: name }
-			//       { property: null }
-			//       'prop', val
-			//       'prop', null
-			//       'string'
-			default: {
-				extend(style, this._parseStroke(stroke));
-				return this.update();
-			}
-		}
-	},
-
-	opacity : function(opacity){
-		return this.style('globalAlpha', opacity);
-	},
-
-	composite : function(composite){
-		return this.style('globalCompositeOperation', composite);
-	}, */
-
-	hide : function(){
-		return this.prop('visible', false);
-	},
-
-	show : function(){
-		return this.prop('visible', true);
-	},
 
 	cursor : function(value){
 		if( value === undefined )
 			return this._cursor;
+
+		if( value === null )
+			;
 
 		this._cursor = value;
 
@@ -361,69 +134,6 @@ Shape = new Class(Style, {
 
 		return this;
 	},
-/*
-	shadow : function(name, value){
-		// shape.shadow({ x, y, color, blur });
-		// shape.shadow('x')
-		// shape.shadow('x', value)
-		// shape.shadow('1px 1px red 2px')
-		var style = this._style,
-			shadowToStyle = {
-				'x': 'shadowOffsetX',
-				'y': 'shadowOffsetY',
-				'color': 'shadowColor',
-				'blur': 'shadowBlur'
-			},
-			i = 0,
-			color;
-		if(isString(name)){
-			if( name in shadowToStyle ){
-				if(value === undefined){
-					return style[shadowToStyle[name]];
-				}
-				
-				// distance ?
-				if(name === 'color')
-					style[shadowToStyle[name]] = value;
-				else
-					style[shadowToStyle[name]] = $.distance(value);
-			}
-			else {
-				// '1px 1px 2px red'
-				// can't use rgba
-				// and px (!)
-				name = trim(name.replace(/\d+([a-z]+)?/gi, function(dist){
-					switch(i){
-						case 0: style.shadowOffsetX = $.distance(dist); break;
-						case 1: style.shadowOffsetY = $.distance(dist); break;
-						case 2: style.shadowBlur = $.distance(dist); break;
-					}
-					i++;
-					return '';
-				}));
-
-				if( name !== '' ){
-					style.shadowColor = name;
-				} else {
-					style.shadowColor = 'rgba(0, 0, 0, 0.5)';
-				}
-			}
-		}
-		else {
-			value = name;
-			for(name in value){
-				if( $.has(value, name) && name in shadowToStyle ){
-					style[shadowToStyle[name]] = value[name];
-				}
-			}
-			if(value.opacity){
-				color = $.color(value.color || style.shadowColor || 'black');
-				color[3] *= value.opacity;
-				this._style.shadowColor = 'rgba(' + color.join(',') + ')';
-			}
-		}
-		return this.update();
-	}, */
 
 	// events
 	on : function(event, fn){
@@ -449,7 +159,7 @@ Shape = new Class(Style, {
 		(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
 		return this;
 	},
-	
+
 	once : function(event, fn){
 		if(isString(fn))
 			fn = wrap(arguments, this);
@@ -553,7 +263,7 @@ Shape = new Class(Style, {
 				a = m[0], b = m[1],
 				c = m[2], d = m[3],
 				e = m[4], f = m[5];
-			ltx = [ltx * a + lty * c + e, lty = ltx * b + lty * d + f][0];
+			ltx = [ltx * a + lty * c + e, lty = ltx * b + lty * d + f][0]; // todo: beautify
 			rtx = [rtx * a + rty * c + e, rty = rtx * b + rty * d + f][0];
 			lbx = [lbx * a + lby * c + e, lby = lbx * b + lby * d + f][0];
 			rbx = [rbx * a + rby * c + e, rby = rbx * b + rby * d + f][0];
@@ -616,16 +326,16 @@ Shape = new Class(Style, {
 			return this.update();
 		}
 
-		var corner = this.corner(pivot),
-			matrix = [
+		pivot = this.corner(pivot)
+		var matrix = [
 				a, b, c, d,
-				-corner[0]*a - corner[1]*c + e+corner[0],
-				-corner[0]*b - corner[1]*d + f+corner[1]
+				-pivot[0]*a - pivot[1]*c + e+pivot[0],
+				-pivot[0]*b - pivot[1]*d + f+pivot[1]
 				];
 
 		if(this._matrix)
 			matrix = $.multiply(this._matrix, matrix);
-		
+
 		this._matrix = matrix;
 		return this.update();
 	},
@@ -651,6 +361,7 @@ Shape = new Class(Style, {
 				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
 
+		// todo: use a new canvas
 		var image,
 			ctx = this.context.context,
 			cnv = this.context.canvas,
@@ -701,7 +412,7 @@ Shape = new Class(Style, {
 				keys = Object.keys( prop ),
 				i = 0;
 			value.callback = null;
-			
+
 			for(; i < keys.length; i++){
 				if( i === keys.length-1 )
 					value.callback = c;
@@ -750,6 +461,13 @@ Shape = new Class(Style, {
 	_visible : true,
 	_events : true,
 	_origin : 'center' // for transform animations
+});
+
+// styles
+['fill', 'stroke', 'opacity', 'composite', 'shadow', 'clip', 'hide', 'show'].forEach(function(name){
+	Shape.prototype[name] = function(){
+		return this.style[name].apply(this.style, arguments);
+	};
 });
 
 $._queue = [];
@@ -819,7 +537,7 @@ $.fx.step = {
 				if( fx.end.indexOf('+=') === 0 )
 					fx.end = fx.start + Number( fx.end.substr(2) );
 				else if( fx.end.indexOf('-=') === 0 )
-					fx.end = fx.start + Number( fx.end.substr(2) );
+					fx.end = fx.start - Number( fx.end.substr(2) );
 			}
 		}
 
@@ -830,6 +548,12 @@ $.fx.step = {
 		if( fx.state === 0 ){
 			fx._prop = '_' + fx.prop;
 			fx.start = fx.elem[ fx._prop ];
+			if( isString(fx.end) ){
+				if( fx.end.indexOf('+=') === 0 )
+					fx.end = fx.start + Number( fx.end.substr(2) );
+				else if( fx.end.indexOf('-=') === 0 )
+					fx.end = fx.start - Number( fx.end.substr(2) );
+			}
 		}
 
 		fx.elem[ fx._prop ] = fx.start + (fx.end - fx.start) * fx.pos;
@@ -837,27 +561,27 @@ $.fx.step = {
 
 	opacity: function( fx ){
 		if( fx.state === 0 ){
-			fx.start = fx.elem._style.globalAlpha;
+			fx.start = fx.elem.styles.globalAlpha;
 			if( fx.start === undefined )
 				fx.start = 1;
 		}
-		fx.elem._style.globalAlpha = fx.start + (fx.end - fx.start) * fx.pos;
+		fx.elem.styles.globalAlpha = fx.start + (fx.end - fx.start) * fx.pos;
 	},
 
 	fill: function( fx ){
 		if( fx.state === 0 ){
-			fx.start = $.color( fx.elem._style.fillStyle );
+			fx.start = $.color( fx.elem.styles.fillStyle );
 
 			if( fx.end === 'transparent' ){
 				fx.end = fx.start.slice(0, 3).concat([ 0 ]);
 			} else
 				fx.end = $.color( fx.end );
 
-			if( fx.elem._style.fillStyle === 'transparent' ||
-				fx.elem._style.fillStyle === undefined )
+			if( fx.elem.styles.fillStyle === 'transparent' ||
+				fx.elem.styles.fillStyle === undefined )
 				fx.start = fx.end.slice(0, 3).concat([ 0 ]);
 		}
-		fx.elem._style.fillStyle = 'rgba(' +
+		fx.elem.styles.fillStyle = 'rgba(' +
 			[	Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
 				Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
 				Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
@@ -865,10 +589,11 @@ $.fx.step = {
 	},
 
 	stroke: function( fx ){
+		// width, color, dash
 		if( fx.state === 0 ){
-			var end = Shape.prototype._parseStroke( fx.end );
-			fx.color1 = $.color( fx.elem._style.strokeStyle );
-			fx.width1 = fx.elem._style.lineWidth || 0;
+	//		var end = Shape.prototype._parseStroke( fx.end );
+			fx.color1 = $.color( fx.elem.styles.strokeStyle );
+			fx.width1 = fx.elem.styles.lineWidth || 0;
 			fx.width2 = end.lineWidth;
 
 			if( end.strokeStyle === 'transparent' )
@@ -876,13 +601,13 @@ $.fx.step = {
 			else if( end.strokeStyle )
 				fx.color2 = $.color( end.strokeStyle );
 
-			if( (fx.elem._style.strokeStyle === 'transparent' ||
-				fx.elem._style.strokeStyle === undefined) && end.strokeStyle )
+			if( (fx.elem.styles.strokeStyle === 'transparent' ||
+				fx.elem.styles.strokeStyle === undefined) && end.strokeStyle )
 				fx.color1 = fx.color2.slice(0, 3).concat([ 0 ]);
 		}
 
 		if( fx.color2 ){
-			fx.elem._style.strokeStyle = 'rgba(' +
+			fx.elem.styles.strokeStyle = 'rgba(' +
 				[	Math.round(fx.color1[0] + (fx.color2[0] - fx.color1[0]) * fx.pos),
 					Math.round(fx.color1[1] + (fx.color2[1] - fx.color1[1]) * fx.pos),
 					Math.round(fx.color1[2] + (fx.color2[2] - fx.color1[2]) * fx.pos),
@@ -890,7 +615,7 @@ $.fx.step = {
 		}
 
 		if( fx.width2 )
-			fx.elem._style.lineWidth = fx.width1 + (fx.width2 - fx.width1) * fx.pos;
+			fx.elem.styles.lineWidth = fx.width1 + (fx.width2 - fx.width1) * fx.pos;
 	},
 
 	translate: function( fx ){

@@ -2,7 +2,7 @@ Text = new Class(Shape, {
 
 	init : function(){
 		// text, [font], x, y, [fill], [stroke]
-		var props = this._text;
+/*		var props = this._text;
 		if(isObject( props )){
 			this._text  = props.text;
 			this._x     = props.x;
@@ -24,11 +24,28 @@ Text = new Class(Shape, {
 				this._x = this._font;
 				this._font = Text.font;
 			}
-			this._font = this._parseFont(this._font);
+			this._font = this._parseFont(this._font); // зачем каждому тексту ставить style.font, тем более стандартный? !
 			this._genFont();
 			this._processStyle();
 		}
-		this._genLines();
+		this._genLines(); */
+		if(this.object){
+			var object = this.object;
+			this._text = object.text;
+			this._x = object.x;
+			this._y = object.y;
+			this._font = this._parseFont(object.font || Text.font);
+			if(object.baseline !== undefined)
+				this._style.textBaseline = object.baseline;
+			if(object.align !== undefined)
+				this._style.textAlign = object.align;
+			this._width = object.width;
+			delete this.object;
+		}
+		else {
+			this._font = this._parseFont(this._font);
+		}
+		this._genFont();
 	},
 
 	_breaklines: true,
