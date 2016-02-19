@@ -73,7 +73,6 @@ Context.prototype = {
 		element.context = this;
 		this.elements.push(element);
 
-		element.init();
 		if( element.draw )
 			element.draw(this.context);
 

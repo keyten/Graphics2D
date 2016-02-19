@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 6.2.2016
+ *  Last edit: 19.2.2016
  *  License: MIT / LGPL
  */
 
@@ -123,7 +123,6 @@ Context.prototype = {
 		element.context = this;
 		this.elements.push(element);
 
-		element.init();
 		if( element.draw )
 			element.draw(this.context);
 
@@ -375,16 +374,25 @@ var shadowProps = {
 	blur: 'shadowBlur'
 };
 
+// is using in fill and stroke
+function normalizeFill(value, object){
+	// object with gradient { type, colors, from, to, ... }
+	if(isObject(value) && value.colors && !(value instanceof Gradient)){
+		value = new Gradient(value, null, null, null, object.context);
+	}
+	// object, string or image with pattern
+	else if(isPatternLike(value)){
+		value = new Pattern(value, null, object.context);
+	}
+	// function
+	else if(value instanceof Function){
+		value = { toCanvasStyle: value.bind(object) };
+	}
+	return value;
+}
+
 // for objects with style
-Style = new Class({
-
-	initialize: function(updfunc){
-		this.props = {};
-		if(updfunc)
-			this.update = updfunc;
-	},
-
-	update: function(){},
+Style = { prototype: {
 
 	parseFromObject: function(object){
 		if($.has(object, 'opacity'))
@@ -403,59 +411,43 @@ Style = new Class({
 
 	style: function(name, value){
 		if(value === undefined)
-			return this.props[name];
+			return this.styles[name];
 		if(value === null)
-			delete this.props[name];
+			delete this.styles[name];
 		else
-			this.props[name] = value;
+			this.styles[name] = value;
 		return this.update();
 	},
 
 	fill: function(value){
-		// todo: move conditions to function (because they are used in stroke too)
-
-		// object with gradient { type, colors, from, to, ... }
-		if(isObject(value) && value.colors && !(value instanceof Gradient)){
-			value = new Gradient(value, null, null, null, this.context);
-		}
-		// object, string or image with pattern
-		else if(isPatternLike(value)){
-			value = new Pattern(value, null, this.context);
-		}
-		// function
-		else if(value instanceof Function){
-			value = { toCanvasStyle: value.bind(this) };
-		}
-		return this.style('fillStyle', value);
+		return this.style('fillStyle', normalizeFill(value, this));
 	},
 
+	// stroke() -- returns an object
+	// stroke(null) -- clears the stroke
+	// stroke(key) -- returns value
+	// stroke(key, value) -- sets value
+	// stroke(string)
 	stroke: function(name, value){
-		var props = this.props;
+		var styles = this.styles;
 		switch(name){
 			// return as object
 			case undefined: {
 				return {
-					color: props.strokeStyle,
-					width: props.lineWidth,
-					cap: props.lineCap,
-					join: props.lineJoin,
+					color: styles.strokeStyle,
+					width: styles.lineWidth,
+					cap: styles.lineCap,
+					join: styles.lineJoin,
 					dash: this._lineDash
 				};
 			} break;
 
-			// return as string
-			case true: {
-				return [props.strokeStyle, props.lineWidth, props.lineCap, props.lineJoin, this._lineDash]
-							.filter(function(n){ return n !== undefined; })
-							.join(' ');
-			} break;
-
 			// delete all values
 			case null: {
-				delete props.strokeStyle;
-				delete props.lineWidth;
-				delete props.lineCap;
-				delete props.lineJoin;
+				delete styles.strokeStyle;
+				delete styles.lineWidth;
+				delete styles.lineCap;
+				delete styles.lineJoin;
 				delete this._lineDash;
 			} break;
 
@@ -465,16 +457,7 @@ Style = new Class({
 				return this.style('lineWidth', value);
 			} break;
 			case 'color': {
-				if(isObject(value) && value.colors && !(value instanceof Gradient)){
-					value = new Gradient(value, null, null, null, this.context);
-				}
-				else if(isPatternLike(value)){
-					value = new Pattern(value, null, this.context);
-				}
-				else if(value instanceof Function){
-					value = { toCanvasStyle: value.bind(this) };
-				}
-				return this.style('strokeStyle', value);
+				return this.style('strokeStyle', normalizeFill(value, this));
 			} break;
 			case 'cap':   { return this.style('lineCap', value); } break;
 			case 'join':  { return this.style('lineJoin', value); } break;
@@ -492,7 +475,7 @@ Style = new Class({
 				return this.update();
 			} break;
 			case 'opacity': { // gradients / patterns support?
-				var color = $.color(props.strokeStyle);
+				var color = $.color(styles.strokeStyle);
 				if(value === undefined)
 					return color[3];
 				color[3] = value;
@@ -527,21 +510,21 @@ Style = new Class({
 
 					// width
 					else if(isNumberLike(value[l]))
-						props.lineWidth = $.distance(value[l]);
+						styles.lineWidth = $.distance(value[l]);
 
 					// join & cap
 					else if(value[l] === 'round'){ // wrong
-						props.lineJoin = props.lineJoin || 'round';
-						props.lineCap = props.lineCap || 'round';
+						styles.lineJoin = styles.lineJoin || 'round';
+						styles.lineCap = styles.lineCap || 'round';
 					}
 
 					// join
 					else if(value[l] === 'miter' || value[l] === 'bevel')
-						props.lineJoin = value[l];
+						styles.lineJoin = value[l];
 
 					// cap
 					else if(value[l] === 'butt' || value[l] === 'square')
-						props.lineCap = value[l];
+						styles.lineCap = value[l];
 
 					// dash (array)
 					else if(value[l][0] === '[')
@@ -553,13 +536,13 @@ Style = new Class({
 
 					// color
 					else
-						props.strokeStyle = value[l];
+						styles.strokeStyle = value[l];
 				}
 
 				if(opacity){
-					value = $.color(props.strokeStyle);
+					value = $.color(styles.strokeStyle);
 					value[3] = opacity;
-					props.strokeStyle = 'rgba(' + value.join(',') + ')';
+					styles.strokeStyle = 'rgba(' + value.join(',') + ')';
 				}
 			} break;
 		}
@@ -575,48 +558,48 @@ Style = new Class({
 	},
 
 	shadow: function(name, value){
-		var props = this.props;
+		var styles = this.styles;
 		if(isString(name)){
 			// prop, val
 			if(name in shadowProps){
 				if(value === undefined)
-					return props[shadowProps[name]];
+					return styles[shadowProps[name]];
 
 				if(name === 'color')
-					props[shadowProps[name]] = value;
+					styles[shadowProps[name]] = value;
 				else
-					props[shadowProps[name]] = $.distance(value);
+					styles[shadowProps[name]] = $.distance(value);
 			}
 			// css-like
 			else {
 				value = name;
 
 				// remove spaces from color
-				value = value.replace(/\,\s/g, ',');
+				value = value.replace(/\s*\,\s+/g, ',');
 				value = value.split(' ');
 
 				var props = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
 
 				for(var i = 0; i < value.length; i++){
 					if(isNumberLike(value[i]))
-						props[props[i]] = $.distance(value[i]);
+						styles[props[i]] = $.distance(value[i]);
 					else
-						props.shadowColor = value[i];
+						styles.shadowColor = value[i];
 				}
 			}
 		}
 		else if(name === null){
-			delete props.shadowOffsetX;
-			delete props.shadowOffsetY;
-			delete props.shadowBlur;
-			delete props.shadowColor;
+			delete styles.shadowOffsetX;
+			delete styles.shadowOffsetY;
+			delete styles.shadowBlur;
+			delete styles.shadowColor;
 		}
 		else if(name === undefined){
 			return {
-				x: props.shadowOffsetX,
-				y: props.shadowOffsetY,
-				blur: props.shadowBlur,
-				color: props.shadowColor
+				x: styles.shadowOffsetX,
+				y: styles.shadowOffsetY,
+				blur: styles.shadowBlur,
+				color: styles.shadowColor
 			};
 		}
 		return this.update();
@@ -644,26 +627,23 @@ Style = new Class({
 	},
 
 	hide : function(){
-		return this.prop('visible', false);
+		this._visible = false;
+		return this.update();
 	},
 
 	show : function(){
-		return this.prop('visible', true);
+		this._visible = true;
+		return this.update();
 	},
 
-	toContext: function(ctx){
-		// replace to extend(ctx, this.props);
-		for(var k in this.props){
-			if($.has(this.props, k)){
-				ctx[k] = this.props[k];
-			}
-		}
+	styleToContext: function(ctx){
+		extend(ctx, this.styles);
 
-		if(this.props.fillStyle && this.props.fillStyle.toCanvasStyle){
-			ctx.fillStyle = this.props.fillStyle.toCanvasStyle(ctx, this);
+		if(this.styles.fillStyle && this.styles.fillStyle.toCanvasStyle){
+			ctx.fillStyle = this.styles.fillStyle.toCanvasStyle(ctx, this);
 		}
-		if(this.props.strokeStyle && this.props.strokeStyle.toCanvasStyle){
-			ctx.strokeStyle = this.props.strokeStyle.toCanvasStyle(ctx, this);
+		if(this.styles.strokeStyle && this.styles.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = this.styles.strokeStyle.toCanvasStyle(ctx, this);
 		}
 
 		if(this._lineDash){
@@ -686,15 +666,15 @@ Style = new Class({
 		}
 	}
 
-});
+}};
 
 $.Style = Style;
 
-Shape = new Class({
+Shape = new Class(Style, {
 
 	initialize : function(args){
 		this.listeners = {}; // object to store event listeners
-		this.style = new Style();
+		this.styles = {};
 
 		var props = this.constructor.props,
 			handlers = this.constructor.propHandlers || {},
@@ -703,16 +683,16 @@ Shape = new Class({
 		if(isObject(args[0]) && this.constructor.firstObject){
 			this.object = args[0];
 			if(this.constructor.processStyle)
-				this.style.parseFromObject(args[0]);
+				this.parseFromObject(args[0]);
 		}
 		else if(props){
 			l = Math.min(props.length, args.length);
 			if(this.constructor.processStyle){
 				if(args.length - props.length > 1)
-					this.style.stroke(args[l + 1]);
+					this.stroke(args[l + 1]);
 
 				if(args.length - props.length > 0)
-					this.style.fill(args[l]);
+					this.fill(args[l]);
 			}
 			while(l--){
 				if(handlers[l])
@@ -721,22 +701,20 @@ Shape = new Class({
 					this['_' + props[l]] = args[l];
 			}
 		}
-
-		this.style.update = this.update.bind(this);
 	},
 
 	draw : function(ctx){
 		if(!this._visible)
 			return;
 		ctx.save();
-		this.style.toContext(ctx);
+		this.styleToContext(ctx);
 		if(this._matrix){
 			ctx.transform.apply(ctx, this._matrix);
 		}
 		this.processPath(ctx);
-		if(this.style.props.fillStyle)
+		if(this.styles.fillStyle)
 			ctx.fill();
-		if(this.style.props.strokeStyle)
+		if(this.styles.strokeStyle)
 			ctx.stroke();
 		ctx.restore();
 	},
@@ -933,74 +911,64 @@ Shape = new Class({
 	},
 
 	bounds : function(options){
-		// options.transform == true / false
-		// options.stroke == true / false / 'exclude';
-		// options === 'points' -> return {lt, rt...}
-		if(!this._bounds)
-			throw new Error('Object hasn\'t _bounds() method.');
+		if(!this.nativeBounds)
+			throw ('Object #' + this._z + 'hasn\'t nativeBounds() method.');
 
-		var bounds = this._bounds(),
-			m = this._matrix,
-			lw = this._style.lineWidth;
-		if( !options )
-			return bounds;
+		var nb = this.nativeBounds(),
+			mt = this._matrix,
+			lw = this.styles.lineWidth / 2,
 
-		if( (options === 'points' || options.transform === true) && m != null ){
+			ltx = nb.x1, lty = nb.y1,
+			rtx = nb.x2, rty = nb.y1,
+			lbx = nb.x1, lby = nb.y2,
+			rbx = nb.x2, rby = nb.y2;
 
-			var ltx = bounds.x1, lty = bounds.y1,
-				rtx = bounds.x2, rty = bounds.y1,
-				lbx = bounds.x1, lby = bounds.y2,
-				rbx = bounds.x2, rby = bounds.y2,
-
-				a = m[0], b = m[1],
-				c = m[2], d = m[3],
-				e = m[4], f = m[5];
-			ltx = [ltx * a + lty * c + e, lty = ltx * b + lty * d + f][0]; // todo: beautify
-			rtx = [rtx * a + rty * c + e, rty = rtx * b + rty * d + f][0];
-			lbx = [lbx * a + lby * c + e, lby = lbx * b + lby * d + f][0];
-			rbx = [rbx * a + rby * c + e, rby = rbx * b + rby * d + f][0];
-
-			if( options === 'points' ){
-				return { lt: [ltx, lty], rt: [rtx, rty], lb: [lbx, lby], rb: [rbx, rby] };
+		if( options ){
+			if( options.stroke === 'exclude' ){
+				options.stroke = true; // don't modify argument obs!
+				lw *= -1;
 			}
 
-			bounds.x1 = Math.min(ltx, rtx, lbx, rbx);
-			bounds.x2 = Math.max(ltx, rtx, lbx, rbx);
-			bounds.y1 = Math.min(lty, rty, lby, rby);
-			bounds.y2 = Math.max(lty, rty, lby, rby);
-			bounds.width = bounds.x2 - bounds.x1;
-			bounds.height = bounds.y2 - bounds.y1;
-			bounds.w = bounds.width;
-			bounds.h = bounds.height;
-			bounds.x = bounds.x1;
-			bounds.y = bounds.y1;
-		} else if( options === 'points' ){
-			return {
-				lt: [bounds.x1, bounds.y1],
-				rt: [bounds.x2, bounds.y1],
-				lb: [bounds.x1, bounds.y2],
-				rb: [bounds.x2, bounds.y2]
-			};
+			if( options.stroke === true ){
+				ltx -= lw;
+				lty -= lw;
+				rtx += lw;
+				rty -= lw;
+				lbx -= lw;
+				lby += lw;
+				rbx += lw;
+				rby += lw;
+			}
+
+			if( options.transform === true && mt ){
+				var a = mt[0], b = mt[1],
+					c = mt[2], d = mt[3],
+					e = mt[4], f = mt[5];
+
+				ltx = [ltx * a + lty * c + e,  lty = ltx * b + lty * d + f][0]; // todo: beautify
+				rtx = [rtx * a + rty * c + e,  rty = rtx * b + rty * d + f][0];
+				lbx = [lbx * a + lby * c + e,  lby = lbx * b + lby * d + f][0];
+				rbx = [rbx * a + rby * c + e,  rby = rbx * b + rby * d + f][0];
+				if( options.points !== true ){
+					var x1 = Math.min(ltx, rtx, lbx, rbx),
+						x2 = Math.max(ltx, rtx, lbx, rbx),
+						y1 = Math.min(lty, rty, lby, rby),
+						y2 = Math.max(lty, rty, lby, rby);
+					return new Bounds(x1, y1, x2 - x1, y2 - y1);
+				}
+			}
+
+			if( options.points === true ){
+				return {
+					lt: [ltx, lty],
+					rt: [rtx, rty],
+					lb: [lbx, lby],
+					rb: [rbx, rby]
+				};
+			}
 		}
 
-
-		if( lw && (options.stroke === true || options.stroke === 'exclude') ){
-			if( options.stroke === 'exclude' )
-				lw = -lw;
-			lw /= 2;
-			bounds.x1 -= lw;
-			bounds.y1 -= lw;
-			bounds.x2 += lw;
-			bounds.y2 += lw;
-			bounds.width += 2 * lw;
-			bounds.height += 2 * lw;
-			bounds.w += 2 * lw;
-			bounds.h += 2 * lw;
-			bounds.x -= lw;
-			bounds.y -= lw;
-		}
-
-		return bounds;
+		return new Bounds(ltx, lty, rbx - ltx, rby - lty);
 	},
 
 	// transformations
@@ -1050,7 +1018,7 @@ Shape = new Class({
 			if( typeof this.bounds === 'function' )
 				bounds = this.bounds({ transform: true, stroke: true });
 			else
-				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
 
 		// todo: use a new canvas
@@ -1081,7 +1049,7 @@ Shape = new Class({
 			if( typeof this.bounds === 'function' )
 				bounds = this.bounds({ transform: true, stroke: true });
 			else
-				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
 		return this.context.image( this.toDataURL(type, bounds), bounds.x, bounds.y );
 	},
@@ -1153,13 +1121,6 @@ Shape = new Class({
 	_visible : true,
 	_events : true,
 	_origin : 'center' // for transform animations
-});
-
-// styles
-['fill', 'stroke', 'opacity', 'composite', 'shadow', 'clip', 'hide', 'show'].forEach(function(name){
-	Shape.prototype[name] = function(){
-		return this.style[name].apply(this.style, arguments);
-	};
 });
 
 $._queue = [];
@@ -1399,7 +1360,7 @@ $.fn = Shape.prototype;
 
 Rect = new Class(Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			var object = this.object;
 			this._x = object.x;
@@ -1447,8 +1408,7 @@ Rect = new Class(Shape, {
 			this.prop('height', y - this._y);
 	},
 
-	// todo: rename _bounds to originalBounds
-	bounds : function(){
+	nativeBounds : function(){
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
 
@@ -1465,16 +1425,14 @@ Rect.firstObject = true; // parse the first argument if it is object
 Rect.propHandlers = [distance, distance, distance, distance];
 
 $.rect = function(){
-	var rect = new Rect(arguments);
-	rect.init();
-	return rect;
+	return new Rect(arguments);
 };
 
 // todo: x1, y1, x2, y2 animation
 
 Circle = new Class(Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			var object = this.object;
 			this._cx = object.cx;
@@ -1485,7 +1443,7 @@ Circle = new Class(Shape, {
 	},
 
 	// Parameters
-	
+
 	cx : function(cx){
 		return this.prop('cx', cx);
 	},
@@ -1493,7 +1451,7 @@ Circle = new Class(Shape, {
 	cy : function(cy){
 		return this.prop('cy', cy);
 	},
-	
+
 	radius : function(r){
 		return this.prop('radius', r);
 	},
@@ -1501,7 +1459,7 @@ Circle = new Class(Shape, {
 	bounds : function(){
 		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
 	},
-	
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		// Math.abs -- fix for negative radius (for ex. - animate radius to 0 with elasticOut easing)
@@ -1517,21 +1475,22 @@ Circle.propHandlers = [distance, distance, distance];
 
 
 $.circle = function(){
-	var circle = new Circle(arguments);
-	circle.init();
-	return circle;
+	return new Circle(arguments);
 };
 
-$.Curve = Curve = new Class({
-	initialize : function( name, _arguments, path ){
+Curve = new Class({
+
+	initialize : function( name, args, path ){
 		this.name = name;
 		this.path = path;
-		this._arguments = _arguments;
+		this.args = args;
 
 		if( name in Curve.curves ){
 			extend( this, Curve.curves[ name ] );
 		}
 	},
+
+	// Parameters
 
 	prop : Shape.prototype.prop,
 	update : function(){
@@ -1540,14 +1499,7 @@ $.Curve = Curve = new Class({
 	},
 
 	arguments : function(){
-		return this.prop( 'arguments', arguments.length > 1 ? arguments : arguments[0] );
-	},
-
-	argument : function( index, value ){
-		if( value === undefined )
-			return this._arguments[ index ];
-		this._arguments[ index ] = value;
-		return this.update();
+		return this.prop( 'args', arguments.length > 1 ? arguments : arguments[0] );
 	},
 
 	from : function(){ // returns the start point
@@ -1570,12 +1522,12 @@ $.Curve = Curve = new Class({
 
 	endsIn : function(){
 		if( this._slice )
-			return this._arguments.slice( this._slice[0], this._slice[1] );
+			return this.args.slice( this._slice[0], this._slice[1] );
 		return null;
 	},
 
 	process : function( ctx ){
-		ctx[ this.name ].apply( ctx, this._arguments );
+		ctx[ this.name ].apply( ctx, this.args );
 		return this.endsIn();
 	},
 
@@ -1587,15 +1539,15 @@ $.Curve = Curve = new Class({
 Curve.curves = {
 	moveTo : {
 		_slice : [ , ],
-		points : function(){ return [this._arguments]; },
+		points : function(){ return [this.args]; },
 		x : argument( 0 ),
 		y : argument( 1 )
 	},
 	lineTo : {
 		_slice : [ , ],
-		points : function(){ return [this._arguments]; },
+		points : function(){ return [this.args]; },
 		_bounds : function( from ){
-			var end = this._arguments;
+			var end = this.args;
 			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
 		},
 		x : argument( 0 ),
@@ -1604,10 +1556,10 @@ Curve.curves = {
 	quadraticCurveTo : {
 		_slice : [ 2 ],
 		points : function(){
-			return [ this._arguments.slice(2), this._arguments.slice(0, 2) ];
+			return [ this.args.slice(2), this.args.slice(0, 2) ];
 		},
 		_bounds : function( f ){
-			var a = this._arguments,
+			var a = this.args,
 				x1 = Math.min( a[0], a[2], f[0] ),
 				y1 = Math.min( a[1], a[3], f[1] ),
 				x2 = Math.max( a[0], a[2], f[0] ),
@@ -1622,10 +1574,10 @@ Curve.curves = {
 	bezierCurveTo : {
 		_slice : [ 4 ],
 		points : function(){
-			return [ this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2) ];
+			return [ this.args.slice(4), this.args.slice(2, 4), this.args.slice(0, 2) ];
 		},
 		_bounds : function( f ){
-			var a = this._arguments,
+			var a = this.args,
 				x1 = Math.min( a[0], a[2], a[4], f[0] ),
 				y1 = Math.min( a[1], a[3], a[5], f[1] ),
 				x2 = Math.max( a[0], a[2], a[4], f[0] ),
@@ -1641,7 +1593,7 @@ Curve.curves = {
 	},
 	arc : {
 		points : function(){
-			return [ this._arguments.slice(0, 2) ];
+			return [ this.args.slice(0, 2) ];
 		},
 		x         : argument( 0 ),
 		y         : argument( 1 ),
@@ -1650,14 +1602,14 @@ Curve.curves = {
 		end       : argument( 4 ),
 		clockwise : argument( 5 ),
 		endsIn : function(){
-			var x         = this._arguments[ 0 ],
-				y         = this._arguments[ 1 ],
-				radius    = this._arguments[ 2 ],
-				start     = this._arguments[ 3 ],
-				end       = this._arguments[ 4 ],
-				clockwise = this._arguments[ 5 ],
+			var x         = this.args[ 0 ],
+				y         = this.args[ 1 ],
+				radius    = this.args[ 2 ],
+				start     = this.args[ 3 ],
+				end       = this.args[ 4 ],
+				clockwise = this.args[ 5 ],
 				delta     = end - start;
-			
+
 			if( clockwise )
 				delta = -delta;
 
@@ -1670,7 +1622,7 @@ Curve.curves = {
 	arcTo : {
 		_slice : [ 2, 4 ],
 		points : function(){
-			return [ this._arguments.slice(0, 2), this._arguments.slice(2) ];
+			return [ this.args.slice(0, 2), this.args.slice(2) ];
 		},
 		x1        : argument( 0 ),
 		y1        : argument( 1 ),
@@ -1681,7 +1633,7 @@ Curve.curves = {
 	}
 };
 
-Curve.byArray = function(array, path){
+Curve.fromArray = function(array, path){
 	if(array === true)
 		return closePath;
 
@@ -1701,7 +1653,7 @@ var closePath = new Curve('closePath', []);
 
 Path = new Class( Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			this._curves = this.object._curves;
 			delete this.object;
@@ -1730,18 +1682,18 @@ Path = new Class( Shape, {
 		this._curves.splice.apply(this._curves, [index, 0].concat(value));
 		return this.update();
 	},
-	
+
 	after : function(index, value){
 		return this.before(index+1, value);
 	},
-	
+
 	remove : function(index){
 		if(index === undefined)
 			return Shape.prototype.remove.call(this);
 		this._curves.splice(index, 1);
 		return this.update();
 	},
-	
+
 	curves : function(value){
 		if(value === undefined)
 			return this._curves;
@@ -1762,31 +1714,31 @@ Path = new Class( Shape, {
 	add : function(name, arg){
 		return this.push(new Curve(name, arg, this));
 	},
-	
+
 	moveTo : function(x, y){
 		return this.add('moveTo', [x, y]);
 	},
-	
+
 	lineTo : function(x, y){
 		return this.add('lineTo', [x, y]);
 	},
-	
+
 	quadraticCurveTo : function(hx, hy, x, y){
 		return this.add('quadraticCurveTo', [hx, hy, x, y]);
 	},
-	
+
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
 		return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 	},
-	
+
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
 		return this.add('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 	},
-	
+
 	arc : function(x, y, radius, start, end, clockwise){
 		return this.add('arc', [x, y, radius, start, end, !!clockwise]);
 	},
-	
+
 	closePath : function(){
 		return this.push( closePath );
 	},
@@ -1797,7 +1749,7 @@ Path = new Class( Shape, {
 		return this.update();
 	},
 
-	_bounds : function(){
+	nativeBounds : function(){
 		var curve, end,
 			curves = this._curves,
 			current = [0, 0],
@@ -1835,7 +1787,7 @@ Path = new Class( Shape, {
 		ctx.beginPath();
 		for(; i < l; i++){
 			curve = curves[i].process(ctx, current);
-			
+
 			if(curve)
 				current = curve;
 		}
@@ -1877,7 +1829,7 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 					curves.push(new Curve('moveTo', path[i], pathObject));
 					continue;
 				}
-				curves.push(Curve.byArray(path[i], pathObject));
+				curves.push(Curve.fromArray(path[i], pathObject));
 			}
 		}
 
@@ -2087,7 +2039,7 @@ $.fx.step.crop = function( fx ){
 
 Text = new Class(Shape, {
 
-	init : function(){
+	initialize : function(args){
 		// text, [font], x, y, [fill], [stroke]
 /*		var props = this._text;
 		if(isObject( props )){
@@ -2130,7 +2082,23 @@ Text = new Class(Shape, {
 			delete this.object;
 		}
 		else {
-			this._font = this._parseFont(this._font);
+			// text, font, x, y, fill, stroke
+			this._text = args[0];
+			var i = 1;
+			if( !isNumberLike(args[3]) ){
+				this._font = this._parseFont(Text.font);
+			}
+			else {
+				this._font = this._parseFont(args[i++]);
+			}
+			this._x = args[i++];
+			this._y = args[i++];
+
+			if(args[i++])
+				this.fill(args[i-1]);
+
+			if(args[i])
+				this.stroke(args[i]);
 		}
 		this._genFont();
 	},
@@ -2368,14 +2336,13 @@ Text = new Class(Shape, {
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
 
-Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
+//Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
 Text.font = '10px sans-serif';
-//Text.distances = [ false, false, true, true ];
+Text.processStyle = true;
+Text.firstObject = true; // parse the first argument if it is object
 
 $.text = function(){
-	var text = new Text(arguments);
-	text.init();
-	return text;
+	return new Text(arguments);
 };
 
 $.fx.step.lineSpace = $.fx.step.float;

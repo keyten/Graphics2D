@@ -1,6 +1,6 @@
 Rect = new Class(Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			var object = this.object;
 			this._x = object.x;
@@ -48,8 +48,7 @@ Rect = new Class(Shape, {
 			this.prop('height', y - this._y);
 	},
 
-	// todo: rename _bounds to originalBounds
-	bounds : function(){
+	nativeBounds : function(){
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
 
@@ -66,9 +65,7 @@ Rect.firstObject = true; // parse the first argument if it is object
 Rect.propHandlers = [distance, distance, distance, distance];
 
 $.rect = function(){
-	var rect = new Rect(arguments);
-	rect.init();
-	return rect;
+	return new Rect(arguments);
 };
 
 // todo: x1, y1, x2, y2 animation

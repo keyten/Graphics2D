@@ -2,7 +2,7 @@ var closePath = new Curve('closePath', []);
 
 Path = new Class( Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			this._curves = this.object._curves;
 			delete this.object;
@@ -31,18 +31,18 @@ Path = new Class( Shape, {
 		this._curves.splice.apply(this._curves, [index, 0].concat(value));
 		return this.update();
 	},
-	
+
 	after : function(index, value){
 		return this.before(index+1, value);
 	},
-	
+
 	remove : function(index){
 		if(index === undefined)
 			return Shape.prototype.remove.call(this);
 		this._curves.splice(index, 1);
 		return this.update();
 	},
-	
+
 	curves : function(value){
 		if(value === undefined)
 			return this._curves;
@@ -63,31 +63,31 @@ Path = new Class( Shape, {
 	add : function(name, arg){
 		return this.push(new Curve(name, arg, this));
 	},
-	
+
 	moveTo : function(x, y){
 		return this.add('moveTo', [x, y]);
 	},
-	
+
 	lineTo : function(x, y){
 		return this.add('lineTo', [x, y]);
 	},
-	
+
 	quadraticCurveTo : function(hx, hy, x, y){
 		return this.add('quadraticCurveTo', [hx, hy, x, y]);
 	},
-	
+
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
 		return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 	},
-	
+
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
 		return this.add('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 	},
-	
+
 	arc : function(x, y, radius, start, end, clockwise){
 		return this.add('arc', [x, y, radius, start, end, !!clockwise]);
 	},
-	
+
 	closePath : function(){
 		return this.push( closePath );
 	},
@@ -98,7 +98,7 @@ Path = new Class( Shape, {
 		return this.update();
 	},
 
-	_bounds : function(){
+	nativeBounds : function(){
 		var curve, end,
 			curves = this._curves,
 			current = [0, 0],
@@ -136,7 +136,7 @@ Path = new Class( Shape, {
 		ctx.beginPath();
 		for(; i < l; i++){
 			curve = curves[i].process(ctx, current);
-			
+
 			if(curve)
 				current = curve;
 		}
@@ -178,7 +178,7 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 					curves.push(new Curve('moveTo', path[i], pathObject));
 					continue;
 				}
-				curves.push(Curve.byArray(path[i], pathObject));
+				curves.push(Curve.fromArray(path[i], pathObject));
 			}
 		}
 

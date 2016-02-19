@@ -1,6 +1,6 @@
 Text = new Class(Shape, {
 
-	init : function(){
+	initialize : function(args){
 		// text, [font], x, y, [fill], [stroke]
 /*		var props = this._text;
 		if(isObject( props )){
@@ -43,7 +43,23 @@ Text = new Class(Shape, {
 			delete this.object;
 		}
 		else {
-			this._font = this._parseFont(this._font);
+			// text, font, x, y, fill, stroke
+			this._text = args[0];
+			var i = 1;
+			if( !isNumberLike(args[3]) ){
+				this._font = this._parseFont(Text.font);
+			}
+			else {
+				this._font = this._parseFont(args[i++]);
+			}
+			this._x = args[i++];
+			this._y = args[i++];
+
+			if(args[i++])
+				this.fill(args[i-1]);
+
+			if(args[i])
+				this.stroke(args[i]);
 		}
 		this._genFont();
 	},
@@ -281,14 +297,13 @@ Text = new Class(Shape, {
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
 
-Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
+//Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
 Text.font = '10px sans-serif';
-//Text.distances = [ false, false, true, true ];
+Text.processStyle = true;
+Text.firstObject = true; // parse the first argument if it is object
 
 $.text = function(){
-	var text = new Text(arguments);
-	text.init();
-	return text;
+	return new Text(arguments);
 };
 
 $.fx.step.lineSpace = $.fx.step.float;

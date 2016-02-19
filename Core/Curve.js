@@ -1,13 +1,16 @@
-$.Curve = Curve = new Class({
-	initialize : function( name, _arguments, path ){
+Curve = new Class({
+
+	initialize : function( name, args, path ){
 		this.name = name;
 		this.path = path;
-		this._arguments = _arguments;
+		this.args = args;
 
 		if( name in Curve.curves ){
 			extend( this, Curve.curves[ name ] );
 		}
 	},
+
+	// Parameters
 
 	prop : Shape.prototype.prop,
 	update : function(){
@@ -16,14 +19,7 @@ $.Curve = Curve = new Class({
 	},
 
 	arguments : function(){
-		return this.prop( 'arguments', arguments.length > 1 ? arguments : arguments[0] );
-	},
-
-	argument : function( index, value ){
-		if( value === undefined )
-			return this._arguments[ index ];
-		this._arguments[ index ] = value;
-		return this.update();
+		return this.prop( 'args', arguments.length > 1 ? arguments : arguments[0] );
 	},
 
 	from : function(){ // returns the start point
@@ -46,12 +42,12 @@ $.Curve = Curve = new Class({
 
 	endsIn : function(){
 		if( this._slice )
-			return this._arguments.slice( this._slice[0], this._slice[1] );
+			return this.args.slice( this._slice[0], this._slice[1] );
 		return null;
 	},
 
 	process : function( ctx ){
-		ctx[ this.name ].apply( ctx, this._arguments );
+		ctx[ this.name ].apply( ctx, this.args );
 		return this.endsIn();
 	},
 
@@ -63,15 +59,15 @@ $.Curve = Curve = new Class({
 Curve.curves = {
 	moveTo : {
 		_slice : [ , ],
-		points : function(){ return [this._arguments]; },
+		points : function(){ return [this.args]; },
 		x : argument( 0 ),
 		y : argument( 1 )
 	},
 	lineTo : {
 		_slice : [ , ],
-		points : function(){ return [this._arguments]; },
+		points : function(){ return [this.args]; },
 		_bounds : function( from ){
-			var end = this._arguments;
+			var end = this.args;
 			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
 		},
 		x : argument( 0 ),
@@ -80,10 +76,10 @@ Curve.curves = {
 	quadraticCurveTo : {
 		_slice : [ 2 ],
 		points : function(){
-			return [ this._arguments.slice(2), this._arguments.slice(0, 2) ];
+			return [ this.args.slice(2), this.args.slice(0, 2) ];
 		},
 		_bounds : function( f ){
-			var a = this._arguments,
+			var a = this.args,
 				x1 = Math.min( a[0], a[2], f[0] ),
 				y1 = Math.min( a[1], a[3], f[1] ),
 				x2 = Math.max( a[0], a[2], f[0] ),
@@ -98,10 +94,10 @@ Curve.curves = {
 	bezierCurveTo : {
 		_slice : [ 4 ],
 		points : function(){
-			return [ this._arguments.slice(4), this._arguments.slice(2, 4), this._arguments.slice(0, 2) ];
+			return [ this.args.slice(4), this.args.slice(2, 4), this.args.slice(0, 2) ];
 		},
 		_bounds : function( f ){
-			var a = this._arguments,
+			var a = this.args,
 				x1 = Math.min( a[0], a[2], a[4], f[0] ),
 				y1 = Math.min( a[1], a[3], a[5], f[1] ),
 				x2 = Math.max( a[0], a[2], a[4], f[0] ),
@@ -117,7 +113,7 @@ Curve.curves = {
 	},
 	arc : {
 		points : function(){
-			return [ this._arguments.slice(0, 2) ];
+			return [ this.args.slice(0, 2) ];
 		},
 		x         : argument( 0 ),
 		y         : argument( 1 ),
@@ -126,14 +122,14 @@ Curve.curves = {
 		end       : argument( 4 ),
 		clockwise : argument( 5 ),
 		endsIn : function(){
-			var x         = this._arguments[ 0 ],
-				y         = this._arguments[ 1 ],
-				radius    = this._arguments[ 2 ],
-				start     = this._arguments[ 3 ],
-				end       = this._arguments[ 4 ],
-				clockwise = this._arguments[ 5 ],
+			var x         = this.args[ 0 ],
+				y         = this.args[ 1 ],
+				radius    = this.args[ 2 ],
+				start     = this.args[ 3 ],
+				end       = this.args[ 4 ],
+				clockwise = this.args[ 5 ],
 				delta     = end - start;
-			
+
 			if( clockwise )
 				delta = -delta;
 
@@ -146,7 +142,7 @@ Curve.curves = {
 	arcTo : {
 		_slice : [ 2, 4 ],
 		points : function(){
-			return [ this._arguments.slice(0, 2), this._arguments.slice(2) ];
+			return [ this.args.slice(0, 2), this.args.slice(2) ];
 		},
 		x1        : argument( 0 ),
 		y1        : argument( 1 ),
@@ -157,7 +153,7 @@ Curve.curves = {
 	}
 };
 
-Curve.byArray = function(array, path){
+Curve.fromArray = function(array, path){
 	if(array === true)
 		return closePath;
 

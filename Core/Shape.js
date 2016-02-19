@@ -1,8 +1,8 @@
-Shape = new Class({
+Shape = new Class(Style, {
 
 	initialize : function(args){
 		this.listeners = {}; // object to store event listeners
-		this.style = new Style();
+		this.styles = {};
 
 		var props = this.constructor.props,
 			handlers = this.constructor.propHandlers || {},
@@ -11,16 +11,16 @@ Shape = new Class({
 		if(isObject(args[0]) && this.constructor.firstObject){
 			this.object = args[0];
 			if(this.constructor.processStyle)
-				this.style.parseFromObject(args[0]);
+				this.parseFromObject(args[0]);
 		}
 		else if(props){
 			l = Math.min(props.length, args.length);
 			if(this.constructor.processStyle){
 				if(args.length - props.length > 1)
-					this.style.stroke(args[l + 1]);
+					this.stroke(args[l + 1]);
 
 				if(args.length - props.length > 0)
-					this.style.fill(args[l]);
+					this.fill(args[l]);
 			}
 			while(l--){
 				if(handlers[l])
@@ -29,22 +29,20 @@ Shape = new Class({
 					this['_' + props[l]] = args[l];
 			}
 		}
-
-		this.style.update = this.update.bind(this);
 	},
 
 	draw : function(ctx){
 		if(!this._visible)
 			return;
 		ctx.save();
-		this.style.toContext(ctx);
+		this.styleToContext(ctx);
 		if(this._matrix){
 			ctx.transform.apply(ctx, this._matrix);
 		}
 		this.processPath(ctx);
-		if(this.style.props.fillStyle)
+		if(this.styles.fillStyle)
 			ctx.fill();
-		if(this.style.props.strokeStyle)
+		if(this.styles.strokeStyle)
 			ctx.stroke();
 		ctx.restore();
 	},
@@ -241,74 +239,64 @@ Shape = new Class({
 	},
 
 	bounds : function(options){
-		// options.transform == true / false
-		// options.stroke == true / false / 'exclude';
-		// options === 'points' -> return {lt, rt...}
-		if(!this._bounds)
-			throw new Error('Object hasn\'t _bounds() method.');
+		if(!this.nativeBounds)
+			throw ('Object #' + this._z + 'hasn\'t nativeBounds() method.');
 
-		var bounds = this._bounds(),
-			m = this._matrix,
-			lw = this._style.lineWidth;
-		if( !options )
-			return bounds;
+		var nb = this.nativeBounds(),
+			mt = this._matrix,
+			lw = this.styles.lineWidth / 2,
 
-		if( (options === 'points' || options.transform === true) && m != null ){
+			ltx = nb.x1, lty = nb.y1,
+			rtx = nb.x2, rty = nb.y1,
+			lbx = nb.x1, lby = nb.y2,
+			rbx = nb.x2, rby = nb.y2;
 
-			var ltx = bounds.x1, lty = bounds.y1,
-				rtx = bounds.x2, rty = bounds.y1,
-				lbx = bounds.x1, lby = bounds.y2,
-				rbx = bounds.x2, rby = bounds.y2,
-
-				a = m[0], b = m[1],
-				c = m[2], d = m[3],
-				e = m[4], f = m[5];
-			ltx = [ltx * a + lty * c + e, lty = ltx * b + lty * d + f][0]; // todo: beautify
-			rtx = [rtx * a + rty * c + e, rty = rtx * b + rty * d + f][0];
-			lbx = [lbx * a + lby * c + e, lby = lbx * b + lby * d + f][0];
-			rbx = [rbx * a + rby * c + e, rby = rbx * b + rby * d + f][0];
-
-			if( options === 'points' ){
-				return { lt: [ltx, lty], rt: [rtx, rty], lb: [lbx, lby], rb: [rbx, rby] };
+		if( options ){
+			if( options.stroke === 'exclude' ){
+				options.stroke = true; // don't modify argument obs!
+				lw *= -1;
 			}
 
-			bounds.x1 = Math.min(ltx, rtx, lbx, rbx);
-			bounds.x2 = Math.max(ltx, rtx, lbx, rbx);
-			bounds.y1 = Math.min(lty, rty, lby, rby);
-			bounds.y2 = Math.max(lty, rty, lby, rby);
-			bounds.width = bounds.x2 - bounds.x1;
-			bounds.height = bounds.y2 - bounds.y1;
-			bounds.w = bounds.width;
-			bounds.h = bounds.height;
-			bounds.x = bounds.x1;
-			bounds.y = bounds.y1;
-		} else if( options === 'points' ){
-			return {
-				lt: [bounds.x1, bounds.y1],
-				rt: [bounds.x2, bounds.y1],
-				lb: [bounds.x1, bounds.y2],
-				rb: [bounds.x2, bounds.y2]
-			};
+			if( options.stroke === true ){
+				ltx -= lw;
+				lty -= lw;
+				rtx += lw;
+				rty -= lw;
+				lbx -= lw;
+				lby += lw;
+				rbx += lw;
+				rby += lw;
+			}
+
+			if( options.transform === true && mt ){
+				var a = mt[0], b = mt[1],
+					c = mt[2], d = mt[3],
+					e = mt[4], f = mt[5];
+
+				ltx = [ltx * a + lty * c + e,  lty = ltx * b + lty * d + f][0]; // todo: beautify
+				rtx = [rtx * a + rty * c + e,  rty = rtx * b + rty * d + f][0];
+				lbx = [lbx * a + lby * c + e,  lby = lbx * b + lby * d + f][0];
+				rbx = [rbx * a + rby * c + e,  rby = rbx * b + rby * d + f][0];
+				if( options.points !== true ){
+					var x1 = Math.min(ltx, rtx, lbx, rbx),
+						x2 = Math.max(ltx, rtx, lbx, rbx),
+						y1 = Math.min(lty, rty, lby, rby),
+						y2 = Math.max(lty, rty, lby, rby);
+					return new Bounds(x1, y1, x2 - x1, y2 - y1);
+				}
+			}
+
+			if( options.points === true ){
+				return {
+					lt: [ltx, lty],
+					rt: [rtx, rty],
+					lb: [lbx, lby],
+					rb: [rbx, rby]
+				};
+			}
 		}
 
-
-		if( lw && (options.stroke === true || options.stroke === 'exclude') ){
-			if( options.stroke === 'exclude' )
-				lw = -lw;
-			lw /= 2;
-			bounds.x1 -= lw;
-			bounds.y1 -= lw;
-			bounds.x2 += lw;
-			bounds.y2 += lw;
-			bounds.width += 2 * lw;
-			bounds.height += 2 * lw;
-			bounds.w += 2 * lw;
-			bounds.h += 2 * lw;
-			bounds.x -= lw;
-			bounds.y -= lw;
-		}
-
-		return bounds;
+		return new Bounds(ltx, lty, rbx - ltx, rby - lty);
 	},
 
 	// transformations
@@ -358,7 +346,7 @@ Shape = new Class({
 			if( typeof this.bounds === 'function' )
 				bounds = this.bounds({ transform: true, stroke: true });
 			else
-				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
 
 		// todo: use a new canvas
@@ -389,7 +377,7 @@ Shape = new Class({
 			if( typeof this.bounds === 'function' )
 				bounds = this.bounds({ transform: true, stroke: true });
 			else
-				throw new Error('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
 		}
 		return this.context.image( this.toDataURL(type, bounds), bounds.x, bounds.y );
 	},
@@ -461,13 +449,6 @@ Shape = new Class({
 	_visible : true,
 	_events : true,
 	_origin : 'center' // for transform animations
-});
-
-// styles
-['fill', 'stroke', 'opacity', 'composite', 'shadow', 'clip', 'hide', 'show'].forEach(function(name){
-	Shape.prototype[name] = function(){
-		return this.style[name].apply(this.style, arguments);
-	};
 });
 
 $._queue = [];

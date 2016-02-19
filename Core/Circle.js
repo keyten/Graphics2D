@@ -1,6 +1,6 @@
 Circle = new Class(Shape, {
 
-	init : function(){
+	initialize : function(){
 		if(this.object){
 			var object = this.object;
 			this._cx = object.cx;
@@ -11,7 +11,7 @@ Circle = new Class(Shape, {
 	},
 
 	// Parameters
-	
+
 	cx : function(cx){
 		return this.prop('cx', cx);
 	},
@@ -19,7 +19,7 @@ Circle = new Class(Shape, {
 	cy : function(cy){
 		return this.prop('cy', cy);
 	},
-	
+
 	radius : function(r){
 		return this.prop('radius', r);
 	},
@@ -27,7 +27,7 @@ Circle = new Class(Shape, {
 	bounds : function(){
 		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
 	},
-	
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		// Math.abs -- fix for negative radius (for ex. - animate radius to 0 with elasticOut easing)
@@ -43,7 +43,5 @@ Circle.propHandlers = [distance, distance, distance];
 
 
 $.circle = function(){
-	var circle = new Circle(arguments);
-	circle.init();
-	return circle;
+	return new Circle(arguments);
 };
