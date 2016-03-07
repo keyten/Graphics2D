@@ -2,49 +2,27 @@ Text = new Class(Shape, {
 
 	initialize : function(args){
 		// text, [font], x, y, [fill], [stroke]
-/*		var props = this._text;
-		if(isObject( props )){
-			this._text  = props.text;
-			this._x     = props.x;
-			this._y     = props.y;
-			this._font  = this._parseFont(props.font || Text.font);
-			if(props.baseline !== undefined)
-				this._style.textBaseline = props.baseline;
-			if(props.align !== undefined)
-				this._style.textAlign = props.align;
-			this._genFont();
-			this._width = props.width;
-			this._parseHash(props);
-		}
-		else {
-			if( !isNumberLike(this._y) ){ // font isn't exist
-				this._stroke = this._fill;
-				this._fill = this._y;
-				this._y = this._x;
-				this._x = this._font;
-				this._font = Text.font;
-			}
-			this._font = this._parseFont(this._font); // зачем каждому тексту ставить style.font, тем более стандартный? !
-			this._genFont();
-			this._processStyle();
-		}
-		this._genLines(); */
 		if(this.object){
 			var object = this.object;
-			this._text = object.text;
+			this._text = object.text + '';
 			this._x = object.x;
 			this._y = object.y;
 			this._font = this._parseFont(object.font || Text.font);
 			if(object.baseline !== undefined)
-				this._style.textBaseline = object.baseline;
+				this.styles.textBaseline = object.baseline;
 			if(object.align !== undefined)
-				this._style.textAlign = object.align;
+				this.styles.textAlign = object.align;
+			if(object.underline !== undefined)
+				this.underline(object.underline);
 			this._width = object.width;
+			if(object.type === 'block'){
+				this._type = object.type;
+			}
 			delete this.object;
 		}
 		else {
 			// text, font, x, y, fill, stroke
-			this._text = args[0];
+			this._text = args[0] + '';
 			var i = 1;
 			if( !isNumberLike(args[3]) ){
 				this._font = this._parseFont(Text.font);
@@ -64,20 +42,25 @@ Text = new Class(Shape, {
 		this._genFont();
 	},
 
-	_breaklines: true,
+	_type: 'label', // label or block
+	_changedText: true,
 	_lineSpace: 0,
 
 	_genLines : function(){
-		var text = this._text + '',
+		if(this._type === 'label')
+			return this;
+
+		var text = this._text,
 			lines = this._lines = [],
 			size = this._lineHeight || this._font.size || 10,
 			ctx = this.context.context,
 			width = this._width || Infinity,
 			countline = 1,
-			align = this._style.textAlign,
-			x = (align === 'center') ? (width/2) : ((width === 'right') ? width : 0);
+			align = this.styles.textAlign,
+			x = (align === 'center') ? (width/2) : ((align === 'right') ? width : 0);
 
-		this._applyStyle();
+		ctx.save();
+		this.styleToContext(ctx);
 
 		text.split('\n').forEach(function(line){
 			// Do we need split line to lines?
@@ -103,6 +86,7 @@ Text = new Class(Shape, {
 				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
 
 		});
+		this._changedText = false;
 		ctx.restore();
 		return this;
 	},
@@ -110,6 +94,9 @@ Text = new Class(Shape, {
 	// options
 	text : function(t){
 		return this.prop('text', t);
+	},
+	type : function(t){
+		return this.prop('type', t);
 	},
 	x : function(x){
 		return this.prop('x', x);
@@ -120,12 +107,9 @@ Text = new Class(Shape, {
 	lineSpace : function(s){
 		return this.prop('lineSpace', s);
 	},
-	breaklines : function(a){
-		return this.prop('breaklines', a);
-	},
 	font : function(font){
 		if(font === true)
-			return this._style.font;
+			return this.styles.font;
 		if(font === undefined)
 			return this._font;
 		extend(this._font, this._parseFont(font));
@@ -187,117 +171,153 @@ Text = new Class(Shape, {
 		return this.style('textBaseline', b);
 	},
 	underline : function(val){
-		if(val === undefined)
-			return !!this._underline;
-		return this.prop('underline', !!val);
+		switch(val){
+			case undefined:
+				return this._underline;
+
+			case true: {
+				this._underline = {
+					color: 'auto',
+					height: 'auto',
+					visible: true
+				};
+			} break;
+
+			case false: {
+				if(this._underline)
+					this._underline.visible = false;
+			} break;
+
+			default: {
+				this._underline = val;
+			} break;
+		}
+		return this.update();
 	},
 	width : function(w){
 		if(w === undefined){
-			if(!this._width){
+			if(this._type === 'label'){
 				var ctx = this.context.context;
-				this._applyStyle();
+				ctx.save();
+				this.styleToContext(ctx);
+				w = ctx.measureText( this._text ).width;
+				ctx.restore();
+				return Math.min(w, this._width || Infinity);
+			}
+			else {
+				if(this._width)
+					return this._width;
+				ctx.save();
+				this.styleToContext(ctx);
+				if(this._changedText)
+					this._genLines();
 				var max = 0;
 				this._lines.forEach(function(line){
 					max = Math.max( max, ctx.measureText( line.text ).width );
 				});
 				ctx.restore();
 				return max;
-			} else
-				return this._width;
+			}
 		}
 		this._width = w;
-		this._genLines();
 		return this.update();
 	},
-
-	// text.font('2px')
-
-	// text.family('Arial');
-	// text.size(10);
-	// text.weight(true)
-	// text.baseline(0)
 
 	isPointIn : function(x, y){
 		// transforms?
 		var b = this.bounds();
 		return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
 	},
-	_bounds : function(){
-		var align = this._style.textAlign || 'left',
-			baseline = this._style.textBaseline || 'top',
+	nativeBounds : function(){
+		var align = this.styles.textAlign || 'left',
+			baseline = this.styles.textBaseline || 'top',
 			width = this.width(),
 			size = Number(this._font.size),
 			x = this._x,
 			y = this._y;
 
-		if(align === 'center')
-			x -= width/2;
-		else if(align === 'right')
-			x -= width;
+		if(this._type === 'label'){
+			if(align === 'center')
+				x -= width/2;
+			else if(align === 'right')
+				x -= width;
 
-		if(baseline === 'middle')
-			y -= size/2;
-		else if(baseline === 'bottom' || baseline === 'ideographic')
-			y -= size;
-		else if(baseline === 'alphabetic')
-			y -= size * 0.8;
-		// 0.15 -- magic number (from LibCanvas? :))
-		return new Bounds(x, y, width, size * (this._limit || this._lines.length) + size * 0.15);
+			if(baseline === 'middle')
+				y -= size/2;
+			else if(baseline === 'bottom' || baseline === 'ideographic')
+				y -= size;
+			else if(baseline === 'alphabetic')
+				y -= size * 0.8;
+			return new Bounds(x, y, width, size * 1.15);
+		}
+		else {
+			return new Bounds(x, y, width, (size + this._lineSpace) * this._lines.length);
+		}
 	},
 	draw : function(ctx){
 		if(!this._visible)
 			return;
-		this._applyStyle();
+		ctx.save();
+		this.styleToContext(ctx);
 
-		var x = this._x,
-			y = this._y,
-			i = 0,
-			l = this._lines.length,
-			draw = emptyFunc,
-			underline,
-			line;
-
-		if(this._style.fillStyle){
-			if(this._style.strokeStyle)
-				draw = function(t, x, y){
-					ctx.fillText(t, x, y);
-					ctx.strokeText(t, x, y);
-				};
+		if(this._type === 'label'){
+		//	if(!this.styles.textBaseline)
+		//		ctx.textBaseline = 'top';
+			if(this._width)
+				ctx.fillText(this._text, this._x, this._y, this._width);
 			else
-				draw = ctx.fillText;
-		} else
-			draw = ctx.strokeText;
+				ctx.fillText(this._text, this._x, this._y);
 
-		if(this._underline){
-			var height = Math.round(this._font.size / 5),
-				lw = Math.round(this._font.size / 15),
-				oldSize = this._style.lineWidth || lw;
+			if(this._underline && this._underline.visible){
+				if(this._underline.color === 'auto'){
+					ctx.strokeStyle = this.styles.strokeStyle || this.styles.fillStyle;
+				}
+				else
+					ctx.strokeStyle = this._underline.color;
 
-			ctx.strokeStyle = this._style.strokeStyle || this._style.fillStyle;
-			underline = function(x, y, width){
-				ctx.lineWidth = lw;
-				ctx.beginPath();
-				ctx.moveTo(x, y + height);
-				ctx.lineTo(x + width, y + height);
-				ctx.stroke();
-				ctx.lineWidth = oldSize;
-			};
+				drawTextLine(ctx, this._text, this._x, this._y, this._underline.height === 'auto' ? undefined : this._underline.height, this._font.size, ctx.textBaseline, 'under');
+			}
 		}
+		else {
+			if(this._changedText)
+				this._genLines();
 
-		for(; i < l; i++){
-			line = this._lines[i];
-			draw.call(ctx, line.text, x + line.x, y + line.y + this._lineSpace * i);
-			if(underline !== undefined)
-				underline(line.x + x, y + line.y + this._lineSpace * i, ctx.measureText(line.text).width);
+			if( this.styles.fillStyle ){
+				if( this.styles.strokeStyle ){
+					function drawLine(text, x, y){
+						ctx.fillText(text, x, y);
+						ctx.strokeText(text, x, y);
+					}
+				}
+				else {
+					function drawLine(text, x, y){
+						ctx.fillText(text, x, y);
+					}
+				}
+			}
+			else if( this.style.strokeStyle ){
+				function drawLine(text, x, y){
+					ctx.strokeText(text, x, y);
+				}
+			}
+
+			var i = 0,
+				lines = this._lines,
+				line,
+				x = this._x,
+				y = this._y;
+
+			for(; i < lines.length; i++){
+				line = lines[i];
+				drawLine( line.text, x + line.x, y + line.y + this._lineSpace * i );
+			}
 		}
-
 		ctx.restore();
 	}
 // TODO: mozPathText; mozTextAlongPath
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
 
-//Text.props = [ 'text', 'font', 'x', 'y', 'fill', 'stroke' ];
 Text.font = '10px sans-serif';
 Text.processStyle = true;
 Text.firstObject = true; // parse the first argument if it is object
@@ -307,3 +327,23 @@ $.text = function(){
 };
 
 $.fx.step.lineSpace = $.fx.step.float;
+
+var params = {
+	top: [0.1, 0.7, 1.05],
+	hanging: [0, 0.5, 0.85],
+	middle: [-0.5, 0, 0.5],
+	alphabetic: [-0.8, -0.3, 0.2],
+	ideographic: [-1, -0.5, -0.1],
+	bottom: [-1, -0.5, -0.1]
+};
+
+function drawTextLine(ctx, text, x, y, lw, fontSize, baseline, type){
+	var lw = lw || Math.round(fontSize / 15),
+		height = Math.round(fontSize * params[baseline][type === 'over' ? 0 : type === 'through' ? 1 : 2]);
+
+	ctx.lineWidth = lw;
+	ctx.beginPath();
+	ctx.moveTo(x, y + height);
+	ctx.lineTo(x + ctx.measureText(text).width, y + height);
+	ctx.stroke();
+}
