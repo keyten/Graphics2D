@@ -1,16 +1,20 @@
 var smoothWithPrefix;
 function smoothPrefix(ctx){
-	if(smoothWithPrefix) return smoothWithPrefix;
+	if(smoothWithPrefix){
+		return smoothWithPrefix;
+	}
 	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
-		if(name in ctx)
+		if(name in ctx){
 			smoothWithPrefix = name;
+		}
 	});
 	return smoothWithPrefix;
 }
 
 Img = new Class(Shape, {
 
-	init : function(){
+	initialize : function(){
+
 		if(this.object){
 			var object = this.object;
 			this._image = object.image;
@@ -24,8 +28,9 @@ Img = new Class(Shape, {
 		var blob, s;
 
 		if(isString(this._image)){
-			if(this._image[0] === '#')
+			if(this._image[0] === '#'){
 				this._image = document.getElementById( this._image.substr(1) );
+			}
 
 			// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
 			else if(this._image.indexOf('<svg') === 0){
@@ -44,8 +49,9 @@ Img = new Class(Shape, {
 		this._image.addEventListener('load', function(e){
 			this.update();
 
-			if(blob)
+			if(blob){
 				domurl.revokeObjectURL(blob);
+			}
 
 			this.fire('load', e);
 		}.bind(this));
@@ -65,35 +71,41 @@ Img = new Class(Shape, {
 	y2 : Rect.prototype.y2,
 	width : function(w){
 		if(w === undefined){
-			if(this._width === 'auto')
+			if(this._width === 'auto'){
 				return this._image.width * (this._height / this._image.height);
-			else if(this._width === 'native' || this._width == null)
+			} else if(this._width === 'native' || this._width == null){
 				return this._image.width;
+			}
 			return this._width;
 		}
 
-		if(!this._image.complete)
+		if(!this._image.complete){
 			return this.once('load', 'width', w); // todo: once?
+		}
 
-		if(isNumberLike(w))
+		if(isNumberLike(w)){
 			w = $.distance(w);
+		}
 
 		return this.prop('width', w);
 	},
 	height : function(h){
 		if(h === undefined){
-			if(this._height === 'auto')
+			if(this._height === 'auto'){
 				return this._image.height * (this._width / this._image.width);
-			else if(this._height === 'native' || this._height == null)
+			} else if(this._height === 'native' || this._height == null){
 				return this._image.height;
+			}
 			return this._height;
 		}
 
-		if(!this._image.complete)
+		if(!this._image.complete){
 			return this.once('load', 'height', h);
+		}
 
-		if(isNumberLike(h))
+		if(isNumberLike(h)){
 			h = $.distance(h);
+		}
 
 		return this.prop('height', h);
 	},
@@ -105,28 +117,34 @@ Img = new Class(Shape, {
 	},
 
 	load : function(fn){
-		if(typeof fn === 'function' || isString(fn))
+		if(typeof fn === 'function' || isString(fn)){
 			return this.on.apply(this, ['load'].concat(slice.call(arguments)));
-		else
+		} else {
 			return this.fire.apply(this, arguments);
+		}
 	},
 
 	crop : function(arr){
-		if(arguments.length === 0)
+		if(arguments.length === 0){
 			return this._crop;
-		if(arguments.length > 1)
+		}
+		if(arguments.length > 1){
 			this._crop = Array.prototype.slice.call(arguments, 0);
-		else if(arr === null)
+		} else if(arr === null){
 			delete this._crop;
-		else this._crop = arr;
+		}
+		else {
+			this._crop = arr;
+		}
 		return this.update();
 	},
 
 	smooth : function(value){
-		var style = this._style,
+		var style = this.styles,
 			prefix = smoothPrefix(this.context.context);
-		if(value === undefined)
+		if(value === undefined){
 			return style[prefix] === undefined ? this.context.context[prefix] : style[prefix];
+		}
 		style[prefix] = !!value;
 		return this.update();
 	},
@@ -134,31 +152,36 @@ Img = new Class(Shape, {
 	_smooth : true,
 
 	draw : function(ctx){
-		if(!this._visible)
+		if(!this._visible){
 			return;
+		}
 		ctx.save();
-		this.style.toContext(ctx);
+		this.styleToContext(ctx);
 		var image = this._image,
 			w = this._width,
 			h = this._height;
 
-		if(w === 'auto')
+		if(w === 'auto'){
 			w = image.width * (h / image.height);
-		else if(w === 'native' || w == null)
+		} else if(w === 'native' || w == null){
 			w = image.width;
+		}
 
-		if(h === 'auto')
+		if(h === 'auto'){
 			h = image.height * (w / image.width);
-		else if(h === 'native' || h == null)
+		} else if(h === 'native' || h == null){
 			h = image.height;
+		}
 
-		if(this._crop !== undefined)
+		if(this._crop !== undefined){
 			ctx.drawImage(image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
-		else if(w != null || h != null)
+		} else if(w != null || h != null){
 			ctx.drawImage(image, this._x, this._y, w, h);
+		}
 
-		if(this.style.props.strokeStyle !== undefined)
+		if(this.styles.strokeStyle !== undefined){
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
+		}
 		ctx.restore();
 	}
 

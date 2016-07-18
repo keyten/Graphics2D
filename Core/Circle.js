@@ -30,7 +30,6 @@ Circle = new Class(Shape, {
 
 	processPath : function(ctx){
 		ctx.beginPath();
-		// Math.abs -- fix for negative radius (for ex. - animate radius to 0 with elasticOut easing)
 		ctx.arc(this._cx, this._cy, Math.abs(this._radius), 0, Math.PI*2, true);
 	}
 

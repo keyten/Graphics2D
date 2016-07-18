@@ -12,8 +12,9 @@ Path = new Class( Shape, {
 
 	// curves
 	curve : function(index, value){
-		if(value === undefined)
+		if(value === undefined){
 			return this._curves[index];
+		}
 
 		value = Path.parsePath(value, this, index === 0 ? false : true);
 		this._curves.splice.apply(this._curves, [index, 1].concat(value));
@@ -37,20 +38,23 @@ Path = new Class( Shape, {
 	},
 
 	remove : function(index){
-		if(index === undefined)
+		if(index === undefined){
 			return Shape.prototype.remove.call(this);
+		}
 		this._curves.splice(index, 1);
 		return this.update();
 	},
 
 	curves : function(value){
-		if(value === undefined)
+		if(value === undefined){
 			return this._curves;
+		}
 
-		if(isNumberLike(value[0]))
+		if(isNumberLike(value[0])){
 			this._curves = Path.parsePath(slice.call(arguments), this);
-		else
+		} else {
 			this._curves = Path.parsePath(value, this);
+		}
 		return this.update();
 	},
 
@@ -137,8 +141,9 @@ Path = new Class( Shape, {
 		for(; i < l; i++){
 			curve = curves[i].process(ctx, current);
 
-			if(curve)
+			if(curve){
 				current = curve;
+			}
 		}
 	}
 
@@ -149,8 +154,9 @@ Path.processStyle = true;
 Path.firstObject = true;
 
 Path.parsePath = function(path, pathObject, firstIsNotMove){
-	if(!path)
+	if(!path){
 		return [];
+	}
 
 	if(path instanceof Curve){
 		path.path = pathObject;
@@ -161,8 +167,9 @@ Path.parsePath = function(path, pathObject, firstIsNotMove){
 	if(isArray(path)){
 
 		// fix for [x,y] instead of [[x,y]]
-		if(isNumberLike(path[0]))
+		if(isNumberLike(path[0])){
 			path = [path];
+		}
 
 		for(var i = 0, l = path.length; i < l; i++){
 

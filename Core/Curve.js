@@ -23,26 +23,31 @@ Curve = new Class({
 	},
 
 	from : function(){ // returns the start point
-		if(!this.path)
+		if(!this.path){
 			throw 'Error: the curve hasn\'t path.';
+		}
 
 		var index = this.path._curves.indexOf( this ),
 			before = this.path._curves[ index - 1 ];
 
-		if( index === 0 )
+		if( index === 0 ){
 			return [0, 0];
-		if( index === -1 || !before || !('endsIn' in before) )
+		}
+		if( index === -1 || !before || !('endsIn' in before) ){
 			return null; // todo: throw new error
+		}
 
 		var end = before.endsIn();
-		if( !end )
+		if( !end ){
 			return null; // todo: throw
+		}
 		return end;
 	},
 
 	endsIn : function(){
-		if( this._slice )
+		if( this._slice ){
 			return this.args.slice( this._slice[0], this._slice[1] );
+		}
 		return null;
 	},
 
@@ -130,8 +135,9 @@ Curve.curves = {
 				clockwise = this.args[ 5 ],
 				delta     = end - start;
 
-			if( clockwise )
+			if( clockwise ){
 				delta = -delta;
+			}
 
 			return [
 				x + Math.cos( delta ) * radius,
@@ -154,11 +160,13 @@ Curve.curves = {
 };
 
 Curve.fromArray = function(array, path){
-	if(array === true)
+	if(array === true){
 		return closePath;
+	}
 
-	if(array[0] in Curve.curves)
+	if(array[0] in Curve.curves){
 		return new Curve(array[0], array.slice(1), path);
+	}
 
 	switch(array.length){
 		case 2: return new Curve('lineTo', array, path);

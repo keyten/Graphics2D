@@ -1,17 +1,20 @@
 var Context;
 
 Context = function(canvas, renderer){
-	if(renderer in $.renderers)
+	if(renderer in $.renderers){
 		extend(this, $.renderers[renderer]);
-	else
+	} else {
 		this.context   = canvas.getContext('2d'); // rename to the context2d?
+	}
+
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
 	this._cache    = {}; // for gradients
 
-	if(this.init)
+	if(this.init){
 		this.init();
+	}
 };
 
 Context.prototype = {
@@ -73,15 +76,17 @@ Context.prototype = {
 		element.context = this;
 		this.elements.push(element);
 
-		if( element.draw )
+		if( element.draw ){
 			element.draw(this.context);
+		}
 
 		return element;
 	},
 
 	update : function(){
-		if(this._timer)
+		if(this._timer){
 			return;
+		}
 
 		this._timer = requestAnimationFrame(function(){
 			this._update();
@@ -97,8 +102,9 @@ Context.prototype = {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-		if(matrix)
+		if(matrix){
 			ctx.transform.apply(ctx, matrix);
+		}
 
 		this.elements.forEach(function(object){
 			object.draw(ctx);
@@ -114,8 +120,9 @@ Context.prototype = {
 		while(i--){
 		// mouse=true : pass elements with _events=false
 			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
-				(elements[i]._events || !mouse) )
+				(elements[i]._events || !mouse) ){
 				return elements[i];
+			}
 		}
 		return null;
 	},
@@ -128,8 +135,9 @@ Context.prototype = {
 	focusElement : null,
 
 	listener : function(event){
-		if(this.listeners[event])
+		if(this.listeners[event]){
 			return this.listeners[event];
+		}
 
 		this.listeners[event] = [];
 
@@ -163,8 +171,9 @@ Context.prototype = {
 				}
 			}
 
-			if(propagation)
+			if(propagation){
 				this.fire(event, e);
+			}
 		}.bind(this));
 
 		switch(event){
@@ -193,10 +202,12 @@ Context.prototype = {
 				last = this[name];
 
 			if(last != current){
-				if(last && last.fire)
+				if(last && last.fire){
 					last.fire(out, e);
-				if(current && current.fire)
+				}
+				if(current && current.fire){
 					current.fire(over, e);
+				}
 				this[name] = current;
 			}
 
@@ -205,12 +216,14 @@ Context.prototype = {
 	},
 
 	on : function(event, fn){
-		if( isNumber(event) )
+		if( isNumber(event) ){
 			return window.setTimeout(fn.bind(this), event), this;
+		}
 
 		if( isObject(event) ){
-			for(var key in event) if($.has(event, key))
+			for(var key in event) if($.has(event, key)){
 				this.on(key, event[key]);
+			}
 			return this;
 		}
 
@@ -227,8 +240,9 @@ Context.prototype = {
 	},
 
 	off : function(event, fn){
-		if(!fn)
+		if(!fn){
 			this.listeners[event] = [];
+		}
 
 		var index = this.listeners[event].indexOf(fn);
 		this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
@@ -237,7 +251,9 @@ Context.prototype = {
 
 	fire : function(event, data){
 		var listeners = this.listeners[ event ];
-		if(!listeners) return this;
+		if(!listeners){
+			return this;
+		}
 
 		listeners.forEach(function(func){
 			func.call(this, data);
@@ -253,9 +269,9 @@ Context.prototype = {
 		var matrix;
 
 		if(pivot){
-			if(isString(pivot))
+			if(isString(pivot)){
 				pivot = $.corners[pivot];
-			else if(isObject(pivot)){
+			} else if(isObject(pivot)){
 				;
 			}
 			var cx = this.canvas.width * pivot[0],
@@ -266,10 +282,11 @@ Context.prototype = {
 			matrix = [a, b, c, d, e, f];
 		}
 
-		if(!this.matrix)
+		if(!this.matrix){
 			this.matrix = matrix;
-		else
+		} else {
 			this.matrix = $.multiply(this.matrix, [a, b, c, d, e, f]);
+		}
 		return this.update();
 
 		// works wrong!
@@ -280,8 +297,9 @@ Context.prototype = {
 	},
 
 	rotate: function(angle, pivot){
-		if($.angleUnit === 'grad')
+		if($.angleUnit === 'grad'){
 			angle = angle * Math.PI / 180;
+		}
 
 		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 	},
@@ -292,8 +310,9 @@ Context.prototype = {
 			y = x;
 		}
 
-		if(y === undefined)
+		if(y === undefined){
 			y = x;
+		}
 
 		return this.transform(x, 0, 0, y, 0, 0, pivot);
 	},

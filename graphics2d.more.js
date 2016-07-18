@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 7.3.2016
+ *  Last edit: 16.7.2016
  *  License: MIT / LGPL
  */
 
@@ -1066,6 +1066,7 @@ $.fx.step.curveAngle = function( fx ){
 //# Filters
 var nativeDraw = Img.prototype.draw;
 
+// todo: список фильтров
 Img.prototype.filter = function(filter, options){
 	if(!this._image.complete){
 		return this.on('load', function(){
@@ -1347,7 +1348,7 @@ App.prototype = {
 			var canvas = document.createElement('canvas');
 			canvas.width = this._width;
 			canvas.height = this._height;
-			
+
 			canvas.style.position = 'absolute';
 
 			canvas.style.zIndex = index;
@@ -1576,7 +1577,7 @@ if(!prefix && !('requestFullScreen' in elProto)){
 var _color = $.color;
 $.color = function(color, from, to){
 
-	if(arguments.length == 1)
+	if(arguments.length === 1)
 		return _color(color);
 
 	if(!(from in $.colorSpaces) || !(to in $.colorSpaces)){

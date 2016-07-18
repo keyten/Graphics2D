@@ -328,6 +328,7 @@ $.text = function(){
 
 $.fx.step.lineSpace = $.fx.step.float;
 
+// TODO: rename to boundsParams
 var params = {
 	top: [0.1, 0.7, 1.05],
 	hanging: [0, 0.5, 0.85],

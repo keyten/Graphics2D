@@ -1,6 +1,7 @@
 //# Filters
 var nativeDraw = Img.prototype.draw;
 
+// todo: список фильтров
 Img.prototype.filter = function(filter, options){
 	if(!this._image.complete){
 		return this.on('load', function(){

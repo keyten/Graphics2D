@@ -20,7 +20,7 @@ App.prototype = {
 			var canvas = document.createElement('canvas');
 			canvas.width = this._width;
 			canvas.height = this._height;
-			
+
 			canvas.style.position = 'absolute';
 
 			canvas.style.zIndex = index;

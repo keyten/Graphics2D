@@ -10,52 +10,63 @@ Shape = new Class(Style, {
 
 		if(isObject(args[0]) && this.constructor.firstObject){
 			this.object = args[0];
-			if(this.constructor.processStyle)
+			if(this.constructor.processStyle){
 				this.parseFromObject(args[0]);
+			}
 		}
 		else if(props){
 			l = Math.min(props.length, args.length);
 			if(this.constructor.processStyle){
-				if(args.length - props.length > 1)
+				if(args.length - props.length > 1){
 					this.stroke(args[l + 1]);
+				}
 
-				if(args.length - props.length > 0)
+				if(args.length - props.length > 0){
 					this.fill(args[l]);
+				}
 			}
 			while(l--){
-				if(handlers[l])
+				if(handlers[l]){
 					this['_' + props[l]] = handlers[l](args[l]);
-				else
+				} else {
 					this['_' + props[l]] = args[l];
+				}
 			}
 		}
 	},
 
 	draw : function(ctx){
-		if(!this._visible)
+		if(!this._visible){
 			return;
+		}
 		ctx.save();
 		this.styleToContext(ctx);
 		if(this._matrix){
 			ctx.transform.apply(ctx, this._matrix);
 		}
 		this.processPath(ctx);
-		if(this.styles.fillStyle)
+		if(this.styles.fillStyle){
 			ctx.fill();
-		if(this.styles.strokeStyle)
+		}
+		if(this.styles.strokeStyle){
 			ctx.stroke();
+		}
 		ctx.restore();
 	},
 
 	update : function(){
-		if(!this.context) return this;
-		return this.context.update(), this;
+		if(!this.context){
+			return this;
+		}
+		this.context.update();
+		return this;
 	},
 
 	// properties
 	prop : function(name, value){
-		if(value === undefined)
+		if(value === undefined){
 			return this['_' + name];
+		}
 		this['_' + name] = value;
 		return this.update();
 	},
@@ -65,10 +76,12 @@ Shape = new Class(Style, {
 	},
 
 	z : function(z){
-		if(z === undefined)
+		if(z === undefined){
 			return this._z;
-		if(z === 'top')
+		}
+		if(z === 'top'){
 			z = this.context.elements.length; // -1?
+		}
 		this.context.elements.splice(this._z, 1);
 		this.context.elements.splice(z, 0, this);
 		this._z = z;
@@ -87,14 +100,15 @@ Shape = new Class(Style, {
 						(instance !== true || i !== '_style')){
 					// and what about listeners here? (see after)
 					clone[i] = $.clone(this[i]);
-				}
-				else
+				} else {
 					clone[i] = this[i];
+				}
 			}
 		}
 
-		if(events === true)
+		if(events === true){
 			clone.listeners = this.listeners;
+		}
 
 		return this.context.push( clone );
 	},
@@ -105,16 +119,19 @@ Shape = new Class(Style, {
 	},
 
 	cursor : function(value){
-		if( value === undefined )
+		if( value === undefined ){
 			return this._cursor;
+		}
 
-		if( value === null )
+		if( value === null ){
 			;
+		}
 
 		this._cursor = value;
 
-		if( value === null )
+		if( value === null ){
 			return this.off('mouseover', this._cursorListenerOn).off('mouseout', this._cursorListenerOff);
+		}
 
 		if( !this._cursorListenerOn ){
 			this._cursorListenerOn = function(){
@@ -135,23 +152,26 @@ Shape = new Class(Style, {
 
 	// events
 	on : function(event, fn){
-		if(isString(fn))
+		if(isString(fn)){
 			fn = wrap(arguments);
+		}
 
 		if( isObject(event) ){
 			for(var i in event){
 				if($.has(event, i)){
-					if(isArray(event[i]))
+					if(isArray(event[i])){
 						this.on.apply(this, [i].concat(event[i]));
-					else
+					} else {
 						this.on(i, event[i]);
+					}
 				}
 			}
 			return this;
 		}
 
-		if( isNumber(event) )
+		if( isNumber(event) ){
 			return window.setTimeout(fn.bind(this), event), this;
+		}
 
 		this.context.listener(event);
 		(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
@@ -159,8 +179,9 @@ Shape = new Class(Style, {
 	},
 
 	once : function(event, fn){
-		if(isString(fn))
+		if(isString(fn)){
 			fn = wrap(arguments, this);
+		}
 		var proxy;
 		this.on(event, fn);
 		this.on(event, proxy = function(){
@@ -171,26 +192,30 @@ Shape = new Class(Style, {
 	},
 
 	off : function(event, fn){
-		if(!event)
+		if(!event){
 			return this.listeners = {}, this;
-		if(!fn)
+		}
+		if(!fn){
 			return this.listeners[event] = [], this;
+		}
 
 		event = this.listeners[event];
 
 		var index = event.indexOf(fn);
-		if( event[index+1].proxy === fn )
+		if( event[index+1].proxy === fn ){
 			event.splice(index, 2);
-		else
+		} else {
 			event.splice(index, 1);
+		}
 
 		return this;
 	},
 
 	fire : function(event, data){
 		event = this.listeners[event];
-		if( !event )
+		if( !event ){
 			return this;
+		}
 		for(var i = 0, l = event.length; i < l; i++){
 			if( event.length < l ){ // for .off in the listener
 				i -= (l - event.length);
@@ -203,13 +228,15 @@ Shape = new Class(Style, {
 	},
 
 	isPointIn : function(x, y){
-		if(!this.processPath)
+		if(!this.processPath){
 			return false;
+		}
 		var ctx = this.context.context,
 			is;
 		ctx.save();
-		if(this._matrix)
+		if(this._matrix){
 			ctx.transform.apply(ctx, this._matrix);
+		}
 		this.processPath(ctx);
 		is = ctx.isPointInPath(x, y);
 		ctx.restore();
@@ -217,19 +244,22 @@ Shape = new Class(Style, {
 	},
 
 	corner : function(corner, options){
-		if(isArray(corner))
+		if(isArray(corner)){
 			return corner;
+		}
 
 		if(isObject(corner)){
 			if($.has(corner, 'from')){
 				var from = this.corner(corner.from);
 				return [from[0] + corner.x, from[1] + corner.y];
 			}
-			else
+			else {
 				return [corner.x, corner.y];
+			}
 		}
-		if(!corner)
+		if(!corner){
 			corner = 'center';
+		}
 
 		var bounds = this.bounds(options);
 		return [
@@ -239,8 +269,9 @@ Shape = new Class(Style, {
 	},
 
 	bounds : function(options){
-		if(!this.nativeBounds)
+		if(!this.nativeBounds){
 			throw ('Object #' + this._z + 'hasn\'t nativeBounds() method.');
+		}
 
 		var nb = this.nativeBounds(),
 			mt = this._matrix,
@@ -321,8 +352,9 @@ Shape = new Class(Style, {
 				-pivot[0]*b - pivot[1]*d + f+pivot[1]
 				];
 
-		if(this._matrix)
+		if(this._matrix){
 			matrix = $.multiply(this._matrix, matrix);
+		}
 
 		this._matrix = matrix;
 		return this.update();
@@ -343,10 +375,11 @@ Shape = new Class(Style, {
 
 	toDataURL : function(type, bounds){
 		if( bounds === undefined ){
-			if( typeof this.bounds === 'function' )
+			if( typeof this.bounds === 'function' ){
 				bounds = this.bounds({ transform: true, stroke: true });
-			else
+			} else {
 				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+			}
 		}
 
 		// todo: use a new canvas
@@ -374,10 +407,11 @@ Shape = new Class(Style, {
 
 	rasterize : function(type, bounds){
 		if( bounds === undefined ){
-			if( typeof this.bounds === 'function' )
+			if( typeof this.bounds === 'function' ){
 				bounds = this.bounds({ transform: true, stroke: true });
-			else
+			} else {
 				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
+			}
 		}
 		return this.context.image( this.toDataURL(type, bounds), bounds.x, bounds.y );
 	},
@@ -390,10 +424,11 @@ Shape = new Class(Style, {
 		//	animate(properties, options);
 
 		if( isObject( prop ) ){
-			if( isObject( value ) )
+			if( isObject( value ) ){
 				value.queue = false;
-			else
+			} else {
 				value = { duration: value, easing: options, callback: arguments[4], queue: false };
+			}
 
 			value = $.extend({}, value);
 			var c = value.callback,
@@ -402,8 +437,9 @@ Shape = new Class(Style, {
 			value.callback = null;
 
 			for(; i < keys.length; i++){
-				if( i === keys.length-1 )
+				if( i === keys.length-1 ){
 					value.callback = c;
+				}
 				this.animate( keys[i], prop[keys[i]], value );
 			}
 			return this;
@@ -434,9 +470,9 @@ Shape = new Class(Style, {
 			$._queue.push( object );
 			$._checkAnimation();
 		} else {
-			if( this._queue && this._queue.length > 0 )
+			if( this._queue && this._queue.length > 0 ){
 				this._queue.push( object );
-			else {
+			} else {
 				this._queue = [ object ];
 				$._queue.push( object );
 				$._checkAnimation();
@@ -462,18 +498,21 @@ function doAnimation(){
 		current = $._queue[i];
 		t = (now - current.startTime) / current.duration;
 
-		if( t < 0 )
+		if( t < 0 ){
 			continue;
+		}
 
-		if( t > 1 )
+		if( t > 1 ){
 			t = 1;
+		}
 
 		current.now = now;
 		current.pos = current.easing(t);
 		$.fx.step[current.prop](current);
 
-		if( current.state === 0 )
+		if( current.state === 0 ){
 			current.state = 1;
+		}
 
 		if( t === 1 ){
 			if( current.callback )
@@ -497,10 +536,11 @@ function doAnimation(){
 		}
 	}
 	current.elem.update();
-	if(l > 0)
+	if(l > 0){
 		requestAnimationFrame(doAnimation);
-	else
+	} else {
 		enabledAnimation = false;
+	}
 }
 $._checkAnimation = function(){
 	if( !enabledAnimation ){
@@ -515,10 +555,11 @@ $.fx.step = {
 			fx._prop = '_' + fx.prop;
 			fx.start = fx.elem[ fx._prop ];
 			if( isString(fx.end) ){
-				if( fx.end.indexOf('+=') === 0 )
+				if( fx.end.indexOf('+=') === 0 ){
 					fx.end = fx.start + Number( fx.end.substr(2) );
-				else if( fx.end.indexOf('-=') === 0 )
+				} else if( fx.end.indexOf('-=') === 0 ){
 					fx.end = fx.start - Number( fx.end.substr(2) );
+				}
 			}
 		}
 
@@ -530,10 +571,11 @@ $.fx.step = {
 			fx._prop = '_' + fx.prop;
 			fx.start = fx.elem[ fx._prop ];
 			if( isString(fx.end) ){
-				if( fx.end.indexOf('+=') === 0 )
+				if( fx.end.indexOf('+=') === 0 ){
 					fx.end = fx.start + Number( fx.end.substr(2) );
-				else if( fx.end.indexOf('-=') === 0 )
+				} else if( fx.end.indexOf('-=') === 0 ){
 					fx.end = fx.start - Number( fx.end.substr(2) );
+				}
 			}
 		}
 
@@ -543,8 +585,9 @@ $.fx.step = {
 	opacity: function( fx ){
 		if( fx.state === 0 ){
 			fx.start = fx.elem.styles.globalAlpha;
-			if( fx.start === undefined )
+			if( fx.start === undefined ){
 				fx.start = 1;
+			}
 		}
 		fx.elem.styles.globalAlpha = fx.start + (fx.end - fx.start) * fx.pos;
 	},
@@ -555,12 +598,14 @@ $.fx.step = {
 
 			if( fx.end === 'transparent' ){
 				fx.end = fx.start.slice(0, 3).concat([ 0 ]);
-			} else
+			} else {
 				fx.end = $.color( fx.end );
+			}
 
 			if( fx.elem.styles.fillStyle === 'transparent' ||
-				fx.elem.styles.fillStyle === undefined )
+				fx.elem.styles.fillStyle === undefined ){
 				fx.start = fx.end.slice(0, 3).concat([ 0 ]);
+			}
 		}
 		fx.elem.styles.fillStyle = 'rgba(' +
 			[	Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
@@ -577,14 +622,16 @@ $.fx.step = {
 			fx.width1 = fx.elem.styles.lineWidth || 0;
 			fx.width2 = end.lineWidth;
 
-			if( end.strokeStyle === 'transparent' )
+			if( end.strokeStyle === 'transparent' ){
 				fx.color2 = fx.color1.slice(0, 3).concat([ 0 ]);
-			else if( end.strokeStyle )
+			} else if( end.strokeStyle ){
 				fx.color2 = $.color( end.strokeStyle );
+			}
 
 			if( (fx.elem.styles.strokeStyle === 'transparent' ||
-				fx.elem.styles.strokeStyle === undefined) && end.strokeStyle )
+				fx.elem.styles.strokeStyle === undefined) && end.strokeStyle ){
 				fx.color1 = fx.color2.slice(0, 3).concat([ 0 ]);
+			}
 		}
 
 		if( fx.color2 ){
@@ -595,8 +642,9 @@ $.fx.step = {
 					fx.color1[3] + (fx.color2[3] - fx.color1[3]) * fx.pos ].join(',') + ')';
 		}
 
-		if( fx.width2 )
+		if( fx.width2 ){
 			fx.elem.styles.lineWidth = fx.width1 + (fx.width2 - fx.width1) * fx.pos;
+		}
 	},
 
 	translate: function( fx ){
@@ -617,8 +665,9 @@ $.fx.step = {
 	},
 	skew: function( fx ){
 		if( fx.state === 0 ){
-			if( fx.end.length === undefined )
+			if( fx.end.length === undefined ){
 				fx.end = [ fx.end, fx.end ];
+			}
 
 			if( $.angleUnit === 'grad'){
 				fx.end[0] = fx.end[0] * Math.PI / 180;
@@ -639,8 +688,9 @@ $.fx.step = {
 		} );
 	},
 	origin: function( fx ){
-		if( fx.state === 0 )
+		if( fx.state === 0 ){
 			fx.elem._origin = fx.elem.corner( fx.end );
+		}
 	}
 };
 
@@ -648,13 +698,15 @@ function transformAnimation( fx, fn ){
 	if( fx.state === 0 ){
 		fx.elem._matrixStart = fx.elem._matrix || [ 1, 0, 0, 1, 0, 0 ];
 		fx.elem._matrixCur = [];
-		if( fx.elem.corner )
+		if( fx.elem.corner ){
 			fx.corner = fx.elem.corner( fx.elem._origin || 'center' );
-		else
+		} else {
 			fx.corner = [ 0, 0 ];
+		}
 	}
-	if( fx.elem._matrixCur.now !== fx.now )
+	if( fx.elem._matrixCur.now !== fx.now ){
 		fx.elem._matrixCur = [ 1, 0, 0, 1, 0, 0 ];
+	}
 
 	var matrix = fn( fx );
 	matrix[4] += fx.corner[0] - fx.corner[0]*matrix[0] - fx.corner[1]*matrix[2];
@@ -672,10 +724,11 @@ function transformAnimation( fx, fn ){
 	'touchstart', 'touchmove', 'touchend',
 	'keypress', 'keydown', 'keyup'].forEach(function(event){
 		Shape.prototype[event] = Context.prototype[event] = function(fn){
-			if(typeof fn === 'function' || isString(fn))
+			if(typeof fn === 'function' || isString(fn)){
 				return this.on.apply(this, [event].concat(slice.call(arguments)));
-			else
+			} else {
 				return this.fire.apply(this, arguments);
+			}
 		};
 	});
 

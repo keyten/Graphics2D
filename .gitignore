@@ -2,3 +2,4 @@ Thumbs.db
 /test/*
 *.htm?
 node_modules/*
+.DS_Store

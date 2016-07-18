@@ -11,10 +11,10 @@ $.easing = {
 		return Math.pow(t, v || 6);
 	},
 	expo : function(t, v){
-		return Math.pow( v || 2, 8 * (t-1) );
+		return Math.pow(v || 2, 8 * t - 8);
 	},
 	circ : function(t){
-		return 1 - Math.sin( Math.acos(t) );
+		return 1 - Math.sin(Math.acos(t));
 	},
 	sine : function(t){
 		return 1 - Math.cos(t * Math.PI / 2);
@@ -91,6 +91,7 @@ function Class(parent, properties, base){
 
 			var inits = [],
 				parent = this.constructor.parent;
+
 			while(parent){
 				inits.push(parent.prototype.initialize);
 				parent = parent.parent;
@@ -118,7 +119,7 @@ function Class(parent, properties, base){
 	if(base)
 		extend(cls, base);
 	if(properties.mixins){
-		mixins.forEach(function(mixin){
+		properties.mixins.forEach(function(mixin){
 			extend(cls.prototype, mixin);
 		});
 	}
@@ -130,7 +131,7 @@ function Class(parent, properties, base){
 }
 
 // utils
-function extend(a,b){
+function extend(a, b){
 	for(var i in b){
 		if(Object.prototype.hasOwnProperty.call(b,i))
 			a[i] = b[i];
@@ -138,8 +139,8 @@ function extend(a,b){
 	return a;
 }
 
-function argument( index ){
-	return function( value ){
+function argument(index){
+	return function(value){
 		return this.argument( index, value );
 	};
 }
@@ -541,7 +542,7 @@ function distance(value, dontsnap){
 		}
 	}
 
-	var unit = value.replace(/[\d\.]+?/g, ''); // why gi? maybe just g?
+	var unit = value.replace(/[\d\.]+?/g, '');
 	value = value.replace(/[^\d\.]+?/g, '');
 	if(unit === '')
 		return value;

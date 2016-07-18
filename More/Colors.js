@@ -3,7 +3,7 @@
 var _color = $.color;
 $.color = function(color, from, to){
 
-	if(arguments.length == 1)
+	if(arguments.length === 1)
 		return _color(color);
 
 	if(!(from in $.colorSpaces) || !(to in $.colorSpaces)){

@@ -8,8 +8,9 @@ $.Gradient = Gradient = new Class({
 			this._type = type.type || 'linear';
 			this._from = type.from;
 			this._to = type.to;
-			if( type.cache !== undefined )
+			if( type.cache !== undefined ){
 				this._cache = type.cache;
+			}
 			colors = type.colors;
 		}
 		else {
@@ -34,8 +35,9 @@ $.Gradient = Gradient = new Class({
 		if(Gradient.gradients[ this._type ]){
 			var grad = Gradient.gradients[ this._type ];
 			extend(this, grad);
-			if( grad.init )
+			if( grad.init ){
 				grad.init.call(this, type);
+			}
 		}
 	},
 
@@ -54,8 +56,9 @@ $.Gradient = Gradient = new Class({
 			keys  = Object.keys( stops ).sort();
 
 		for(var i = 0, l = keys.length; i < l; i++){
-			if(keys[i] == t)
+			if(keys[i] == t){
 				return _.color(stops[keys[i]]);
+			}
 			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
 				var c1 = _.color(stops[last]),
 					c2 = _.color(stops[keys[i]]);
@@ -72,17 +75,20 @@ $.Gradient = Gradient = new Class({
 
 	},
 	color : function(i, color){
-		if(color === undefined)
+		if(color === undefined){
 			return this._colors[i];
-		if(color === null)
+		}
+		if(color === null){
 			;
+		}
 		this._colors[i] = color;
 		return this.update();
 	},
 
 	colors : function(colors){
-		if(colors === undefined)
+		if(colors === undefined){
 			return this._colors;
+		}
 		this._colors = colors;
 		return this.update();
 	},
@@ -92,8 +98,9 @@ $.Gradient = Gradient = new Class({
 			new_colors = {},
 			i;
 		for(i in colors){
-			if($.has(colors, i))
+			if($.has(colors, i)){
 				new_colors[1-i] = colors[i];
+			}
 		}
 		this._colors = new_colors;
 		return this.update();
@@ -113,8 +120,9 @@ $.Gradient = Gradient = new Class({
 			x = x[0];
 		}
 
-		if(!isArray(this._from))
+		if(!isArray(this._from)){
 			this._from = [];
+		}
 
 		if(x !== undefined) this._from[0] = x; // TODO: distance ?
 		if(y !== undefined) this._from[1] = y;
@@ -123,8 +131,9 @@ $.Gradient = Gradient = new Class({
 	},
 
 	to : function(x,y,r){
-		if(arguments.length === 0)
+		if(arguments.length === 0){
 			;
+		}
 		if(isString(x) && x in $.corners){
 			this._to = x;
 			return this.update();
@@ -135,12 +144,19 @@ $.Gradient = Gradient = new Class({
 			x = x[0];
 		}
 
-		if(!isArray(this._to))
+		if(!isArray(this._to)){
 			this._to = [];
+		}
 
-		if(x !== undefined) this._to[0] = x;
-		if(y !== undefined) this._to[1] = y;
-		if(r !== undefined) this._to[2] = r;
+		if(x !== undefined){
+			this._to[0] = x;
+		}
+		if(y !== undefined){
+			this._to[1] = y;
+		}
+		if(r !== undefined){
+			this._to[2] = r;
+		}
 		return this.update();
 	},
 
@@ -163,32 +179,36 @@ $.Gradient = Gradient = new Class({
 
 		// for corners like 'top left'
 		if(!isArray(from)){
-			if(isString(from) && /^\d+(px|pt)?/.test(from))
+			if(isString(from) && /^\d+(px|pt)?/.test(from)){
 				this._from = from = _.distance(from);
-			else
+			} else {
 				from = element.corner(from);
+			}
 		}
 		if(!isArray(to)){
-			if(isString(from) && /^\d+(px|pt)?/.test(to))
+			if(isString(from) && /^\d+(px|pt)?/.test(to)){
 				this._to = to = _.distance(to);
-			else
+			} else {
 				to = element.corner(to);
+			}
 		}
 
 		// Cache
 		var key = this.key(from, to);
-		if(this._cache && this.context._cache[key])
+		if(this._cache && this.context._cache[key]){
 			return this.context._cache[key];
+		}
 
-		if(this._type === 'linear')
+		if(this._type === 'linear'){
 			grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
-
-		else
+		} else {
 			grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || element.bounds().height);
+		}
 
 		for(var offset in this._colors){
-			if(Object.prototype.hasOwnProperty.call(this._colors, offset))
+			if(Object.prototype.hasOwnProperty.call(this._colors, offset)){
 				grad.addColorStop( offset, this._colors[offset] );
+			}
 		}
 
 		this.context._cache[key] = grad;
@@ -210,33 +230,38 @@ Gradient.gradients = {
 		init: function(){
 			var from = this._from;
 			switch(from){
-				case 'vertical':
+				case 'vertical': {
 					this._from = 'top';
 					this._to = 'bottom';
-					break;
-				case 'horizontal':
+				} break;
+				case 'horizontal': {
 					this._from = 'left';
 					this._to = 'right';
-					break;
-				case 'diag1':
+				}
+				case 'diag1': {
 					this._from = 'top left';
 					this._to = 'bottom right';
-					break;
-				case 'diag2':
+				} break;
+				case 'diag2': {
 					this._from = 'top right';
 					this._to = 'bottom left';
-					break;
+				} break;
 				default: break;
 			}
 		}
 	},
 	radial: {
 		init: function(options){
-			if( !isObject(options) )
+			if( !isObject(options) ){
 				return;
+			}
 
-			if( !this._to ) this._to = [0,0];
-			if( !this._from ) this._from = [0,0];
+			if( !this._to ){
+				this._to = [0,0];
+			}
+			if( !this._from ){
+				this._from = [0,0];
+			}
 
 			// to: center & ( radius | dest )
 			// from: startRadius & hilite
@@ -254,60 +279,65 @@ Gradient.gradients = {
 				this._from = slice.call(this._to);
 			}
 			if( options.radius ){
-				if(isNumberLike( options.radius ))
+				if(isNumberLike( options.radius )){
 					this._to[2] = options.radius;
-				else
+				} else {
 					this._to[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.radius[0], 2) + Math.pow(this._to[1] - options.radius[1], 2) ));
+				}
 			}
 			if( options.startRadius ){
-				if(isNumberLike( options.startRadius ))
+				if(isNumberLike( options.startRadius )){
 					this._from[2] = options.startRadius;
-				else
+				} else {
 					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.startRadius[0], 2) + Math.pow(this._to[1] - options.startRadius[1], 2) ));
+				}
 			}
 		},
 
 		radius : function(radius, y){
-			if(radius === undefined)
+			if(radius === undefined){
 				return this._to[2];
+			}
 
-			if(y !== undefined)
+			if(y !== undefined){
 				radius = [radius, y];
+			}
 
 			if(!isNumberLike(radius)){
 				var vx = this._to[0] - radius[0];
 				var vy = this._to[1] - radius[1];
 
 				this._to[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-			}
-			else {
+			} else {
 				this._to[2] = _.distance(radius);
 			}
 			return this.update();
 		},
 
 		startRadius : function(radius, y){
-			if(radius === undefined)
+			if(radius === undefined){
 				return this._from[2];
+			}
 
-			if(y !== undefined)
+			if(y !== undefined){
 				radius = [radius, y];
+			}
 
 			if(!isNumberLike(radius)){
 				var vx = this._to[0] - radius[0];
 				var vy = this._to[1] - radius[1];
 
 				this._from[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-			}
-			else {
+			} else {
 				this._from[2] = _.distance(radius);
 			}
 			return this.update();
 		},
 
 		center : function(x, y){
-			if(x === undefined)
+			if(x === undefined){
 				return this._to.slice(0, 2);
+			}
 			if(y === undefined){
 				y = x[1];
 				x = x[0];
@@ -318,8 +348,9 @@ Gradient.gradients = {
 		},
 
 		hilite : function(x, y){
-			if(x === undefined)
+			if(x === undefined){
 				return [this._from[0] - this._to[0], this._from[1] - this._to[1]];
+			}
 			if(y === undefined){
 				y = x[1];
 				x = x[0];
