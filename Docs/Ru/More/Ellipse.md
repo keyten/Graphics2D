@@ -5,13 +5,16 @@
 
 ### Создание
 ```js
+ctx.ellipse(cx, cy, rx, ry, 'black');
+```
+```js
 ctx.ellipse({
-  cx: 300,
-  cy: 300,
-  rx: 200,
-  ry: 150,
+    cx: 300,
+    cy: 300,
+    rx: 200,
+    ry: 150,
 
-  fill:'red'
+    fill:'red'
 });
 ```
 
