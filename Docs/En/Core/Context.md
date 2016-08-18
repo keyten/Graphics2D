@@ -1,6 +1,7 @@
 Graphics2D.Context
 ===================
 *I am not sure in my English knowledge, so there may be some mistakes. Sorry. You can help me with your pull request.*
+
 `Graphics2D.Context` -- the library's context, which can be got with one of these ways:
 ```js
 var ctx = Graphics2D.id('element'); // canvas with id="element"
