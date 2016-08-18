@@ -11,7 +11,7 @@ image.filter(function(r, g, b, a){
 ```
 
 ### Built-in фильтры
-Можно добавить фильтр однажды, чтобы 
+Можно добавить фильтр однажды, чтобы использовать несколько раз.
 ```js
 Graphics2D.filters['grayscale'] = function(r, g, b, a){
     var average = (r + g + b) / 3;
