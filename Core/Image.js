@@ -152,7 +152,12 @@ Img = new Class(Shape, {
 	_smooth : true,
 
 	draw : function(ctx){
-		if(!this._visible){
+		if(this._visible){
+			var params = [this._image, this._x, this._y];
+			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
+		}
+		// закомментить, не стирать
+		/* if(!this._visible){
 			return;
 		}
 		ctx.save();
@@ -182,7 +187,7 @@ Img = new Class(Shape, {
 		if(this.styles.strokeStyle !== undefined){
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
 		}
-		ctx.restore();
+		ctx.restore(); */
 	}
 
 });

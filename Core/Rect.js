@@ -52,6 +52,15 @@ Rect = new Class(Shape, {
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
 
+	draw: function(ctx){
+		if(this._visible){
+			this.context.renderer.drawRect(
+				[this._x, this._y, this._width, this._height],
+				ctx, this.styles, this.matrix, this
+			);
+		}
+	},
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		ctx.rect(this._x, this._y, this._width, this._height);

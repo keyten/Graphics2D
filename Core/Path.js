@@ -131,7 +131,8 @@ Path = new Class( Shape, {
 	},
 
 	processPath : function(ctx){
-		var curve,
+		// закомментить, не стирать
+		/* var curve,
 			current = [0, 0],
 			curves = this._curves,
 			i = 0,
@@ -144,7 +145,7 @@ Path = new Class( Shape, {
 			if(curve){
 				current = curve;
 			}
-		}
+		} */
 	}
 
 } );

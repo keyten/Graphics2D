@@ -76,15 +76,15 @@ Shape = new Class(Style, {
 	},
 
 	z : function(z){
+		var index = this.context.elements.indexOf(this);
 		if(z === undefined){
-			return this._z;
+			return index;
 		}
 		if(z === 'top'){
 			z = this.context.elements.length; // -1?
 		}
-		this.context.elements.splice(this._z, 1);
+		this.context.elements.splice(index, 1);
 		this.context.elements.splice(z, 0, this);
-		this._z = z;
 		return this.update();
 	},
 
@@ -114,7 +114,7 @@ Shape = new Class(Style, {
 	},
 
 	remove : function(){
-		this.context.elements.splice(this._z, 1);
+		this.context.elements.splice(this.context.elements.indexOf(this), 1);
 		return this.update();
 	},
 

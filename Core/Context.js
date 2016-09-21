@@ -1,20 +1,11 @@
 var Context;
 
 Context = function(canvas, renderer){
-	if(renderer in $.renderers){
-		extend(this, $.renderers[renderer]);
-	} else {
-		this.context   = canvas.getContext('2d'); // rename to the context2d?
-	}
-
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this._cache    = {}; // for gradients
-
-	if(this.init){
-		this.init();
-	}
+	this.renderer = $.renderers[renderer || '2d'];
+	this.renderer.init(this, canvas);
 };
 
 Context.prototype = {
@@ -72,7 +63,6 @@ Context.prototype = {
 	// Methods
 
 	push : function(element){
-		element._z = this.elements.length;
 		element.context = this;
 		this.elements.push(element);
 
@@ -89,28 +79,18 @@ Context.prototype = {
 		}
 
 		this._timer = requestAnimationFrame(function(){
-			this._update();
+			this.updateNow();
 			this._timer = null;
 		}.bind(this));
 	},
 
-	_update : function(){
-		var ctx = this.context,
-			matrix = this.matrix;
-
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-		if(matrix){
-			ctx.transform.apply(ctx, matrix);
-		}
-
+	updateNow : function(){
+		var ctx = this.context;
+		this.renderer.preRedraw(ctx);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
-		this.fire('update');
-		ctx.restore();
+		this.renderer.postRedraw(ctx);
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -262,7 +242,7 @@ Context.prototype = {
 	},
 
 	// Transforms
-
+/*
 	transform: function(a, b, c, d, e, f, pivot){
 		// you can get the matrix: ctx.matrix
 		// so you don't need ctx.transform() or something like this
@@ -332,6 +312,6 @@ Context.prototype = {
 		}
 
 		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
-	}
+	} */
 
 };

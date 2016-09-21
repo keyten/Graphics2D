@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 16.7.2016
+ *  Last edit: 21.9.2016
  *  License: MIT / LGPL
  */
 
@@ -47,24 +47,259 @@ var $ = {},
 
 	                       window.clearTimeout;
 
+$.renderers = {};
+// https://www.khronos.org/registry/webgl/specs/1.0/#5.2
+$.renderers['gl'] = {
+
+	init: function(delta, canvas){
+		delta.gl = canvas.getContext('webgl')
+		        || canvas.getContext('experimental-webgl');
+
+		delta.gl.viewport(0, 0, canvas.width, canvas.height);
+		// это делает канвас непрозрачным
+		// попробовать от этого избавиться
+		// todo
+//		delta.gl.clearColor(1, 1, 1, 1);
+//		delta.gl.clear(delta.gl.COLOR_BUFFER_BIT);
+//		работает и без этого, но как его потом очищать??
+
+		delta.context = delta.gl;
+	},
+
+	createShader: function(gl, type, source){
+		var shader = gl.createShader(type);
+		gl.shaderSource(shader, source);
+		gl.compileShader(shader);
+		if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+			var log = gl.getShaderInfoLog(shader);
+			gl.deleteShader(shader);
+			throw "Shader compilation error: " + log;
+		}
+		return shader;
+	},
+
+	initShaders: function(gl, style){
+		var fs = this.createShader(gl, gl.FRAGMENT_SHADER, [
+			'#ifdef GL_ES',
+				'precision highp float;',
+			'#endif',
+
+			'varying vec4 vColor;',
+			'void main(void){',
+				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
+			'}'
+		].join('\n'));
+
+		var vs = this.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					'(aVertexPosition[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
+					'(-aVertexPosition[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
+					'1.0,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+
+		var program = gl.createProgram();
+		gl.attachShader(program, vs);
+		gl.attachShader(program, fs);
+		gl.linkProgram(program);
+
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+
+		gl.useProgram(program);
+
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+
+		return program;
+	},
+
+	initBuffers: function(gl, vertices){
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+		return vertexBuffer;
+	},
+
+	drawRect: function(params, gl, style, matrix, object){
+		var x1 = params[0],
+			y1 = params[1],
+			x2 = x1 + params[2],
+			y2 = y1 + params[3],
+			program = this.shader || (this.shader = this.initShaders(gl)),
+			buffer = this.initBuffers(gl, [
+				x1, y1,
+				x2, y2,
+				x2, y1,
+
+				x1, y1,
+				x2, y2,
+				x1, y2
+			]);
+
+		var color = $.color(style.fillStyle);
+		gl.uniform4f(program.uColor, color[0], color[1], color[2], color[3]);
+
+		gl.vertexAttribPointer(program.v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLES, 0, 6);
+	}
+
+};
+
+$.renderers['2d'] = {
+
+	// renderer.init(g2dcontext, canvas);
+	init: function(delta, canvas){
+		delta.context = canvas.getContext('2d');
+		delta._cache = {}; // for gradients
+	},
+
+	preRedraw: function(ctx){
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+	},
+
+	postRedraw: function(ctx){
+		ctx.restore();
+	},
+
+	// params = [cx, cy, radius]
+	drawCircle: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		ctx.beginPath();
+		ctx.arc(params[0], params[1], Math.abs(params[2]), 0, Math.PI * 2, true);
+		this.post(ctx, style);
+	},
+
+	// params = [x, y, width, height]
+	drawRect: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		if(style.fillStyle){
+			ctx.fillRect(params[0], params[1], params[2], params[3]);
+		}
+		if(style.strokeStyle){
+			ctx.strokeRect(params[0], params[1], params[2], params[3]);
+		}
+		ctx.restore();
+	},
+
+	// params is an array of curves
+	drawPath: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		ctx.beginPath();
+		params.forEach(function(curve){
+			curve.process(ctx);
+		});
+		this.post(ctx, style);
+	},
+
+	drawImage: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		switch(params.length){
+			case 5: {
+				ctx.drawImage(params[0], params[1], params[2], params[3], params[4]);
+			} break;
+
+			case 9: {
+				ctx.drawImage(
+					params[0],
+					params[1], params[2],
+					params[3], params[4],
+					params[5], params[6],
+					params[7], params[8]
+				);
+			} break;
+
+			default: {
+				ctx.drawImage(params[0], params[1], params[2]);
+			} break;
+		}
+		// we don't need stroke to image
+		// this.post(ctx, style);
+		ctx.restore();
+	},
+
+	// params = [text, x, y]
+	drawText: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		if(style.fillStyle){
+			ctx.fillText(params[0], params[1], params[2]);
+		}
+		if(style.strokeStyle){
+			ctx.strokeText(params[0], params[1], params[2]);
+		}
+		ctx.restore();
+	},
+
+	pre: function(ctx, style, matrix, object){
+		ctx.save();
+
+		// styles
+		Object.keys(style).forEach(function(key){
+			ctx[key] = style[key];
+		});
+
+		if(style.fillStyle && style.fillStyle.toCanvasStyle){
+			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, object)
+		}
+		if(style.strokeStyle && style.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, object);
+		}
+
+		if(style.lineDash){
+			if(ctx.setLineDash){ // webkit
+				ctx.setLineDash(style.lineDash);
+			} else {
+				ctx.mozDash = style.lineDash;
+			}
+		}
+
+		// clip
+		// ...
+
+		if(matrix){
+			ctx.transform(
+				matrix[0], matrix[1], matrix[2],
+				matrix[3], matrix[4], matrix[5]
+			);
+		}
+	},
+
+	post: function(ctx, style){
+		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(style.strokeStyle){
+			ctx.stroke();
+		}
+		ctx.restore();
+	},
+
+	// gradients, patterns
+
+};
 
 var Context;
 
 Context = function(canvas, renderer){
-	if(renderer in $.renderers){
-		extend(this, $.renderers[renderer]);
-	} else {
-		this.context   = canvas.getContext('2d'); // rename to the context2d?
-	}
-
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this._cache    = {}; // for gradients
-
-	if(this.init){
-		this.init();
-	}
+	this.renderer = $.renderers[renderer || '2d'];
+	this.renderer.init(this, canvas);
 };
 
 Context.prototype = {
@@ -122,7 +357,6 @@ Context.prototype = {
 	// Methods
 
 	push : function(element){
-		element._z = this.elements.length;
 		element.context = this;
 		this.elements.push(element);
 
@@ -139,28 +373,18 @@ Context.prototype = {
 		}
 
 		this._timer = requestAnimationFrame(function(){
-			this._update();
+			this.updateNow();
 			this._timer = null;
 		}.bind(this));
 	},
 
-	_update : function(){
-		var ctx = this.context,
-			matrix = this.matrix;
-
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-		if(matrix){
-			ctx.transform.apply(ctx, matrix);
-		}
-
+	updateNow : function(){
+		var ctx = this.context;
+		this.renderer.preRedraw(ctx);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
-		this.fire('update');
-		ctx.restore();
+		this.renderer.postRedraw(ctx);
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -312,7 +536,7 @@ Context.prototype = {
 	},
 
 	// Transforms
-
+/*
 	transform: function(a, b, c, d, e, f, pivot){
 		// you can get the matrix: ctx.matrix
 		// so you don't need ctx.transform() or something like this
@@ -382,7 +606,7 @@ Context.prototype = {
 		}
 
 		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
-	}
+	} */
 
 };
 
@@ -767,15 +991,15 @@ Shape = new Class(Style, {
 	},
 
 	z : function(z){
+		var index = this.context.elements.indexOf(this);
 		if(z === undefined){
-			return this._z;
+			return index;
 		}
 		if(z === 'top'){
 			z = this.context.elements.length; // -1?
 		}
-		this.context.elements.splice(this._z, 1);
+		this.context.elements.splice(index, 1);
 		this.context.elements.splice(z, 0, this);
-		this._z = z;
 		return this.update();
 	},
 
@@ -805,7 +1029,7 @@ Shape = new Class(Style, {
 	},
 
 	remove : function(){
-		this.context.elements.splice(this._z, 1);
+		this.context.elements.splice(this.context.elements.indexOf(this), 1);
 		return this.update();
 	},
 
@@ -1484,6 +1708,15 @@ Rect = new Class(Shape, {
 		return new Bounds(this._x, this._y, this._width, this._height);
 	},
 
+	draw: function(ctx){
+		if(this._visible){
+			this.context.renderer.drawRect(
+				[this._x, this._y, this._width, this._height],
+				ctx, this.styles, this.matrix, this
+			);
+		}
+	},
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		ctx.rect(this._x, this._y, this._width, this._height);
@@ -1530,6 +1763,15 @@ Circle = new Class(Shape, {
 
 	bounds : function(){
 		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
+	},
+
+	draw: function(ctx){
+		if(this._visible){
+			this.context.renderer.drawCircle(
+				[this._cx, this._cy, this._radius],
+				ctx, this.styles, this.matrix, this
+			);
+		}
 	},
 
 	processPath : function(ctx){
@@ -1861,7 +2103,8 @@ Path = new Class( Shape, {
 	},
 
 	processPath : function(ctx){
-		var curve,
+		// закомментить, не стирать
+		/* var curve,
 			current = [0, 0],
 			curves = this._curves,
 			i = 0,
@@ -1874,7 +2117,7 @@ Path = new Class( Shape, {
 			if(curve){
 				current = curve;
 			}
-		}
+		} */
 	}
 
 } );
@@ -2084,7 +2327,12 @@ Img = new Class(Shape, {
 	_smooth : true,
 
 	draw : function(ctx){
-		if(!this._visible){
+		if(this._visible){
+			var params = [this._image, this._x, this._y];
+			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
+		}
+		// закомментить, не стирать
+		/* if(!this._visible){
 			return;
 		}
 		ctx.save();
@@ -2114,7 +2362,7 @@ Img = new Class(Shape, {
 		if(this.styles.strokeStyle !== undefined){
 			ctx.strokeRect(this._x, this._y, this._width, this._height);
 		}
-		ctx.restore();
+		ctx.restore(); */
 	}
 
 });
@@ -2403,7 +2651,14 @@ Text = new Class(Shape, {
 		}
 	},
 	draw : function(ctx){
-		if(!this._visible)
+		if(this._visible){
+			this.context.renderer.drawText(
+				[this._text, this._x, this._y],
+				ctx, this.styles, this.matrix, this
+			);
+		}
+		// закомментить, не стирать
+/*		if(!this._visible)
 			return;
 		ctx.save();
 		this.styleToContext(ctx);
@@ -2460,7 +2715,7 @@ Text = new Class(Shape, {
 				drawLine( line.text, x + line.x, y + line.y + this._lineSpace * i );
 			}
 		}
-		ctx.restore();
+		ctx.restore(); */
 	}
 // TODO: mozPathText; mozTextAlongPath
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
@@ -2477,6 +2732,7 @@ $.text = function(){
 $.fx.step.lineSpace = $.fx.step.float;
 
 // TODO: rename to boundsParams
+// empiric data
 var params = {
 	top: [0.1, 0.7, 1.05],
 	hanging: [0, 0.5, 0.85],
@@ -3498,12 +3754,10 @@ $.id = function(id, renderer){
 	return new Context( document.getElementById(id), renderer );
 };
 
-$.renderers = {};
-
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;
 } else if( typeof define === 'function' && define.amd ){
-	define( [], function(){ return $; } );
+	define([], function(){ return $; });
 } else {
 	window.Graphics2D = $;
 }

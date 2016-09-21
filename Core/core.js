@@ -47,6 +47,10 @@ var $ = {},
 
 	                       window.clearTimeout;
 
+$.renderers = {};
+// {{include WebGL.js}}
+
+// {{include Renderer.js}}
 
 // {{include context.js}}
 
@@ -94,12 +98,10 @@ $.id = function(id, renderer){
 	return new Context( document.getElementById(id), renderer );
 };
 
-$.renderers = {};
-
 if( typeof module === 'object' && typeof module.exports === 'object' ){
 	module.exports = $;
 } else if( typeof define === 'function' && define.amd ){
-	define( [], function(){ return $; } );
+	define([], function(){ return $; });
 } else {
 	window.Graphics2D = $;
 }

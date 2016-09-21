@@ -28,6 +28,15 @@ Circle = new Class(Shape, {
 		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
 	},
 
+	draw: function(ctx){
+		if(this._visible){
+			this.context.renderer.drawCircle(
+				[this._cx, this._cy, this._radius],
+				ctx, this.styles, this.matrix, this
+			);
+		}
+	},
+
 	processPath : function(ctx){
 		ctx.beginPath();
 		ctx.arc(this._cx, this._cy, Math.abs(this._radius), 0, Math.PI*2, true);

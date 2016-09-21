@@ -255,7 +255,14 @@ Text = new Class(Shape, {
 		}
 	},
 	draw : function(ctx){
-		if(!this._visible)
+		if(this._visible){
+			this.context.renderer.drawText(
+				[this._text, this._x, this._y],
+				ctx, this.styles, this.matrix, this
+			);
+		}
+		// закомментить, не стирать
+/*		if(!this._visible)
 			return;
 		ctx.save();
 		this.styleToContext(ctx);
@@ -312,7 +319,7 @@ Text = new Class(Shape, {
 				drawLine( line.text, x + line.x, y + line.y + this._lineSpace * i );
 			}
 		}
-		ctx.restore();
+		ctx.restore(); */
 	}
 // TODO: mozPathText; mozTextAlongPath
 // https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
@@ -329,6 +336,7 @@ $.text = function(){
 $.fx.step.lineSpace = $.fx.step.float;
 
 // TODO: rename to boundsParams
+// empiric data
 var params = {
 	top: [0.1, 0.7, 1.05],
 	hanging: [0, 0.5, 0.85],
