@@ -1,6 +1,9 @@
 ## Graphics2D JavaScript Library
 
-*Graphics2D* is a javascript library, available under [LGPL](http://www.gnu.org/copyleft/lgpl.html) / [MIT](http://opensource.org/licenses/mit-license.php) License.
+*Note: Graphics2D is going to be renamed to DeltaJS.*
+
+*Graphics2D* is a javascript library for canvas.  
+Available under [LGPL](http://www.gnu.org/copyleft/lgpl.html) / [MIT](http://opensource.org/licenses/mit-license.php) License.
 
 ### Install with bower
 ```js
