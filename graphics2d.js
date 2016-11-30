@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 21.9.2016
+ *  Last edit: 30.11.2016
  *  License: MIT / LGPL
  */
 
@@ -12,7 +12,8 @@ var $ = {},
 
 // Classes
 	Context,
-	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
+	Drawable,
+	Shape, Rect, Circle, Curve, Path, Img, Raster, Text,
 	Gradient, Pattern, Bounds, Style,
 
 // Local variables
@@ -20,10 +21,11 @@ var $ = {},
 	emptyFunc = function(){},
 	toString = Object.prototype.toString,
 	slice = Array.prototype.slice,
+	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
 	reFloat = /^\d*\.\d+$/,
 	domurl = window.URL || window.webkitURL || window,
 
-	_ = new emptyFunc,
+	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
 	                        window.webkitRequestAnimationFrame	||
 	                        window.mozRequestAnimationFrame		||
@@ -92,17 +94,23 @@ $.renderers['gl'] = {
 
 		var vs = this.createShader(gl, gl.VERTEX_SHADER, [
 			'attribute vec2 aVertexPosition;',
+			'uniform vec4 rectCoords;',
 			'uniform vec4 uColor;',
 			'varying vec4 vColor;',
 			'float canvasWidth = ' + gl.canvas.width + '.0;',
 			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
 			'void main(void){',
 				'vColor = uColor;',
 				'gl_Position = vec4(',
-					'(aVertexPosition[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
-					'(-aVertexPosition[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
+					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
 					'1.0,',
 					'1.0',
+//					'(aVertexPosition[0] + rectCoords[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
+//					'(-aVertexPosition[1] - rectCoords[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
+//					'1.0,',
+//					'1.0',
 				');',
 			'}'
 		].join('\n'));
@@ -121,6 +129,7 @@ $.renderers['gl'] = {
 		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
 		gl.enableVertexAttribArray(program.v_aVertexPosition);
 		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords')
 
 		return program;
 	},
@@ -139,22 +148,33 @@ $.renderers['gl'] = {
 			x2 = x1 + params[2],
 			y2 = y1 + params[3],
 			program = this.shader || (this.shader = this.initShaders(gl)),
-			buffer = this.initBuffers(gl, [
-				x1, y1,
+			buffer = this.buffer || (this.buffer = this.initBuffers(gl, [
+				-1, -1,
+				1, 1,
+				1, -1,
+
+				-1, -1,
+				1, 1,
+				-1, 1
+				/* x1, y1,
 				x2, y2,
 				x2, y1,
 
 				x1, y1,
 				x2, y2,
-				x1, y2
-			]);
+				x1, y2 */
+			]));
 
 		var color = $.color(style.fillStyle);
 		gl.uniform4f(program.uColor, color[0], color[1], color[2], color[3]);
+		gl.uniform4f(program.rectCoords, x1, y1, x2, y2);
 
 		gl.vertexAttribPointer(program.v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 		gl.drawArrays(gl.TRIANGLES, 0, 6);
-	}
+	},
+
+	preRedraw: function(){},
+	postRedraw: function(){}
 
 };
 
@@ -166,10 +186,15 @@ $.renderers['2d'] = {
 		delta._cache = {}; // for gradients
 	},
 
-	preRedraw: function(ctx){
+	preRedraw: function(ctx, delta){
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		ctx.setTransform.apply(ctx, delta.matrix);
+		// todo: dont make an identical matrix each time!
+		// var ident = ...
+		// if(delta.matrix != ident)...
+		// todo2: заменить на null, когда она там не нужна.
 	},
 
 	postRedraw: function(ctx){
@@ -192,6 +217,19 @@ $.renderers['2d'] = {
 		}
 		if(style.strokeStyle){
 			ctx.strokeRect(params[0], params[1], params[2], params[3]);
+		}
+		ctx.restore();
+	},
+
+	drawCircle: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		ctx.beginPath();
+		ctx.arc(params[0], params[1], params[2], 0, Math.PI * 2, true);
+		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(style.strokeStyle){
+			ctx.stroke();
 		}
 		ctx.restore();
 	},
@@ -232,6 +270,10 @@ $.renderers['2d'] = {
 		ctx.restore();
 	},
 
+	drawData: function(params, ctx, style, matrix, object){
+		ctx.putImageData(params[0], params[1], params[2]);
+	},
+
 	// params = [text, x, y]
 	drawText: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
@@ -249,6 +291,8 @@ $.renderers['2d'] = {
 
 		// styles
 		Object.keys(style).forEach(function(key){
+			// todo: check the performance in this case:
+			// if(ctx[key] !== style[key]) ctx[key] = style[key];
 			ctx[key] = style[key];
 		});
 
@@ -298,34 +342,62 @@ Context = function(canvas, renderer){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
+	this.matrix = [1, 0, 0, 1, 0, 0];
 	this.renderer = $.renderers[renderer || '2d'];
 	this.renderer.init(this, canvas);
+
+	this.updateNowBounded = this.updateNow.bind(this);
 };
 
 Context.prototype = {
 
-	// Classes
-
-	rect : function(){
-		return this.push( new Rect(arguments, this) );
+	// Elements
+	object: function(object){
+		return this.push(Object.assign(new Drawable(), object));
 	},
 
-	circle : function(){
-		return this.push( new Circle(arguments, this) );
+	rect: function(){
+		return this.push(new Rect(arguments, this));
 	},
 
-	path : function(){
-		return this.push( new Path(arguments, this) );
+	circle: function(){
+		return this.push(new Circle(arguments, this));
 	},
 
-	image : function(){
-		return this.push( new Img(arguments, this) );
+	path: function(){
+		return this.push(new Path(arguments, this));
 	},
 
-	text : function(){
-		return this.push( new Text(arguments, this) );
+	image: function(){
+		return this.push(new Img(arguments, this));
 	},
 
+	raster: function(){
+		return this.push(new Raster(arguments, this));
+	},
+
+	text: function(){
+		return this.push(new Text(arguments, this));
+	},
+
+	// Path slices
+	line: function(fx, fy, tx, ty, stroke){
+		return this.path([[fx, fy], [tx, ty]], null, stroke);
+	},
+
+	quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
+		return this.path([[fx, fy], [tx, ty, hx, hy]], null, stroke);
+	},
+
+	bezier : function(fx, fy, tx, ty, h1x, h1y, h2x, h2y, stroke){
+		return this.path([[fx, fy], [tx, ty, h1x, h1y, h2x, h2y]], null, stroke);
+	},
+
+	arcTo : function(fx, fy, tx, ty, radius, clockwise, stroke){
+		return this.path([[fx, fy], ['arcTo', fx, fy, tx, ty, radius, clockwise]], null, stroke);
+	},
+
+	// Fills
 	gradient : function(type, from, to, colors){
 		return new Gradient(type, from, to, colors, this);
 	},
@@ -334,33 +406,12 @@ Context.prototype = {
 		return new Pattern(image, repeat, this);
 	},
 
-
-	// Path slices
-
-	line : function(fx, fy, tx, ty, stroke){
-		return this.path([ [fx, fy], [tx, ty] ], null, stroke);
-	},
-
-	quadratic : function(fx, fy, tx, ty, hx, hy, stroke){
-		return this.path([ [fx, fy], [tx, ty, hx, hy] ], null, stroke);
-	},
-
-	bezier : function(fx, fy, tx, ty, h1x, h1y, h2x, h2y, stroke){
-		return this.path([ [fx, fy], [tx, ty, h1x, h1y, h2x, h2y] ], null, stroke);
-	},
-
-	arcTo : function(fx, fy, tx, ty, radius, clockwise, stroke){
-		return this.path([ [fx, fy], ['arcTo', fx, fy, tx, ty, radius, clockwise] ], null, stroke);
-	},
-
-
 	// Methods
-
 	push : function(element){
 		element.context = this;
 		this.elements.push(element);
 
-		if( element.draw ){
+		if(element.draw){
 			element.draw(this.context);
 		}
 
@@ -368,23 +419,22 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._timer){
+		if(this._willUpdate){
 			return;
 		}
 
-		this._timer = requestAnimationFrame(function(){
-			this.updateNow();
-			this._timer = null;
-		}.bind(this));
+		this._willUpdate = true;
+		requestAnimationFrame(this.updateNowBounded);
 	},
 
 	updateNow : function(){
 		var ctx = this.context;
-		this.renderer.preRedraw(ctx);
+		this.renderer.preRedraw(ctx, this);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.renderer.postRedraw(ctx);
+		this._willUpdate = false;
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -392,9 +442,9 @@ Context.prototype = {
 			i = elements.length;
 
 		while(i--){
-		// mouse=true : pass elements with _events=false
+		// mouse=true : ignore elements with interaction = false
 			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
-				(elements[i]._events || !mouse) ){
+				(elements[i].attrs.interaction || !mouse) ){
 				return elements[i];
 			}
 		}
@@ -403,9 +453,7 @@ Context.prototype = {
 
 
 	// Events
-
 	hoverElement : null,
-
 	focusElement : null,
 
 	listener : function(event){
@@ -415,23 +463,31 @@ Context.prototype = {
 
 		this.listeners[event] = [];
 
+		if(this.eventsHooks.hasOwnProperty(event)){
+			this.eventsHooks[event].call(this, event);
+		}
+
+		if(this.eventsInteract.indexOf(event) === -1){
+			return this.listeners[event];
+		}
+
 		this.canvas.addEventListener(event, function(e){
 			var element,
 				propagation = true,
 				coords = $.coordsOfElement(this.canvas);
 
+			// negative contextX / contextY when canvas has a border
 			e.contextX = e.clientX - coords.x;
 			e.contextY = e.clientY - coords.y;
-			// use e.stop to prevent event firing on context
-			e.stop = function(){
+
+			e.cancelContextPropagation = function(){
 				propagation = false;
 			};
 
 			if(event === 'mouseout'){
 				element = this.hoverElement;
 				this.hoverElement = null;
-			}
-			else {
+			} else {
 				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 			}
 
@@ -450,24 +506,60 @@ Context.prototype = {
 			}
 		}.bind(this));
 
-		switch(event){
-			case 'mouseover':
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
-				this.listener('mouseout');
-				break;
-			case 'mouseout':
-				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
-				this.listener('mouseover');
-				break;
-			case 'focus':
-				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
-				break;
-		}
-
 		return this.listeners[event];
 	},
 
-	listenerSpecial : function(over, out, name, baseevent){ // for mouseover/mouseout and focus/blur
+	eventsInteract: [
+		// todo: check touch & pointer events
+		'click',
+		'dblclick',
+		'mousedown',
+		'mouseup',
+		'mousemove',
+		'mouseover',
+		'mouseout',
+		'mouseenter',
+		'mouseleave',
+		'mousewheel',
+		'blur',
+		'focus',
+		'keypress',
+		'keydown',
+		'keyup'
+	],
+
+	// todo: an element must have a property _focusable
+	// then it supports focus & blur
+	// otherwise there are some bugs (object.blur())
+	eventsHooks : {
+		mouseover : function(){
+			if(!this.listeners['mouseout']){
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+				this.listener('mouseout');
+			}
+		},
+		mouseout: function(){
+			if(!this.listeners['mouseover']){
+				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
+				this.listener('mouseover');
+			}
+		},
+		focus : function(){
+			if(!this.listeners['blur']){
+				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
+				this.listener('blur');
+			}
+		},
+		blur: function(){
+			if(!this.listeners['focus']){
+				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
+				this.listener('focus');
+			}
+		}
+	},
+
+	// for mouseover/mouseout and focus/blur
+	listenerSpecial : function(over, out, name, baseevent){
 		// mouseover, mouseout, hover, mousemove
 		// focus, blur, focus, mousedown
 		name += 'Element';
@@ -489,53 +581,69 @@ Context.prototype = {
 		return this;
 	},
 
-	on : function(event, fn){
-		if( isNumber(event) ){
-			return window.setTimeout(fn.bind(this), event), this;
-		}
-
-		if( isObject(event) ){
-			for(var key in event) if($.has(event, key)){
+	on : function(event, callback){
+		if(event + '' !== event){
+			for(var key in event) if(has(event, key)){
 				this.on(key, event[key]);
 			}
 			return this;
 		}
 
-		(this.listeners[event] || this.listener(event)).push(fn);
+		(this.listeners[event] || this.listener(event)).push(callback);
 		return this;
 	},
 
-	once : function(event, fn){ // doesn't works with .off
-		var proxy;
-		this.on(event, proxy = function(e){
-			fn.call(this, e);
-			this.off(event, proxy);
-		}.bind(this));
-	},
-
-	off : function(event, fn){
-		if(!fn){
+	off : function(event, callback){
+		if(!callback){
 			this.listeners[event] = [];
 		}
 
-		var index = this.listeners[event].indexOf(fn);
-		this.listeners = this.listeners[event].slice(0, index).concat( this.listeners[event].slice(index+1) );
+		var index = this.listeners[event].indexOf(callback);
+		this.listeners = this.listeners[event]
+								.slice(0, index)
+								.concat( this.listeners[event].slice(index+1) );
 		return this;
 	},
 
 	fire : function(event, data){
-		var listeners = this.listeners[ event ];
-		if(!listeners){
+		if(!this.listeners[event]){
 			return this;
 		}
 
-		listeners.forEach(function(func){
-			func.call(this, data);
+		this.listeners[event].forEach(function(callback){
+			callback.call(this, data);
 		}.bind(this));
 		return this;
 	},
 
 	// Transforms
+	transform: function(a, b, c, d, e, f){
+		this.matrix = $.transform(this.matrix, [a, b, c, d, e, f]);
+		return this.update();
+	},
+
+	translate: function(x, y){
+		return this.transform(1, 0, 0, 1, x, y);
+	},
+
+	rotate: function(angle/*, pivot*/){
+		angle = angle / 180 * Math.PI;
+		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0);
+	},
+
+	scale: function(x, y/*, pivot*/){
+		if(y === undefined){
+			y = x;
+		}
+		return this.transform(x, 0, 0, y, 0, 0);
+	},
+
+	skew: function(x, y/*, pivot*/){
+		if(y === undefined){
+			y = x;
+		}
+		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0);
+	}
 /*
 	transform: function(a, b, c, d, e, f, pivot){
 		// you can get the matrix: ctx.matrix
@@ -610,313 +718,333 @@ Context.prototype = {
 
 };
 
-var shadowProps = {
-	x: 'shadowOffsetX',
-	y: 'shadowOffsetY',
-	color: 'shadowColor',
-	blur: 'shadowBlur'
-};
+// {{don't include style.js}}
 
-// is using in fill and stroke
-function normalizeFill(value, object){
-	// object with gradient { type, colors, from, to, ... }
-	if(isObject(value) && value.colors && !(value instanceof Gradient)){
-		value = new Gradient(value, null, null, null, object.context);
-	}
-	// object, string or image with pattern
-	else if(isPatternLike(value)){
-		value = new Pattern(value, null, object.context);
-	}
-	// function
-	else if(value instanceof Function){
-		value = { toCanvasStyle: value.bind(object) };
-	}
-	return value;
+var shapeDraw; // function Shape::draw with processPath
+
+function doRectsIntersect(r1, r2){
+	return !(r1.x1 > r2.x2 || r1.x2 < r2.x1 || r1.y1 < r2.y2 || r1.y2 > r2.y1);
 }
 
-// for objects with style
-Style = { prototype: {
+function getIntersection(main, elements){
+	var list = [main],
+		maxBound = main.bounds(),
+		bound;
 
-	parseFromObject: function(object){
-		if($.has(object, 'opacity'))
-			this.opacity(object.opacity);
-		if($.has(object, 'composite'))
-			this.composite(object.composite);
-		if($.has(object, 'fill'))
-			this.fill(object.fill);
-		if($.has(object, 'stroke'))
-			this.stroke(object.stroke);
-		if($.has(object, 'visible'))
-			this._visible = object.visible;
-		if($.has(object, 'clip'))
-			this.clip(object.clip);
+	elements.forEach(function(element){
+		bound = element.bounds();
+		if(doRectsIntersect(maxBound, bound)){
+			list.push(element);
+			// merge bounds
+		}
+	});
+
+	return [list, maxBound];
+}
+
+var temporaryCanvas;
+
+function getTemporaryCanvas(width, height){
+	if(!temporaryCanvas){
+		temporaryCanvas = document.createElement('canvas');
+	}
+	temporaryCanvas.width = width;
+	temporaryCanvas.height = height;
+	return temporaryCanvas;
+}
+
+Drawable = new Class({
+
+	initialize: function(args){
+		this.listeners = {};
+		this.styles = {};
+		this.attrs = {};
 	},
 
-	style: function(name, value){
-		if(value === undefined)
-			return this.styles[name];
-		if(value === null)
-			delete this.styles[name];
-		else
-			this.styles[name] = value;
+	_visible: true,
+
+	update: function(){
+		if(this.context){
+			this.context.update();
+		}
+		return this;
+	},
+
+	z : function(z){
+		if(z === undefined){
+			return this.context.elements.indexOf(this);
+		}
+		if(z === 'top'){
+			z = this.context.elements.length;
+		}
+		this.context.elements.splice(this.context.elements.indexOf(this), 1);
+		this.context.elements.splice(z, 0, this);
 		return this.update();
 	},
 
-	fill: function(value){
-		return this.style('fillStyle', normalizeFill(value, this));
-	},
-
-	// stroke() -- returns an object
-	// stroke(null) -- clears the stroke
-	// stroke(key) -- returns value
-	// stroke(key, value) -- sets value
-	// stroke(string)
-	stroke: function(name, value){
-		var styles = this.styles;
-		switch(name){
-			// return as object
-			case undefined: {
-				return {
-					color: styles.strokeStyle,
-					width: styles.lineWidth,
-					cap: styles.lineCap,
-					join: styles.lineJoin,
-					dash: this._lineDash
-				};
-			} break;
-
-			// delete all values
-			case null: {
-				delete styles.strokeStyle;
-				delete styles.lineWidth;
-				delete styles.lineCap;
-				delete styles.lineJoin;
-				delete this._lineDash;
-			} break;
-
-			case 'width': {
-				if(value !== undefined)
-					value = $.distance(value);
-				return this.style('lineWidth', value);
-			} break;
-			case 'color': {
-				return this.style('strokeStyle', normalizeFill(value, this));
-			} break;
-			case 'cap':   { return this.style('lineCap', value); } break;
-			case 'join':  { return this.style('lineJoin', value); } break;
-			case 'dash':  {
-				if(value === undefined)
-					return this._lineDash;
-				if(value === null)
-					delete this._lineDash;
-				else {
-					if(isString(value))
-						this._lineDash = $.dashes[value];
-					else
-						this._lineDash = value;
-				}
-				return this.update();
-			} break;
-			case 'opacity': { // gradients / patterns support?
-				var color = $.color(styles.strokeStyle);
-				if(value === undefined)
-					return color[3];
-				color[3] = value;
-				return this.style('strokeStyle', 'rgba(' + color.join(',') + ')');
-			} break;
-
-			default: {
-				value = name;
-
-				if(isObject(value)){
-					for(var k in value){
-						if($.has(value, k)){
-							this.stroke(k, value[k]);
-						}
-					}
-					return this;
-				}
-
-				if(!isString(value))
-					throw ('Can\'t parse stroke ' + value);
-
-				// remove spaces from colors & dashes
-				value = value.replace(/\,\s/g, ',');
-				value = value.split(' ');
-
-				var l = value.length,
-					opacity;
-				while(l--){
-					// opacity
-					if(reFloat.test(value[l]))
-						opacity = parseFloat(value[l]);
-
-					// width
-					else if(isNumberLike(value[l]))
-						styles.lineWidth = $.distance(value[l]);
-
-					// join & cap
-					else if(value[l] === 'round'){ // wrong
-						styles.lineJoin = styles.lineJoin || 'round';
-						styles.lineCap = styles.lineCap || 'round';
-					}
-
-					// join
-					else if(value[l] === 'miter' || value[l] === 'bevel')
-						styles.lineJoin = value[l];
-
-					// cap
-					else if(value[l] === 'butt' || value[l] === 'square')
-						styles.lineCap = value[l];
-
-					// dash (array)
-					else if(value[l][0] === '[')
-						this._lineDash = value[l].substr(1, value[l].length-2).split(',');
-
-					// dash (name)
-					else if(value[l] in $.dashes)
-						this._lineDash = $.dashes[value[l]];
-
-					// color
-					else
-						styles.strokeStyle = value[l];
-				}
-
-				if(opacity){
-					value = $.color(styles.strokeStyle);
-					value[3] = opacity;
-					styles.strokeStyle = 'rgba(' + value.join(',') + ')';
-				}
-			} break;
-		}
+	remove : function(){
+		this.context.elements.splice(this.context.elements.indexOf(this), 1);
+		// this.context = null;
 		return this.update();
 	},
 
-	opacity: function(value){
-		return this.style('globalAlpha', value);
-	},
-
-	composite: function(value){
-		return this.style('globalCompositeOperation', value);
-	},
-
-	shadow: function(name, value){
-		var styles = this.styles;
-		if(isString(name)){
-			// prop, val
-			if(name in shadowProps){
-				if(value === undefined)
-					return styles[shadowProps[name]];
-
-				if(name === 'color')
-					styles[shadowProps[name]] = value;
-				else
-					styles[shadowProps[name]] = $.distance(value);
-			}
-			// css-like
-			else {
-				value = name;
-
-				// remove spaces from color
-				value = value.replace(/\s*\,\s+/g, ',');
-				value = value.split(' ');
-
-				var props = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
-
-				for(var i = 0; i < value.length; i++){
-					if(isNumberLike(value[i]))
-						styles[props[i]] = $.distance(value[i]);
-					else
-						styles.shadowColor = value[i];
-				}
-			}
-		}
-		else if(name === null){
-			delete styles.shadowOffsetX;
-			delete styles.shadowOffsetY;
-			delete styles.shadowBlur;
-			delete styles.shadowColor;
-		}
-		else if(name === undefined){
-			return {
-				x: styles.shadowOffsetX,
-				y: styles.shadowOffsetY,
-				blur: styles.shadowBlur,
-				color: styles.shadowColor
-			};
-		}
-		return this.update();
-	},
-
-	clip : function(clip, a, b, c){
-		if(clip === undefined)
-			return this._clip;
-		if(clip === null)
-			delete this._clip;
-
-		if(clip.processPath)
-			this._clip = clip;
-		else if(c !== undefined)
-			this._clip = new Rect([clip, a, b, c, null, null]);
-		else if(b !== undefined)
-			this._clip = new Circle([clip, a, b, null, null]);
-		else
-			this._clip = new Path([clip, null, null]);
-		// problems with path
-
-		this._clip.context = this.context;
-//		this._clip.init(); // maybe need only if clip.context == undefined (before the last operation)
-		return this.update();
-	},
-
-	hide : function(){
+	hide: function(){
 		this._visible = false;
 		return this.update();
 	},
 
-	show : function(){
+	show: function(){
 		this._visible = true;
 		return this.update();
 	},
 
-	styleToContext: function(ctx){
-		extend(ctx, this.styles);
-
-		if(this.styles.fillStyle && this.styles.fillStyle.toCanvasStyle){
-			ctx.fillStyle = this.styles.fillStyle.toCanvasStyle(ctx, this);
-		}
-		if(this.styles.strokeStyle && this.styles.strokeStyle.toCanvasStyle){
-			ctx.strokeStyle = this.styles.strokeStyle.toCanvasStyle(ctx, this);
-		}
-
-		if(this._lineDash){
-			if(ctx.setLineDash) // webkit
-				ctx.setLineDash(this._lineDash);
-			else
-				ctx.mozDash = this._lineDash;
+	// Attributes
+	attr: function(name, value){
+		if(name + '' !== name){
+			Object.keys(name).forEach(function(key){
+				this.attr(key, name[key]);
+			}.bind(this));
+			return this;
 		}
 
-		if(this._clip){
-			if(this._clip._matrix){
-				ctx.save();
-				ctx.transform.apply(ctx, this._clip._matrix);
-				this._clip.processPath(ctx);
-				ctx.restore();
+		if(value === undefined){
+			if(this.attrHooks[name] && this.attrHooks[name].get){
+				return this.attrHooks[name].get.call(this);
 			}
-			else
-				this._clip.processPath(ctx);
-			ctx.clip();
+			return this.attrs[name];
 		}
+
+		if(this.attrHooks[name] && this.attrHooks[name].set){
+			var result = this.attrHooks[name].set.call(this, value);
+			if(result !== undefined || this.attrs[name] !== undefined){
+				// why is the 2nd condition?
+				this.attrs[name] = result;
+			}
+		} else {
+			this.attrs[name] = value;
+		}
+
+		return this;
+	},
+
+	attrHooks: {},
+
+	// Styles
+	style: function(name, value){
+		if(value === undefined){
+			return this.styles[name];
+		}
+		this.styles[name] = value;
+		return this.update();
+	},
+
+	processObject: function(object, arglist){
+		if(has(object, 'opacity')){
+			this.styles.globalAlpha = object.opacity;
+		}
+		if(has(object, 'composite')){
+			this.styles.globalCompositeOperation = object.composite;
+		}
+
+		return arglist.map(function(name){
+			return object[name];
+		});
+	},
+
+	// Bounds
+	bounds : function(options){
+		if(!this.shapeBounds){
+			throw ('Object #' + this.z() + ' doesn\'t have shapeBounds method.');
+		}
+
+		var bounds = this.shapeBounds();
+		return new Bounds(bounds[0], bounds[1], bounds[2], bounds[3]);
+	},
+
+	corner : function(corner, options){
+		if(Array.isArray(corner)){
+			return corner;
+		}
+
+		var bounds = this.bounds(options);
+		return [
+			bounds.x + bounds.w * $.corners[corner][0],
+			bounds.y + bounds.h * $.corners[corner][1]
+		];
+	},
+
+	// Events
+	interaction: function(state){
+		return this.attr('interaction', state);
+	},
+
+	on : function(event, callback){
+		if(event + '' !== event){
+			for(var key in event) if(has(event, key)){
+				this.on(key, event[key]);
+			}
+		}
+
+		if(callback + '' === callback){
+			// todo: slice.call(arguments, 1)
+			callback = wrap(arguments);
+		}
+
+		this.context.listener(event);
+		(this.listeners[event] || (this.listeners[event] = [])).push(callback);
+		return this;
+	},
+
+	off : function(event, callback){
+		if(!event){
+			this.listeners = {};
+			return this;
+		}
+		if(!callback){
+			this.listeners[event] = null;
+			return this;
+		}
+
+		this.listeners[event].splice(this.listeners[event].indexOf(callback), 1);
+
+		return this;
+	},
+
+	fire : function(event, data){
+		(this.listeners[event] || []).forEach(function(callback){
+			callback.call(this, data);
+		}.bind(this));
+		return this;
+	},
+
+	// Transforms
+	transform: function(a, b, c, d, e, f, pivot){
+		if(a === null){
+			this.matrix = null;
+		} else {
+			var matrix = [a, b, c, d, e, f];
+			if(pivot){
+				pivot = this.corner(pivot);
+				matrix[4] = pivot[0] + e - a * pivot[0] - c * pivot[1];
+				matrix[5] = pivot[1] + f - b * pivot[0] - d * pivot[1];
+			}
+			this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], matrix);
+		}
+		return this.update();
+	},
+
+	translate: function(x, y){
+		return this.transform(1, 0, 0, 1, x, y);
+	},
+
+	rotate: function(angle, pivot){
+		angle = angle / 180 * Math.PI;
+		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot || 'center');
+	},
+
+	scale: function(x, y, pivot){
+		if(y === undefined){
+			y = x;
+		}
+		return this.transform(x, 0, 0, y, 0, 0, pivot || 'center');
+	},
+
+	skew: function(x, y, pivot){
+		if(y === undefined){
+			y = x;
+		}
+		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot || 'center');
+	},
+
+	// Rasterization
+	toDataURL: function(type, bounds){
+		if(bounds === undefined){
+			if(typeof this.bounds === 'function'){
+				bounds = this.bounds();
+			} else {
+				throw 'Object #' + this.z() + ' can\'t be rasterized: need the bounds.';
+			}
+		}
+
+		if(type === undefined){
+			type = 'image/png';
+		} else if(type in $.fileTypes){
+			type = $.fileTypes[type];
+		}
+
+		// todo: other renderers support
+		var canvas = getTemporaryCanvas(bounds.width, bounds.height),
+			context = canvas.getContext('2d');
+
+		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
+		this.draw(context);
+		return canvas.toDataURL(type.type || type, type.quality || 1);
+	},
+
+	toImageData: function(bounds){
+		if(bounds === undefined){
+			if(typeof this.bounds === 'function'){
+				bounds = this.bounds();
+			} else {
+				throw 'Object #' + this.z() + ' can\'t be rasterized: need the bounds.';
+			}
+		}
+
+		var canvas = getTemporaryCanvas(bounds.width, bounds.height),
+			context = canvas.getContext('2d');
+
+		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
+		this.draw(context);
+		return context.getImageData(0, 0, bounds.width, bounds.height);
 	}
 
-}};
+});
 
-$.Style = Style;
+Drawable.processStroke = function(stroke, style){
+	if(stroke + '' === stroke){
+		// remove spaces from colors & dashes
+		// todo: \s*\,\s* ?
+		stroke = stroke.replace(/\,\s/g, ',').split(' ');
+
+		var opacity, l = stroke.length;
+		while(l--){
+			if(reFloat.test(stroke[l])){
+				opacity = parseFloat(stroke[l]);
+			} else if(isNumberLike(stroke[l])){
+				style.lineWidth = $.distance(stroke[l]);
+			} else if(stroke[l] === 'round'){
+				// wrong!
+				style.lineJoin = style.lineJoin || 'round';
+				style.lineCap = style.lineCap || 'round';
+			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
+				style.lineJoin = stroke[l];
+			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
+				style.lineCap = stroke[l];
+			} else if(stroke[l][0] === '['){
+				// stroke[l].substr(1, stroke[l].length - 2).split(',')
+			} else if(stroke[l] in $.dashes){
+				// $.dashes[stroke[l]]
+			} else {
+				style.strokeStyle = stroke[l];
+			}
+		}
+		if(opacity){
+			stroke = $.color(style.strokeStyle);
+			stroke[3] = opacity;
+			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
+		}
+	} else {
+		;
+	}
+};
+
 
 Shape = new Class(Style, {
 
+	liftInits: true,
+
 	initialize : function(args){
-		this.listeners = {}; // object to store event listeners
+		this.listeners = {}; // an object to store event listeners
 		this.styles = {};
 
 		var props = this.constructor.props,
@@ -987,7 +1115,7 @@ Shape = new Class(Style, {
 	},
 
 	mouse : function(state){
-		return this.prop('events', !!state);
+		return this.prop('interaction', !!state);
 	},
 
 	z : function(z){
@@ -1074,7 +1202,7 @@ Shape = new Class(Style, {
 		if( isObject(event) ){
 			for(var i in event){
 				if($.has(event, i)){
-					if(isArray(event[i])){
+					if(Array.isArray(event[i])){
 						this.on.apply(this, [i].concat(event[i]));
 					} else {
 						this.on(i, event[i]);
@@ -1159,7 +1287,7 @@ Shape = new Class(Style, {
 	},
 
 	corner : function(corner, options){
-		if(isArray(corner)){
+		if(Array.isArray(corner)){
 			return corner;
 		}
 
@@ -1398,7 +1526,7 @@ Shape = new Class(Style, {
 
 	// defaults
 	_visible : true,
-	_events : true,
+	_interaction : true,
 	_origin : 'center' // for transform animations
 });
 
@@ -1639,7 +1767,7 @@ function transformAnimation( fx, fn ){
 	'touchstart', 'touchmove', 'touchend',
 	'keypress', 'keydown', 'keyup'].forEach(function(event){
 		Shape.prototype[event] = Context.prototype[event] = function(fn){
-			if(typeof fn === 'function' || isString(fn)){
+			if(typeof fn === 'function' || fn + '' === fn){
 				return this.on.apply(this, [event].concat(slice.call(arguments)));
 			} else {
 				return this.fire.apply(this, arguments);
@@ -1654,206 +1782,282 @@ function transformAnimation( fx, fn ){
 
 $.fn = Shape.prototype;
 
-Rect = new Class(Shape, {
+Rect = new Class(Drawable, {
 
-	initialize : function(){
-		if(this.object){
-			var object = this.object;
-			this._x = object.x;
-			this._y = object.y;
-			this._width = object.width;
-			this._height = object.height;
-			delete this.object;
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Rect.args);
+		}
+
+		this.attrs.x = args[0];
+		this.attrs.y = args[1];
+		this.attrs.width = args[2];
+		this.attrs.height = args[3];
+		if(args[4]){
+			this.styles.fillStyle = args[4];
+		}
+		if(args[5]){
+			// todo: parse!
+			this.styles.strokeStyle = args[5];
 		}
 	},
 
-	// Parameters
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		// updateBehavior = { set: function(value){ this.update(); return value; } }
+		// x: updateBehavior,
+		// y: updateBehavior,
+		// etc
+		x: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		y: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		width: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		height: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
 
-	x : function(x){
-		return this.prop('x', x);
-	},
-	y : function(y){
-		return this.prop('y', y);
-	},
-	width : function(w){
-		return this.prop('width', w);
-	},
-	height : function(h){
-		return this.prop('height', h);
-	},
-	x1 : function(x){
-		return x === undefined ?
-			this._x :
-			this.prop('width', this._width - x + this._x)
-				.prop('x', x);
-	},
-	y1 : function(y){
-		return y === undefined ?
-			this._y :
-			this.prop('height', this._height - y + this._y)
-				.prop('y', y);
-	},
-	x2 : function(x){
-		return x === undefined ?
-			this._x + this._width :
-			this.prop('width', x - this._x);
-	},
-	y2 : function(y){
-		return y === undefined ?
-			this._y + this._height :
-			this.prop('height', y - this._y);
+		x1: {
+			get: function(){
+				return this.attrs.x;
+			},
+			set: function(value){
+				this.attrs.x = value;
+				this.update();
+			}
+		},
+		y1: {
+			get: function(){
+				return this.attrs.y;
+			},
+			set: function(value){
+				this.attrs.y = value;
+				this.update();
+			}
+		},
+		x2: {
+			get: function(){
+				return this.attrs.x + this.attrs.width;
+			},
+			set: function(value){
+				this.attrs.width = value - this.attrs.x;
+				this.update();
+			}
+		},
+		y2: {
+			get: function(){
+				return this.attrs.y + this.attrs.height;
+			},
+			set: function(value){
+				this.attrs.height = value - this.attrs.y;
+				this.update();
+			}
+		}
+	}),
+
+	// this variation is faster
+	// very very faster!
+	// if you change an attrs of 100 000 elements
+	// then all x-ses will work in ~ 7 ms
+	// all attr-s — in ~ 100 ms
+	/* x: function(val){
+		if(val === undefined){
+			return this.attrs.x;
+		}
+		this.attrs.x = val;
+		return this.update();
+	}, */
+
+	shapeBounds : function(){
+		return [this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height];
 	},
 
-	nativeBounds : function(){
-		return new Bounds(this._x, this._y, this._width, this._height);
-	},
-
-	draw: function(ctx){
+	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawRect(
-				[this._x, this._y, this._width, this._height],
+				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 				ctx, this.styles, this.matrix, this
 			);
 		}
 	},
 
-	processPath : function(ctx){
-		ctx.beginPath();
-		ctx.rect(this._x, this._y, this._width, this._height);
+	isPointIn : function(x, y){
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	}
 
 });
 
-Rect.props = [ 'x', 'y', 'width', 'height' ];
-Rect.processStyle = true;
-Rect.firstObject = true; // parse the first argument if it is object
-Rect.propHandlers = [distance, distance, distance, distance];
+Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 
 $.rect = function(){
 	return new Rect(arguments);
 };
 
-// todo: x1, y1, x2, y2 animation
+Circle = new Class(Drawable, {
 
-Circle = new Class(Shape, {
+	initialize : function(args, context){
+		this.super('initialize', arguments);
 
-	initialize : function(){
-		if(this.object){
-			var object = this.object;
-			this._cx = object.cx;
-			this._cy = object.cy;
-			this._radius = object.radius;
-			delete this.object;
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Circle.args);
+		}
+
+		this.attrs.cx = args[0];
+		this.attrs.cy = args[1];
+		this.attrs.radius = args[2];
+		if(args[3]){
+			this.styles.fillStyle = args[3];
+		}
+		if(args[4]){
+			// todo: parse!
+			this.styles.strokeStyle = args[4];
 		}
 	},
 
-	// Parameters
+	// прыгает z-index!
+	// todo: unbound these events too
+	// with requestAnimFrame
+/*	update: function(){
+		if(!this.context){
+			return this;
+		}
 
-	cx : function(cx){
-		return this.prop('cx', cx);
+		var ctx = this.context.context;
+		var updateList = [this];
+		var bound = this.bounds();
+		var maxBound = bound;
+
+		this.context.elements.forEach(element => {
+			bound = element.bounds();
+			if(doRectsIntersect(bound, maxBound)){
+				updateList.push(element);
+				maxBound.x1 = Math.min(maxBound.x1, bound.x1);
+				maxBound.y1 = Math.min(maxBound.y1, bound.y1);
+				maxBound.x2 = Math.max(maxBound.x2, bound.x2);
+				maxBound.y2 = Math.max(maxBound.y2, bound.y2);
+			}
+		});
+
+		ctx.clearRect(maxBound.x1, maxBound.y1, maxBound.x2 - maxBound.x1, maxBound.y2 - maxBound.y1);
+		// отсрочиваем отрисовку, чтобы параметры успели измениться
+		requestAnimationFrame(() => updateList.forEach(element => element.draw(ctx)));
+	}, */
+
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		cx: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		cy: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		radius: {
+			set: function(value){
+				this.update();
+				return Math.abs(value);
+			}
+		}
+	}),
+
+	shapeBounds : function(){
+		return [this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2];
 	},
 
-	cy : function(cy){
-		return this.prop('cy', cy);
-	},
-
-	radius : function(r){
-		return this.prop('radius', r);
-	},
-
-	bounds : function(){
-		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
-	},
-
-	draw: function(ctx){
+	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawCircle(
-				[this._cx, this._cy, this._radius],
+				[this.attrs.cx, this.attrs.cy, this.attrs.radius],
 				ctx, this.styles, this.matrix, this
 			);
 		}
 	},
 
-	processPath : function(ctx){
-		ctx.beginPath();
-		ctx.arc(this._cx, this._cy, Math.abs(this._radius), 0, Math.PI*2, true);
+	isPointIn : function(x, y){
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	}
 
 });
 
-Circle.props = [ 'cx', 'cy', 'radius' ];
-Circle.processStyle = true;
-Circle.firstObject = true;
-Circle.propHandlers = [distance, distance, distance];
-
+Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 
 $.circle = function(){
 	return new Circle(arguments);
 };
 
+// todo: rename to PathPart
 Curve = new Class({
-
-	initialize : function( name, args, path ){
+	initialize: function(name, attrs, path){
 		this.name = name;
 		this.path = path;
-		this.args = args;
-
-		if( name in Curve.curves ){
-			extend( this, Curve.curves[ name ] );
-		}
+		this.attrs = attrs;
 	},
 
-	// Parameters
-
-	prop : Shape.prototype.prop,
-	update : function(){
+	update: function(){
 		this.path.update();
 		return this;
 	},
 
-	arguments : function(){
-		return this.prop( 'args', arguments.length > 1 ? arguments : arguments[0] );
+	process: function(ctx){
+		ctx[this.name].apply(ctx, this.attrs);
 	},
 
-	from : function(){ // returns the start point
-		if(!this.path){
-			throw 'Error: the curve hasn\'t path.';
+	// Parameters
+	attr: function(name, value){
+		if(isObject(name)){
+			Object.keys(name).forEach(function(key){
+				this.attr(key, name[key]);
+			}.bind(this));
+			return this;
 		}
 
-		var index = this.path._curves.indexOf( this ),
-			before = this.path._curves[ index - 1 ];
-
-		if( index === 0 ){
-			return [0, 0];
+		name = Curve.types[this.name].attrs.indexOf(name);
+		if(value === undefined){
+			return this.attrs[name];
 		}
-		if( index === -1 || !before || !('endsIn' in before) ){
-			return null; // todo: throw new error
-		}
-
-		var end = before.endsIn();
-		if( !end ){
-			return null; // todo: throw
-		}
-		return end;
+		this.attrs[name] = value;
+		return this.update();
 	},
 
-	endsIn : function(){
-		if( this._slice ){
-			return this.args.slice( this._slice[0], this._slice[1] );
-		}
-		return null;
-	},
-
-	process : function( ctx ){
-		ctx[ this.name ].apply( ctx, this.args );
-		return this.endsIn();
-	},
-
-	_bounds : function(){
-		return null;
+	bounds: function(){
+		return Curve.types[this.name].bounds(this.attrs);
 	}
 });
 
+Curve.types = {
+	moveTo: {
+		attrs: ['x', 'y'],
+		bounds: function(attrs){
+			;
+		}
+	},
+	lineTo: {
+		attrs: ['x', 'y']
+	}
+};
+
+/*
 Curve.curves = {
 	moveTo : {
 		_slice : [ , ],
@@ -1951,13 +2155,13 @@ Curve.curves = {
 		clockwise : argument( 5 )
 	}
 };
-
+ */
 Curve.fromArray = function(array, path){
 	if(array === true){
 		return closePath;
 	}
 
-	if(array[0] in Curve.curves){
+	if(array[0] in Curve.types){
 		return new Curve(array[0], array.slice(1), path);
 	}
 
@@ -1968,203 +2172,198 @@ Curve.fromArray = function(array, path){
 	}
 };
 
-$.curves = Curve.curves;
+$.curves = Curve.types;
 
 var closePath = new Curve('closePath', []);
 
-Path = new Class( Shape, {
+Path = new Class(Drawable, {
 
-	initialize : function(){
-		if(this.object){
-			this._curves = this.object._curves;
-			delete this.object;
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Path.args);
 		}
-		this._curves = Path.parsePath( this._curves, this );
+
+		this.attrs.d = Path.parse(args[0], this);
+		if(args[1]){
+			this.styles.fillStyle = args[1];
+		}
+		if(args[2]){
+			Drawable.processStroke(args[2], this.styles);
+		}
 	},
 
-	// curves
-	curve : function(index, value){
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		d: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		}
+	}),
+
+	// Parts
+	part: function(index, value){
 		if(value === undefined){
-			return this._curves[index];
+			return this.attrs.d[index];
 		}
 
-		value = Path.parsePath(value, this, index === 0 ? false : true);
-		this._curves.splice.apply(this._curves, [index, 1].concat(value));
+		value = Path.parse(value, this, index !== 0);
+		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
 		return this.update();
 	},
 
-	before : function(index, value, turnToLine){
-		// if index = 0 & turnToLine then the first moveTo will be turned to lineTo
-		// turnToLine = true by default
-		if(turnToLine !== false && index === 0){
-			this._curves[0].name = 'lineTo';
+	before: function(index, value, turnMoveToLine){
+		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
+		if(index === 0 && turnToLine !== false){
+			this.attrs.d[0].name = 'lineTo';
 		}
 
-		value = Path.parsePath(value, this, index === 0 ? false : true);
-		this._curves.splice.apply(this._curves, [index, 0].concat(value));
+		value = Path.parse(value, this, index !== 0);
+		this.attrs.d.splice.apply(this.attrs.d, [index, 0].concat(value));
 		return this.update();
 	},
 
-	after : function(index, value){
-		return this.before(index+1, value);
+	after: function(index, value){
+		return this.before(index + 1, value);
 	},
 
-	remove : function(index){
+	remove: function(index){
 		if(index === undefined){
-			return Shape.prototype.remove.call(this);
+			return this.super('remove');
 		}
-		this._curves.splice(index, 1);
+		this.attrs.d[index].path = null;
+		this.attrs.d.splice(index, 1);
 		return this.update();
 	},
 
-	curves : function(value){
-		if(value === undefined){
-			return this._curves;
-		}
-
-		if(isNumberLike(value[0])){
-			this._curves = Path.parsePath(slice.call(arguments), this);
-		} else {
-			this._curves = Path.parsePath(value, this);
-		}
+	// Array species
+	push: function(curve){
+		this.attrs.d = this.attrs.d.concat(Path.parse(curve, this, this.attrs.d.length !== 0));
 		return this.update();
 	},
 
-	// adding
-	push : function(curve){
-		this._curves.push(curve);
-		return this.update();
+	forEach: function(){
+		this.attrs.d.forEach.apply(this.attrs.d, arguments);
+		return this;
 	},
 
-	add : function(name, arg){
-		return this.push(new Curve(name, arg, this));
+	map: function(){
+		return this.attrs.d.map.apply(this.attrs.d, arguments);
 	},
 
-	moveTo : function(x, y){
-		return this.add('moveTo', [x, y]);
+	reduce: function(){
+		return this.attrs.d.reduce.apply(this.attrs.d, arguments);
+	},
+
+	// Parts addition
+	moveTo: function(x, y){
+		return this.push(['moveTo', x, y])
 	},
 
 	lineTo : function(x, y){
-		return this.add('lineTo', [x, y]);
+		return this.push(['lineTo', x, y])
 	},
 
 	quadraticCurveTo : function(hx, hy, x, y){
-		return this.add('quadraticCurveTo', [hx, hy, x, y]);
+		return this.push(['quadraticCurveTo', hx, hy, x, y]);
 	},
 
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
-		return this.add('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
+		return this.push(['bezierCurveTo', h1x, h1y, h2x, h2y, x, y]);
 	},
 
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
-		return this.add('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
+		return this.push(['arcTo', x1, y1, x2, y2, radius, !!clockwise]);
 	},
 
 	arc : function(x, y, radius, start, end, clockwise){
-		return this.add('arc', [x, y, radius, start, end, !!clockwise]);
+		return this.push(['arc', x, y, radius, start, end, !!clockwise]);
 	},
 
 	closePath : function(){
-		return this.push( closePath );
+		return this.push(closePath);
 	},
 
-	// processing
-	merge : function(path){
-		this._curves = this._curves.concat(path._curves);
-		return this.update();
-	},
 
-	nativeBounds : function(){
-		var curve, end,
-			curves = this._curves,
-			current = [0, 0],
-			i = 0,
-			l = curves.length,
-			minx =  Infinity,
-			miny =  Infinity,
-			maxx = -Infinity,
-			maxy = -Infinity;
+	shapeBounds: function(){
+		var minX =  Infinity,
+			minY =  Infinity,
+			maxX = -Infinity,
+			maxY = -Infinity,
 
-		for(; i < l; i++){
-			curve = curves[i];
-
-			if(curve._bounds && (curve = curve._bounds(current))){
-				minx = Math.min(minx, curve.x1, curve.x2);
-				miny = Math.min(miny, curve.y1, curve.y2);
-				maxx = Math.max(maxx, curve.x1, curve.x2);
-				maxy = Math.max(maxy, curve.y1, curve.y2);
-			}
-			if( (end = curves[i].endsIn()) ){
-				current = end;
-			}
+			currentBounds;
+		for(var i = 0; i < this.attrs.d.length; i++){
+			currentBounds = this.attrs.d[i].bounds();
+			minX = Math.min(minX, currentBounds.x1, currentBounds.x2);
+			maxX = Math.max(maxX, currentBounds.x1, currentBounds.x2);
+			minY = Math.min(minY, currentBounds.y1, currentBounds.y2);
+			maxY = Math.max(maxY, currentBounds.y1, currentBounds.y2);
 		}
-
-		return new Bounds(minx, miny, maxx - minx, maxy - miny);
+		return new Bounds(minX, minY, maxX - minX, maxY - minY);
 	},
 
-	processPath : function(ctx){
-		// закомментить, не стирать
-		/* var curve,
-			current = [0, 0],
-			curves = this._curves,
-			i = 0,
-			l = curves.length;
-
-		ctx.beginPath();
-		for(; i < l; i++){
-			curve = curves[i].process(ctx, current);
-
-			if(curve){
-				current = curve;
-			}
-		} */
+	draw : function(ctx){
+		if(this._visible){
+			this.context.renderer.drawPath(
+				this.attrs.d,
+				ctx, this.styles, this.matrix, this
+			);
+		}
 	}
 
 } );
 
-Path.props = [ 'curves' ];
-Path.processStyle = true;
-Path.firstObject = true;
+Path.args = ['d', 'fill', 'stroke'];
 
-Path.parsePath = function(path, pathObject, firstIsNotMove){
-	if(!path){
+// some parts are commented here because I want to make Curve internal class
+Path.parse = function(data, path, firstIsNotMove){
+	if(!data){
 		return [];
 	}
 
-	if(path instanceof Curve){
-		path.path = pathObject;
-		return [path];
+	if(data + '' === data){
+		return Path.parseSVG(data, path, firstIsNotMove);
 	}
 
+	/* if(data instanceof Curve){
+		data.path = path;
+		return [data];
+	} */
+
 	var curves = [];
-	if(isArray(path)){
+	if(Array.isArray(data)){
+		for(var i = 0; i < data.length; i++){
 
-		// fix for [x,y] instead of [[x,y]]
-		if(isNumberLike(path[0])){
-			path = [path];
-		}
-
-		for(var i = 0, l = path.length; i < l; i++){
+			// fix for [x,y] instead of [[x,y]]
+			// necessary for path.curve(index, [0, 0])
+			if(+data[1] === data[1]){
+				data = [data];
+			}
 
 			// Curve
-			if(path[i] instanceof Curve){
-				curves.push(path[i]);
-				path[i].path = pathObject;
+			/* if(data[i] instanceof Curve){
+				curves[i].push(data[i]);
+				curves[i].path = path;
 			}
 
 			// Array
-			else {
+			else { */
 				if(i === 0 && !firstIsNotMove){
-					curves.push(new Curve('moveTo', path[i], pathObject));
+					curves.push(new Curve('moveTo', isNaN(data[i][0]) ? data[i].slice(1) : data[i], path));
 					continue;
 				}
-				curves.push(Curve.fromArray(path[i], pathObject));
-			}
+				curves.push(Curve.fromArray(data[i], path));
+			/* } */
+
 		}
-
 	}
-
 	return curves;
+};
+
+Path.parseSVG = function(data, path, firstIsNotMove){
+	return [];
 };
 
 $.path = function(){
@@ -2173,585 +2372,167 @@ $.path = function(){
 	return path;
 };
 
-var smoothWithPrefix;
-function smoothPrefix(ctx){
-	if(smoothWithPrefix){
-		return smoothWithPrefix;
-	}
-	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
-		if(name in ctx){
-			smoothWithPrefix = name;
-		}
-	});
-	return smoothWithPrefix;
-}
+// todo: rename to Picture
+Img = new Class(Drawable, {
 
-Img = new Class(Shape, {
+	initialize : function(args, context){
+		this.super('initialize', arguments);
 
-	initialize : function(){
-
-		if(this.object){
-			var object = this.object;
-			this._image = object.image;
-			this._x = $.distance(object.x); // distance
-			this._y = $.distance(object.y);
-			this._width = $.distance(object.width);
-			this._height = $.distance(object.height);
-			this._crop = object.crop;
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Img.args);
 		}
 
-		var blob, s;
-
-		if(isString(this._image)){
-			if(this._image[0] === '#'){
-				this._image = document.getElementById( this._image.substr(1) );
-			}
-
-			// https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
-			else if(this._image.indexOf('<svg') === 0){
-				blob = new Blob([this._image], {type: 'image/svg+xml;charset=utf-8'});
-				this._image = new Image();
-				this._image.src = domurl.createObjectURL(blob);
-			}
-			else {
-				s = new Image();
-				s.src = this._image;
-				this._image = s;
-			}
+		this.attrs.image = Img.parse(args[0]);
+		this.attrs.x = args[1];
+		this.attrs.y = args[2];
+		if(args[3]){
+			this.attrs.width = args[3];
+		}
+		if(args[4]){
+			this.attrs.height = args[4];
+		}
+		if(args[5]){
+			this.attrs.crop = args[5];
 		}
 
-
-		this._image.addEventListener('load', function(e){
+		this.attrs.image.addEventListener('load', function(e){
 			this.update();
 
-			if(blob){
+			if(this.attrs.image.blob){
 				domurl.revokeObjectURL(blob);
 			}
 
 			this.fire('load', e);
 		}.bind(this));
 
-		this._image.addEventListener('error', function(e){
+		this.attrs.image.addEventListener('error', function(e){
 			this.fire('error', e);
-		}.bind(this));
-
-		// Video tag support?
+		});
 	},
-
-	x  : Rect.prototype.x,
-	y  : Rect.prototype.y,
-	x1 : Rect.prototype.x1,
-	y1 : Rect.prototype.y1,
-	x2 : Rect.prototype.x2, // wrong!!! with 'auto', 'native'
-	y2 : Rect.prototype.y2,
-	width : function(w){
-		if(w === undefined){
-			if(this._width === 'auto'){
-				return this._image.width * (this._height / this._image.height);
-			} else if(this._width === 'native' || this._width == null){
-				return this._image.width;
-			}
-			return this._width;
-		}
-
-		if(!this._image.complete){
-			return this.once('load', 'width', w); // todo: once?
-		}
-
-		if(isNumberLike(w)){
-			w = $.distance(w);
-		}
-
-		return this.prop('width', w);
-	},
-	height : function(h){
-		if(h === undefined){
-			if(this._height === 'auto'){
-				return this._image.height * (this._width / this._image.width);
-			} else if(this._height === 'native' || this._height == null){
-				return this._image.height;
-			}
-			return this._height;
-		}
-
-		if(!this._image.complete){
-			return this.once('load', 'height', h);
-		}
-
-		if(isNumberLike(h)){
-			h = $.distance(h);
-		}
-
-		return this.prop('height', h);
-	},
-	_bounds : Rect.prototype._bounds,
-
-	processPath : function(ctx){ // for event listeners
-		ctx.beginPath();
-		ctx.rect(this._x, this._y, this.width(), this.height());
-	},
-
-	load : function(fn){
-		if(typeof fn === 'function' || isString(fn)){
-			return this.on.apply(this, ['load'].concat(slice.call(arguments)));
-		} else {
-			return this.fire.apply(this, arguments);
-		}
-	},
-
-	crop : function(arr){
-		if(arguments.length === 0){
-			return this._crop;
-		}
-		if(arguments.length > 1){
-			this._crop = Array.prototype.slice.call(arguments, 0);
-		} else if(arr === null){
-			delete this._crop;
-		}
-		else {
-			this._crop = arr;
-		}
-		return this.update();
-	},
-
-	smooth : function(value){
-		var style = this.styles,
-			prefix = smoothPrefix(this.context.context);
-		if(value === undefined){
-			return style[prefix] === undefined ? this.context.context[prefix] : style[prefix];
-		}
-		style[prefix] = !!value;
-		return this.update();
-	},
-
-	_smooth : true,
 
 	draw : function(ctx){
 		if(this._visible){
-			var params = [this._image, this._x, this._y];
+			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
 			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
 		}
-		// закомментить, не стирать
-		/* if(!this._visible){
-			return;
-		}
-		ctx.save();
-		this.styleToContext(ctx);
-		var image = this._image,
-			w = this._width,
-			h = this._height;
-
-		if(w === 'auto'){
-			w = image.width * (h / image.height);
-		} else if(w === 'native' || w == null){
-			w = image.width;
-		}
-
-		if(h === 'auto'){
-			h = image.height * (w / image.width);
-		} else if(h === 'native' || h == null){
-			h = image.height;
-		}
-
-		if(this._crop !== undefined){
-			ctx.drawImage(image, this._crop[0], this._crop[1], this._crop[2], this._crop[3], this._x, this._y, w, h);
-		} else if(w != null || h != null){
-			ctx.drawImage(image, this._x, this._y, w, h);
-		}
-
-		if(this.styles.strokeStyle !== undefined){
-			ctx.strokeRect(this._x, this._y, this._width, this._height);
-		}
-		ctx.restore(); */
 	}
 
 });
 
-Img.props = [ 'image', 'x', 'y', 'width', 'height', 'crop' ];
-Img.processStyle = true;
-Img.firstObject = true; // parse the first argument if it is object
-Img.propHandlers = [null, distance, distance, distance, distance]; // TODO: check on errors! 'auto', 'native' values?
+Img.args = ['image', 'x', 'y', 'width', 'height', 'crop'];
 
-$.image = function(){
-	var image = new Img(arguments);
-	image.init();
+Img.parse = function(image){
+	if(image + '' === image){
+		if(image[0] === '#'){
+			return document.getElementById(image.substr(1));
+		} else if(image[0] === '<svg'){
+			var blob = new Blob([image], {type: 'image/svg+xml;charset=utf-8'});
+			image = new Image();
+			image.src = domurl.createObjectURL(blob);
+			image.blob = blob;
+		} else {
+			var imageObject = new Image();
+			imageObject.src = image;
+			return imageObject;
+		}
+	}
 	return image;
 };
 
-$.fx.step.crop = function( fx ){
-	if( fx.state === 0 ){
-		fx.start = fx.elem._crop;
-		if( !fx.start ){
-			fx.start = [ 0, 0, fx.elem._image.width, fx.elem._image.height ];
+$.image = function(){
+	var image = new Img(arguments);
+	return image;
+};
+
+Raster = new Class(Drawable, {
+
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Raster.args);
+		}
+
+		this.attrs.data = args[0]; // Raster.parseImage(args[0]);
+		this.attrs.x = args[1];
+		this.attrs.y = args[2];
+	},
+
+	draw : function(ctx){
+		if(this._visible){
+			var params = [this.attrs.data, this.attrs.x, this.attrs.y];
+			this.context.renderer.drawData(params, ctx, this.styles, this.matrix, this);
 		}
 	}
 
-	fx.elem._crop = [
-		Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
-		Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
-		Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
-		Math.round(fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos)
-		];
+});
+
+Raster.args = ['data', 'x', 'y'];
+
+$.raster = function(){
+	var raster = new Raster(arguments);
+	return raster;
 };
 
-Text = new Class(Shape, {
+Text = new Class(Drawable, {
 
-	initialize : function(args){
-		// text, [font], x, y, [fill], [stroke]
-		if(this.object){
-			var object = this.object;
-			this._text = object.text + '';
-			this._x = object.x;
-			this._y = object.y;
-			this._font = this._parseFont(object.font || Text.font);
-			if(object.baseline !== undefined)
-				this.styles.textBaseline = object.baseline;
-			if(object.align !== undefined)
-				this.styles.textAlign = object.align;
-			if(object.underline !== undefined)
-				this.underline(object.underline);
-			this._width = object.width;
-			if(object.type === 'block'){
-				this._type = object.type;
-			}
-			delete this.object;
-		}
-		else {
-			// text, font, x, y, fill, stroke
-			this._text = args[0] + '';
-			var i = 1;
-			if( !isNumberLike(args[3]) ){
-				this._font = this._parseFont(Text.font);
-			}
-			else {
-				this._font = this._parseFont(args[i++]);
-			}
-			this._x = args[i++];
-			this._y = args[i++];
+	initialize : function(args, context){
+		this.super('initialize', arguments);
 
-			if(args[i++])
-				this.fill(args[i-1]);
-
-			if(args[i])
-				this.stroke(args[i]);
-		}
-		this._genFont();
-	},
-
-	_type: 'label', // label or block
-	_changedText: true,
-	_lineSpace: 0,
-
-	_genLines : function(){
-		if(this._type === 'label')
-			return this;
-
-		var text = this._text,
-			lines = this._lines = [],
-			size = this._lineHeight || this._font.size || 10,
-			ctx = this.context.context,
-			width = this._width || Infinity,
-			countline = 1,
-			align = this.styles.textAlign,
-			x = (align === 'center') ? (width/2) : ((align === 'right') ? width : 0);
-
-		ctx.save();
-		this.styleToContext(ctx);
-
-		text.split('\n').forEach(function(line){
-			// Do we need split line to lines?
-			if(ctx.measureText(line).width > width){
-				var words = line.split(' '),
-					useline = '',
-					testline, i, len;
-
-				for(i = 0, len = words.length; i < len; i++){
-					testline = useline + words[i] + ' ';
-
-					if(ctx.measureText(testline).width > width){
-						lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
-						useline = words[i] + ' ';
-					}
-					else {
-						useline = testline;
-					}
-				}
-				lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
-			}
-			else
-				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
-
-		});
-		this._changedText = false;
-		ctx.restore();
-		return this;
-	},
-
-	// options
-	text : function(t){
-		return this.prop('text', t);
-	},
-	type : function(t){
-		return this.prop('type', t);
-	},
-	x : function(x){
-		return this.prop('x', x);
-	},
-	y : function(y){
-		return this.prop('y', y);
-	},
-	lineSpace : function(s){
-		return this.prop('lineSpace', s);
-	},
-	font : function(font){
-		if(font === true)
-			return this.styles.font;
-		if(font === undefined)
-			return this._font;
-		extend(this._font, this._parseFont(font));
-		return this._genFont();
-	},
-	_setFont : function(name, value){
-		if(value === undefined)
-			return this._font[name];
-		this._font[name] = value;
-		return this._genFont();
-	},
-	_genFont : function(){
-		var str = '',
-			font = this._font;
-		if(font.italic)
-			str += 'italic ';
-		if(font.bold)
-			str += 'bold ';
-		return this.style('font', str + (font.size || 10) + 'px ' + (font.family || 'sans-serif'));
-		// font.size can't be 0? unexpected behavior
-	},
-	_parseFont : function(font){
-		if(isObject(font)){
-			font.size = $.distance(font.size);
-			return font;
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Text.args);
 		}
 
-		var obj = {family:''};
-		font.split(' ').forEach(function(val){
-			if(val === 'bold')
-				obj.bold = true;
-			else if(val === 'italic')
-				obj.italic = true;
-			else if(/^\d+(px|pt)?/.test(val))
-				obj.size = $.distance(val);
-			else
-				obj.family += ' ' + val;
-		});
-		if( (obj.family = obj.family.replace(/^\s*/, '').replace(/\s*$/, '')) === '' )
-			delete obj.family;
-		return obj;
-	},
-	family : function(f){
-		return this._setFont('family', f);
-	},
-	size : function(s){
-		return this._setFont('size', s === undefined ? undefined : $.distance(s));
-	},
-	bold : function(b){
-		return this._setFont('bold', b === undefined ? undefined : !!b) || false;
-	},
-	italic : function(i){
-		return this._setFont('italic', i === undefined ? undefined : !!i) || false;
-	},
-	align : function(a){
-		return this.style('textAlign', a);
-	},
-	baseline : function(b){
-		return this.style('textBaseline', b);
-	},
-	underline : function(val){
-		switch(val){
-			case undefined:
-				return this._underline;
-
-			case true: {
-				this._underline = {
-					color: 'auto',
-					height: 'auto',
-					visible: true
-				};
-			} break;
-
-			case false: {
-				if(this._underline)
-					this._underline.visible = false;
-			} break;
-
-			default: {
-				this._underline = val;
-			} break;
+		this.attrs.text = args[0];
+		this.attrs.font = args[1];
+		this.attrs.x = args[2];
+		this.attrs.y = args[3];
+		if(args[4]){
+			this.styles.fillStyle = args[4];
 		}
-		return this.update();
+		if(args[5]){
+			// todo: parse!
+			this.styles.strokeStyle = args[5];
+		}
+
+		this.styles.textBaseline = 'top';
 	},
-	width : function(w){
-		if(w === undefined){
-			if(this._type === 'label'){
-				var ctx = this.context.context;
-				ctx.save();
-				this.styleToContext(ctx);
-				w = ctx.measureText( this._text ).width;
-				ctx.restore();
-				return Math.min(w, this._width || Infinity);
+
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		x: {
+			set: function(value){
+				this.update();
+				return value;
 			}
-			else {
-				if(this._width)
-					return this._width;
-				ctx.save();
-				this.styleToContext(ctx);
-				if(this._changedText)
-					this._genLines();
-				var max = 0;
-				this._lines.forEach(function(line){
-					max = Math.max( max, ctx.measureText( line.text ).width );
-				});
-				ctx.restore();
-				return max;
+		},
+		y: {
+			set: function(value){
+				this.update();
+				return value;
 			}
 		}
-		this._width = w;
-		return this.update();
-	},
+	}),
 
-	isPointIn : function(x, y){
-		// transforms?
-		var b = this.bounds();
-		return x > b.x && y > b.y && x < b.x+b.w && y < b.y+b.h;
-	},
-	nativeBounds : function(){
-		var align = this.styles.textAlign || 'left',
-			baseline = this.styles.textBaseline || 'top',
-			width = this.width(),
-			size = Number(this._font.size),
-			x = this._x,
-			y = this._y;
+	_bounds : function(){},
 
-		if(this._type === 'label'){
-			if(align === 'center')
-				x -= width/2;
-			else if(align === 'right')
-				x -= width;
-
-			if(baseline === 'middle')
-				y -= size/2;
-			else if(baseline === 'bottom' || baseline === 'ideographic')
-				y -= size;
-			else if(baseline === 'alphabetic')
-				y -= size * 0.8;
-			return new Bounds(x, y, width, size * 1.15);
-		}
-		else {
-			return new Bounds(x, y, width, (size + this._lineSpace) * this._lines.length);
-		}
-	},
 	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawText(
-				[this._text, this._x, this._y],
+				[this.attrs.text, this.attrs.x, this.attrs.y],
 				ctx, this.styles, this.matrix, this
 			);
 		}
-		// закомментить, не стирать
-/*		if(!this._visible)
-			return;
-		ctx.save();
-		this.styleToContext(ctx);
+	},
 
-		if(this._type === 'label'){
-		//	if(!this.styles.textBaseline)
-		//		ctx.textBaseline = 'top';
-			if(this._width)
-				ctx.fillText(this._text, this._x, this._y, this._width);
-			else
-				ctx.fillText(this._text, this._x, this._y);
+	isPointIn : function(x, y){}
 
-			if(this._underline && this._underline.visible){
-				if(this._underline.color === 'auto'){
-					ctx.strokeStyle = this.styles.strokeStyle || this.styles.fillStyle;
-				}
-				else
-					ctx.strokeStyle = this._underline.color;
-
-				drawTextLine(ctx, this._text, this._x, this._y, this._underline.height === 'auto' ? undefined : this._underline.height, this._font.size, ctx.textBaseline, 'under');
-			}
-		}
-		else {
-			if(this._changedText)
-				this._genLines();
-
-			if( this.styles.fillStyle ){
-				if( this.styles.strokeStyle ){
-					function drawLine(text, x, y){
-						ctx.fillText(text, x, y);
-						ctx.strokeText(text, x, y);
-					}
-				}
-				else {
-					function drawLine(text, x, y){
-						ctx.fillText(text, x, y);
-					}
-				}
-			}
-			else if( this.style.strokeStyle ){
-				function drawLine(text, x, y){
-					ctx.strokeText(text, x, y);
-				}
-			}
-
-			var i = 0,
-				lines = this._lines,
-				line,
-				x = this._x,
-				y = this._y;
-
-			for(; i < lines.length; i++){
-				line = lines[i];
-				drawLine( line.text, x + line.x, y + line.y + this._lineSpace * i );
-			}
-		}
-		ctx.restore(); */
-	}
-// TODO: mozPathText; mozTextAlongPath
-// https://developer.mozilla.org/en-US/docs/Drawing_text_using_a_canvas
 });
 
-Text.font = '10px sans-serif';
-Text.processStyle = true;
-Text.firstObject = true; // parse the first argument if it is object
+Text.args = ['text', 'font', 'x', 'y', 'fill', 'stroke'];
 
 $.text = function(){
 	return new Text(arguments);
 };
-
-$.fx.step.lineSpace = $.fx.step.float;
-
-// TODO: rename to boundsParams
-// empiric data
-var params = {
-	top: [0.1, 0.7, 1.05],
-	hanging: [0, 0.5, 0.85],
-	middle: [-0.5, 0, 0.5],
-	alphabetic: [-0.8, -0.3, 0.2],
-	ideographic: [-1, -0.5, -0.1],
-	bottom: [-1, -0.5, -0.1]
-};
-
-function drawTextLine(ctx, text, x, y, lw, fontSize, baseline, type){
-	var lw = lw || Math.round(fontSize / 15),
-		height = Math.round(fontSize * params[baseline][type === 'over' ? 0 : type === 'through' ? 1 : 2]);
-
-	ctx.lineWidth = lw;
-	ctx.beginPath();
-	ctx.moveTo(x, y + height);
-	ctx.lineTo(x + ctx.measureText(text).width, y + height);
-	ctx.stroke();
-}
 
 $.Gradient = Gradient = new Class({
 
@@ -3131,9 +2912,7 @@ $.Pattern = Pattern = new Class({
 
 		if(image instanceof Image){
 			this._image = image;
-		}
-
-		else if(isString(image)){
+		} else if(isString(image)){
 			if(image[0] === '#'){
 				this._image = document.getElementById(image.substr(1));
 			} else if(image.indexOf('<svg') === 0){
@@ -3145,6 +2924,7 @@ $.Pattern = Pattern = new Class({
 				this._image.src = image;
 			}
 		}
+
 		this._image.addEventListener('load', function(){
 			this.update();
 
@@ -3214,8 +2994,11 @@ $.easing = {
 		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
 	}
 };
+
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-	$.easing[name] = function(t){ return Math.pow(t, i+2); };
+	$.easing[name] = function(t){
+		return Math.pow(t, i+2);
+	};
 });
 
 function processEasing(func){
@@ -3246,6 +3029,7 @@ function Bounds(x, y, w, h){
 		h = -h;
 		y -= h;
 	}
+	// TODO: replace to left, right, top, etc
 	this.x = this.x1 = x;
 	this.y = this.y1 = y;
 	this.w = this.width  = w;
@@ -3257,48 +3041,57 @@ function Bounds(x, y, w, h){
 }
 
 // Class
-function Class(parent, properties, base){
+function Class(parent, properties){
 
-	if(!properties) properties = parent, parent = null;
+	if(!properties){
+		properties = parent;
+		parent = null;
+	}
 
-	var cls = function(){ return (cls.prototype.initialize || emptyFunc).apply(this,arguments); };
+	var cls = function(){
+		return (this.initialize || emptyFunc).apply(this, arguments);
+	};
+
 	if(parent){
 
-		// go to the parent
-		cls = function(){
+		if(properties.liftInits){
+			// go to the parent
+			cls = function(){
 
-			if(cls.prototype.__initialize__)
-				return cls.prototype.__initialize__.apply(this,arguments);
+				if(cls.prototype.__initialize__)
+					return cls.prototype.__initialize__.apply(this,arguments);
 
-			var inits = [],
-				parent = this.constructor.parent;
+				var inits = [],
+					parent = this.constructor.parent;
 
-			while(parent){
-				inits.push(parent.prototype.initialize);
-				parent = parent.parent;
-			}
-			for(var i = inits.length; i--;){
-				if(inits[i])
-					inits[i].apply(this, arguments);
-			}
+				while(parent){
+					inits.push(parent.prototype.initialize);
+					parent = parent.parent;
+				}
+				for(var i = inits.length; i--;){
+					if(inits[i])
+						inits[i].apply(this, arguments);
+				}
 
-			if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize)
-				return cls.prototype.initialize.apply(this,arguments);
-		};
+				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize)
+					return cls.prototype.initialize.apply(this,arguments);
+			};
+		}
 
 
 		// prototype inheriting
 		var sklass = function(){};
 		sklass.prototype = parent.prototype;
 		cls.prototype = new sklass();
-		cls.parent = parent;
+		cls.prototype.superclass = parent.prototype;
 		cls.prototype.constructor = cls;
 
+		cls.superclass = parent;
+		cls.prototype.super = function(name, args){
+			return parent.prototype[name].apply(this, args);
+		};
 	}
 
-	// why?
-	if(base)
-		extend(cls, base);
 	if(properties.mixins){
 		properties.mixins.forEach(function(mixin){
 			extend(cls.prototype, mixin);
@@ -3312,12 +3105,16 @@ function Class(parent, properties, base){
 }
 
 // utils
+// replace to Object.assign?
 function extend(a, b){
-	for(var i in b){
-		if(Object.prototype.hasOwnProperty.call(b,i))
+	// странно, что в хроме разницы в производительности - вообще никакой
+	return Object.assign(a, b);
+	/* for(var i in b){
+		if(Object.prototype.hasOwnProperty.call(b,i)){
 			a[i] = b[i];
+		}
 	}
-	return a;
+	return a; */
 }
 
 function argument(index){
@@ -3335,38 +3132,29 @@ function wrap(args){
 	};
 }
 
-function trim(str){
-	return str.replace(/^\s+/, '').replace(/\s+$/, '');
-}
-
 // typeofs
-function isString(a){
-	return toString.call(a) === '[object String]';
-}
-function isBoolean(a){
-	return toString.call(a) === '[object Boolean]';
-}
-function isArray(a) {
-	return toString.call(a) === '[object Array]';
-}
+/*
+use common typeofs
+String: a + '' === a
+Boolean: !!a === a
+Array: Array.isArray
+Number: +a === a
+ */
 function isObject(a){
 	return toString.call(a) === '[object Object]';
 }
-function isNumber(a){
-	return toString.call(a) === '[object Number]';
-}
+
+$.reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/;
+
 function isNumberLike(value){
-	if( isNumber(value) )
-		return true;
-	if( isString(value) && /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/.test(value) )
-		return true;
-	return false;
+	return +value === value || (value + '' === value && $.reNumberLike.test(value));
 }
+
 // todo: Pattern.isPatternLike();
 function isPatternLike(value){
 	return value instanceof Image ||
-			(isObject(value) && $.has(value, 'image')) ||
-			(isString(value) && !(
+			(isObject(value) && has(value, 'image')) ||
+			(value + '' === value && !(
 				value.indexOf('http://') &&
 				value.indexOf('https://') &&
 				value.indexOf('./') &&
@@ -3376,21 +3164,14 @@ function isPatternLike(value){
 			) );
 }
 
-$.has = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
 $.Class = Class;
 $.Bounds = Bounds;
 $.extend = extend;
 $.argument = argument;
 $.wrap = wrap;
-$.trim = trim;
-$.isString = isString;
-$.isBoolean = isBoolean;
-$.isArray = isArray;
 $.isObject = isObject;
 $.isNumberLike = isNumberLike;
-$.isNumber = isNumber;
 $.isPatternLike = isPatternLike;
-
 
 // constants
 $.dashes = {
@@ -3404,6 +3185,13 @@ $.dashes = {
 	dashdot:			[4, 3, 1, 3],
 	longdashdot:		[8, 3, 1, 3],
 	longdashdotdot:		[8, 3, 1, 3, 1, 3]
+};
+
+$.fileTypes = {
+	'jpeg': 'image/jpeg',
+	'jpg': 'image/jpeg',
+	'png': 'image/png',
+	'webp': 'image/webp'
 };
 
 $.corners = {
@@ -3432,165 +3220,175 @@ $.corners = {
 };
 
 $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
-	'aliceblue': 'f0f8ff',
-	'antiquewhite': 'faebd7',
-	'aqua': '0ff',
-	'aquamarine': '7fffd4',
-	'azure': 'f0ffff',
-	'beige': 'f5f5dc',
-	'bisque': 'ffe4c4',
-	'black': '000',
-	'blanchedalmond': 'ffebcd',
-	'blue': '00f',
-	'blueviolet': '8a2be2',
-	'brown': 'a52a2a',
-	'burlywood': 'deb887',
-	'burntsienna': 'ea7e5d',
-	'cadetblue': '5f9ea0',
-	'chartreuse': '7fff00',
-	'chocolate': 'd2691e',
-	'chucknorris': 'c00000',
-	'coral': 'ff7f50',
-	'cornflowerblue': '6495ed',
-	'cornsilk': 'fff8dc',
-	'crimson': 'dc143c',
-	'cyan': '0ff',
-	'darkblue': '00008b',
-	'darkcyan': '008b8b',
-	'darkgoldenrod': 'b8860b',
-	'darkgray': 'a9a9a9',
-	'darkgreen': '006400',
-	'darkgrey': 'a9a9a9',
-	'darkkhaki': 'bdb76b',
-	'darkmagenta': '8b008b',
-	'darkolivegreen': '556b2f',
-	'darkorange': 'ff8c00',
-	'darkorchid': '9932cc',
-	'darkred': '8b0000',
-	'darksalmon': 'e9967a',
-	'darkseagreen': '8fbc8f',
-	'darkslateblue': '483d8b',
-	'darkslategray': '2f4f4f',
-	'darkslategrey': '2f4f4f',
-	'darkturquoise': '00ced1',
-	'darkviolet': '9400d3',
-	'deeppink': 'ff1493',
-	'deepskyblue': '00bfff',
-	'dimgray': '696969',
-	'dimgrey': '696969',
-	'dodgerblue': '1e90ff',
-	'firebrick': 'b22222',
-	'floralwhite': 'fffaf0',
-	'forestgreen': '228b22',
-	'fuchsia': 'f0f',
-	'gainsboro': 'dcdcdc',
-	'ghostwhite': 'f8f8ff',
-	'gold': 'ffd700',
-	'goldenrod': 'daa520',
-	'gray': '808080',
-	'green': '008000',
-	'greenyellow': 'adff2f',
-	'grey': '808080',
-	'honeydew': 'f0fff0',
-	'hotpink': 'ff69b4',
-	'indianred': 'cd5c5c',
-	'indigo': '4b0082',
-	'ivory': 'fffff0',
-	'khaki': 'f0e68c',
-	'lavender': 'e6e6fa',
-	'lavenderblush': 'fff0f5',
-	'lawngreen': '7cfc00',
-	'lemonchiffon': 'fffacd',
-	'lightblue': 'add8e6',
-	'lightcoral': 'f08080',
-	'lightcyan': 'e0ffff',
-	'lightgoldenrodyellow': 'fafad2',
-	'lightgray': 'd3d3d3',
-	'lightgreen': '90ee90',
-	'lightgrey': 'd3d3d3',
-	'lightpink': 'ffb6c1',
-	'lightsalmon': 'ffa07a',
-	'lightseagreen': '20b2aa',
-	'lightskyblue': '87cefa',
-	'lightslategray': '789',
-	'lightslategrey': '789',
-	'lightsteelblue': 'b0c4de',
-	'lightyellow': 'ffffe0',
-	'lime': '0f0',
-	'limegreen': '32cd32',
-	'linen': 'faf0e6',
-	'magenta': 'f0f',
-	'maroon': '800000',
-	'mediumaquamarine': '66cdaa',
-	'mediumblue': '0000cd',
-	'mediumorchid': 'ba55d3',
-	'mediumpurple': '9370db',
-	'mediumseagreen': '3cb371',
-	'mediumslateblue': '7b68ee',
-	'mediumspringgreen': '00fa9a',
-	'mediumturquoise': '48d1cc',
-	'mediumvioletred': 'c71585',
-	'midnightblue': '191970',
-	'mintcream': 'f5fffa',
-	'mistyrose': 'ffe4e1',
-	'moccasin': 'ffe4b5',
-	'navajowhite': 'ffdead',
-	'navy': '000080',
-	'oldlace': 'fdf5e6',
-	'olive': '808000',
-	'olivedrab': '6b8e23',
-	'orange': 'ffa500',
-	'orangered': 'ff4500',
-	'orchid': 'da70d6',
-	'palegoldenrod': 'eee8aa',
-	'palegreen': '98fb98',
-	'paleturquoise': 'afeeee',
-	'palevioletred': 'db7093',
-	'papayawhip': 'ffefd5',
-	'peachpuff': 'ffdab9',
-	'peru': 'cd853f',
-	'pink': 'ffc0cb',
-	'plum': 'dda0dd',
-	'powderblue': 'b0e0e6',
-	'purple': '800080',
-	'red': 'f00',
-	'rosybrown': 'bc8f8f',
-	'royalblue': '4169e1',
-	'saddlebrown': '8b4513',
-	'salmon': 'fa8072',
-	'sandybrown': 'f4a460',
-	'seagreen': '2e8b57',
-	'seashell': 'fff5ee',
-	'sienna': 'a0522d',
-	'silver': 'c0c0c0',
-	'skyblue': '87ceeb',
-	'slateblue': '6a5acd',
-	'slategray': '708090',
-	'slategrey': '708090',
-	'snow': 'fffafa',
-	'springgreen': '00ff7f',
-	'steelblue': '4682b4',
-	'tan': 'd2b48c',
-	'teal': '008080',
-	'thistle': 'd8bfd8',
-	'tomato': 'ff6347',
-	'turquoise': '40e0d0',
-	'violet': 'ee82ee',
-	'wheat': 'f5deb3',
-	'white': 'fff',
-	'whitesmoke': 'f5f5f5',
-	'yellow': 'ff0',
-	'yellowgreen': '9acd32'
+	'aliceblue':				'f0f8ff',
+	'antiquewhite':				'faebd7',
+	'aqua':						'0ff',
+	'aquamarine':				'7fffd4',
+	'azure':					'f0ffff',
+	'beige':					'f5f5dc',
+	'bisque':					'ffe4c4',
+	'black':					'000',
+	'blanchedalmond':			'ffebcd',
+	'blue':						'00f',
+	'blueviolet':				'8a2be2',
+	'brown':					'a52a2a',
+	'burlywood':				'deb887',
+	'burntsienna':				'ea7e5d',
+	'cadetblue':				'5f9ea0',
+	'chartreuse':				'7fff00',
+	'chocolate':				'd2691e',
+	'chucknorris':				'c00000',
+	'coral':					'ff7f50',
+	'cornflowerblue':			'6495ed',
+	'cornsilk':					'fff8dc',
+	'crimson':					'dc143c',
+	'cyan':						'0ff',
+	'darkblue':					'00008b',
+	'darkcyan':					'008b8b',
+	'darkgoldenrod':			'b8860b',
+	'darkgray':					'a9a9a9',
+	'darkgreen':				'006400',
+	'darkgrey':					'a9a9a9',
+	'darkkhaki':				'bdb76b',
+	'darkmagenta':				'8b008b',
+	'darkolivegreen':			'556b2f',
+	'darkorange':				'ff8c00',
+	'darkorchid':				'9932cc',
+	'darkred':					'8b0000',
+	'darksalmon':				'e9967a',
+	'darkseagreen':				'8fbc8f',
+	'darkslateblue':			'483d8b',
+	'darkslategray':			'2f4f4f',
+	'darkslategrey':			'2f4f4f',
+	'darkturquoise':			'00ced1',
+	'darkviolet':				'9400d3',
+	'deeppink':					'ff1493',
+	'deepskyblue':				'00bfff',
+	'dimgray':					'696969',
+	'dimgrey':					'696969',
+	'dodgerblue':				'1e90ff',
+	'firebrick':				'b22222',
+	'floralwhite':				'fffaf0',
+	'forestgreen':				'228b22',
+	'fuchsia':					'f0f',
+	'gainsboro':				'dcdcdc',
+	'ghostwhite':				'f8f8ff',
+	'gold':						'ffd700',
+	'goldenrod':				'daa520',
+	'gray':						'808080',
+	'green':					'008000',
+	'greenyellow':				'adff2f',
+	'grey':						'808080',
+	'honeydew':					'f0fff0',
+	'hotpink':					'ff69b4',
+	'indianred':				'cd5c5c',
+	'indigo':					'4b0082',
+	'ivory':					'fffff0',
+	'khaki':					'f0e68c',
+	'lavender':					'e6e6fa',
+	'lavenderblush':			'fff0f5',
+	'lawngreen':				'7cfc00',
+	'lemonchiffon':				'fffacd',
+	'lightblue':				'add8e6',
+	'lightcoral':				'f08080',
+	'lightcyan':				'e0ffff',
+	'lightgoldenrodyellow':		'fafad2',
+	'lightgray':				'd3d3d3',
+	'lightgreen':				'90ee90',
+	'lightgrey':				'd3d3d3',
+	'lightpink':				'ffb6c1',
+	'lightsalmon':				'ffa07a',
+	'lightseagreen':			'20b2aa',
+	'lightskyblue':				'87cefa',
+	'lightslategray':			'789',
+	'lightslategrey':			'789',
+	'lightsteelblue':			'b0c4de',
+	'lightyellow':				'ffffe0',
+	'lime':						'0f0',
+	'limegreen':				'32cd32',
+	'linen':					'faf0e6',
+	'magenta':					'f0f',
+	'maroon':					'800000',
+	'mediumaquamarine':			'66cdaa',
+	'mediumblue':				'0000cd',
+	'mediumorchid':				'ba55d3',
+	'mediumpurple':				'9370db',
+	'mediumseagreen':			'3cb371',
+	'mediumslateblue':			'7b68ee',
+	'mediumspringgreen':		'00fa9a',
+	'mediumturquoise':			'48d1cc',
+	'mediumvioletred':			'c71585',
+	'midnightblue':				'191970',
+	'mintcream':				'f5fffa',
+	'mistyrose':				'ffe4e1',
+	'moccasin':					'ffe4b5',
+	'navajowhite':				'ffdead', // FF is not dead
+	'navy':						'000080',
+	'oldlace':					'fdf5e6',
+	'olive':					'808000',
+	'olivedrab':				'6b8e23',
+	'orange':					'ffa500',
+	'orangered':				'ff4500',
+	'orchid':					'da70d6',
+	'palegoldenrod':			'eee8aa',
+	'palegreen':				'98fb98',
+	'paleturquoise':			'afeeee',
+	'palevioletred':			'db7093',
+	'papayawhip':				'ffefd5',
+	'peachpuff':				'ffdab9',
+	'peru':						'cd853f',
+	'pink':						'ffc0cb',
+	'plum':						'dda0dd',
+	'powderblue':				'b0e0e6',
+	'purple':					'800080',
+	'red':						'f00',
+	'rosybrown':				'bc8f8f',
+	'royalblue':				'4169e1',
+	'saddlebrown':				'8b4513',
+	'salmon':					'fa8072',
+	'sandybrown':				'f4a460',
+	'seagreen':					'2e8b57',
+	'seashell':					'fff5ee',
+	'sienna':					'a0522d',
+	'silver':					'c0c0c0',
+	'skyblue':					'87ceeb',
+	'slateblue':				'6a5acd',
+	'slategray':				'708090',
+	'slategrey':				'708090',
+	'snow':						'fffafa',
+	'springgreen':				'00ff7f',
+	'steelblue':				'4682b4',
+	'tan':						'd2b48c',
+	'teal':						'008080',
+	'thistle':					'd8bfd8',
+	'tomato':					'ff6347',
+	'turquoise':				'40e0d0',
+	'violet':					'ee82ee',
+	'wheat':					'f5deb3',
+	'white':					'fff',
+	'whitesmoke':				'f5f5f5',
+	'yellow':					'ff0',
+	'yellowgreen':				'9acd32'
 };
 
+// DOM
+$.coordsOfElement = function(element){ // returns coords of a DOM element
+	var box = element.getBoundingClientRect(),
+		style = window.getComputedStyle(element);
+
+	return {
+		x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
+		y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
+	};
+};
 
 // Clean functions
 $.clone = function(object){
 	var result = new object.constructor();
 	for(var i in object){
-		if($.has(object, i)){
+		if(has(object, i)){
 			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
-				result[i] = _.clone(object[i]);
+				result[i] = $.clone(object[i]);
 			} else {
 				result[i] = object[i];
 			}
@@ -3600,7 +3398,8 @@ $.clone = function(object){
 };
 
 
-$.multiply = function(m1, m2){ // multiplies two 2D-transform matrices
+// renamed from $.multiply
+$.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
 		m1[1] * m2[0] + m1[3] * m2[1],
@@ -3611,60 +3410,54 @@ $.multiply = function(m1, m2){ // multiplies two 2D-transform matrices
 	];
 };
 
-// DOM
-$.coordsOfElement = function(element){ // returns coords of a DOM element
-
-	var box = element.getBoundingClientRect(),
-		style = window.getComputedStyle(element);
-
-	return {
-		x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
-		y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
-	};
-
-};
-
 $.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
-	if(value === undefined) return;
-	if(!isString(value))
+	if(value === undefined){
+		return;
+	}
+	if(Array.isArray(value)){
+		return value;
+	}
+	if(value + '' !== value){
 		throw 'Not a color: ' + value.toString();
+	}
 
 	// rgba(255, 100, 20, 0.5)
 	if(value.indexOf('rgb') === 0){
 		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',').map(function(v){
 			// rgba(100%, 0%, 50%, 1)
-			if(v.indexOf('%') > 0)
+			if(v.indexOf('%') > 0){
 				return Math.round(parseInt(v) * 2.55);
+			}
 			return parseInt(v);
 		});
 
-		if(value.length === 3)
+		if(value.length === 3){
 			value.push(1);
+		}
 
 		return value;
 	}
 	// #bebebe
-	else if(value.indexOf('#') === 0){
+	else if(value[0] === '#'){
 		// remove the # and turn into array
 		value = value.substring(1);
 
 		// #555
-		if(value.length === 3)
-			// todo: make this code faster & better
-			value = value.split('').map(function(v){
-				// 'f0a' -> 'ff00aa'
-				return v + v;
-			}).join('');
-			// value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
+		if(value.length === 3){
+			// 'f0a' -> 'ff00aa'
+			value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
+		}
 
 		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
 	}
 	// 'red'
-	else if(value in $.colors)
+	else if(value in $.colors){
 		return $.color('#' + $.colors[value]);
-
-	else if(value === 'rand')
+	}
+	// 'rand'
+	else if(value === 'rand'){
 		return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), 1];
+	}
 
 	return [0, 0, 0, 0];
 };
@@ -3692,26 +3485,28 @@ $.snapToPixels = 0;
 function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
-	if($.snapToPixels && !dontsnap)
+	if($.snapToPixels && !dontsnap){
 		return Math.round($.distance(value, true) / $.snapToPixels) * $.snapToPixels;
+	}
 
-	if( isNumber(value) ){
-		if( $.unit !== 'px')
+	if(+value === value){
+		if( $.unit !== 'px'){
 			return $.distance( value + '' + $.unit );
+		}
 
 		return value;
 	}
 
 	value += '';
-	if(value.indexOf('px') === value.length-2)
+	if(value.indexOf('px') === value.length-2){
 		return parseInt(value);
+	}
 
 	if(!$.units){
 
-		if( !document )
+		if(!document){
 			$.units = defaultUnits;
-
-		else {
+		} else {
 			var div = document.createElement('div');
 			document.body.appendChild(div); // FF don't need this :)
 			$.units = {};
@@ -3725,14 +3520,16 @@ function distance(value, dontsnap){
 
 	var unit = value.replace(/[\d\.]+?/g, '');
 	value = value.replace(/[^\d\.]+?/g, '');
-	if(unit === '')
+	if(unit === ''){
 		return value;
+	}
 	return Math.round($.units[unit] * value);
 }
 
 $.distance = distance;
 
 $.Context = Context;
+$.Drawable = Drawable;
 $.Shape = Shape;
 $.Rect = Rect;
 $.Circle = Circle;
@@ -3740,26 +3537,28 @@ $.Curve = Curve;
 $.Path = Path;
 $.Image = Img;
 $.Text = Text;
-$.TextBlock = TextBlock;
 $.Gradient = Gradient;
 $.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element, renderer){
-	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
+	return new Context( (query + '' === query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
 };
 
 $.id = function(id, renderer){
 	return new Context( document.getElementById(id), renderer );
 };
 
-if( typeof module === 'object' && typeof module.exports === 'object' ){
+if(typeof module === 'object' && typeof module.exports === 'object'){
 	module.exports = $;
-} else if( typeof define === 'function' && define.amd ){
-	define([], function(){ return $; });
+} else if(typeof define === 'function' && define.amd){
+	// todo: define with a name?
+	define([], function(){
+		return $;
+	});
 } else {
 	window.Graphics2D = $;
 }
 
-})( typeof window !== 'undefined' ? window : this );
+})(typeof window !== 'undefined' ? window : this);

@@ -1,80 +1,127 @@
-Rect = new Class(Shape, {
+Rect = new Class(Drawable, {
 
-	initialize : function(){
-		if(this.object){
-			var object = this.object;
-			this._x = object.x;
-			this._y = object.y;
-			this._width = object.width;
-			this._height = object.height;
-			delete this.object;
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Rect.args);
+		}
+
+		this.attrs.x = args[0];
+		this.attrs.y = args[1];
+		this.attrs.width = args[2];
+		this.attrs.height = args[3];
+		if(args[4]){
+			this.styles.fillStyle = args[4];
+		}
+		if(args[5]){
+			// todo: parse!
+			this.styles.strokeStyle = args[5];
 		}
 	},
 
-	// Parameters
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		// updateBehavior = { set: function(value){ this.update(); return value; } }
+		// x: updateBehavior,
+		// y: updateBehavior,
+		// etc
+		x: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		y: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		width: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		height: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
 
-	x : function(x){
-		return this.prop('x', x);
-	},
-	y : function(y){
-		return this.prop('y', y);
-	},
-	width : function(w){
-		return this.prop('width', w);
-	},
-	height : function(h){
-		return this.prop('height', h);
-	},
-	x1 : function(x){
-		return x === undefined ?
-			this._x :
-			this.prop('width', this._width - x + this._x)
-				.prop('x', x);
-	},
-	y1 : function(y){
-		return y === undefined ?
-			this._y :
-			this.prop('height', this._height - y + this._y)
-				.prop('y', y);
-	},
-	x2 : function(x){
-		return x === undefined ?
-			this._x + this._width :
-			this.prop('width', x - this._x);
-	},
-	y2 : function(y){
-		return y === undefined ?
-			this._y + this._height :
-			this.prop('height', y - this._y);
+		x1: {
+			get: function(){
+				return this.attrs.x;
+			},
+			set: function(value){
+				this.attrs.x = value;
+				this.update();
+			}
+		},
+		y1: {
+			get: function(){
+				return this.attrs.y;
+			},
+			set: function(value){
+				this.attrs.y = value;
+				this.update();
+			}
+		},
+		x2: {
+			get: function(){
+				return this.attrs.x + this.attrs.width;
+			},
+			set: function(value){
+				this.attrs.width = value - this.attrs.x;
+				this.update();
+			}
+		},
+		y2: {
+			get: function(){
+				return this.attrs.y + this.attrs.height;
+			},
+			set: function(value){
+				this.attrs.height = value - this.attrs.y;
+				this.update();
+			}
+		}
+	}),
+
+	// this variation is faster
+	// very very faster!
+	// if you change an attrs of 100 000 elements
+	// then all x-ses will work in ~ 7 ms
+	// all attr-s — in ~ 100 ms
+	/* x: function(val){
+		if(val === undefined){
+			return this.attrs.x;
+		}
+		this.attrs.x = val;
+		return this.update();
+	}, */
+
+	shapeBounds : function(){
+		return [this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height];
 	},
 
-	nativeBounds : function(){
-		return new Bounds(this._x, this._y, this._width, this._height);
-	},
-
-	draw: function(ctx){
+	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawRect(
-				[this._x, this._y, this._width, this._height],
+				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 				ctx, this.styles, this.matrix, this
 			);
 		}
 	},
 
-	processPath : function(ctx){
-		ctx.beginPath();
-		ctx.rect(this._x, this._y, this._width, this._height);
+	isPointIn : function(x, y){
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	}
 
 });
 
-Rect.props = [ 'x', 'y', 'width', 'height' ];
-Rect.processStyle = true;
-Rect.firstObject = true; // parse the first argument if it is object
-Rect.propHandlers = [distance, distance, distance, distance];
+Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 
 $.rect = function(){
 	return new Rect(arguments);
 };
-
-// todo: x1, y1, x2, y2 animation

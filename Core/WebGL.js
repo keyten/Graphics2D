@@ -42,17 +42,23 @@ $.renderers['gl'] = {
 
 		var vs = this.createShader(gl, gl.VERTEX_SHADER, [
 			'attribute vec2 aVertexPosition;',
+			'uniform vec4 rectCoords;',
 			'uniform vec4 uColor;',
 			'varying vec4 vColor;',
 			'float canvasWidth = ' + gl.canvas.width + '.0;',
 			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
 			'void main(void){',
 				'vColor = uColor;',
 				'gl_Position = vec4(',
-					'(aVertexPosition[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
-					'(-aVertexPosition[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
+					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
 					'1.0,',
 					'1.0',
+//					'(aVertexPosition[0] + rectCoords[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
+//					'(-aVertexPosition[1] - rectCoords[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
+//					'1.0,',
+//					'1.0',
 				');',
 			'}'
 		].join('\n'));
@@ -71,6 +77,7 @@ $.renderers['gl'] = {
 		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
 		gl.enableVertexAttribArray(program.v_aVertexPosition);
 		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords')
 
 		return program;
 	},
@@ -89,21 +96,32 @@ $.renderers['gl'] = {
 			x2 = x1 + params[2],
 			y2 = y1 + params[3],
 			program = this.shader || (this.shader = this.initShaders(gl)),
-			buffer = this.initBuffers(gl, [
-				x1, y1,
+			buffer = this.buffer || (this.buffer = this.initBuffers(gl, [
+				-1, -1,
+				1, 1,
+				1, -1,
+
+				-1, -1,
+				1, 1,
+				-1, 1
+				/* x1, y1,
 				x2, y2,
 				x2, y1,
 
 				x1, y1,
 				x2, y2,
-				x1, y2
-			]);
+				x1, y2 */
+			]));
 
 		var color = $.color(style.fillStyle);
 		gl.uniform4f(program.uColor, color[0], color[1], color[2], color[3]);
+		gl.uniform4f(program.rectCoords, x1, y1, x2, y2);
 
 		gl.vertexAttribPointer(program.v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 		gl.drawArrays(gl.TRIANGLES, 0, 6);
-	}
+	},
+
+	preRedraw: function(){},
+	postRedraw: function(){}
 
 };

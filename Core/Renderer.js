@@ -6,10 +6,15 @@ $.renderers['2d'] = {
 		delta._cache = {}; // for gradients
 	},
 
-	preRedraw: function(ctx){
+	preRedraw: function(ctx, delta){
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		ctx.setTransform.apply(ctx, delta.matrix);
+		// todo: dont make an identical matrix each time!
+		// var ident = ...
+		// if(delta.matrix != ident)...
+		// todo2: заменить на null, когда она там не нужна.
 	},
 
 	postRedraw: function(ctx){
@@ -32,6 +37,19 @@ $.renderers['2d'] = {
 		}
 		if(style.strokeStyle){
 			ctx.strokeRect(params[0], params[1], params[2], params[3]);
+		}
+		ctx.restore();
+	},
+
+	drawCircle: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		ctx.beginPath();
+		ctx.arc(params[0], params[1], params[2], 0, Math.PI * 2, true);
+		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(style.strokeStyle){
+			ctx.stroke();
 		}
 		ctx.restore();
 	},
@@ -72,6 +90,10 @@ $.renderers['2d'] = {
 		ctx.restore();
 	},
 
+	drawData: function(params, ctx, style, matrix, object){
+		ctx.putImageData(params[0], params[1], params[2]);
+	},
+
 	// params = [text, x, y]
 	drawText: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
@@ -89,6 +111,8 @@ $.renderers['2d'] = {
 
 		// styles
 		Object.keys(style).forEach(function(key){
+			// todo: check the performance in this case:
+			// if(ctx[key] !== style[key]) ctx[key] = style[key];
 			ctx[key] = style[key];
 		});
 

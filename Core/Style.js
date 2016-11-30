@@ -5,7 +5,7 @@ var shadowProps = {
 	blur: 'shadowBlur'
 };
 
-// is using in fill and stroke
+// is used in fill and stroke
 function normalizeFill(value, object){
 	// object with gradient { type, colors, from, to, ... }
 	if(isObject(value) && value.colors && !(value instanceof Gradient)){

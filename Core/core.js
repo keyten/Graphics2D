@@ -12,7 +12,8 @@ var $ = {},
 
 // Classes
 	Context,
-	Shape, Rect, Circle, Curve, Path, Img, Text, TextBlock,
+	Drawable,
+	Shape, Rect, Circle, Curve, Path, Img, Raster, Text,
 	Gradient, Pattern, Bounds, Style,
 
 // Local variables
@@ -20,10 +21,11 @@ var $ = {},
 	emptyFunc = function(){},
 	toString = Object.prototype.toString,
 	slice = Array.prototype.slice,
+	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
 	reFloat = /^\d*\.\d+$/,
 	domurl = window.URL || window.webkitURL || window,
 
-	_ = new emptyFunc,
+	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
 	                        window.webkitRequestAnimationFrame	||
 	                        window.mozRequestAnimationFrame		||
@@ -54,7 +56,7 @@ $.renderers = {};
 
 // {{include context.js}}
 
-// {{include style.js}}
+// {{don't include style.js}}
 
 // {{include shape.js}}
 
@@ -68,6 +70,8 @@ $.renderers = {};
 
 // {{include image.js}}
 
+// {{include raster.js}}
+
 // {{include text.js}}
 
 // {{include gradient.js}}
@@ -77,6 +81,7 @@ $.renderers = {};
 // {{include utils.js}}
 
 $.Context = Context;
+$.Drawable = Drawable;
 $.Shape = Shape;
 $.Rect = Rect;
 $.Circle = Circle;
@@ -84,26 +89,28 @@ $.Curve = Curve;
 $.Path = Path;
 $.Image = Img;
 $.Text = Text;
-$.TextBlock = TextBlock;
 $.Gradient = Gradient;
 $.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element, renderer){
-	return new Context( isString(query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
+	return new Context( (query + '' === query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
 };
 
 $.id = function(id, renderer){
 	return new Context( document.getElementById(id), renderer );
 };
 
-if( typeof module === 'object' && typeof module.exports === 'object' ){
+if(typeof module === 'object' && typeof module.exports === 'object'){
 	module.exports = $;
-} else if( typeof define === 'function' && define.amd ){
-	define([], function(){ return $; });
+} else if(typeof define === 'function' && define.amd){
+	// todo: define with a name?
+	define([], function(){
+		return $;
+	});
 } else {
 	window.Graphics2D = $;
 }
 
-})( typeof window !== 'undefined' ? window : this );
+})(typeof window !== 'undefined' ? window : this);

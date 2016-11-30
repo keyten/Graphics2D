@@ -1,66 +1,55 @@
+// todo: rename to PathPart
 Curve = new Class({
-
-	initialize : function( name, args, path ){
+	initialize: function(name, attrs, path){
 		this.name = name;
 		this.path = path;
-		this.args = args;
-
-		if( name in Curve.curves ){
-			extend( this, Curve.curves[ name ] );
-		}
+		this.attrs = attrs;
 	},
 
-	// Parameters
-
-	prop : Shape.prototype.prop,
-	update : function(){
+	update: function(){
 		this.path.update();
 		return this;
 	},
 
-	arguments : function(){
-		return this.prop( 'args', arguments.length > 1 ? arguments : arguments[0] );
+	process: function(ctx){
+		ctx[this.name].apply(ctx, this.attrs);
 	},
 
-	from : function(){ // returns the start point
-		if(!this.path){
-			throw 'Error: the curve hasn\'t path.';
+	// Parameters
+	attr: function(name, value){
+		if(isObject(name)){
+			Object.keys(name).forEach(function(key){
+				this.attr(key, name[key]);
+			}.bind(this));
+			return this;
 		}
 
-		var index = this.path._curves.indexOf( this ),
-			before = this.path._curves[ index - 1 ];
-
-		if( index === 0 ){
-			return [0, 0];
+		name = Curve.types[this.name].attrs.indexOf(name);
+		if(value === undefined){
+			return this.attrs[name];
 		}
-		if( index === -1 || !before || !('endsIn' in before) ){
-			return null; // todo: throw new error
-		}
-
-		var end = before.endsIn();
-		if( !end ){
-			return null; // todo: throw
-		}
-		return end;
+		this.attrs[name] = value;
+		return this.update();
 	},
 
-	endsIn : function(){
-		if( this._slice ){
-			return this.args.slice( this._slice[0], this._slice[1] );
-		}
-		return null;
-	},
-
-	process : function( ctx ){
-		ctx[ this.name ].apply( ctx, this.args );
-		return this.endsIn();
-	},
-
-	_bounds : function(){
-		return null;
+	bounds: function(){
+		return Curve.types[this.name].bounds(this.attrs);
 	}
 });
 
+Curve.types = {
+	moveTo: {
+		attrs: ['x', 'y'],
+		bounds: function(attrs){
+			;
+		}
+	},
+	lineTo: {
+		attrs: ['x', 'y']
+	}
+};
+
+/*
 Curve.curves = {
 	moveTo : {
 		_slice : [ , ],
@@ -158,13 +147,13 @@ Curve.curves = {
 		clockwise : argument( 5 )
 	}
 };
-
+ */
 Curve.fromArray = function(array, path){
 	if(array === true){
 		return closePath;
 	}
 
-	if(array[0] in Curve.curves){
+	if(array[0] in Curve.types){
 		return new Curve(array[0], array.slice(1), path);
 	}
 
@@ -175,4 +164,4 @@ Curve.fromArray = function(array, path){
 	}
 };
 
-$.curves = Curve.curves;
+$.curves = Curve.types;

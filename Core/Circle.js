@@ -1,54 +1,94 @@
-Circle = new Class(Shape, {
+Circle = new Class(Drawable, {
 
-	initialize : function(){
-		if(this.object){
-			var object = this.object;
-			this._cx = object.cx;
-			this._cy = object.cy;
-			this._radius = object.radius;
-			delete this.object;
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Circle.args);
+		}
+
+		this.attrs.cx = args[0];
+		this.attrs.cy = args[1];
+		this.attrs.radius = args[2];
+		if(args[3]){
+			this.styles.fillStyle = args[3];
+		}
+		if(args[4]){
+			// todo: parse!
+			this.styles.strokeStyle = args[4];
 		}
 	},
 
-	// Parameters
+	// прыгает z-index!
+	// todo: unbound these events too
+	// with requestAnimFrame
+/*	update: function(){
+		if(!this.context){
+			return this;
+		}
 
-	cx : function(cx){
-		return this.prop('cx', cx);
+		var ctx = this.context.context;
+		var updateList = [this];
+		var bound = this.bounds();
+		var maxBound = bound;
+
+		this.context.elements.forEach(element => {
+			bound = element.bounds();
+			if(doRectsIntersect(bound, maxBound)){
+				updateList.push(element);
+				maxBound.x1 = Math.min(maxBound.x1, bound.x1);
+				maxBound.y1 = Math.min(maxBound.y1, bound.y1);
+				maxBound.x2 = Math.max(maxBound.x2, bound.x2);
+				maxBound.y2 = Math.max(maxBound.y2, bound.y2);
+			}
+		});
+
+		ctx.clearRect(maxBound.x1, maxBound.y1, maxBound.x2 - maxBound.x1, maxBound.y2 - maxBound.y1);
+		// отсрочиваем отрисовку, чтобы параметры успели измениться
+		requestAnimationFrame(() => updateList.forEach(element => element.draw(ctx)));
+	}, */
+
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		cx: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		cy: {
+			set: function(value){
+				this.update();
+				return value;
+			}
+		},
+		radius: {
+			set: function(value){
+				this.update();
+				return Math.abs(value);
+			}
+		}
+	}),
+
+	shapeBounds : function(){
+		return [this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2];
 	},
 
-	cy : function(cy){
-		return this.prop('cy', cy);
-	},
-
-	radius : function(r){
-		return this.prop('radius', r);
-	},
-
-	bounds : function(){
-		return new Bounds(this._cx - this._radius, this._cy - this._radius, this._radius * 2, this._radius * 2);
-	},
-
-	draw: function(ctx){
+	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawCircle(
-				[this._cx, this._cy, this._radius],
+				[this.attrs.cx, this.attrs.cy, this.attrs.radius],
 				ctx, this.styles, this.matrix, this
 			);
 		}
 	},
 
-	processPath : function(ctx){
-		ctx.beginPath();
-		ctx.arc(this._cx, this._cy, Math.abs(this._radius), 0, Math.PI*2, true);
+	isPointIn : function(x, y){
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	}
 
 });
 
-Circle.props = [ 'cx', 'cy', 'radius' ];
-Circle.processStyle = true;
-Circle.firstObject = true;
-Circle.propHandlers = [distance, distance, distance];
-
+Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 
 $.circle = function(){
 	return new Circle(arguments);

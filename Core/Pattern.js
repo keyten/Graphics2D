@@ -12,9 +12,7 @@ $.Pattern = Pattern = new Class({
 
 		if(image instanceof Image){
 			this._image = image;
-		}
-
-		else if(isString(image)){
+		} else if(isString(image)){
 			if(image[0] === '#'){
 				this._image = document.getElementById(image.substr(1));
 			} else if(image.indexOf('<svg') === 0){
@@ -26,6 +24,7 @@ $.Pattern = Pattern = new Class({
 				this._image.src = image;
 			}
 		}
+
 		this._image.addEventListener('load', function(){
 			this.update();
 
