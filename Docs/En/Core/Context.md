@@ -2,7 +2,7 @@ Graphics2D.Context
 ===================
 *I am not sure in my English knowledge, so there may be some mistakes. Sorry. You can help me with your pull request.*
 
-`Graphics2D.Context` -- the library's context, which can be got with one of these ways:
+`Graphics2D.Context` — the library's context, which can be got with one of these ways:
 ```js
 var ctx = Graphics2D.id('element'); // canvas with id="element"
 var ctx = Graphics2D.query('canvas', 0); // the first canvas on the page
@@ -18,7 +18,7 @@ All the methods returns the context (you can use jQuery-like chaining), if not o
 ctx.getObjectInPoint(10, 10);
 ```
 Returns an object in point `(x; y)`, or `null`, if there is not.  
-If the third parameter is `true`, will ignore objects without mouse processing (see `mouse` func).
+If the third parameter is `true`, will ignore objects without mouse processing (`interaction` attr).
 
 #### on(event, func)
 ```js
@@ -28,21 +28,9 @@ ctx.on('click', function(e){
     y = e.contextY;
 });
 ```
-Sets event listener to canvas. Extends event object (variable `e` in example above) with 3 properties:
-- `targetObject` - object contains the current cursor point.
-- `contextX`, `contextY` - mouse coordinates on canvas (the left top corner of canvas is `(0,0)`).
-
-One can add a timer (context passes into `this`):
-```js
-ctx.on(1000, function(){
-    // do something
-});
-
-// similarly:
-window.setTimeout(function(){
-    // do something
-}.bind(ctx), 1000);
-```
+Adds event listener to canvas. Extends event object (variable `e` in the example above) by 3 properties:
+- `targetObject` — the object contains the current cursor point.
+- `contextX`, `contextY` — mouse coordinates on the canvas (the left top corner of canvas is `(0,0)`).
 
 #### off(event, [func])
 ```js
@@ -63,7 +51,7 @@ Fires all event listeners.
 ```js
 ctx.update();
 ```
-Internal method, updates the canvas. Use it only if you update internal object parameters and so on.
+Internal method, updates the canvas. Use it only if you update internal object parameters or something like.
 
 ### Event aliases
 ```js
@@ -73,7 +61,7 @@ ctx.click(); // = fire('click');
 `click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseover`, `mouseout`, `mousewheel`, `focus`, `blur`.
 
 ### Elements
-One can create obs directly on the canvas:
+You can create obs directly on the canvas:
 
 Rectangle:
 ```js
@@ -97,15 +85,15 @@ ctx.image(x, y, [width, height, crop]);
 
 Text:
 ```js
-ctx.text(text, x, y, [font, fill, stroke]);
+ctx.text(text, font, x, y, [fill, stroke]);
 ```
 
 Gradient:
 ```js
-ctx.gradient;
+ctx.gradient([type], colors, [from, to]);
 ```
 
 Pattern:
 ```js
-ctx.pattern;
+ctx.pattern(image, [repeat]);
 ```
