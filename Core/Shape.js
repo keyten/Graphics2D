@@ -36,7 +36,9 @@ Drawable = new Class({
 	initialize: function(args){
 		this.listeners = {};
 		this.styles = {};
-		this.attrs = {};
+		this.attrs = {
+			interaction: true
+		};
 	},
 
 	_visible: true,
@@ -105,9 +107,47 @@ Drawable = new Class({
 		return this;
 	},
 
-	attrHooks: {},
+	attrHooks: {
+		fill: {
+			get: function(){
+				return this.styles.fillStyle;
+			},
+			set: function(value){
+				this.styles.fillStyle = value;
+				return this.update();
+			}
+		},
+
+		stroke: {
+			set: function(value){
+				Drawable.processStroke(value, this.styles);
+				return this.update();
+			}
+		},
+
+		opacity: {
+			get: function(){
+				return this.styles.globalAlpha !== undefined ? this.styles.globalAlpha : 1;
+			},
+			set: function(value){
+				this.styles.globalAlpha = +value;
+				return this.update();
+			}
+		},
+
+		composite: {
+			get: function(){
+				return this.styles.globalCompositeOperation;
+			},
+			set: function(value){
+				this.styles.globalCompositeOperation = value;
+				return this.update();
+			}
+		}
+	},
 
 	// Styles
+	// why? is it used anywhere?
 	style: function(name, value){
 		if(value === undefined){
 			return this.styles[name];
@@ -152,10 +192,6 @@ Drawable = new Class({
 	},
 
 	// Events
-	interaction: function(state){
-		return this.attr('interaction', state);
-	},
-
 	on : function(event, callback){
 		if(event + '' !== event){
 			for(var key in event) if(has(event, key)){
@@ -212,26 +248,48 @@ Drawable = new Class({
 	},
 
 	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
+		return this.transform(
+			1, 0,
+			0, 1,
+			x, y
+		);
 	},
 
 	rotate: function(angle, pivot){
 		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot || 'center');
+		return this.transform(
+			Math.cos(angle), Math.sin(angle),
+			-Math.sin(angle), Math.cos(angle),
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	scale: function(x, y, pivot){
 		if(y === undefined){
 			y = x;
 		}
-		return this.transform(x, 0, 0, y, 0, 0, pivot || 'center');
+		return this.transform(
+			x, 0,
+			0, y,
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	skew: function(x, y, pivot){
 		if(y === undefined){
 			y = x;
 		}
-		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot || 'center');
+		return this.transform(
+			1, Math.tan(y),
+			Math.tan(x), 1,
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	// Rasterization

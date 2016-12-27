@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 30.11.2016
+ *  Last edit: 28.12.2016
  *  License: MIT / LGPL
  */
 
@@ -23,6 +23,7 @@ var $ = {},
 	slice = Array.prototype.slice,
 	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
 	reFloat = /^\d*\.\d+$/,
+	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
 
 	_ = {},
@@ -50,133 +51,7 @@ var $ = {},
 	                       window.clearTimeout;
 
 $.renderers = {};
-// https://www.khronos.org/registry/webgl/specs/1.0/#5.2
-$.renderers['gl'] = {
-
-	init: function(delta, canvas){
-		delta.gl = canvas.getContext('webgl')
-		        || canvas.getContext('experimental-webgl');
-
-		delta.gl.viewport(0, 0, canvas.width, canvas.height);
-		// это делает канвас непрозрачным
-		// попробовать от этого избавиться
-		// todo
-//		delta.gl.clearColor(1, 1, 1, 1);
-//		delta.gl.clear(delta.gl.COLOR_BUFFER_BIT);
-//		работает и без этого, но как его потом очищать??
-
-		delta.context = delta.gl;
-	},
-
-	createShader: function(gl, type, source){
-		var shader = gl.createShader(type);
-		gl.shaderSource(shader, source);
-		gl.compileShader(shader);
-		if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
-			var log = gl.getShaderInfoLog(shader);
-			gl.deleteShader(shader);
-			throw "Shader compilation error: " + log;
-		}
-		return shader;
-	},
-
-	initShaders: function(gl, style){
-		var fs = this.createShader(gl, gl.FRAGMENT_SHADER, [
-			'#ifdef GL_ES',
-				'precision highp float;',
-			'#endif',
-
-			'varying vec4 vColor;',
-			'void main(void){',
-				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
-			'}'
-		].join('\n'));
-
-		var vs = this.createShader(gl, gl.VERTEX_SHADER, [
-			'attribute vec2 aVertexPosition;',
-			'uniform vec4 rectCoords;',
-			'uniform vec4 uColor;',
-			'varying vec4 vColor;',
-			'float canvasWidth = ' + gl.canvas.width + '.0;',
-			'float canvasHeight = ' + gl.canvas.height + '.0;',
-
-			'void main(void){',
-				'vColor = uColor;',
-				'gl_Position = vec4(',
-					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
-					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
-					'1.0,',
-					'1.0',
-//					'(aVertexPosition[0] + rectCoords[0] - (canvasWidth / 2.0)) / (canvasWidth / 2.0),',
-//					'(-aVertexPosition[1] - rectCoords[1] + (canvasHeight / 2.0)) / (canvasHeight / 2.0),',
-//					'1.0,',
-//					'1.0',
-				');',
-			'}'
-		].join('\n'));
-
-		var program = gl.createProgram();
-		gl.attachShader(program, vs);
-		gl.attachShader(program, fs);
-		gl.linkProgram(program);
-
-		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
-			throw "Could not initialize shaders";
-		}
-
-		gl.useProgram(program);
-
-		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
-		gl.enableVertexAttribArray(program.v_aVertexPosition);
-		program.uColor = gl.getUniformLocation(program, 'uColor');
-		program.rectCoords = gl.getUniformLocation(program, 'rectCoords')
-
-		return program;
-	},
-
-	initBuffers: function(gl, vertices){
-		var vertexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-		return vertexBuffer;
-	},
-
-	drawRect: function(params, gl, style, matrix, object){
-		var x1 = params[0],
-			y1 = params[1],
-			x2 = x1 + params[2],
-			y2 = y1 + params[3],
-			program = this.shader || (this.shader = this.initShaders(gl)),
-			buffer = this.buffer || (this.buffer = this.initBuffers(gl, [
-				-1, -1,
-				1, 1,
-				1, -1,
-
-				-1, -1,
-				1, 1,
-				-1, 1
-				/* x1, y1,
-				x2, y2,
-				x2, y1,
-
-				x1, y1,
-				x2, y2,
-				x1, y2 */
-			]));
-
-		var color = $.color(style.fillStyle);
-		gl.uniform4f(program.uColor, color[0], color[1], color[2], color[3]);
-		gl.uniform4f(program.rectCoords, x1, y1, x2, y2);
-
-		gl.vertexAttribPointer(program.v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
-		gl.drawArrays(gl.TRIANGLES, 0, 6);
-	},
-
-	preRedraw: function(){},
-	postRedraw: function(){}
-
-};
+// {{don't include WebGL.js}}
 
 $.renderers['2d'] = {
 
@@ -398,8 +273,8 @@ Context.prototype = {
 	},
 
 	// Fills
-	gradient : function(type, from, to, colors){
-		return new Gradient(type, from, to, colors, this);
+	gradient : function(type, colors, from, to){
+		return new Gradient(type, colors, from, to, this);
 	},
 
 	pattern : function(image, repeat){
@@ -758,7 +633,9 @@ Drawable = new Class({
 	initialize: function(args){
 		this.listeners = {};
 		this.styles = {};
-		this.attrs = {};
+		this.attrs = {
+			interaction: true
+		};
 	},
 
 	_visible: true,
@@ -827,9 +704,47 @@ Drawable = new Class({
 		return this;
 	},
 
-	attrHooks: {},
+	attrHooks: {
+		fill: {
+			get: function(){
+				return this.styles.fillStyle;
+			},
+			set: function(value){
+				this.styles.fillStyle = value;
+				return this.update();
+			}
+		},
+
+		stroke: {
+			set: function(value){
+				Drawable.processStroke(value, this.styles);
+				return this.update();
+			}
+		},
+
+		opacity: {
+			get: function(){
+				return this.styles.globalAlpha !== undefined ? this.styles.globalAlpha : 1;
+			},
+			set: function(value){
+				this.styles.globalAlpha = +value;
+				return this.update();
+			}
+		},
+
+		composite: {
+			get: function(){
+				return this.styles.globalCompositeOperation;
+			},
+			set: function(value){
+				this.styles.globalCompositeOperation = value;
+				return this.update();
+			}
+		}
+	},
 
 	// Styles
+	// why? is it used anywhere?
 	style: function(name, value){
 		if(value === undefined){
 			return this.styles[name];
@@ -874,10 +789,6 @@ Drawable = new Class({
 	},
 
 	// Events
-	interaction: function(state){
-		return this.attr('interaction', state);
-	},
-
 	on : function(event, callback){
 		if(event + '' !== event){
 			for(var key in event) if(has(event, key)){
@@ -934,26 +845,48 @@ Drawable = new Class({
 	},
 
 	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
+		return this.transform(
+			1, 0,
+			0, 1,
+			x, y
+		);
 	},
 
 	rotate: function(angle, pivot){
 		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot || 'center');
+		return this.transform(
+			Math.cos(angle), Math.sin(angle),
+			-Math.sin(angle), Math.cos(angle),
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	scale: function(x, y, pivot){
 		if(y === undefined){
 			y = x;
 		}
-		return this.transform(x, 0, 0, y, 0, 0, pivot || 'center');
+		return this.transform(
+			x, 0,
+			0, y,
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	skew: function(x, y, pivot){
 		if(y === undefined){
 			y = x;
 		}
-		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot || 'center');
+		return this.transform(
+			1, Math.tan(y),
+			Math.tan(x), 1,
+			0, 0,
+
+			pivot || 'center'
+		);
 	},
 
 	// Rasterization
@@ -1799,8 +1732,7 @@ Rect = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
-			// todo: parse!
-			this.styles.strokeStyle = args[5];
+			Drawable.processStroke(args[5], this.styles);
 		}
 	},
 
@@ -1926,8 +1858,7 @@ Circle = new Class(Drawable, {
 			this.styles.fillStyle = args[3];
 		}
 		if(args[4]){
-			// todo: parse!
-			this.styles.strokeStyle = args[4];
+			Drawable.processStroke(args[4], this.styles);
 		}
 	},
 
@@ -2008,8 +1939,8 @@ $.circle = function(){
 
 // todo: rename to PathPart
 Curve = new Class({
-	initialize: function(name, attrs, path){
-		this.name = name;
+	initialize: function(method, attrs, path){
+		this.method = method;
 		this.path = path;
 		this.attrs = attrs;
 	},
@@ -2020,7 +1951,7 @@ Curve = new Class({
 	},
 
 	process: function(ctx){
-		ctx[this.name].apply(ctx, this.attrs);
+		ctx[this.method].apply(ctx, this.attrs);
 	},
 
 	// Parameters
@@ -2041,7 +1972,7 @@ Curve = new Class({
 	},
 
 	bounds: function(){
-		return Curve.types[this.name].bounds(this.attrs);
+		return Curve.types[this.method].bounds(this.attrs);
 	}
 });
 
@@ -2453,7 +2384,7 @@ Raster = new Class(Drawable, {
 			args = this.processObject(args[0], Raster.args);
 		}
 
-		this.attrs.data = args[0]; // Raster.parseImage(args[0]);
+		this.attrs.data = args[0]; // Raster.parseRaster(args[0]);
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 	},
@@ -2484,21 +2415,28 @@ Text = new Class(Drawable, {
 		}
 
 		this.attrs.text = args[0];
-		this.attrs.font = args[1];
+		this.attrs.font = Text.parseFont(args[1] || Text.font);
+		this.styles.font = Text.genFont(this.attrs.font);
 		this.attrs.x = args[2];
 		this.attrs.y = args[3];
 		if(args[4]){
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
-			// todo: parse!
-			this.styles.strokeStyle = args[5];
+			Drawable.processStroke(args[5], this.styles);
 		}
 
 		this.styles.textBaseline = 'top';
 	},
 
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		text: {
+			set: function(value){
+				this.lines = null;
+				this.update();
+				return value;
+			}
+		},
 		x: {
 			set: function(value){
 				this.update();
@@ -2510,13 +2448,69 @@ Text = new Class(Drawable, {
 				this.update();
 				return value;
 			}
+		},
+		font: {
+			set: function(value){
+				value = Text.parseFont(value);
+				this.styles.font = Text.genFont(value);
+				this.update();
+				return value;
+			}
 		}
 	}),
 
-	_bounds : function(){},
+	lines: null,
+
+	processLines: function(){
+		// todo: move to renderer api?
+		// renderer.getTextWidth(text, style)
+		var text = this.attrs.text,
+			lines = this.lines = [],
+			size = this.attrs.lineHeight || this.attrs.font.size,
+			ctx = getTemporaryCanvas(1, 1).getContext('2d'),
+			width = this.attrs.width || Infinity,
+			countline = 1,
+			align = this.styles.textAlign || 'left',
+			x = align === 'center' ? width / 2 : align === 'right' ? width : 0;
+
+		ctx.font = this.styles.font;
+
+		text.split('\n').forEach(function(line){
+			// Is the line had to be splitted?
+			if(ctx.measureText(line).width > width){
+				var words = line.split(' '),
+					useline = '',
+					testline, i, len;
+
+				for(i = 0, len = words.length; i < len; i++){
+					testline = useline + words[i] + ' ';
+
+					if(ctx.measureText(testline).width > width){
+						lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
+						useline = words[i] + ' ';
+					}
+					else {
+						useline = testline;
+					}
+				}
+				lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
+			}
+			else {
+				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
+			}
+
+		});
+		return this;
+	},
+
+	shapeBounds : function(){},
 
 	draw : function(ctx){
 		if(this._visible){
+			if(!this.lines){
+				this.processLines();
+			}
+
 			this.context.renderer.drawText(
 				[this.attrs.text, this.attrs.x, this.attrs.y],
 				ctx, this.styles, this.matrix, this
@@ -2528,436 +2522,304 @@ Text = new Class(Drawable, {
 
 });
 
+Text.font = '10px sans-serif';
 Text.args = ['text', 'font', 'x', 'y', 'fill', 'stroke'];
+
+// 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
+Text.parseFont = function(font){
+	if(font + '' === font){
+		var object = {
+			family: ''
+		};
+		font.split(' ').forEach(function(part){
+			if(part === 'bold'){
+				object.bold = true;
+			} else if(part === 'italic'){
+				object.italic = true;
+			} else if(reNumberLike.test(part)){
+				object.size = $.distance(part);
+			} else {
+				object.family += ' ' + part;
+			}
+		});
+
+		object.family = object.family.trim();
+		return object;
+	} else {
+		;
+	}
+};
+
+// {family: 'Arial', size: 10, bold: true} -> 'bold 10px Arial'
+Text.genFont = function(font){
+	var string = '';
+	if(font.italic){
+		string += 'italic ';
+	}
+	if(font.bold){
+		string += 'bold ';
+	}
+	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
+};
 
 $.text = function(){
 	return new Text(arguments);
 };
 
-$.Gradient = Gradient = new Class({
+// cache api
 
-	initialize : function(type, colors, from, to, context){
-		// distance in from & to
-		// todo: { from: 'top', relative: false }
+// /cache api
+Gradient = new Class({
+	initialize: function(type, colors, from, to, context){
 		this.context = context;
-		if(isObject(type)){
-			this._type = type.type || 'linear';
-			this._from = type.from;
-			this._to = type.to;
-			if( type.cache !== undefined ){
-				this._cache = type.cache;
-			}
-			colors = type.colors;
-		}
-		else {
-			if( from === undefined || (to === undefined && ( isArray(type) || isObject(type) )) ){ // (type & to undefined) or (type or to undefined)
-				if(type === 'radial'){
-					this._from = 'center';
-					this._to = 'center';
-				} else {
-					to = from;
-					from = colors;
-					colors = type;
-					type = 'linear';
-				}
-			}
-			this._type = type;
-			this._from = from;
-			this._to = to;
-		}
-		this._colors = isArray(colors) ? this._parseColors(colors) : colors;
-		// todo: move _parseColors to Gradient.parseColors.
 
-		if(Gradient.gradients[ this._type ]){
-			var grad = Gradient.gradients[ this._type ];
-			extend(this, grad);
-			if( grad.init ){
-				grad.init.call(this, type);
+		if(type + '' !== type){
+			to = from;
+			from = colors;
+			colors = type;
+			type = 'linear';
+		}
+
+		this.type = type || 'linear';
+		this.attrs = {
+			from: from,
+			to: to,
+			colors: Gradient.parseColors(colors)
+		};
+
+		if(Gradient.types[this.type]){
+			Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
+			if(Gradient.types[this.type].initialize){
+				Gradient.types[this.type].initialize.call(this);
 			}
 		}
 	},
 
-	_parseColors : function(colors){
-		var stops = {},
-			step = 1 / (colors.length - 1);
-		colors.forEach(function(color, i){
-			stops[ step * i ] = color;
-		});
-		return stops;
+	useCache: true,
+
+	attr: Drawable.prototype.attr,
+
+	attrHooks: {
+		colors: {
+			set: function(value){
+				this.update();
+				return Gradient.parseColors(value);
+			}
+		}
 	},
 
-	colorMix : function(t){
-		var last,
-			stops = this._colors,
-			keys  = Object.keys( stops ).sort();
+	color: function(t, value){
+		if(value !== undefined){
+			this.attrs.colors[t] = value;
+			return this.update();
+		}
+		if(this.attrs.colors[t]){
+			return $.color(this.attrs.colors[t]);
+		}
 
-		for(var i = 0, l = keys.length; i < l; i++){
-			if(keys[i] == t){
-				return _.color(stops[keys[i]]);
-			}
-			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
-				var c1 = _.color(stops[last]),
-					c2 = _.color(stops[keys[i]]);
-				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
+		var colors = this.attrs.colors,
+			keys = Object.keys(colors).sort();
+
+		if(t < keys[0]){
+			return $.color(colors[keys[0]]);
+		} else if(t > keys[keys.length - 1]){
+			return $.color(colors[keys[keys.length - 1]]);
+		}
+
+		for(var i = 0; i < keys.length; i++){
+			if(+keys[i] > t){
+				var c1 = $.color(colors[keys[i - 1]]),
+					c2 = $.color(colors[keys[i]]);
+				t = (t - +keys[i - 1]) / (+keys[i] - +keys[i - 1]);
 				return [
-					c1[0] + (c2[0] - c1[0]) * t | 0, // todo: Math.round
-					c1[1] + (c2[1] - c1[1]) * t | 0,
-					c1[2] + (c2[2] - c1[2]) * t | 0,
-					c1[3] + (c2[3] - c1[3]) * t
+					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
+					c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
+					c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
+					+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
 				];
 			}
-			last = keys[i];
 		}
-
-	},
-	color : function(i, color){
-		if(color === undefined){
-			return this._colors[i];
-		}
-		if(color === null){
-			;
-		}
-		this._colors[i] = color;
-		return this.update();
 	},
 
-	colors : function(colors){
-		if(colors === undefined){
-			return this._colors;
-		}
-		this._colors = colors;
-		return this.update();
-	},
+	/* key : function(from, to){
+		return [this._type, from, to, JSON.stringify(this._colors)].join(',');
+	}, */
 
-	reverse : function(){
-		var colors = this._colors,
-			new_colors = {},
-			i;
-		for(i in colors){
-			if($.has(colors, i)){
-				new_colors[1-i] = colors[i];
-			}
-		}
-		this._colors = new_colors;
-		return this.update();
-	},
-
-	// general
-	from : function(x,y,r){
-		if(arguments.length === 0)
-			;
-		if(isString(x) && x in $.corners){
-			this._from = x;
-			return this.update();
-		}
-		if(isArray(x)){
-			r = x[2];
-			y = x[1];
-			x = x[0];
-		}
-
-		if(!isArray(this._from)){
-			this._from = [];
-		}
-
-		if(x !== undefined) this._from[0] = x; // TODO: distance ?
-		if(y !== undefined) this._from[1] = y;
-		if(r !== undefined) this._from[2] = r;
-		return this.update();
-	},
-
-	to : function(x,y,r){
-		if(arguments.length === 0){
-			;
-		}
-		if(isString(x) && x in $.corners){
-			this._to = x;
-			return this.update();
-		}
-		if(isArray(x)){
-			r = x[2];
-			y = x[1];
-			x = x[0];
-		}
-
-		if(!isArray(this._to)){
-			this._to = [];
-		}
-
-		if(x !== undefined){
-			this._to[0] = x;
-		}
-		if(y !== undefined){
-			this._to[1] = y;
-		}
-		if(r !== undefined){
-			this._to[2] = r;
-		}
-		return this.update();
-	},
-
-	clone : function(){
-		return $.clone(this);
-	},
-
-	// drawing and _set
-	update : function(){
+	update: function(){
 		this.context.update();
 		return this;
 	},
 
-	_cache : true,
-
-	toCanvasStyle : function(ctx, element){
-		var grad,
-			from = this._from,
-			to = this._to;
-
-		// for corners like 'top left'
-		if(!isArray(from)){
-			if(isString(from) && /^\d+(px|pt)?/.test(from)){
-				this._from = from = _.distance(from);
-			} else {
-				from = element.corner(from);
-			}
-		}
-		if(!isArray(to)){
-			if(isString(from) && /^\d+(px|pt)?/.test(to)){
-				this._to = to = _.distance(to);
-			} else {
-				to = element.corner(to);
-			}
-		}
-
-		// Cache
-		var key = this.key(from, to);
-		if(this._cache && this.context._cache[key]){
-			return this.context._cache[key];
-		}
-
-		if(this._type === 'linear'){
-			grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
-		} else {
-			grad = ctx.createRadialGradient(from[0], from[1], from[2] || 0, to[0], to[1], to[2] || element.bounds().height);
-		}
-
-		for(var offset in this._colors){
-			if(Object.prototype.hasOwnProperty.call(this._colors, offset)){
-				grad.addColorStop( offset, this._colors[offset] );
-			}
-		}
-
-		this.context._cache[key] = grad;
-		return grad;
-	},
-
-	key : function(from, to){
-		return [this._type, from, to, JSON.stringify(this._colors)].join(',');
-	},
-
-	toString: function(){
-		return '{ Gradient(' + this._type + ')[' + this._from + ',' + this._to + ']: ' + JSON.stringify(this._colors) + ' }';
+	toCanvasStyle: function(ctx, element){
+		return Gradient.types[this.type].toCanvasStyle.call(this, ctx, element);
 	}
-
 });
 
-Gradient.gradients = {
+Gradient.parseColors = function(colors){
+	if(!Array.isArray(colors)){
+		return colors;
+	}
+
+	var stops = {},
+		step = 1 / (colors.length - 1);
+	colors.forEach(function(color, i){
+		stops[step * i] = color;
+	});
+	return stops;
+};
+
+// Linear and radial gradient species
+Gradient.types = {
 	linear: {
-		init: function(){
-			var from = this._from;
-			switch(from){
-				case 'vertical': {
-					this._from = 'top';
-					this._to = 'bottom';
-				} break;
-				case 'horizontal': {
-					this._from = 'left';
-					this._to = 'right';
+		attrHooks: {
+			from: {
+				set: function(value){
+					this.update();
+					return value;
 				}
-				case 'diag1': {
-					this._from = 'top left';
-					this._to = 'bottom right';
-				} break;
-				case 'diag2': {
-					this._from = 'top right';
-					this._to = 'bottom left';
-				} break;
-				default: break;
+			},
+			to: {
+				set: function(value){
+					this.update();
+					return value;
+				}
 			}
+		},
+		toCanvasStyle: function(ctx, element){
+			var from = element.corner(this.attrs.from),
+				to = element.corner(this.attrs.to),
+				colors = this.attrs.colors;
+
+			/* var key = this.key(from, to);
+			if(this.useCache && this.context.fillCache[key]){
+				return this.context.fillCache[key];
+			} */
+
+			var grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
+			Object.keys(colors).forEach(function(offset){
+				grad.addColorStop(offset, colors[offset]);
+			});
+			return grad;
 		}
 	},
+
 	radial: {
-		init: function(options){
-			if( !isObject(options) ){
-				return;
+		initialize: function(){
+			// from-to -> radius, center, etc
+			if(this.attrs.from && Array.isArray(this.attrs.from)){
+				this.attrs.startRadius = this.attrs.from[2] || 0;
+				this.attrs.from = this.attrs.from.slice(0, 2);
+			} else {
+				if(!this.attrs.from){
+					this.attrs.from = 'center';
+				}
+				this.attrs.startRadius = 0;
 			}
 
-			if( !this._to ){
-				this._to = [0,0];
+			if(this.attrs.to && Array.isArray(this.attrs.to)){
+				this.attrs.radius = this.attrs.to[2] || 'auto';
+				this.attrs.to = this.attrs.to.slice(0, 2);
+			} else {
+				if(!this.attrs.to){
+					this.attrs.to = this.attrs.from;
+				}
+				this.attrs.radius = 'auto';
 			}
-			if( !this._from ){
-				this._from = [0,0];
-			}
+		},
 
-			// to: center & ( radius | dest )
-			// from: startRadius & hilite
-			if( options.center ){
-				// 'center' or other corner?
-				this._to = slice.call(options.center, 0, 2);
-			}
-			if( options.hilite ){
-				this._from = [
-					this._to[0] + options.hilite[0],
-					this._to[1] + options.hilite[1],
-					this._from[2]
-				];
-			} else if( !options.from ){
-				this._from = slice.call(this._to);
-			}
-			if( options.radius ){
-				if(isNumberLike( options.radius )){
-					this._to[2] = options.radius;
-				} else {
-					this._to[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.radius[0], 2) + Math.pow(this._to[1] - options.radius[1], 2) ));
+		attrHooks: {
+			from: {
+				set: function(value){
+					if(Array.isArray(value) && value.length > 2){
+						this.attrs.startRadius = value[2];
+						value = value.slice(0, 2);
+					}
+					this.update();
+					return value;
+				}
+			},
+			to: {
+				set: function(value){
+					if(Array.isArray(value) && value.length > 2){
+						this.attrs.radius = value[2];
+						value = value.slice(0, 2);
+					}
+					this.update();
+					return value;
+				}
+			},
+
+			radius: {
+				set: function(value){
+					this.update();
+					return value;
+				}
+			},
+
+			startRadius: {
+				set: function(value){
+					this.update();
+					return value;
 				}
 			}
-			if( options.startRadius ){
-				if(isNumberLike( options.startRadius )){
-					this._from[2] = options.startRadius;
-				} else {
-					this._from[2] = Math.round(Math.sqrt( Math.pow(this._to[0] - options.startRadius[0], 2) + Math.pow(this._to[1] - options.startRadius[1], 2) ));
-				}
-			}
 		},
 
-		radius : function(radius, y){
-			if(radius === undefined){
-				return this._to[2];
-			}
+		toCanvasStyle: function(ctx, element){
+			var from = element.corner(this.attrs.from),
+				to = element.corner(this.attrs.to),
+				radius = this.attrs.radius === 'auto' ? element.bounds().height : this.attrs.radius,
+				colors = this.attrs.colors;
 
-			if(y !== undefined){
-				radius = [radius, y];
-			}
+			var grad = ctx.createRadialGradient(
+				from[0],
+				from[1],
+				this.attrs.startRadius,
+				to[0],
+				to[1],
+				radius
+			);
 
-			if(!isNumberLike(radius)){
-				var vx = this._to[0] - radius[0];
-				var vy = this._to[1] - radius[1];
-
-				this._to[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-			} else {
-				this._to[2] = _.distance(radius);
-			}
-			return this.update();
-		},
-
-		startRadius : function(radius, y){
-			if(radius === undefined){
-				return this._from[2];
-			}
-
-			if(y !== undefined){
-				radius = [radius, y];
-			}
-
-			if(!isNumberLike(radius)){
-				var vx = this._to[0] - radius[0];
-				var vy = this._to[1] - radius[1];
-
-				this._from[2] = Math.round(Math.sqrt( vx*vx + vy*vy ));
-			} else {
-				this._from[2] = _.distance(radius);
-			}
-			return this.update();
-		},
-
-		center : function(x, y){
-			if(x === undefined){
-				return this._to.slice(0, 2);
-			}
-			if(y === undefined){
-				y = x[1];
-				x = x[0];
-			}
-			this._to[0] = x;
-			this._to[1] = y;
-			return this.update();
-		},
-
-		hilite : function(x, y){
-			if(x === undefined){
-				return [this._from[0] - this._to[0], this._from[1] - this._to[1]];
-			}
-			if(y === undefined){
-				y = x[1];
-				x = x[0];
-			}
-			this._from[0] = this._to[0] + x;
-			this._from[1] = this._to[1] + y;
-			return this.update();
+			Object.keys(colors).forEach(function(offset){
+				grad.addColorStop(offset, colors[offset]);
+			});
+			return grad;
 		}
 	}
 };
 
-var from = {
-	'repeat' : true,
-	'no-repeat' : false,
-	'repeat-x' : 'x',
-	'repeat-y' : 'y'
-};
-$.Pattern = Pattern = new Class({
-
-	initialize : function(image, repeat, context){
-		var blob;
-		this._repeat = (isBoolean(repeat) ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
-
-		if(image instanceof Image){
-			this._image = image;
-		} else if(isString(image)){
-			if(image[0] === '#'){
-				this._image = document.getElementById(image.substr(1));
-			} else if(image.indexOf('<svg') === 0){
-				blob = new Blob([image], {type: 'image/svg+xml;charset=utf-8'});
-				this._image = new Image();
-				this._image.src = domurl.createObjectURL(blob);
-			} else {
-				this._image = new Image();
-				this._image.src = image;
-			}
-		}
-
-		this._image.addEventListener('load', function(){
-			this.update();
-
-			if( blob ){
-				domurl.revokeObjectURL( blob );
-			}
-		}.bind(this));
-
+Pattern = new Class({
+	initialize: function(image, repeat, context){
+		this.image = Img.parse(image);
 		this.context = context;
+
+		this.image.addEventListener('load', function(e){
+			this.update();
+		}.bind(this));
 	},
 
-	// parameters
-	repeat : function(repeat){
-		if(repeat === undefined){
-			return from[this._repeat];
-		}
-		this._repeat = (isBoolean(repeat) ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
-		return this.update();
+	update: function(){
+		this.context.update();
+		return this;
 	},
 
-	// drawing
-	update : Gradient.prototype.update,
-	toCanvasStyle : function(context){
-		if( !this._image.complete ){
+	toCanvasStyle: function(ctx){
+		if(!this.image.complete){
 			return 'transparent';
 		}
 
-		return context.createPattern(this._image, this._repeat);
+		return ctx.createPattern(this.image, 'repeat');
 	}
-
-
 });
 
+Pattern.parseRepeat = function(value){
+	if(value === !!value){
+		return value ? 'repeat' : 'no-repeat';
+	}
+	if(value === value + ''){
+		return 'repeat-' + value;
+	}
+	return 'repeat';
+};
 
 // Easing functions
 // Mootools :) partially
@@ -3410,7 +3272,7 @@ $.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	];
 };
 
-$.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+$.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined){
 		return;
 	}
@@ -3527,6 +3389,9 @@ function distance(value, dontsnap){
 }
 
 $.distance = distance;
+
+// More part
+// {don't {include Controls.js}}
 
 $.Context = Context;
 $.Drawable = Drawable;

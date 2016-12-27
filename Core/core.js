@@ -23,6 +23,7 @@ var $ = {},
 	slice = Array.prototype.slice,
 	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
 	reFloat = /^\d*\.\d+$/,
+	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
 
 	_ = {},
@@ -50,7 +51,7 @@ var $ = {},
 	                       window.clearTimeout;
 
 $.renderers = {};
-// {{include WebGL.js}}
+// {{don't include WebGL.js}}
 
 // {{include Renderer.js}}
 
@@ -79,6 +80,9 @@ $.renderers = {};
 // {{include pattern.js}}
 
 // {{include utils.js}}
+
+// More part
+// {don't {include Controls.js}}
 
 $.Context = Context;
 $.Drawable = Drawable;

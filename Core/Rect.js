@@ -15,8 +15,7 @@ Rect = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
-			// todo: parse!
-			this.styles.strokeStyle = args[5];
+			Drawable.processStroke(args[5], this.styles);
 		}
 	},
 

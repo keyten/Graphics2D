@@ -1,7 +1,7 @@
 // todo: rename to PathPart
 Curve = new Class({
-	initialize: function(name, attrs, path){
-		this.name = name;
+	initialize: function(method, attrs, path){
+		this.method = method;
 		this.path = path;
 		this.attrs = attrs;
 	},
@@ -12,7 +12,7 @@ Curve = new Class({
 	},
 
 	process: function(ctx){
-		ctx[this.name].apply(ctx, this.attrs);
+		ctx[this.method].apply(ctx, this.attrs);
 	},
 
 	// Parameters
@@ -33,7 +33,7 @@ Curve = new Class({
 	},
 
 	bounds: function(){
-		return Curve.types[this.name].bounds(this.attrs);
+		return Curve.types[this.method].bounds(this.attrs);
 	}
 });
 

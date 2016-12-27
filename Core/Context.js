@@ -60,8 +60,8 @@ Context.prototype = {
 	},
 
 	// Fills
-	gradient : function(type, from, to, colors){
-		return new Gradient(type, from, to, colors, this);
+	gradient : function(type, colors, from, to){
+		return new Gradient(type, colors, from, to, this);
 	},
 
 	pattern : function(image, repeat){

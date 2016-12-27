@@ -449,7 +449,7 @@ $.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	];
 };
 
-$.color = function(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+$.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined){
 		return;
 	}

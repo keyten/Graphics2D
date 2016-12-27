@@ -1,59 +1,33 @@
-var from = {
-	'repeat' : true,
-	'no-repeat' : false,
-	'repeat-x' : 'x',
-	'repeat-y' : 'y'
-};
-$.Pattern = Pattern = new Class({
-
-	initialize : function(image, repeat, context){
-		var blob;
-		this._repeat = (isBoolean(repeat) ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
-
-		if(image instanceof Image){
-			this._image = image;
-		} else if(isString(image)){
-			if(image[0] === '#'){
-				this._image = document.getElementById(image.substr(1));
-			} else if(image.indexOf('<svg') === 0){
-				blob = new Blob([image], {type: 'image/svg+xml;charset=utf-8'});
-				this._image = new Image();
-				this._image.src = domurl.createObjectURL(blob);
-			} else {
-				this._image = new Image();
-				this._image.src = image;
-			}
-		}
-
-		this._image.addEventListener('load', function(){
-			this.update();
-
-			if( blob ){
-				domurl.revokeObjectURL( blob );
-			}
-		}.bind(this));
-
+Pattern = new Class({
+	initialize: function(image, repeat, context){
+		this.image = Img.parse(image);
 		this.context = context;
+
+		this.image.addEventListener('load', function(e){
+			this.update();
+		}.bind(this));
 	},
 
-	// parameters
-	repeat : function(repeat){
-		if(repeat === undefined){
-			return from[this._repeat];
-		}
-		this._repeat = (isBoolean(repeat) ? (repeat ? 'repeat' : 'no-repeat') : (isString(repeat) ? 'repeat-' + repeat : 'repeat'));
-		return this.update();
+	update: function(){
+		this.context.update();
+		return this;
 	},
 
-	// drawing
-	update : Gradient.prototype.update,
-	toCanvasStyle : function(context){
-		if( !this._image.complete ){
+	toCanvasStyle: function(ctx){
+		if(!this.image.complete){
 			return 'transparent';
 		}
 
-		return context.createPattern(this._image, this._repeat);
+		return ctx.createPattern(this.image, 'repeat');
 	}
-
-
 });
+
+Pattern.parseRepeat = function(value){
+	if(value === !!value){
+		return value ? 'repeat' : 'no-repeat';
+	}
+	if(value === value + ''){
+		return 'repeat-' + value;
+	}
+	return 'repeat';
+};
