@@ -2,23 +2,23 @@ Graphics2D.Context
 ===================
 *I am not sure in my English knowledge, so there may be some mistakes. Sorry. You can help me with your pull request.*
 
-`Graphics2D.Context` — the library's context, which can be got with one of these ways:
+`Graphics2D.Context` — the library's context, which can be got one of these ways:
 ```js
 var ctx = Graphics2D.id('element'); // canvas with id="element"
 var ctx = Graphics2D.query('canvas', 0); // the first canvas on the page
-// one can use the element's object
+// query also receives the dom element
 var ctx = Graphics2D.query( document.getElementById('foo') );
 ```
 
 ### Methods
-All the methods returns the context (you can use jQuery-like chaining), if not otherwise required.
+All the methods return the context (you can use jQuery-like chaining), if not otherwise required.
 
 #### getObjectInPoint(x, y)
 ```js
 ctx.getObjectInPoint(10, 10);
 ```
 Returns an object in point `(x; y)`, or `null`, if there is not.  
-If the third parameter is `true`, will ignore objects without mouse processing (`interaction` attr).
+If the third argument is `true`, will ignore objects with mouse processing switched off (`interaction` attr).
 
 #### on(event, func)
 ```js
@@ -38,7 +38,9 @@ ctx.on('click', anyfunc);
 ctx.off('click', anyfunc);
 ctx.off('click');
 ```
-Removes event listener from canvas.
+Removes event listener(s) from canvas.
+
+Note: `ctx.off('click')` will only remove context listeners (set with ctx.on), but not the elements'.
 
 #### fire(event, [data])
 ```js
