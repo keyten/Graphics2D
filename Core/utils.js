@@ -81,7 +81,6 @@ function Bounds(x, y, w, h){
 
 // Class
 function Class(parent, properties){
-
 	if(!properties){
 		properties = parent;
 		parent = null;
@@ -96,9 +95,9 @@ function Class(parent, properties){
 		if(properties.liftInits){
 			// go to the parent
 			cls = function(){
-
-				if(cls.prototype.__initialize__)
+				if(cls.prototype.__initialize__){
 					return cls.prototype.__initialize__.apply(this,arguments);
+				}
 
 				var inits = [],
 					parent = this.constructor.parent;
@@ -107,16 +106,18 @@ function Class(parent, properties){
 					inits.push(parent.prototype.initialize);
 					parent = parent.parent;
 				}
+
 				for(var i = inits.length; i--;){
-					if(inits[i])
+					if(inits[i]){
 						inits[i].apply(this, arguments);
+					}
 				}
 
-				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize)
+				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize){
 					return cls.prototype.initialize.apply(this,arguments);
+				}
 			};
 		}
-
 
 		// prototype inheriting
 		var sklass = function(){};
@@ -125,26 +126,30 @@ function Class(parent, properties){
 		cls.prototype.superclass = parent.prototype;
 		cls.prototype.constructor = cls;
 
-		cls.superclass = parent;
 		cls.prototype.super = function(name, args){
-			return parent.prototype[name].apply(this, args);
-		};
-	}
+			// при вызове super внутри таймаута получим бесконечный цикл
+			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
+			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
+			if(!this.superclass.superclass || !this.superclass.superclass[name]){
+				return this.superclass[name].apply(this, args);
+			}
 
-	if(properties.mixins){
-		properties.mixins.forEach(function(mixin){
-			extend(cls.prototype, mixin);
-		});
+			var superclass = this.superclass;
+			this.superclass = this.superclass.superclass;
+			var result = superclass[name].apply(this, args);
+			this.superclass = parent.prototype;
+			return result;
+		};
 	}
 
 	extend(cls.prototype, properties);
 
 	return cls;
-
 }
 
 // utils
 // replace to Object.assign?
+// it doesn't work in ie :c
 function extend(a, b){
 	// странно, что в хроме разницы в производительности - вообще никакой
 	return Object.assign(a, b);
@@ -179,6 +184,7 @@ Boolean: !!a === a
 Array: Array.isArray
 Number: +a === a
  */
+
 function isObject(a){
 	return toString.call(a) === '[object Object]';
 }
@@ -454,7 +460,7 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 		return;
 	}
 	if(Array.isArray(value)){
-		return value;
+		return value.slice(0, 4);
 	}
 	if(value + '' !== value){
 		throw 'Not a color: ' + value.toString();
@@ -542,7 +548,6 @@ function distance(value, dontsnap){
 	}
 
 	if(!$.units){
-
 		if(!document){
 			$.units = defaultUnits;
 		} else {
