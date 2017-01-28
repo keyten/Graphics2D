@@ -172,6 +172,7 @@ Context.prototype = {
 
 	eventsInteract: [
 		// todo: check touch & pointer events
+		// mouse
 		'click',
 		'dblclick',
 		'mousedown',
@@ -184,14 +185,29 @@ Context.prototype = {
 		'mousewheel',
 		'blur',
 		'focus',
+		// keyboard
 		'keypress',
 		'keydown',
-		'keyup'
+		'keyup',
+		// touch
+		'touchstart',
+		'touchmove',
+		'touchend',
+		'touchcancel',
+		// pointer
+		'pointerover',
+		'pointerenter',
+		'pointerdown',
+		'pointermove',
+		'pointerup',
+		'pointercancel',
+		'pointerout',
+		'pointerleave',
+		// check:
+		'gotpointercapture',
+		'lostpointercapture'
 	],
 
-	// todo: an element must have a property _focusable
-	// then it supports focus & blur
-	// otherwise there are some bugs (object.blur())
 	eventsHooks : {
 		mouseover : function(){
 			if(!this.listeners['mouseout']){
