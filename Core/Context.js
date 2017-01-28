@@ -171,7 +171,6 @@ Context.prototype = {
 	},
 
 	eventsInteract: [
-		// todo: check touch & pointer events
 		// mouse
 		'click',
 		'dblclick',
@@ -328,7 +327,8 @@ Context.prototype = {
 	},
 
 	skew: function(x, y, pivot){
-		if(y === undefined){
+		if(y === undefined || isPivot(y)){
+			pivot = y;
 			y = x;
 		}
 		return this.transform(1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
