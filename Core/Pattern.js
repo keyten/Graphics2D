@@ -1,10 +1,15 @@
 Pattern = new Class({
 	initialize: function(image, repeat, context){
 		this.image = Img.parse(image);
+		this.repeat = repeat;
 		this.context = context;
 
 		this.image.addEventListener('load', function(e){
 			this.update();
+
+			if(this.image.blob){
+				domurl.revokeObjectURL(blob);
+			}
 		}.bind(this));
 	},
 
@@ -18,16 +23,6 @@ Pattern = new Class({
 			return 'transparent';
 		}
 
-		return ctx.createPattern(this.image, 'repeat');
+		return ctx.createPattern(this.image, this.repeat || 'repeat');
 	}
 });
-
-Pattern.parseRepeat = function(value){
-	if(value === !!value){
-		return value ? 'repeat' : 'no-repeat';
-	}
-	if(value === value + ''){
-		return 'repeat-' + value;
-	}
-	return 'repeat';
-};

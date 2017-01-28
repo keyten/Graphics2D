@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 28.1.2017
+ *  Last edit: 28.01.2017
  *  License: MIT / LGPL
  */
 
@@ -886,9 +886,7 @@ Drawable = new Class({
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
-		// remove spaces from colors & dashes
-		// todo: \s*\,\s* ?
-		stroke = stroke.replace(/\,\s/g, ',').split(' ');
+		stroke = stroke.replace(/\s*\,\s*/g, ',').split(' ');
 
 		var opacity, l = stroke.length;
 		while(l--){
@@ -897,7 +895,7 @@ Drawable.processStroke = function(stroke, style){
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = $.distance(stroke[l]);
 			} else if(stroke[l] === 'round'){
-				// wrong!
+				// wrong when changing!
 				style.lineJoin = style.lineJoin || 'round';
 				style.lineCap = style.lineCap || 'round';
 			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
@@ -922,7 +920,7 @@ Drawable.processStroke = function(stroke, style){
 	}
 };
 
-
+/*
 Shape = new Class(Style, {
 
 	liftInits: true,
@@ -1259,11 +1257,6 @@ Shape = new Class(Style, {
 
 	// transformations
 	transform : function(a, b, c, d, e, f, pivot){
-		/* px, py = pivot
-			[1,0,px]   [a,c,e]   [1,0,-px]   [a, c, -px*a - py*c + e+px]
-			[0,1,py] * [b,d,f] * [0,1,-py] = [b, d, -px*b - py*d + f+py]
-			[0,0,1]    [0,0,1]   [0,0,1]     [0, 0, 1]
-		*/
 		if(a === undefined){
 			return this._matrix;
 		}
@@ -1664,7 +1657,7 @@ function transformAnimation( fx, fn ){
 	$.fx.step[ param ] = $.fx.step.int;
 });
 
-$.fn = Shape.prototype;
+$.fn = Shape.prototype; */
 
 Rect = new Class(Drawable, {
 
@@ -2244,18 +2237,18 @@ Img = new Class(Drawable, {
 			this.attrs.crop = args[5];
 		}
 
-		this.attrs.image.addEventListener('load', function(e){
+		this.attrs.image.addEventListener('load', function(event){
 			this.update();
 
 			if(this.attrs.image.blob){
-				domurl.revokeObjectURL(blob);
+				domurl.revokeObjectURL(this.attrs.image.blob);
 			}
 
-			this.fire('load', e);
+			this.fire('load', event);
 		}.bind(this));
 
 		this.attrs.image.addEventListener('error', function(e){
-			this.fire('error', e);
+			this.fire('error', event);
 		});
 	},
 
@@ -2302,7 +2295,7 @@ Raster = new Class(Drawable, {
 			args = this.processObject(args[0], Raster.args);
 		}
 
-		this.attrs.data = args[0]; // Raster.parseRaster(args[0]);
+		this.attrs.data = args[0];
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 	},
@@ -2574,10 +2567,15 @@ Gradient.types = {
 Pattern = new Class({
 	initialize: function(image, repeat, context){
 		this.image = Img.parse(image);
+		this.repeat = repeat;
 		this.context = context;
 
 		this.image.addEventListener('load', function(e){
 			this.update();
+
+			if(this.image.blob){
+				domurl.revokeObjectURL(blob);
+			}
 		}.bind(this));
 	},
 
@@ -2591,19 +2589,9 @@ Pattern = new Class({
 			return 'transparent';
 		}
 
-		return ctx.createPattern(this.image, 'repeat');
+		return ctx.createPattern(this.image, this.repeat || 'repeat');
 	}
 });
-
-Pattern.parseRepeat = function(value){
-	if(value === !!value){
-		return value ? 'repeat' : 'no-repeat';
-	}
-	if(value === value + ''){
-		return 'repeat-' + value;
-	}
-	return 'repeat';
-};
 
 // Easing functions
 // Mootools :) partially

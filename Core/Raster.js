@@ -7,7 +7,7 @@ Raster = new Class(Drawable, {
 			args = this.processObject(args[0], Raster.args);
 		}
 
-		this.attrs.data = args[0]; // Raster.parseRaster(args[0]);
+		this.attrs.data = args[0];
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 	},

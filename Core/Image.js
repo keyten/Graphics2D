@@ -21,18 +21,18 @@ Img = new Class(Drawable, {
 			this.attrs.crop = args[5];
 		}
 
-		this.attrs.image.addEventListener('load', function(e){
+		this.attrs.image.addEventListener('load', function(event){
 			this.update();
 
 			if(this.attrs.image.blob){
-				domurl.revokeObjectURL(blob);
+				domurl.revokeObjectURL(this.attrs.image.blob);
 			}
 
-			this.fire('load', e);
+			this.fire('load', event);
 		}.bind(this));
 
 		this.attrs.image.addEventListener('error', function(e){
-			this.fire('error', e);
+			this.fire('error', event);
 		});
 	},
 

@@ -44,11 +44,10 @@ module.exports = function(grunt){
 	// Simple build system
 	function compile(source, dest){
 		var code = grunt.file.read(source),
-			today = new Date(),
 			folder = source.replace(/\/[^\/]+$/, '');
 
 		// date processing
-		code = code.replace(/\{\{date\}\}/gi, today.getDate() + '.' + (today.getMonth()+1) + '.' + today.getFullYear());
+		code = code.replace(/\{\{date\}\}/gi, today());
 
 		// config processing
 		for(var key in package){
@@ -61,6 +60,17 @@ module.exports = function(grunt){
 		});
 
 		grunt.file.write(dest, code);
+	}
+
+	function today(){
+		var today = new Date();
+		var day = today.getDate();
+		var month = today.getMonth()+1;
+		return [
+			(day < 10 ? '0' : '') + day,
+			(month < 10 ? '0' : '') + month,
+			today.getFullYear()
+		].join('.');
 	}
 
 	grunt.registerTask('core', function(){
