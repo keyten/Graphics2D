@@ -4,7 +4,6 @@ Context = function(canvas, renderer){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.matrix = [1, 0, 0, 1, 0, 0];
 	this.renderer = $.renderers[renderer || '2d'];
 	this.renderer.init(this, canvas);
 
@@ -279,61 +278,20 @@ Context.prototype = {
 	},
 
 	// Transforms
-	transform: function(a, b, c, d, e, f){
-		this.matrix = $.transform(this.matrix, [a, b, c, d, e, f]);
-		return this.update();
-	},
-
-	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
-	},
-
-	rotate: function(angle/*, pivot*/){
-		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0);
-	},
-
-	scale: function(x, y/*, pivot*/){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(x, 0, 0, y, 0, 0);
-	},
-
-	skew: function(x, y/*, pivot*/){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0);
-	}
-/*
+	matrix: null,
 	transform: function(a, b, c, d, e, f, pivot){
-		// you can get the matrix: ctx.matrix
-		// so you don't need ctx.transform() or something like this
-		var matrix;
-
 		if(pivot){
-			if(isString(pivot)){
+			if(pivot + '' === pivot){
 				pivot = $.corners[pivot];
-			} else if(isObject(pivot)){
-				;
+				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
 			}
-			var cx = this.canvas.width * pivot[0],
-				cy = this.canvas.height * pivot[1];
-			matrix = [a, b, c, d, -cx*a - cy*c + e + cx, -cx*b - cy*d + f + cy];
-		}
-		else {
-			matrix = [a, b, c, d, e, f];
+
+			e = e - a * pivot[0] + pivot[0] - c * pivot[1];
+			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
 		}
 
-		if(!this.matrix){
-			this.matrix = matrix;
-		} else {
-			this.matrix = $.multiply(this.matrix, [a, b, c, d, e, f]);
-		}
+		this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		return this.update();
-
-		// works wrong!
 	},
 
 	translate: function(x, y){
@@ -341,41 +299,23 @@ Context.prototype = {
 	},
 
 	rotate: function(angle, pivot){
-		if($.angleUnit === 'grad'){
-			angle = angle * Math.PI / 180;
-		}
-
+		angle = angle / 180 * Math.PI;
 		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 	},
 
 	scale: function(x, y, pivot){
-		if(pivot === undefined && !isNumber(y)){
+		if(y === undefined || isPivot(y)){
 			pivot = y;
 			y = x;
 		}
-
-		if(y === undefined){
-			y = x;
-		}
-
 		return this.transform(x, 0, 0, y, 0, 0, pivot);
 	},
 
-	skew : function(x, y, pivot){
-		if(pivot === undefined && !isNumber(y)){
-			pivot = y;
+	skew: function(x, y, pivot){
+		if(y === undefined){
 			y = x;
 		}
-		if( y === undefined ){
-			y = x;
-		}
-
-		if($.angleUnit === 'grad'){
-			x = x * Math.PI / 180;
-			y = y * Math.PI / 180;
-		}
-
-		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
-	} */
+		return this.transform(1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
+	}
 
 };

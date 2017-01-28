@@ -10,11 +10,9 @@ $.renderers['2d'] = {
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		ctx.setTransform.apply(ctx, delta.matrix);
-		// todo: dont make an identical matrix each time!
-		// var ident = ...
-		// if(delta.matrix != ident)...
-		// todo2: заменить на null, когда она там не нужна.
+		if(delta.matrix){
+			ctx.setTransform.apply(ctx, delta.matrix);
+		}
 	},
 
 	postRedraw: function(ctx){
@@ -85,8 +83,6 @@ $.renderers['2d'] = {
 				ctx.drawImage(params[0], params[1], params[2]);
 			} break;
 		}
-		// we don't need stroke to image
-		// this.post(ctx, style);
 		ctx.restore();
 	},
 
@@ -111,8 +107,6 @@ $.renderers['2d'] = {
 
 		// styles
 		Object.keys(style).forEach(function(key){
-			// todo: check the performance in this case:
-			// if(ctx[key] !== style[key]) ctx[key] = style[key];
 			ctx[key] = style[key];
 		});
 
