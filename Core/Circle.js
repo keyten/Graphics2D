@@ -18,35 +18,6 @@ Circle = new Class(Drawable, {
 		}
 	},
 
-	// прыгает z-index!
-	// todo: unbound these events too
-	// with requestAnimFrame
-/*	update: function(){
-		if(!this.context){
-			return this;
-		}
-
-		var ctx = this.context.context;
-		var updateList = [this];
-		var bound = this.bounds();
-		var maxBound = bound;
-
-		this.context.elements.forEach(element => {
-			bound = element.bounds();
-			if(doRectsIntersect(bound, maxBound)){
-				updateList.push(element);
-				maxBound.x1 = Math.min(maxBound.x1, bound.x1);
-				maxBound.y1 = Math.min(maxBound.y1, bound.y1);
-				maxBound.x2 = Math.max(maxBound.x2, bound.x2);
-				maxBound.y2 = Math.max(maxBound.y2, bound.y2);
-			}
-		});
-
-		ctx.clearRect(maxBound.x1, maxBound.y1, maxBound.x2 - maxBound.x1, maxBound.y2 - maxBound.y1);
-		// отсрочиваем отрисовку, чтобы параметры успели измениться
-		requestAnimationFrame(() => updateList.forEach(element => element.draw(ctx)));
-	}, */
-
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){

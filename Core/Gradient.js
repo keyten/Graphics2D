@@ -18,13 +18,38 @@ Gradient = new Class({
 			to: to,
 			colors: Gradient.parseColors(colors)
 		};
-
+/*
+<<<<<<< Updated upstream
 		if(Gradient.types[this.type]){
 			Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
 			if(Gradient.types[this.type].initialize){
 				Gradient.types[this.type].initialize.call(this);
+=======
+<<<<<<< Updated upstream
+		for(var i = 0, l = keys.length; i < l; i++){
+			if(keys[i] == t){
+				return _.color(stops[keys[i]]);
 			}
-		}
+			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
+				var c1 = _.color(stops[last]),
+					c2 = _.color(stops[keys[i]]);
+				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
+				return [
+					c1[0] + (c2[0] - c1[0]) * t | 0, // todo: Math.round
+					c1[1] + (c2[1] - c1[1]) * t | 0,
+					c1[2] + (c2[2] - c1[2]) * t | 0,
+					c1[3] + (c2[3] - c1[3]) * t
+				];
+=======
+		if(Gradient.types[this.type]){
+			// мы расширяем общий! attrHooks!
+			// Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
+			if(Gradient.types[this.type].initialize){
+				Gradient.types[this.type].initialize.call(this);
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+			}
+		} */
 	},
 
 	useCache: true,

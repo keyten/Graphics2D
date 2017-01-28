@@ -13,6 +13,7 @@ $.renderers['gl'] = {
 //		delta.gl.clear(delta.gl.COLOR_BUFFER_BIT);
 //		работает и без этого, но как его потом очищать??
 
+	// можно очищать канвас изменением его размеров!
 		delta.context = delta.gl;
 	},
 

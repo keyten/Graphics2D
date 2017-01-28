@@ -6,10 +6,10 @@
 			var canvas = this.canvas,
 				context;
 
-			if( (context = canvas.getContext('webgl')) );
-			else if( (context = canvas.getContext('experimental-webgl')) );
-			else if( (context = canvas.getContext('webkit-3d')) );
-			else if( (context = canvas.getContext('moz-webgl')) );
+			if(context = canvas.getContext('webgl'));
+			else if(context = canvas.getContext('experimental-webgl'));
+			else if(context = canvas.getContext('webkit-3d'));
+			else if(context = canvas.getContext('moz-webgl'));
 			else {
 				// webgl is not supported
 				$.extend(this, $.Context.prototype);
@@ -33,6 +33,7 @@
 			});
 			this.fire('update');
 		}
+
 	};
 
 

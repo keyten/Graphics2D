@@ -51,6 +51,7 @@ var $ = {},
 	                       window.clearTimeout;
 
 $.renderers = {};
+
 // {{don't include WebGL.js}}
 
 // {{include Renderer.js}}
@@ -73,7 +74,7 @@ $.renderers = {};
 
 // {{include raster.js}}
 
-// {{include text.js}}
+// {{don't include text.js}}
 
 // {{include gradient.js}}
 

@@ -20,10 +20,6 @@ Rect = new Class(Drawable, {
 	},
 
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
-		// updateBehavior = { set: function(value){ this.update(); return value; } }
-		// x: updateBehavior,
-		// y: updateBehavior,
-		// etc
 		x: {
 			set: function(value){
 				this.update();

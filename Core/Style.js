@@ -1,3 +1,5 @@
+// DEPRECATED
+
 var shadowProps = {
 	x: 'shadowOffsetX',
 	y: 'shadowOffsetY',

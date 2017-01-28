@@ -1,3 +1,8 @@
+<<<<<<< Updated upstream
+=======
+// DEPRECATED
+
+>>>>>>> Stashed changes
 var from = {
 	'repeat' : true,
 	'no-repeat' : false,

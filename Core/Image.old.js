@@ -1,3 +1,5 @@
+// DEPRECATED
+
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	if(smoothWithPrefix){

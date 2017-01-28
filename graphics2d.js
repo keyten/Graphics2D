@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 28.12.2016
+ *  Last edit: 28.1.2017
  *  License: MIT / LGPL
  */
 
@@ -51,6 +51,7 @@ var $ = {},
 	                       window.clearTimeout;
 
 $.renderers = {};
+
 // {{don't include WebGL.js}}
 
 $.renderers['2d'] = {
@@ -65,11 +66,9 @@ $.renderers['2d'] = {
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		ctx.setTransform.apply(ctx, delta.matrix);
-		// todo: dont make an identical matrix each time!
-		// var ident = ...
-		// if(delta.matrix != ident)...
-		// todo2: заменить на null, когда она там не нужна.
+		if(delta.matrix){
+			ctx.setTransform.apply(ctx, delta.matrix);
+		}
 	},
 
 	postRedraw: function(ctx){
@@ -140,8 +139,6 @@ $.renderers['2d'] = {
 				ctx.drawImage(params[0], params[1], params[2]);
 			} break;
 		}
-		// we don't need stroke to image
-		// this.post(ctx, style);
 		ctx.restore();
 	},
 
@@ -166,8 +163,6 @@ $.renderers['2d'] = {
 
 		// styles
 		Object.keys(style).forEach(function(key){
-			// todo: check the performance in this case:
-			// if(ctx[key] !== style[key]) ctx[key] = style[key];
 			ctx[key] = style[key];
 		});
 
@@ -217,7 +212,6 @@ Context = function(canvas, renderer){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.matrix = [1, 0, 0, 1, 0, 0];
 	this.renderer = $.renderers[renderer || '2d'];
 	this.renderer.init(this, canvas);
 
@@ -385,7 +379,7 @@ Context.prototype = {
 	},
 
 	eventsInteract: [
-		// todo: check touch & pointer events
+		// mouse
 		'click',
 		'dblclick',
 		'mousedown',
@@ -398,14 +392,29 @@ Context.prototype = {
 		'mousewheel',
 		'blur',
 		'focus',
+		// keyboard
 		'keypress',
 		'keydown',
-		'keyup'
+		'keyup',
+		// touch
+		'touchstart',
+		'touchmove',
+		'touchend',
+		'touchcancel',
+		// pointer
+		'pointerover',
+		'pointerenter',
+		'pointerdown',
+		'pointermove',
+		'pointerup',
+		'pointercancel',
+		'pointerout',
+		'pointerleave',
+		// check:
+		'gotpointercapture',
+		'lostpointercapture'
 	],
 
-	// todo: an element must have a property _focusable
-	// then it supports focus & blur
-	// otherwise there are some bugs (object.blur())
 	eventsHooks : {
 		mouseover : function(){
 			if(!this.listeners['mouseout']){
@@ -492,61 +501,20 @@ Context.prototype = {
 	},
 
 	// Transforms
-	transform: function(a, b, c, d, e, f){
-		this.matrix = $.transform(this.matrix, [a, b, c, d, e, f]);
-		return this.update();
-	},
-
-	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
-	},
-
-	rotate: function(angle/*, pivot*/){
-		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0);
-	},
-
-	scale: function(x, y/*, pivot*/){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(x, 0, 0, y, 0, 0);
-	},
-
-	skew: function(x, y/*, pivot*/){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(1, Math.tan(y), Math.tan(x), 1, 0, 0);
-	}
-/*
+	matrix: null,
 	transform: function(a, b, c, d, e, f, pivot){
-		// you can get the matrix: ctx.matrix
-		// so you don't need ctx.transform() or something like this
-		var matrix;
-
 		if(pivot){
-			if(isString(pivot)){
+			if(pivot + '' === pivot){
 				pivot = $.corners[pivot];
-			} else if(isObject(pivot)){
-				;
+				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
 			}
-			var cx = this.canvas.width * pivot[0],
-				cy = this.canvas.height * pivot[1];
-			matrix = [a, b, c, d, -cx*a - cy*c + e + cx, -cx*b - cy*d + f + cy];
-		}
-		else {
-			matrix = [a, b, c, d, e, f];
+
+			e = e - a * pivot[0] + pivot[0] - c * pivot[1];
+			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
 		}
 
-		if(!this.matrix){
-			this.matrix = matrix;
-		} else {
-			this.matrix = $.multiply(this.matrix, [a, b, c, d, e, f]);
-		}
+		this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		return this.update();
-
-		// works wrong!
 	},
 
 	translate: function(x, y){
@@ -554,42 +522,25 @@ Context.prototype = {
 	},
 
 	rotate: function(angle, pivot){
-		if($.angleUnit === 'grad'){
-			angle = angle * Math.PI / 180;
-		}
-
+		angle = angle / 180 * Math.PI;
 		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
 	},
 
 	scale: function(x, y, pivot){
-		if(pivot === undefined && !isNumber(y)){
+		if(y === undefined || isPivot(y)){
 			pivot = y;
 			y = x;
 		}
-
-		if(y === undefined){
-			y = x;
-		}
-
 		return this.transform(x, 0, 0, y, 0, 0, pivot);
 	},
 
-	skew : function(x, y, pivot){
-		if(pivot === undefined && !isNumber(y)){
+	skew: function(x, y, pivot){
+		if(y === undefined || isPivot(y)){
 			pivot = y;
 			y = x;
 		}
-		if( y === undefined ){
-			y = x;
-		}
-
-		if($.angleUnit === 'grad'){
-			x = x * Math.PI / 180;
-			y = y * Math.PI / 180;
-		}
-
-		return this.transform( 1, Math.tan(y), Math.tan(x), 1, 0, 0, pivot);
-	} */
+		return this.transform(1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
+	}
 
 };
 
@@ -1737,10 +1688,6 @@ Rect = new Class(Drawable, {
 	},
 
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
-		// updateBehavior = { set: function(value){ this.update(); return value; } }
-		// x: updateBehavior,
-		// y: updateBehavior,
-		// etc
 		x: {
 			set: function(value){
 				this.update();
@@ -1861,35 +1808,6 @@ Circle = new Class(Drawable, {
 			Drawable.processStroke(args[4], this.styles);
 		}
 	},
-
-	// прыгает z-index!
-	// todo: unbound these events too
-	// with requestAnimFrame
-/*	update: function(){
-		if(!this.context){
-			return this;
-		}
-
-		var ctx = this.context.context;
-		var updateList = [this];
-		var bound = this.bounds();
-		var maxBound = bound;
-
-		this.context.elements.forEach(element => {
-			bound = element.bounds();
-			if(doRectsIntersect(bound, maxBound)){
-				updateList.push(element);
-				maxBound.x1 = Math.min(maxBound.x1, bound.x1);
-				maxBound.y1 = Math.min(maxBound.y1, bound.y1);
-				maxBound.x2 = Math.max(maxBound.x2, bound.x2);
-				maxBound.y2 = Math.max(maxBound.y2, bound.y2);
-			}
-		});
-
-		ctx.clearRect(maxBound.x1, maxBound.y1, maxBound.x2 - maxBound.x1, maxBound.y2 - maxBound.y1);
-		// отсрочиваем отрисовку, чтобы параметры успели измениться
-		requestAnimationFrame(() => updateList.forEach(element => element.draw(ctx)));
-	}, */
 
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
@@ -2405,166 +2323,7 @@ $.raster = function(){
 	return raster;
 };
 
-Text = new Class(Drawable, {
-
-	initialize : function(args, context){
-		this.super('initialize', arguments);
-
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Text.args);
-		}
-
-		this.attrs.text = args[0];
-		this.attrs.font = Text.parseFont(args[1] || Text.font);
-		this.styles.font = Text.genFont(this.attrs.font);
-		this.attrs.x = args[2];
-		this.attrs.y = args[3];
-		if(args[4]){
-			this.styles.fillStyle = args[4];
-		}
-		if(args[5]){
-			Drawable.processStroke(args[5], this.styles);
-		}
-
-		this.styles.textBaseline = 'top';
-	},
-
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
-		text: {
-			set: function(value){
-				this.lines = null;
-				this.update();
-				return value;
-			}
-		},
-		x: {
-			set: function(value){
-				this.update();
-				return value;
-			}
-		},
-		y: {
-			set: function(value){
-				this.update();
-				return value;
-			}
-		},
-		font: {
-			set: function(value){
-				value = Text.parseFont(value);
-				this.styles.font = Text.genFont(value);
-				this.update();
-				return value;
-			}
-		}
-	}),
-
-	lines: null,
-
-	processLines: function(){
-		// todo: move to renderer api?
-		// renderer.getTextWidth(text, style)
-		var text = this.attrs.text,
-			lines = this.lines = [],
-			size = this.attrs.lineHeight || this.attrs.font.size,
-			ctx = getTemporaryCanvas(1, 1).getContext('2d'),
-			width = this.attrs.width || Infinity,
-			countline = 1,
-			align = this.styles.textAlign || 'left',
-			x = align === 'center' ? width / 2 : align === 'right' ? width : 0;
-
-		ctx.font = this.styles.font;
-
-		text.split('\n').forEach(function(line){
-			// Is the line had to be splitted?
-			if(ctx.measureText(line).width > width){
-				var words = line.split(' '),
-					useline = '',
-					testline, i, len;
-
-				for(i = 0, len = words.length; i < len; i++){
-					testline = useline + words[i] + ' ';
-
-					if(ctx.measureText(testline).width > width){
-						lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
-						useline = words[i] + ' ';
-					}
-					else {
-						useline = testline;
-					}
-				}
-				lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
-			}
-			else {
-				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
-			}
-
-		});
-		return this;
-	},
-
-	shapeBounds : function(){},
-
-	draw : function(ctx){
-		if(this._visible){
-			if(!this.lines){
-				this.processLines();
-			}
-
-			this.context.renderer.drawText(
-				[this.attrs.text, this.attrs.x, this.attrs.y],
-				ctx, this.styles, this.matrix, this
-			);
-		}
-	},
-
-	isPointIn : function(x, y){}
-
-});
-
-Text.font = '10px sans-serif';
-Text.args = ['text', 'font', 'x', 'y', 'fill', 'stroke'];
-
-// 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
-Text.parseFont = function(font){
-	if(font + '' === font){
-		var object = {
-			family: ''
-		};
-		font.split(' ').forEach(function(part){
-			if(part === 'bold'){
-				object.bold = true;
-			} else if(part === 'italic'){
-				object.italic = true;
-			} else if(reNumberLike.test(part)){
-				object.size = $.distance(part);
-			} else {
-				object.family += ' ' + part;
-			}
-		});
-
-		object.family = object.family.trim();
-		return object;
-	} else {
-		;
-	}
-};
-
-// {family: 'Arial', size: 10, bold: true} -> 'bold 10px Arial'
-Text.genFont = function(font){
-	var string = '';
-	if(font.italic){
-		string += 'italic ';
-	}
-	if(font.bold){
-		string += 'bold ';
-	}
-	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
-};
-
-$.text = function(){
-	return new Text(arguments);
-};
+// {{don't include text.js}}
 
 // cache api
 
@@ -2586,13 +2345,38 @@ Gradient = new Class({
 			to: to,
 			colors: Gradient.parseColors(colors)
 		};
-
+/*
+<<<<<<< Updated upstream
 		if(Gradient.types[this.type]){
 			Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
 			if(Gradient.types[this.type].initialize){
 				Gradient.types[this.type].initialize.call(this);
+=======
+<<<<<<< Updated upstream
+		for(var i = 0, l = keys.length; i < l; i++){
+			if(keys[i] == t){
+				return _.color(stops[keys[i]]);
 			}
-		}
+			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
+				var c1 = _.color(stops[last]),
+					c2 = _.color(stops[keys[i]]);
+				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
+				return [
+					c1[0] + (c2[0] - c1[0]) * t | 0, // todo: Math.round
+					c1[1] + (c2[1] - c1[1]) * t | 0,
+					c1[2] + (c2[2] - c1[2]) * t | 0,
+					c1[3] + (c2[3] - c1[3]) * t
+				];
+=======
+		if(Gradient.types[this.type]){
+			// мы расширяем общий! attrHooks!
+			// Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
+			if(Gradient.types[this.type].initialize){
+				Gradient.types[this.type].initialize.call(this);
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+			}
+		} */
 	},
 
 	useCache: true,
@@ -2904,7 +2688,6 @@ function Bounds(x, y, w, h){
 
 // Class
 function Class(parent, properties){
-
 	if(!properties){
 		properties = parent;
 		parent = null;
@@ -2919,9 +2702,9 @@ function Class(parent, properties){
 		if(properties.liftInits){
 			// go to the parent
 			cls = function(){
-
-				if(cls.prototype.__initialize__)
+				if(cls.prototype.__initialize__){
 					return cls.prototype.__initialize__.apply(this,arguments);
+				}
 
 				var inits = [],
 					parent = this.constructor.parent;
@@ -2930,16 +2713,18 @@ function Class(parent, properties){
 					inits.push(parent.prototype.initialize);
 					parent = parent.parent;
 				}
+
 				for(var i = inits.length; i--;){
-					if(inits[i])
+					if(inits[i]){
 						inits[i].apply(this, arguments);
+					}
 				}
 
-				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize)
+				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize){
 					return cls.prototype.initialize.apply(this,arguments);
+				}
 			};
 		}
-
 
 		// prototype inheriting
 		var sklass = function(){};
@@ -2948,26 +2733,30 @@ function Class(parent, properties){
 		cls.prototype.superclass = parent.prototype;
 		cls.prototype.constructor = cls;
 
-		cls.superclass = parent;
 		cls.prototype.super = function(name, args){
-			return parent.prototype[name].apply(this, args);
-		};
-	}
+			// при вызове super внутри таймаута получим бесконечный цикл
+			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
+			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
+			if(!this.superclass.superclass || !this.superclass.superclass[name]){
+				return this.superclass[name].apply(this, args);
+			}
 
-	if(properties.mixins){
-		properties.mixins.forEach(function(mixin){
-			extend(cls.prototype, mixin);
-		});
+			var superclass = this.superclass;
+			this.superclass = this.superclass.superclass;
+			var result = superclass[name].apply(this, args);
+			this.superclass = parent.prototype;
+			return result;
+		};
 	}
 
 	extend(cls.prototype, properties);
 
 	return cls;
-
 }
 
 // utils
 // replace to Object.assign?
+// it doesn't work in ie :c
 function extend(a, b){
 	// странно, что в хроме разницы в производительности - вообще никакой
 	return Object.assign(a, b);
@@ -3002,8 +2791,13 @@ Boolean: !!a === a
 Array: Array.isArray
 Number: +a === a
  */
+
 function isObject(a){
 	return toString.call(a) === '[object Object]';
+}
+
+function isPivot(v){
+	return Array.isArray(v) || v in $.corners;
 }
 
 $.reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/;
@@ -3277,7 +3071,7 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 		return;
 	}
 	if(Array.isArray(value)){
-		return value;
+		return value.slice(0, 4);
 	}
 	if(value + '' !== value){
 		throw 'Not a color: ' + value.toString();
@@ -3365,7 +3159,6 @@ function distance(value, dontsnap){
 	}
 
 	if(!$.units){
-
 		if(!document){
 			$.units = defaultUnits;
 		} else {

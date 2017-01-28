@@ -1,4 +1,4 @@
-Text = new Class(Drawable, {
+/* Text = new Class(Drawable, {
 
 	initialize : function(args, context){
 		this.super('initialize', arguments);
@@ -7,6 +7,7 @@ Text = new Class(Drawable, {
 			args = this.processObject(args[0], Text.args);
 		}
 
+<<<<<<< Updated upstream
 		this.attrs.text = args[0];
 		this.attrs.font = Text.parseFont(args[1] || Text.font);
 		this.styles.font = Text.genFont(this.attrs.font);
@@ -18,10 +19,25 @@ Text = new Class(Drawable, {
 		if(args[5]){
 			Drawable.processStroke(args[5], this.styles);
 		}
+=======
+<<<<<<< Updated upstream
+	_type: 'label', // label or block
+	_changedText: true,
+	_lineSpace: 0,
+>>>>>>> Stashed changes
 
 		this.styles.textBaseline = 'top';
 	},
 
+<<<<<<< Updated upstream
+=======
+		var text = this._text,
+			lines = this._lines = [],
+			size = this._lineHeight || this._font.size || 10,
+			ctx = this.context.context,
+			width = this._width || Infinity,
+=======
+>>>>>>> Stashed changes
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		text: {
 			set: function(value){
@@ -57,11 +73,19 @@ Text = new Class(Drawable, {
 	processLines: function(){
 		// todo: move to renderer api?
 		// renderer.getTextWidth(text, style)
+<<<<<<< Updated upstream
 		var text = this.attrs.text,
+=======
+		var text = this.attrs.text + '',
+>>>>>>> Stashed changes
 			lines = this.lines = [],
 			size = this.attrs.lineHeight || this.attrs.font.size,
 			ctx = getTemporaryCanvas(1, 1).getContext('2d'),
 			width = this.attrs.width || Infinity,
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 			countline = 1,
 			align = this.styles.textAlign || 'left',
 			x = align === 'center' ? width / 2 : align === 'right' ? width : 0;
@@ -157,4 +181,4 @@ Text.genFont = function(font){
 
 $.text = function(){
 	return new Text(arguments);
-};
+}; */

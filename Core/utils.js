@@ -189,6 +189,10 @@ function isObject(a){
 	return toString.call(a) === '[object Object]';
 }
 
+function isPivot(v){
+	return Array.isArray(v) || v in $.corners;
+}
+
 $.reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/;
 
 function isNumberLike(value){

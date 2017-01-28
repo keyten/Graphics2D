@@ -1,3 +1,5 @@
+// DEPRECATED
+
 Text = new Class(Shape, {
 
 	initialize : function(args){
