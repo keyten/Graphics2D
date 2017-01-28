@@ -59,6 +59,7 @@ Context.prototype = {
 	},
 
 	// Fills
+	useCache: false,
 	gradient : function(type, colors, from, to){
 		return new Gradient(type, colors, from, to, this);
 	},
@@ -310,12 +311,22 @@ Context.prototype = {
 	},
 
 	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
+		return this.transform(
+			1, 0,
+			0, 1,
+			x, y
+		);
 	},
 
 	rotate: function(angle, pivot){
 		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
+		return this.transform(
+			Math.cos(angle), Math.sin(angle),
+			-Math.sin(angle), Math.cos(angle),
+			0, 0,
+
+			pivot
+		);
 	},
 
 	scale: function(x, y, pivot){
@@ -323,7 +334,13 @@ Context.prototype = {
 			pivot = y;
 			y = x;
 		}
-		return this.transform(x, 0, 0, y, 0, 0, pivot);
+		return this.transform(
+			x, 0,
+			0, y,
+			0, 0,
+
+			pivot
+		);
 	},
 
 	skew: function(x, y, pivot){
@@ -331,7 +348,12 @@ Context.prototype = {
 			pivot = y;
 			y = x;
 		}
-		return this.transform(1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
-	}
+		return this.transform(
+			1, Math.tan(y * Math.PI / 180),
+			Math.tan(x * Math.PI / 180), 1,
+			0, 0,
 
+			pivot
+		);
+	}
 };

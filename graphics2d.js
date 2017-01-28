@@ -63,6 +63,7 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
+		console.time();
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -73,6 +74,7 @@ $.renderers['2d'] = {
 
 	postRedraw: function(ctx){
 		ctx.restore();
+		console.timeEnd();
 	},
 
 	// params = [cx, cy, radius]
@@ -156,6 +158,56 @@ $.renderers['2d'] = {
 			ctx.strokeText(params[0], params[1], params[2]);
 		}
 		ctx.restore();
+	},
+
+	makeGradient: function(delta, type, from, to, colors){
+		if(delta.useCache){
+			var hash = this.hashGradient(type, from, to, colors);
+			if(delta._cache[hash]){
+				return delta._cache[hash];
+			}
+		}
+
+		var grad;
+		if(type === 'linear'){
+			grad = delta.context.createLinearGradient(from[0], from[1], to[0], to[1]);
+		} else {
+			grad = delta.context.createRadialGradient(from[0], from[1], from[2], to[0], to[1], to[2]);
+		}
+
+		Object.keys(colors).forEach(function(offset){
+			grad.addColorStop(offset, colors[offset]);
+		});
+
+		if(delta.useCache){
+			delta._cache[hash] = grad;
+		}
+
+		return grad;
+	},
+
+	// with caching works in chromes worser
+	hashGradient: function(type, from, to, colors){
+		var hash;
+		colors = JSON.stringify(colors);
+
+		if(type === 'linear'){
+			if(from[0] === to[0]){
+				hash = ['ver', from[1], to[1], colors];
+			} else if(from[1] === to[1]){
+				hash = ['hor', from[0], to[0], colors];
+			} else {
+				hash = [from[0], from[1], to[0], to[1], colors]
+			}
+		} else {
+			hash = [
+				from[0], from[1], from[2],
+				to[0], to[1], to[2],
+				colors
+			];
+		}
+
+		return hash.join(';');
 	},
 
 	pre: function(ctx, style, matrix, object){
@@ -267,6 +319,7 @@ Context.prototype = {
 	},
 
 	// Fills
+	useCache: false,
 	gradient : function(type, colors, from, to){
 		return new Gradient(type, colors, from, to, this);
 	},
@@ -518,12 +571,22 @@ Context.prototype = {
 	},
 
 	translate: function(x, y){
-		return this.transform(1, 0, 0, 1, x, y);
+		return this.transform(
+			1, 0,
+			0, 1,
+			x, y
+		);
 	},
 
 	rotate: function(angle, pivot){
 		angle = angle / 180 * Math.PI;
-		return this.transform(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0, pivot);
+		return this.transform(
+			Math.cos(angle), Math.sin(angle),
+			-Math.sin(angle), Math.cos(angle),
+			0, 0,
+
+			pivot
+		);
 	},
 
 	scale: function(x, y, pivot){
@@ -531,7 +594,13 @@ Context.prototype = {
 			pivot = y;
 			y = x;
 		}
-		return this.transform(x, 0, 0, y, 0, 0, pivot);
+		return this.transform(
+			x, 0,
+			0, y,
+			0, 0,
+
+			pivot
+		);
 	},
 
 	skew: function(x, y, pivot){
@@ -539,34 +608,24 @@ Context.prototype = {
 			pivot = y;
 			y = x;
 		}
-		return this.transform(1, Math.tan(y * Math.PI / 180), Math.tan(x * Math.PI / 180), 1, 0, 0, pivot);
-	}
+		return this.transform(
+			1, Math.tan(y * Math.PI / 180),
+			Math.tan(x * Math.PI / 180), 1,
+			0, 0,
 
+			pivot
+		);
+	}
 };
 
 // {{don't include style.js}}
 
 var shapeDraw; // function Shape::draw with processPath
-
+/*
 function doRectsIntersect(r1, r2){
 	return !(r1.x1 > r2.x2 || r1.x2 < r2.x1 || r1.y1 < r2.y2 || r1.y2 > r2.y1);
 }
-
-function getIntersection(main, elements){
-	var list = [main],
-		maxBound = main.bounds(),
-		bound;
-
-	elements.forEach(function(element){
-		bound = element.bounds();
-		if(doRectsIntersect(maxBound, bound)){
-			list.push(element);
-			// merge bounds
-		}
-	});
-
-	return [list, maxBound];
-}
+ */
 
 var temporaryCanvas;
 
@@ -610,9 +669,38 @@ Drawable = new Class({
 		return this.update();
 	},
 
+	clone : function(attrs, styles, events){
+		// todo: test on each obj
+		var clone = new this.constructor([], this.context);
+
+		if(attrs === false){
+			clone.attrs = this.attrs;
+		} else {
+			clone.attrs = Object.assign({}, this.attrs);
+		}
+
+		if(styles === false){
+			clone.styles = this.styles;
+			clone.matrix = this.matrix;
+		} else {
+			clone.styles = Object.assign({}, this.styles); // how about deep extend? check
+			if(this.matrix){
+				clone.matrix = this.matrix.slice();
+			}
+		}
+
+		if(events === false){
+			clone.listeners = this.listeners;
+		} else {
+			clone.listeners = Object.assign({}, this.listeners);
+		}
+
+		return this.context.push(clone);
+	},
+
 	remove : function(){
 		this.context.elements.splice(this.context.elements.indexOf(this), 1);
-		// this.context = null;
+		this.context = null;
 		return this.update();
 	},
 
@@ -636,6 +724,8 @@ Drawable = new Class({
 		}
 
 		if(value === undefined){
+			// todo: check the fastest check of property
+			// ...[name] or name in or hasOwnProperty
 			if(this.attrHooks[name] && this.attrHooks[name].get){
 				return this.attrHooks[name].get.call(this);
 			}
@@ -696,13 +786,13 @@ Drawable = new Class({
 
 	// Styles
 	// why? is it used anywhere?
-	style: function(name, value){
+/*	style: function(name, value){
 		if(value === undefined){
 			return this.styles[name];
 		}
 		this.styles[name] = value;
 		return this.update();
-	},
+	}, */
 
 	processObject: function(object, arglist){
 		if(has(object, 'opacity')){
@@ -720,10 +810,11 @@ Drawable = new Class({
 	// Bounds
 	bounds : function(options){
 		if(!this.shapeBounds){
-			throw ('Object #' + this.z() + ' doesn\'t have shapeBounds method.');
+			throw ('The object doesn\'t have shapeBounds method.');
 		}
 
-		var bounds = this.shapeBounds();
+		var bounds = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
+		;
 		return new Bounds(bounds[0], bounds[1], bounds[2], bounds[3]);
 	},
 
@@ -784,13 +875,12 @@ Drawable = new Class({
 		if(a === null){
 			this.matrix = null;
 		} else {
-			var matrix = [a, b, c, d, e, f];
 			if(pivot){
 				pivot = this.corner(pivot);
-				matrix[4] = pivot[0] + e - a * pivot[0] - c * pivot[1];
-				matrix[5] = pivot[1] + f - b * pivot[0] - d * pivot[1];
+				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
+				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
 			}
-			this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], matrix);
+			this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		}
 		return this.update();
 	},
@@ -920,744 +1010,14 @@ Drawable.processStroke = function(stroke, style){
 	}
 };
 
-/*
-Shape = new Class(Style, {
-
-	liftInits: true,
-
-	initialize : function(args){
-		this.listeners = {}; // an object to store event listeners
-		this.styles = {};
-
-		var props = this.constructor.props,
-			handlers = this.constructor.propHandlers || {},
-			l;
-
-		if(isObject(args[0]) && this.constructor.firstObject){
-			this.object = args[0];
-			if(this.constructor.processStyle){
-				this.parseFromObject(args[0]);
-			}
-		}
-		else if(props){
-			l = Math.min(props.length, args.length);
-			if(this.constructor.processStyle){
-				if(args.length - props.length > 1){
-					this.stroke(args[l + 1]);
-				}
-
-				if(args.length - props.length > 0){
-					this.fill(args[l]);
-				}
-			}
-			while(l--){
-				if(handlers[l]){
-					this['_' + props[l]] = handlers[l](args[l]);
-				} else {
-					this['_' + props[l]] = args[l];
-				}
-			}
-		}
-	},
-
-	draw : function(ctx){
-		if(!this._visible){
-			return;
-		}
-		ctx.save();
-		this.styleToContext(ctx);
-		if(this._matrix){
-			ctx.transform.apply(ctx, this._matrix);
-		}
-		this.processPath(ctx);
-		if(this.styles.fillStyle){
-			ctx.fill();
-		}
-		if(this.styles.strokeStyle){
-			ctx.stroke();
-		}
-		ctx.restore();
-	},
-
-	update : function(){
-		if(!this.context){
-			return this;
-		}
-		this.context.update();
-		return this;
-	},
-
-	// properties
-	prop : function(name, value){
-		if(value === undefined){
-			return this['_' + name];
-		}
-		this['_' + name] = value;
-		return this.update();
-	},
-
-	mouse : function(state){
-		return this.prop('interaction', !!state);
-	},
-
-	z : function(z){
-		var index = this.context.elements.indexOf(this);
-		if(z === undefined){
-			return index;
-		}
-		if(z === 'top'){
-			z = this.context.elements.length; // -1?
-		}
-		this.context.elements.splice(index, 1);
-		this.context.elements.splice(z, 0, this);
-		return this.update();
-	},
-
-	clone : function(instance, events){
-	// instance = don't clone the style
-		var clone = new this.constructor([], this.context);
-		for(var i in this){
-			if($.has(this, i) && i[0] === '_'){
-				if(typeof this[i] === 'object' &&
-						this[i] !== null &&
-						// todo: !(i instanceof Image)
-						i !== '_image' && // for images
-						(instance !== true || i !== '_style')){
-					// and what about listeners here? (see after)
-					clone[i] = $.clone(this[i]);
-				} else {
-					clone[i] = this[i];
-				}
-			}
-		}
-
-		if(events === true){
-			clone.listeners = this.listeners;
-		}
-
-		return this.context.push( clone );
-	},
-
-	remove : function(){
-		this.context.elements.splice(this.context.elements.indexOf(this), 1);
-		return this.update();
-	},
-
-	cursor : function(value){
-		if( value === undefined ){
-			return this._cursor;
-		}
-
-		if( value === null ){
-			;
-		}
-
-		this._cursor = value;
-
-		if( value === null ){
-			return this.off('mouseover', this._cursorListenerOn).off('mouseout', this._cursorListenerOff);
-		}
-
-		if( !this._cursorListenerOn ){
-			this._cursorListenerOn = function(){
-				var canvas = this.context.canvas;
-				this._oldCursor = canvas.style.cursor;
-				canvas.style.cursor = this._cursor;
-			};
-			this._cursorListenerOff = function(){
-				var canvas = this.context.canvas;
-				if(canvas.style.cursor === this._cursor)
-					canvas.style.cursor = this._oldCursor;
-			};
-			this.mouseover(this._cursorListenerOn).mouseout(this._cursorListenerOff);
-		}
-
-		return this;
-	},
-
-	// events
-	on : function(event, fn){
-		if(isString(fn)){
-			fn = wrap(arguments);
-		}
-
-		if( isObject(event) ){
-			for(var i in event){
-				if($.has(event, i)){
-					if(Array.isArray(event[i])){
-						this.on.apply(this, [i].concat(event[i]));
-					} else {
-						this.on(i, event[i]);
-					}
-				}
-			}
-			return this;
-		}
-
-		if( isNumber(event) ){
-			return window.setTimeout(fn.bind(this), event), this;
-		}
-
-		this.context.listener(event);
-		(this.listeners[ event ] || (this.listeners[ event ] = [])).push(fn);
-		return this;
-	},
-
-	once : function(event, fn){
-		if(isString(fn)){
-			fn = wrap(arguments, this);
-		}
-		var proxy;
-		this.on(event, fn);
-		this.on(event, proxy = function(){
-			this.off(event, fn);
-		});
-		proxy.proxy = fn;
-		return this;
-	},
-
-	off : function(event, fn){
-		if(!event){
-			return this.listeners = {}, this;
-		}
-		if(!fn){
-			return this.listeners[event] = [], this;
-		}
-
-		event = this.listeners[event];
-
-		var index = event.indexOf(fn);
-		if( event[index+1].proxy === fn ){
-			event.splice(index, 2);
-		} else {
-			event.splice(index, 1);
-		}
-
-		return this;
-	},
-
-	fire : function(event, data){
-		event = this.listeners[event];
-		if( !event ){
-			return this;
-		}
-		for(var i = 0, l = event.length; i < l; i++){
-			if( event.length < l ){ // for .off in the listener
-				i -= (l - event.length);
-				l = event.length;
-			}
-
-			event[i].call(this, data);
-		}
-		return this;
-	},
-
-	isPointIn : function(x, y){
-		if(!this.processPath){
-			return false;
-		}
-		var ctx = this.context.context,
-			is;
-		ctx.save();
-		if(this._matrix){
-			ctx.transform.apply(ctx, this._matrix);
-		}
-		this.processPath(ctx);
-		is = ctx.isPointInPath(x, y);
-		ctx.restore();
-		return is;
-	},
-
-	corner : function(corner, options){
-		if(Array.isArray(corner)){
-			return corner;
-		}
-
-		if(isObject(corner)){
-			if($.has(corner, 'from')){
-				var from = this.corner(corner.from);
-				return [from[0] + corner.x, from[1] + corner.y];
-			}
-			else {
-				return [corner.x, corner.y];
-			}
-		}
-		if(!corner){
-			corner = 'center';
-		}
-
-		var bounds = this.bounds(options);
-		return [
-			bounds.x + bounds.w * $.corners[corner][0],
-			bounds.y + bounds.h * $.corners[corner][1]
-		];
-	},
-
-	bounds : function(options){
-		if(!this.nativeBounds){
-			throw ('Object #' + this._z + 'hasn\'t nativeBounds() method.');
-		}
-
-		var nb = this.nativeBounds(),
-			mt = this._matrix,
-			lw = this.styles.lineWidth / 2,
-
-			ltx = nb.x1, lty = nb.y1,
-			rtx = nb.x2, rty = nb.y1,
-			lbx = nb.x1, lby = nb.y2,
-			rbx = nb.x2, rby = nb.y2;
-
-		if( options ){
-			if( options.stroke === 'exclude' ){
-				options.stroke = true; // don't modify argument obs!
-				lw *= -1;
-			}
-
-			if( options.stroke === true ){
-				ltx -= lw;
-				lty -= lw;
-				rtx += lw;
-				rty -= lw;
-				lbx -= lw;
-				lby += lw;
-				rbx += lw;
-				rby += lw;
-			}
-
-			if( options.transform === true && mt ){
-				var a = mt[0], b = mt[1],
-					c = mt[2], d = mt[3],
-					e = mt[4], f = mt[5];
-
-				ltx = [ltx * a + lty * c + e,  lty = ltx * b + lty * d + f][0]; // todo: beautify
-				rtx = [rtx * a + rty * c + e,  rty = rtx * b + rty * d + f][0];
-				lbx = [lbx * a + lby * c + e,  lby = lbx * b + lby * d + f][0];
-				rbx = [rbx * a + rby * c + e,  rby = rbx * b + rby * d + f][0];
-				if( options.points !== true ){
-					var x1 = Math.min(ltx, rtx, lbx, rbx),
-						x2 = Math.max(ltx, rtx, lbx, rbx),
-						y1 = Math.min(lty, rty, lby, rby),
-						y2 = Math.max(lty, rty, lby, rby);
-					return new Bounds(x1, y1, x2 - x1, y2 - y1);
-				}
-			}
-
-			if( options.points === true ){
-				return {
-					lt: [ltx, lty],
-					rt: [rtx, rty],
-					lb: [lbx, lby],
-					rb: [rbx, rby]
-				};
-			}
-		}
-
-		return new Bounds(ltx, lty, rbx - ltx, rby - lty);
-	},
-
-	// transformations
-	transform : function(a, b, c, d, e, f, pivot){
-		if(a === undefined){
-			return this._matrix;
-		}
-		if(a === null){
-			this._matrix = null;
-			return this.update();
-		}
-
-		pivot = this.corner(pivot)
-		var matrix = [
-				a, b, c, d,
-				-pivot[0]*a - pivot[1]*c + e+pivot[0],
-				-pivot[0]*b - pivot[1]*d + f+pivot[1]
-				];
-
-		if(this._matrix){
-			matrix = $.multiply(this._matrix, matrix);
-		}
-
-		this._matrix = matrix;
-		return this.update();
-	},
-
-	scale : Context.prototype.scale,
-
-	rotate : Context.prototype.rotate,
-
-	skew : Context.prototype.skew,
-
-	translate : Context.prototype.translate,
-
-	// conversions
-	toPath : function(){
-		return null;
-	},
-
-	toDataURL : function(type, bounds){
-		if( bounds === undefined ){
-			if( typeof this.bounds === 'function' ){
-				bounds = this.bounds({ transform: true, stroke: true });
-			} else {
-				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
-			}
-		}
-
-		// todo: use a new canvas
-		var image,
-			ctx = this.context.context,
-			cnv = this.context.canvas,
-			current = ctx.getImageData( 0, 0, cnv.width, cnv.height ),
-			w = cnv.width,
-			h = cnv.height;
-
-		cnv.width  = bounds.width;
-		cnv.height = bounds.height;
-
-		ctx.translate( -bounds.x, -bounds.y );
-		this.draw( ctx );
-		ctx.translate( bounds.x, bounds.y );
-
-		image = cnv.toDataURL( type );
-		cnv.width  = w;
-		cnv.height = h;
-		ctx.putImageData( current, 0, 0 );
-
-		return image;
-	},
-
-	rasterize : function(type, bounds){
-		if( bounds === undefined ){
-			if( typeof this.bounds === 'function' ){
-				bounds = this.bounds({ transform: true, stroke: true });
-			} else {
-				throw ('Object #' + this._z + ' can\'t be rasterized: need the bounds.');
-			}
-		}
-		return this.context.image( this.toDataURL(type, bounds), bounds.x, bounds.y );
-	},
-
-	// animation
-	animate : function( prop, value, options ){
-		//	animate(property, value, duration, easing, after);
-		//	animate(properties, duration, easing, after);
-		//	animate(property, value, options);
-		//	animate(properties, options);
-
-		if( isObject( prop ) ){
-			if( isObject( value ) ){
-				value.queue = false;
-			} else {
-				value = { duration: value, easing: options, callback: arguments[4], queue: false };
-			}
-
-			value = $.extend({}, value);
-			var c = value.callback,
-				keys = Object.keys( prop ),
-				i = 0;
-			value.callback = null;
-
-			for(; i < keys.length; i++){
-				if( i === keys.length-1 ){
-					value.callback = c;
-				}
-				this.animate( keys[i], prop[keys[i]], value );
-			}
-			return this;
-		}
-
-		if( !isObject( options ) ){
-			options = { duration: options, easing: arguments[3], callback: arguments[4] };
-		}
-
-		var now = Date.now(),
-			object = {
-			// element
-			elem: this,
-			// time
-			startTime: now,
-			endTime: now + (options.duration || 500),
-			duration: options.duration || 500,
-			// property
-			prop: prop,
-			end: value,
-			// animation process
-			state: 0,
-			easing: $.easing[options.easing] || options.easing || $.easing.linear,
-			callback: options.callback
-		};
-
-		if( options.queue === false ){
-			$._queue.push( object );
-			$._checkAnimation();
-		} else {
-			if( this._queue && this._queue.length > 0 ){
-				this._queue.push( object );
-			} else {
-				this._queue = [ object ];
-				$._queue.push( object );
-				$._checkAnimation();
-			}
-		}
-		return this;
-	},
-
-	// defaults
-	_visible : true,
-	_interaction : true,
-	_origin : 'center' // for transform animations
+// events aliases
+Context.prototype.eventsInteract.forEach(function(eventName){
+	Drawable.prototype[eventName] = Context.prototype[eventName] = function(callback){
+		return this[
+			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
+		].apply(this, [eventName].concat(slice.call(arguments)));
+	};
 });
-
-$._queue = [];
-var enabledAnimation = false;
-function doAnimation(){
-	var current, t,
-		i = 0,
-		l = $._queue.length,
-		now = Date.now();
-	for( ; i < l; i++ ){
-		current = $._queue[i];
-		t = (now - current.startTime) / current.duration;
-
-		if( t < 0 ){
-			continue;
-		}
-
-		if( t > 1 ){
-			t = 1;
-		}
-
-		current.now = now;
-		current.pos = current.easing(t);
-		$.fx.step[current.prop](current);
-
-		if( current.state === 0 ){
-			current.state = 1;
-		}
-
-		if( t === 1 ){
-			if( current.callback )
-				current.callback.call( current.elem, current );
-			if( current.elem._queue ){
-				current.elem._queue.shift();
-				if( current.elem._queue.length > 0 ){
-					$._queue[i] = current = current.elem._queue[0];
-					current.startTime = Date.now();
-					current.endTime = current.startTime + current.duration;
-				} else {
-					current.elem._queue = null;
-					$._queue.splice(i, 1);
-					i--; l--;
-				}
-			} else {
-				current.elem._queue = null;
-				$._queue.splice(i, 1);
-				i--; l--;
-			}
-		}
-	}
-	current.elem.update();
-	if(l > 0){
-		requestAnimationFrame(doAnimation);
-	} else {
-		enabledAnimation = false;
-	}
-}
-$._checkAnimation = function(){
-	if( !enabledAnimation ){
-		requestAnimationFrame(doAnimation);
-		enabledAnimation = true;
-	}
-};
-$.fx = {};
-$.fx.step = {
-	int: function( fx ){
-		if( fx.state === 0 ){
-			fx._prop = '_' + fx.prop;
-			fx.start = fx.elem[ fx._prop ];
-			if( isString(fx.end) ){
-				if( fx.end.indexOf('+=') === 0 ){
-					fx.end = fx.start + Number( fx.end.substr(2) );
-				} else if( fx.end.indexOf('-=') === 0 ){
-					fx.end = fx.start - Number( fx.end.substr(2) );
-				}
-			}
-		}
-
-		fx.elem[ fx._prop ] = Math.round(fx.start + (fx.end - fx.start) * fx.pos);
-	},
-
-	float: function( fx ){
-		if( fx.state === 0 ){
-			fx._prop = '_' + fx.prop;
-			fx.start = fx.elem[ fx._prop ];
-			if( isString(fx.end) ){
-				if( fx.end.indexOf('+=') === 0 ){
-					fx.end = fx.start + Number( fx.end.substr(2) );
-				} else if( fx.end.indexOf('-=') === 0 ){
-					fx.end = fx.start - Number( fx.end.substr(2) );
-				}
-			}
-		}
-
-		fx.elem[ fx._prop ] = fx.start + (fx.end - fx.start) * fx.pos;
-	},
-
-	opacity: function( fx ){
-		if( fx.state === 0 ){
-			fx.start = fx.elem.styles.globalAlpha;
-			if( fx.start === undefined ){
-				fx.start = 1;
-			}
-		}
-		fx.elem.styles.globalAlpha = fx.start + (fx.end - fx.start) * fx.pos;
-	},
-
-	fill: function( fx ){
-		if( fx.state === 0 ){
-			fx.start = $.color( fx.elem.styles.fillStyle );
-
-			if( fx.end === 'transparent' ){
-				fx.end = fx.start.slice(0, 3).concat([ 0 ]);
-			} else {
-				fx.end = $.color( fx.end );
-			}
-
-			if( fx.elem.styles.fillStyle === 'transparent' ||
-				fx.elem.styles.fillStyle === undefined ){
-				fx.start = fx.end.slice(0, 3).concat([ 0 ]);
-			}
-		}
-		fx.elem.styles.fillStyle = 'rgba(' +
-			[	Math.round(fx.start[0] + (fx.end[0] - fx.start[0]) * fx.pos),
-				Math.round(fx.start[1] + (fx.end[1] - fx.start[1]) * fx.pos),
-				Math.round(fx.start[2] + (fx.end[2] - fx.start[2]) * fx.pos),
-				fx.start[3] + (fx.end[3] - fx.start[3]) * fx.pos ].join(',') + ')';
-	},
-
-	stroke: function( fx ){
-		// width, color, dash
-		if( fx.state === 0 ){
-	//		var end = Shape.prototype._parseStroke( fx.end );
-			fx.color1 = $.color( fx.elem.styles.strokeStyle );
-			fx.width1 = fx.elem.styles.lineWidth || 0;
-			fx.width2 = end.lineWidth;
-
-			if( end.strokeStyle === 'transparent' ){
-				fx.color2 = fx.color1.slice(0, 3).concat([ 0 ]);
-			} else if( end.strokeStyle ){
-				fx.color2 = $.color( end.strokeStyle );
-			}
-
-			if( (fx.elem.styles.strokeStyle === 'transparent' ||
-				fx.elem.styles.strokeStyle === undefined) && end.strokeStyle ){
-				fx.color1 = fx.color2.slice(0, 3).concat([ 0 ]);
-			}
-		}
-
-		if( fx.color2 ){
-			fx.elem.styles.strokeStyle = 'rgba(' +
-				[	Math.round(fx.color1[0] + (fx.color2[0] - fx.color1[0]) * fx.pos),
-					Math.round(fx.color1[1] + (fx.color2[1] - fx.color1[1]) * fx.pos),
-					Math.round(fx.color1[2] + (fx.color2[2] - fx.color1[2]) * fx.pos),
-					fx.color1[3] + (fx.color2[3] - fx.color1[3]) * fx.pos ].join(',') + ')';
-		}
-
-		if( fx.width2 ){
-			fx.elem.styles.lineWidth = fx.width1 + (fx.width2 - fx.width1) * fx.pos;
-		}
-	},
-
-	translate: function( fx ){
-		transformAnimation( fx, function(){
-			return [ 1, 0, 0, 1, fx.end[0] * fx.pos, fx.end[1] * fx.pos ];
-		} );
-	},
-	rotate: function( fx ){
-		if( fx.state === 0 && $.angleUnit === 'grad' )
-			fx.end = fx.end * Math.PI / 180;
-
-		transformAnimation( fx, function(){
-			var cur = fx.end * fx.pos,
-				cos = Math.cos( cur ),
-				sin = Math.sin( cur );
-			return [ cos, sin, -sin, cos, 0, 0 ];
-		} );
-	},
-	skew: function( fx ){
-		if( fx.state === 0 ){
-			if( fx.end.length === undefined ){
-				fx.end = [ fx.end, fx.end ];
-			}
-
-			if( $.angleUnit === 'grad'){
-				fx.end[0] = fx.end[0] * Math.PI / 180;
-				fx.end[1] = fx.end[1] * Math.PI / 180;
-			}
-		}
-
-		transformAnimation( fx, function(){
-			return [ 1, Math.tan( fx.end[1] * fx.pos ), Math.tan( fx.end[0] * fx.pos ), 1, 0, 0 ];
-		} );
-	},
-	scale: function( fx ){
-		if( fx.state === 0 && fx.end.length === undefined )
-			fx.end = [ fx.end, fx.end ];
-
-		transformAnimation( fx, function(){
-			return [ 1 + (fx.end[0] - 1) * fx.pos, 0, 0, 1 + (fx.end[1] - 1) * fx.pos, 0, 0 ];
-		} );
-	},
-	origin: function( fx ){
-		if( fx.state === 0 ){
-			fx.elem._origin = fx.elem.corner( fx.end );
-		}
-	}
-};
-
-function transformAnimation( fx, fn ){
-	if( fx.state === 0 ){
-		fx.elem._matrixStart = fx.elem._matrix || [ 1, 0, 0, 1, 0, 0 ];
-		fx.elem._matrixCur = [];
-		if( fx.elem.corner ){
-			fx.corner = fx.elem.corner( fx.elem._origin || 'center' );
-		} else {
-			fx.corner = [ 0, 0 ];
-		}
-	}
-	if( fx.elem._matrixCur.now !== fx.now ){
-		fx.elem._matrixCur = [ 1, 0, 0, 1, 0, 0 ];
-	}
-
-	var matrix = fn( fx );
-	matrix[4] += fx.corner[0] - fx.corner[0]*matrix[0] - fx.corner[1]*matrix[2];
-	matrix[5] += fx.corner[1] - fx.corner[0]*matrix[1] - fx.corner[1]*matrix[3];
-
-	fx.elem._matrixCur = $.multiply( fx.elem._matrixCur, matrix );
-	fx.elem._matrixCur.now = fx.now;
-	fx.elem._matrix = $.multiply( fx.elem._matrixStart, fx.elem._matrixCur );
-}
-
-// events slices
-['click', 'dblclick', 'mousedown', 'mousewheel',
-	'mouseup', 'mousemove', 'mouseover',
-	'mouseout', 'focus', 'blur',
-	'touchstart', 'touchmove', 'touchend',
-	'keypress', 'keydown', 'keyup'].forEach(function(event){
-		Shape.prototype[event] = Context.prototype[event] = function(fn){
-			if(typeof fn === 'function' || fn + '' === fn){
-				return this.on.apply(this, [event].concat(slice.call(arguments)));
-			} else {
-				return this.fire.apply(this, arguments);
-			}
-		};
-	});
-
-// animation slices
-['x', 'y', 'width', 'height', 'cx', 'cy', 'radius'].forEach(function( param ){
-	$.fx.step[ param ] = $.fx.step.int;
-});
-
-$.fn = Shape.prototype; */
 
 Rect = new Class(Drawable, {
 
@@ -2318,9 +1678,6 @@ $.raster = function(){
 
 // {{don't include text.js}}
 
-// cache api
-
-// /cache api
 Gradient = new Class({
 	initialize: function(type, colors, from, to, context){
 		this.context = context;
@@ -2338,41 +1695,18 @@ Gradient = new Class({
 			to: to,
 			colors: Gradient.parseColors(colors)
 		};
-/*
-<<<<<<< Updated upstream
-		if(Gradient.types[this.type]){
-			Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
-			if(Gradient.types[this.type].initialize){
-				Gradient.types[this.type].initialize.call(this);
-=======
-<<<<<<< Updated upstream
-		for(var i = 0, l = keys.length; i < l; i++){
-			if(keys[i] == t){
-				return _.color(stops[keys[i]]);
-			}
-			else if(parseFloat(last) < t && parseFloat(keys[i]) > t){
-				var c1 = _.color(stops[last]),
-					c2 = _.color(stops[keys[i]]);
-				t = (t - parseFloat(last)) / (parseFloat(keys[i]) - parseFloat(last));
-				return [
-					c1[0] + (c2[0] - c1[0]) * t | 0, // todo: Math.round
-					c1[1] + (c2[1] - c1[1]) * t | 0,
-					c1[2] + (c2[2] - c1[2]) * t | 0,
-					c1[3] + (c2[3] - c1[3]) * t
-				];
-=======
-		if(Gradient.types[this.type]){
-			// мы расширяем общий! attrHooks!
-			// Object.assign(this.attrHooks, Gradient.types[this.type].attrHooks);
-			if(Gradient.types[this.type].initialize){
-				Gradient.types[this.type].initialize.call(this);
->>>>>>> Stashed changes
->>>>>>> Stashed changes
-			}
-		} */
-	},
 
-	useCache: true,
+		if(Gradient.types[this.type]){
+			this.attrHooks = Object.assign(
+				Object.assign({}, this.attrHooks),
+				Gradient.types[this.type].attrHooks
+			);
+
+			if(Gradient.types[this.type].initialize){
+				Gradient.types[this.type].initialize.call(this);
+			}
+		}
+	},
 
 	attr: Drawable.prototype.attr,
 
@@ -2418,10 +1752,6 @@ Gradient = new Class({
 		}
 	},
 
-	/* key : function(from, to){
-		return [this._type, from, to, JSON.stringify(this._colors)].join(',');
-	}, */
-
 	update: function(){
 		this.context.update();
 		return this;
@@ -2462,21 +1792,15 @@ Gradient.types = {
 				}
 			}
 		},
+
 		toCanvasStyle: function(ctx, element){
-			var from = element.corner(this.attrs.from),
-				to = element.corner(this.attrs.to),
-				colors = this.attrs.colors;
-
-			/* var key = this.key(from, to);
-			if(this.useCache && this.context.fillCache[key]){
-				return this.context.fillCache[key];
-			} */
-
-			var grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
-			Object.keys(colors).forEach(function(offset){
-				grad.addColorStop(offset, colors[offset]);
-			});
-			return grad;
+			return this.context.renderer.makeGradient(
+				this.context,
+				'linear',
+				element.corner(this.attrs.from),
+				element.corner(this.attrs.to),
+				this.attrs.colors
+			);
 		}
 	},
 
@@ -2515,6 +1839,7 @@ Gradient.types = {
 					return value;
 				}
 			},
+
 			to: {
 				set: function(value){
 					if(Array.isArray(value) && value.length > 2){
@@ -2543,23 +1868,15 @@ Gradient.types = {
 
 		toCanvasStyle: function(ctx, element){
 			var from = element.corner(this.attrs.from),
-				to = element.corner(this.attrs.to),
-				radius = this.attrs.radius === 'auto' ? element.bounds().height : this.attrs.radius,
-				colors = this.attrs.colors;
+				to = element.corner(this.attrs.to);
 
-			var grad = ctx.createRadialGradient(
-				from[0],
-				from[1],
-				this.attrs.startRadius,
-				to[0],
-				to[1],
-				radius
+			return this.context.renderer.makeGradient(
+				this.context,
+				'radial',
+				[from[0], from[1], this.attrs.startRadius],
+				[to[0], to[1], this.attrs.radius === 'auto' ? element.bounds().height : this.attrs.radius],
+				this.attrs.colors
 			);
-
-			Object.keys(colors).forEach(function(offset){
-				grad.addColorStop(offset, colors[offset]);
-			});
-			return grad;
 		}
 	}
 };

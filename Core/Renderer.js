@@ -7,6 +7,7 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
+		console.time();
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -17,6 +18,7 @@ $.renderers['2d'] = {
 
 	postRedraw: function(ctx){
 		ctx.restore();
+		console.timeEnd();
 	},
 
 	// params = [cx, cy, radius]
@@ -100,6 +102,56 @@ $.renderers['2d'] = {
 			ctx.strokeText(params[0], params[1], params[2]);
 		}
 		ctx.restore();
+	},
+
+	makeGradient: function(delta, type, from, to, colors){
+		if(delta.useCache){
+			var hash = this.hashGradient(type, from, to, colors);
+			if(delta._cache[hash]){
+				return delta._cache[hash];
+			}
+		}
+
+		var grad;
+		if(type === 'linear'){
+			grad = delta.context.createLinearGradient(from[0], from[1], to[0], to[1]);
+		} else {
+			grad = delta.context.createRadialGradient(from[0], from[1], from[2], to[0], to[1], to[2]);
+		}
+
+		Object.keys(colors).forEach(function(offset){
+			grad.addColorStop(offset, colors[offset]);
+		});
+
+		if(delta.useCache){
+			delta._cache[hash] = grad;
+		}
+
+		return grad;
+	},
+
+	// with caching works in chromes worser
+	hashGradient: function(type, from, to, colors){
+		var hash;
+		colors = JSON.stringify(colors);
+
+		if(type === 'linear'){
+			if(from[0] === to[0]){
+				hash = ['ver', from[1], to[1], colors];
+			} else if(from[1] === to[1]){
+				hash = ['hor', from[0], to[0], colors];
+			} else {
+				hash = [from[0], from[1], to[0], to[1], colors]
+			}
+		} else {
+			hash = [
+				from[0], from[1], from[2],
+				to[0], to[1], to[2],
+				colors
+			];
+		}
+
+		return hash.join(';');
 	},
 
 	pre: function(ctx, style, matrix, object){
