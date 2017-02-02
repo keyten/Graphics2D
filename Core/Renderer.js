@@ -7,7 +7,7 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
-		console.time();
+		console.time('Drawing time');
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -18,7 +18,7 @@ $.renderers['2d'] = {
 
 	postRedraw: function(ctx){
 		ctx.restore();
-		console.timeEnd();
+		console.timeEnd('Drawing time');
 	},
 
 	// params = [cx, cy, radius]
@@ -64,23 +64,30 @@ $.renderers['2d'] = {
 		this.post(ctx, style);
 	},
 
+	// params = [image, x, y]
+	// params = [image, x, y, w, h]
+	// params = [image, x, y, w, h, cx, cy, cw, ch]
 	drawImage: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
 		switch(params.length){
+			// with size
 			case 5: {
 				ctx.drawImage(params[0], params[1], params[2], params[3], params[4]);
 			} break;
 
+			// with size & crop
 			case 9: {
 				ctx.drawImage(
 					params[0],
-					params[1], params[2],
-					params[3], params[4],
 					params[5], params[6],
-					params[7], params[8]
+					params[7], params[8],
+
+					params[1], params[2],
+					params[3], params[4]
 				);
 			} break;
 
+			// without size
 			default: {
 				ctx.drawImage(params[0], params[1], params[2]);
 			} break;
@@ -178,7 +185,17 @@ $.renderers['2d'] = {
 		}
 
 		// clip
-		// ...
+		if(object.attrs.clip){
+			if(object.attrs.clip.matrix){
+				ctx.save();
+				ctx.transform.apply(ctx, object.attrs.clip.matrix);
+				object.attrs.clip.processPath(ctx);
+				ctx.restore();
+			} else {
+				object.attrs.clip.processPath(ctx);
+			}
+			ctx.clip();
+		}
 
 		if(matrix){
 			ctx.transform(

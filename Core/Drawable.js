@@ -1,9 +1,6 @@
-var shapeDraw; // function Shape::draw with processPath
-/*
-function doRectsIntersect(r1, r2){
+/* function doRectsIntersect(r1, r2){
 	return !(r1.x1 > r2.x2 || r1.x2 < r2.x1 || r1.y1 < r2.y2 || r1.y2 > r2.y1);
-}
- */
+} */
 
 var temporaryCanvas;
 
@@ -111,11 +108,7 @@ Drawable = new Class({
 		}
 
 		if(this.attrHooks[name] && this.attrHooks[name].set){
-			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== undefined || this.attrs[name] !== undefined){
-				// why is the 2nd condition?
-				this.attrs[name] = result;
-			}
+			this.attrHooks[name].set.call(this, value);
 		} else {
 			this.attrs[name] = value;
 		}
@@ -130,14 +123,21 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.fillStyle = value;
-				return this.update();
+				this.update();
 			}
 		},
 
 		stroke: {
 			set: function(value){
 				Drawable.processStroke(value, this.styles);
-				return this.update();
+				this.update();
+			}
+		},
+
+		shadow: {
+			set: function(value){
+				Drawable.processShadow(value, this.styles);
+				this.update();
 			}
 		},
 
@@ -147,7 +147,7 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.globalAlpha = +value;
-				return this.update();
+				this.update();
 			}
 		},
 
@@ -157,20 +157,18 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.globalCompositeOperation = value;
-				return this.update();
+				this.update();
+			}
+		},
+
+		clip: {
+			set: function(value){
+				value.context = this.context;
+				this.attrs.clip = value;
+				this.update();
 			}
 		}
 	},
-
-	// Styles
-	// why? is it used anywhere?
-/*	style: function(name, value){
-		if(value === undefined){
-			return this.styles[name];
-		}
-		this.styles[name] = value;
-		return this.update();
-	}, */
 
 	processObject: function(object, arglist){
 		if(has(object, 'opacity')){
@@ -178,6 +176,10 @@ Drawable = new Class({
 		}
 		if(has(object, 'composite')){
 			this.styles.globalCompositeOperation = object.composite;
+		}
+		if(has(object, 'clip')){
+			object.clip.context = this.context;
+			this.attrs.clip = object.clip;
 		}
 
 		return arglist.map(function(name){
@@ -371,9 +373,9 @@ Drawable.processStroke = function(stroke, style){
 			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
 				style.lineCap = stroke[l];
 			} else if(stroke[l][0] === '['){
-				// stroke[l].substr(1, stroke[l].length - 2).split(',')
+				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
 			} else if(stroke[l] in $.dashes){
-				// $.dashes[stroke[l]]
+				style.lineDash = $.dashes[stroke[l]];
 			} else {
 				style.strokeStyle = stroke[l];
 			}
@@ -384,9 +386,61 @@ Drawable.processStroke = function(stroke, style){
 			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
 		}
 	} else {
-		;
+		if(stroke.color){
+			style.strokeStyle = stroke.color;
+		}
+		if(stroke.opacity && style.strokeStyle){
+			var parsed = $.color(style.strokeStyle);
+			parsed[3] = stroke.opacity;
+			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+		}
+		if(stroke.width){
+			style.lineWidth = $.distance(stroke.width);
+		}
+		if(stroke.join){
+			style.lineJoin = stroke.join;
+		}
+		if(stroke.cap){
+			style.lineCap = stroke.cap;
+		}
+		if(stroke.dash){
+			if(stroke.dash in $.dashes){
+				style.lineDash = $.dashes[stroke.dash];
+			} else {
+				style.lineDash = stroke.dash;
+			}
+		}
 	}
 };
+
+Drawable.processShadow = function(shadow, style){
+	if(shadow + '' === shadow){
+		var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+		shadow = shadow.replace(/\s*\,\s*/g, ',').split(' ');
+		for(var i = 0; i < shadow.length; i++){
+			if(isNaN(+shadow[i][0])){
+				style.shadowColor = shadow[i];
+			} else {
+				style[shadowProps.shift()] = $.distance(shadow[i]);
+			}
+		}
+	} else {
+		if(shadow.x !== undefined){
+			style.shadowOffsetX = $.distance(shadow.x);
+		}
+		if(shadow.y !== undefined){
+			style.shadowOffsetY = $.distance(shadow.y);
+		}
+		if(shadow.blur !== undefined){
+			style.shadowBlur = $.distance(shadow.blur || 0);
+		}
+		if(shadow.color){
+			style.shadowColor = shadow.color;
+		}
+	}
+}
+
+$.Drawable = Drawable;
 
 // events aliases
 Context.prototype.eventsInteract.forEach(function(eventName){

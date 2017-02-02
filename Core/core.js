@@ -13,8 +13,8 @@ var $ = {},
 // Classes
 	Context,
 	Drawable,
-	Shape, Rect, Circle, Curve, Path, Img, Raster, Text,
-	Gradient, Pattern, Bounds, Style,
+	Rect, Circle, Curve, Path, Picture, Raster, Text,
+	Gradient, Pattern,
 
 // Local variables
 	document = window.document,
@@ -52,50 +52,31 @@ var $ = {},
 
 $.renderers = {};
 
-// {{don't include WebGL.js}}
-
 // {{include Renderer.js}}
 
-// {{include context.js}}
+// {{include Context.js}}
 
-// {{don't include style.js}}
+// {{include Drawable.js}}
 
-// {{include shape.js}}
+// {{include Rect.js}}
 
-// {{include rect.js}}
+// {{include Circle.js}}
 
-// {{include circle.js}}
+// {{include Curve.js}}
 
-// {{include curve.js}}
+// {{include Path.js}}
 
-// {{include path.js}}
+// {{include Image.js}}
 
-// {{include image.js}}
+// {{include Raster.js}}
 
-// {{include raster.js}}
+// {{don't include Text.js}}
 
-// {{don't include text.js}}
+// {{include Gradient.js}}
 
-// {{include gradient.js}}
-
-// {{include pattern.js}}
+// {{include Pattern.js}}
 
 // {{include utils.js}}
-
-// More part
-// {don't {include Controls.js}}
-
-$.Context = Context;
-$.Drawable = Drawable;
-$.Shape = Shape;
-$.Rect = Rect;
-$.Circle = Circle;
-$.Curve = Curve;
-$.Path = Path;
-$.Image = Img;
-$.Text = Text;
-$.Gradient = Gradient;
-$.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 

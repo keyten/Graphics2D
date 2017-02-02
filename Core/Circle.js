@@ -21,20 +21,20 @@ Circle = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
+				this.attrs.cx = value;
 				this.update();
-				return value;
 			}
 		},
 		cy: {
 			set: function(value){
+				this.attrs.cy = value;
 				this.update();
-				return value;
 			}
 		},
 		radius: {
 			set: function(value){
+				this.attrs.radius = Math.abs(value);
 				this.update();
-				return Math.abs(value);
 			}
 		}
 	}),
@@ -54,6 +54,11 @@ Circle = new Class(Drawable, {
 
 	isPointIn : function(x, y){
 		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
+	},
+
+	processPath: function(ctx){
+		ctx.beginPath();
+		ctx.arc(this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius), 0, Math.PI * 2, true);
 	}
 
 });
@@ -63,3 +68,5 @@ Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 $.circle = function(){
 	return new Circle(arguments);
 };
+
+$.Circle = Circle;

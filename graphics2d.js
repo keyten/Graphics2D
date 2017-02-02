@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 28.01.2017
+ *  Last edit: 03.02.2017
  *  License: MIT / LGPL
  */
 
@@ -13,8 +13,8 @@ var $ = {},
 // Classes
 	Context,
 	Drawable,
-	Shape, Rect, Circle, Curve, Path, Img, Raster, Text,
-	Gradient, Pattern, Bounds, Style,
+	Rect, Circle, Curve, Path, Picture, Raster, Text,
+	Gradient, Pattern,
 
 // Local variables
 	document = window.document,
@@ -52,8 +52,6 @@ var $ = {},
 
 $.renderers = {};
 
-// {{don't include WebGL.js}}
-
 $.renderers['2d'] = {
 
 	// renderer.init(g2dcontext, canvas);
@@ -63,7 +61,7 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
-		console.time();
+		console.time('Drawing time');
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -74,7 +72,7 @@ $.renderers['2d'] = {
 
 	postRedraw: function(ctx){
 		ctx.restore();
-		console.timeEnd();
+		console.timeEnd('Drawing time');
 	},
 
 	// params = [cx, cy, radius]
@@ -120,23 +118,30 @@ $.renderers['2d'] = {
 		this.post(ctx, style);
 	},
 
+	// params = [image, x, y]
+	// params = [image, x, y, w, h]
+	// params = [image, x, y, w, h, cx, cy, cw, ch]
 	drawImage: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
 		switch(params.length){
+			// with size
 			case 5: {
 				ctx.drawImage(params[0], params[1], params[2], params[3], params[4]);
 			} break;
 
+			// with size & crop
 			case 9: {
 				ctx.drawImage(
 					params[0],
-					params[1], params[2],
-					params[3], params[4],
 					params[5], params[6],
-					params[7], params[8]
+					params[7], params[8],
+
+					params[1], params[2],
+					params[3], params[4]
 				);
 			} break;
 
+			// without size
 			default: {
 				ctx.drawImage(params[0], params[1], params[2]);
 			} break;
@@ -234,7 +239,17 @@ $.renderers['2d'] = {
 		}
 
 		// clip
-		// ...
+		if(object.attrs.clip){
+			if(object.attrs.clip.matrix){
+				ctx.save();
+				ctx.transform.apply(ctx, object.attrs.clip.matrix);
+				object.attrs.clip.processPath(ctx);
+				ctx.restore();
+			} else {
+				object.attrs.clip.processPath(ctx);
+			}
+			ctx.clip();
+		}
 
 		if(matrix){
 			ctx.transform(
@@ -290,7 +305,7 @@ Context.prototype = {
 	},
 
 	image: function(){
-		return this.push(new Img(arguments, this));
+		return this.push(new Picture(arguments, this));
 	},
 
 	raster: function(){
@@ -618,14 +633,11 @@ Context.prototype = {
 	}
 };
 
-// {{don't include style.js}}
+$.Context = Context;
 
-var shapeDraw; // function Shape::draw with processPath
-/*
-function doRectsIntersect(r1, r2){
+/* function doRectsIntersect(r1, r2){
 	return !(r1.x1 > r2.x2 || r1.x2 < r2.x1 || r1.y1 < r2.y2 || r1.y2 > r2.y1);
-}
- */
+} */
 
 var temporaryCanvas;
 
@@ -733,11 +745,7 @@ Drawable = new Class({
 		}
 
 		if(this.attrHooks[name] && this.attrHooks[name].set){
-			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== undefined || this.attrs[name] !== undefined){
-				// why is the 2nd condition?
-				this.attrs[name] = result;
-			}
+			this.attrHooks[name].set.call(this, value);
 		} else {
 			this.attrs[name] = value;
 		}
@@ -752,14 +760,21 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.fillStyle = value;
-				return this.update();
+				this.update();
 			}
 		},
 
 		stroke: {
 			set: function(value){
 				Drawable.processStroke(value, this.styles);
-				return this.update();
+				this.update();
+			}
+		},
+
+		shadow: {
+			set: function(value){
+				Drawable.processShadow(value, this.styles);
+				this.update();
 			}
 		},
 
@@ -769,7 +784,7 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.globalAlpha = +value;
-				return this.update();
+				this.update();
 			}
 		},
 
@@ -779,20 +794,18 @@ Drawable = new Class({
 			},
 			set: function(value){
 				this.styles.globalCompositeOperation = value;
-				return this.update();
+				this.update();
+			}
+		},
+
+		clip: {
+			set: function(value){
+				value.context = this.context;
+				this.attrs.clip = value;
+				this.update();
 			}
 		}
 	},
-
-	// Styles
-	// why? is it used anywhere?
-/*	style: function(name, value){
-		if(value === undefined){
-			return this.styles[name];
-		}
-		this.styles[name] = value;
-		return this.update();
-	}, */
 
 	processObject: function(object, arglist){
 		if(has(object, 'opacity')){
@@ -800,6 +813,10 @@ Drawable = new Class({
 		}
 		if(has(object, 'composite')){
 			this.styles.globalCompositeOperation = object.composite;
+		}
+		if(has(object, 'clip')){
+			object.clip.context = this.context;
+			this.attrs.clip = object.clip;
 		}
 
 		return arglist.map(function(name){
@@ -993,9 +1010,9 @@ Drawable.processStroke = function(stroke, style){
 			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
 				style.lineCap = stroke[l];
 			} else if(stroke[l][0] === '['){
-				// stroke[l].substr(1, stroke[l].length - 2).split(',')
+				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
 			} else if(stroke[l] in $.dashes){
-				// $.dashes[stroke[l]]
+				style.lineDash = $.dashes[stroke[l]];
 			} else {
 				style.strokeStyle = stroke[l];
 			}
@@ -1006,9 +1023,61 @@ Drawable.processStroke = function(stroke, style){
 			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
 		}
 	} else {
-		;
+		if(stroke.color){
+			style.strokeStyle = stroke.color;
+		}
+		if(stroke.opacity && style.strokeStyle){
+			var parsed = $.color(style.strokeStyle);
+			parsed[3] = stroke.opacity;
+			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+		}
+		if(stroke.width){
+			style.lineWidth = $.distance(stroke.width);
+		}
+		if(stroke.join){
+			style.lineJoin = stroke.join;
+		}
+		if(stroke.cap){
+			style.lineCap = stroke.cap;
+		}
+		if(stroke.dash){
+			if(stroke.dash in $.dashes){
+				style.lineDash = $.dashes[stroke.dash];
+			} else {
+				style.lineDash = stroke.dash;
+			}
+		}
 	}
 };
+
+Drawable.processShadow = function(shadow, style){
+	if(shadow + '' === shadow){
+		var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+		shadow = shadow.replace(/\s*\,\s*/g, ',').split(' ');
+		for(var i = 0; i < shadow.length; i++){
+			if(isNaN(+shadow[i][0])){
+				style.shadowColor = shadow[i];
+			} else {
+				style[shadowProps.shift()] = $.distance(shadow[i]);
+			}
+		}
+	} else {
+		if(shadow.x !== undefined){
+			style.shadowOffsetX = $.distance(shadow.x);
+		}
+		if(shadow.y !== undefined){
+			style.shadowOffsetY = $.distance(shadow.y);
+		}
+		if(shadow.blur !== undefined){
+			style.shadowBlur = $.distance(shadow.blur || 0);
+		}
+		if(shadow.color){
+			style.shadowColor = shadow.color;
+		}
+	}
+}
+
+$.Drawable = Drawable;
 
 // events aliases
 Context.prototype.eventsInteract.forEach(function(eventName){
@@ -1043,26 +1112,26 @@ Rect = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
+				this.attrs.x = value;
 				this.update();
-				return value;
 			}
 		},
 		y: {
 			set: function(value){
+				this.attrs.y = value;
 				this.update();
-				return value;
 			}
 		},
 		width: {
 			set: function(value){
+				this.attrs.width = value;
 				this.update();
-				return value;
 			}
 		},
 		height: {
 			set: function(value){
+				this.attrs.height = value;
 				this.update();
-				return value;
 			}
 		},
 
@@ -1132,6 +1201,11 @@ Rect = new Class(Drawable, {
 
 	isPointIn : function(x, y){
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	processPath : function(ctx){
+		ctx.beginPath();
+		ctx.rect(this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height);
 	}
 
 });
@@ -1141,6 +1215,8 @@ Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 $.rect = function(){
 	return new Rect(arguments);
 };
+
+$.Rect = Rect;
 
 Circle = new Class(Drawable, {
 
@@ -1165,20 +1241,20 @@ Circle = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
+				this.attrs.cx = value;
 				this.update();
-				return value;
 			}
 		},
 		cy: {
 			set: function(value){
+				this.attrs.cy = value;
 				this.update();
-				return value;
 			}
 		},
 		radius: {
 			set: function(value){
+				this.attrs.radius = Math.abs(value);
 				this.update();
-				return Math.abs(value);
 			}
 		}
 	}),
@@ -1198,6 +1274,11 @@ Circle = new Class(Drawable, {
 
 	isPointIn : function(x, y){
 		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
+	},
+
+	processPath: function(ctx){
+		ctx.beginPath();
+		ctx.arc(this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius), 0, Math.PI * 2, true);
 	}
 
 });
@@ -1207,6 +1288,8 @@ Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 $.circle = function(){
 	return new Circle(arguments);
 };
+
+$.Circle = Circle;
 
 // todo: rename to PathPart
 Curve = new Class({
@@ -1375,6 +1458,8 @@ Curve.fromArray = function(array, path){
 };
 
 $.curves = Curve.types;
+
+$.Curve = Curve;
 
 var closePath = new Curve('closePath', []);
 
@@ -1574,17 +1659,18 @@ $.path = function(){
 	return path;
 };
 
-// todo: rename to Picture
-Img = new Class(Drawable, {
+$.Path = Path;
+
+Picture = new Class(Drawable, {
 
 	initialize : function(args, context){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
-			args = this.processObject(args[0], Img.args);
+			args = this.processObject(args[0], Picture.args);
 		}
 
-		this.attrs.image = Img.parse(args[0]);
+		this.attrs.image = Picture.parse(args[0]);
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 		if(args[3]){
@@ -1612,18 +1698,118 @@ Img = new Class(Drawable, {
 		});
 	},
 
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		x: {
+			set: function(value){
+				this.attrs.x = value;
+				this.update();
+			}
+		},
+		y: {
+			set: function(value){
+				this.attrs.y = value;
+				this.update();
+			}
+		},
+		width: {
+			set: function(value){
+				this.attrs.width = value;
+				this.update();
+			}
+		},
+		height: {
+			set: function(value){
+				this.attrs.height = value;
+				this.update();
+			}
+		},
+		crop: {
+			set: function(value){
+				this.attrs.crop = value;
+				this.update();
+			}
+		},
+		smooth: {
+			get: function(){
+				return this.styles[smoothPrefix(this.context.context)] || this.context.context[smoothPrefix(this.context.context)];
+			},
+			set: function(value){
+				this.styles[smoothPrefix(this.context.context)] = !!value;
+				this.update();
+			}
+		}
+	}),
+
+	_realSize: function(){
+		var w = this.attrs.width,
+			h = this.attrs.height;
+
+		if(w === 'auto'){
+			w = this.attrs.image.width * (h / this.attrs.image.height);
+		} else if(w === 'native' || w == null){
+			w = this.attrs.image.width;
+		}
+
+		if(h === 'auto'){
+			h = this.attrs.image.height * (w / this.attrs.image.width);
+		} else if(h === 'native' || h == null){
+			h = this.attrs.image.height;
+		}
+
+		return [w, h];
+	},
+
+	shapeBounds : function(){
+		var size = this._realSize();
+		return [this.attrs.x, this.attrs.y, size[0], size[1]];
+	},
+
+	isPointIn : function(x, y){
+		var size = this._realSize();
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + size[0] && y < this.attrs.y + size[1];
+	},
+
 	draw : function(ctx){
-		if(this._visible){
+		if(this._visible && this.attrs.image.complete){
 			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
+
+			if(this.attrs.width || this.attrs.height){
+				var size = this._realSize();
+				params.push(size[0]);
+				params.push(size[1]);
+
+				if(this.attrs.crop){
+					params = params.concat(this.attrs.crop);
+				}
+			} else if(this.attrs.crop){
+				params = params.concat([
+					this.attrs.image.width,
+					this.attrs.image.height
+				]).concat(this.attrs.crop);
+			}
+
 			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
 		}
 	}
 
 });
 
-Img.args = ['image', 'x', 'y', 'width', 'height', 'crop'];
+var smoothWithPrefix;
+function smoothPrefix(ctx){
+	if(smoothWithPrefix){
+		return smoothWithPrefix;
+	}
+	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
+		if(name in ctx){
+			smoothWithPrefix = name;
+		}
+	});
+	return smoothWithPrefix;
+}
 
-Img.parse = function(image){
+Picture.args = ['image', 'x', 'y', 'width', 'height', 'crop'];
+
+Picture.parse = function(image){
 	if(image + '' === image){
 		if(image[0] === '#'){
 			return document.getElementById(image.substr(1));
@@ -1642,9 +1828,11 @@ Img.parse = function(image){
 };
 
 $.image = function(){
-	var image = new Img(arguments);
+	var image = new Picture(arguments);
 	return image;
 };
+
+$.Image = Picture;
 
 Raster = new Class(Drawable, {
 
@@ -1676,7 +1864,7 @@ $.raster = function(){
 	return raster;
 };
 
-// {{don't include text.js}}
+// {{don't include Text.js}}
 
 Gradient = new Class({
 	initialize: function(type, colors, from, to, context){
@@ -1881,9 +2069,11 @@ Gradient.types = {
 	}
 };
 
+$.Gradient = Gradient;
+
 Pattern = new Class({
 	initialize: function(image, repeat, context){
-		this.image = Img.parse(image);
+		this.image = Picture.parse(image);
 		this.repeat = repeat;
 		this.context = context;
 
@@ -1909,6 +2099,8 @@ Pattern = new Class({
 		return ctx.createPattern(this.image, this.repeat || 'repeat');
 	}
 });
+
+$.Pattern = Pattern;
 
 // Easing functions
 // Mootools :) partially
@@ -2487,21 +2679,6 @@ function distance(value, dontsnap){
 }
 
 $.distance = distance;
-
-// More part
-// {don't {include Controls.js}}
-
-$.Context = Context;
-$.Drawable = Drawable;
-$.Shape = Shape;
-$.Rect = Rect;
-$.Circle = Circle;
-$.Curve = Curve;
-$.Path = Path;
-$.Image = Img;
-$.Text = Text;
-$.Gradient = Gradient;
-$.Pattern = Pattern;
 
 $.version = Math.PI / 3.490658503988659;
 

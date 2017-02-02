@@ -200,3 +200,5 @@ Gradient.types = {
 		}
 	}
 };
+
+$.Gradient = Gradient;

@@ -30,7 +30,7 @@ Context.prototype = {
 	},
 
 	image: function(){
-		return this.push(new Img(arguments, this));
+		return this.push(new Picture(arguments, this));
 	},
 
 	raster: function(){
@@ -357,3 +357,5 @@ Context.prototype = {
 		);
 	}
 };
+
+$.Context = Context;

@@ -1,6 +1,6 @@
 Pattern = new Class({
 	initialize: function(image, repeat, context){
-		this.image = Img.parse(image);
+		this.image = Picture.parse(image);
 		this.repeat = repeat;
 		this.context = context;
 
@@ -26,3 +26,5 @@ Pattern = new Class({
 		return ctx.createPattern(this.image, this.repeat || 'repeat');
 	}
 });
+
+$.Pattern = Pattern;

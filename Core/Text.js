@@ -1,4 +1,4 @@
-/* Text = new Class(Drawable, {
+Text = new Class(Drawable, {
 
 	initialize : function(args, context){
 		this.super('initialize', arguments);
@@ -7,7 +7,6 @@
 			args = this.processObject(args[0], Text.args);
 		}
 
-<<<<<<< Updated upstream
 		this.attrs.text = args[0];
 		this.attrs.font = Text.parseFont(args[1] || Text.font);
 		this.styles.font = Text.genFont(this.attrs.font);
@@ -19,25 +18,10 @@
 		if(args[5]){
 			Drawable.processStroke(args[5], this.styles);
 		}
-=======
-<<<<<<< Updated upstream
-	_type: 'label', // label or block
-	_changedText: true,
-	_lineSpace: 0,
->>>>>>> Stashed changes
 
 		this.styles.textBaseline = 'top';
 	},
 
-<<<<<<< Updated upstream
-=======
-		var text = this._text,
-			lines = this._lines = [],
-			size = this._lineHeight || this._font.size || 10,
-			ctx = this.context.context,
-			width = this._width || Infinity,
-=======
->>>>>>> Stashed changes
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		text: {
 			set: function(value){
@@ -73,19 +57,11 @@
 	processLines: function(){
 		// todo: move to renderer api?
 		// renderer.getTextWidth(text, style)
-<<<<<<< Updated upstream
-		var text = this.attrs.text,
-=======
 		var text = this.attrs.text + '',
->>>>>>> Stashed changes
 			lines = this.lines = [],
 			size = this.attrs.lineHeight || this.attrs.font.size,
 			ctx = getTemporaryCanvas(1, 1).getContext('2d'),
 			width = this.attrs.width || Infinity,
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 			countline = 1,
 			align = this.styles.textAlign || 'left',
 			x = align === 'center' ? width / 2 : align === 'right' ? width : 0;
@@ -93,7 +69,7 @@
 		ctx.font = this.styles.font;
 
 		text.split('\n').forEach(function(line){
-			// Is the line had to be splitted?
+			// Does the line have to be splitted?
 			if(ctx.measureText(line).width > width){
 				var words = line.split(' '),
 					useline = '',
@@ -120,7 +96,32 @@
 		return this;
 	},
 
-	shapeBounds : function(){},
+	shapeBounds : function(){
+		var align = this.styles.textAlign || 'left',
+			baseline = this.styles.textBaseline || 'top',
+			width = this.width(),
+			size = Number(this._font.size),
+			x = this._x,
+			y = this._y;
+
+		if(this._type === 'label'){
+			if(align === 'center')
+				x -= width/2;
+			else if(align === 'right')
+				x -= width;
+
+			if(baseline === 'middle')
+				y -= size/2;
+			else if(baseline === 'bottom' || baseline === 'ideographic')
+				y -= size;
+			else if(baseline === 'alphabetic')
+				y -= size * 0.8;
+			return new Bounds(x, y, width, size * 1.15);
+		}
+		else {
+			return new Bounds(x, y, width, (size + this._lineSpace) * this._lines.length);
+		}
+	},
 
 	draw : function(ctx){
 		if(this._visible){
@@ -162,9 +163,8 @@ Text.parseFont = function(font){
 
 		object.family = object.family.trim();
 		return object;
-	} else {
-		;
 	}
+	return font;
 };
 
 // {family: 'Arial', size: 10, bold: true} -> 'bold 10px Arial'
@@ -181,4 +181,6 @@ Text.genFont = function(font){
 
 $.text = function(){
 	return new Text(arguments);
-}; */
+};
+
+$.Text = Text;

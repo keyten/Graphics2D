@@ -22,26 +22,26 @@ Rect = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
+				this.attrs.x = value;
 				this.update();
-				return value;
 			}
 		},
 		y: {
 			set: function(value){
+				this.attrs.y = value;
 				this.update();
-				return value;
 			}
 		},
 		width: {
 			set: function(value){
+				this.attrs.width = value;
 				this.update();
-				return value;
 			}
 		},
 		height: {
 			set: function(value){
+				this.attrs.height = value;
 				this.update();
-				return value;
 			}
 		},
 
@@ -111,6 +111,11 @@ Rect = new Class(Drawable, {
 
 	isPointIn : function(x, y){
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	processPath : function(ctx){
+		ctx.beginPath();
+		ctx.rect(this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height);
 	}
 
 });
@@ -120,3 +125,5 @@ Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 $.rect = function(){
 	return new Rect(arguments);
 };
+
+$.Rect = Rect;

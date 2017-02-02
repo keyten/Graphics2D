@@ -195,3 +195,5 @@ $.path = function(){
 	path.init();
 	return path;
 };
+
+$.Path = Path;

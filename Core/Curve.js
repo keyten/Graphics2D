@@ -165,3 +165,5 @@ Curve.fromArray = function(array, path){
 };
 
 $.curves = Curve.types;
+
+$.Curve = Curve;
