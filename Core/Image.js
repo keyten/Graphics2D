@@ -22,11 +22,6 @@ Picture = new Class(Drawable, {
 
 		this.attrs.image.addEventListener('load', function(event){
 			this.update();
-
-			if(this.attrs.image.blob){
-				domurl.revokeObjectURL(this.attrs.image.blob);
-			}
-
 			this.fire('load', event);
 		}.bind(this));
 
@@ -76,6 +71,13 @@ Picture = new Class(Drawable, {
 			}
 		}
 	}),
+
+	remove: function(){
+		this.super('remove');
+		if(this.attrs.image.blob){
+			domurl.revokeObjectURL(this.attrs.image.blob);
+		}
+	},
 
 	_realSize: function(){
 		var w = this.attrs.width,
