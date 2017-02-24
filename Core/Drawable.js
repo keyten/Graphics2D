@@ -45,7 +45,7 @@ Drawable = new Class({
 	},
 
 	clone : function(attrs, styles, events){
-		// todo: test on each obj
+		// todo: test on every obj
 		var clone = new this.constructor([], this.context);
 
 		if(attrs === false){
@@ -59,6 +59,7 @@ Drawable = new Class({
 			clone.matrix = this.matrix;
 		} else {
 			clone.styles = Object.assign({}, this.styles); // how about deep extend? check
+			// must gradients be cloned?
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
 			}
@@ -94,7 +95,7 @@ Drawable = new Class({
 		if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
-			}.bind(this));
+			}, this);
 			return this;
 		}
 
@@ -107,8 +108,12 @@ Drawable = new Class({
 			return this.attrs[name];
 		}
 
+		// todo: set if it is not null
 		if(this.attrHooks[name] && this.attrHooks[name].set){
-			this.attrHooks[name].set.call(this, value);
+			var result = this.attrHooks[name].set.call(this, value);
+			if(result !== null){
+				this.attrs[name] = result === undefined ? value : result;
+			}
 		} else {
 			this.attrs[name] = value;
 		}
@@ -122,6 +127,7 @@ Drawable = new Class({
 				return this.styles.fillStyle;
 			},
 			set: function(value){
+				// if(oldValue is gradient) oldValue.unbind(this);
 				this.styles.fillStyle = value;
 				this.update();
 			}
@@ -193,8 +199,11 @@ Drawable = new Class({
 			throw ('The object doesn\'t have shapeBounds method.');
 		}
 
+		// options.transform - 3 possible values (transformed boundbox, normalized boundbox (maximize transformed vertices), ignore transforms)
+		// options.around = 'fill' or 'stroke' or 'exclude' (stroke)
+		// maybe, options.processClip = true or false
 		var bounds = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
-		;
+		// do smth here
 		return new Bounds(bounds[0], bounds[1], bounds[2], bounds[3]);
 	},
 
@@ -246,7 +255,7 @@ Drawable = new Class({
 	fire : function(event, data){
 		(this.listeners[event] || []).forEach(function(callback){
 			callback.call(this, data);
-		}.bind(this));
+		}, this);
 		return this;
 	},
 
@@ -350,6 +359,24 @@ Drawable = new Class({
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
+	},
+
+	// Animation
+	animate: function(attr, value, options){
+		// attr, value, duration, easing, callback
+		// attrs, duration, easing, callback
+		// attr, value, options
+		// attrs, options
+
+		var animObject = new Animation(
+			this.attr(attr),
+			value,
+			options.duration,
+			options.easing,
+			options.callback
+		);
+
+		animObject.start(this.attrHooks.anim);
 	}
 
 });

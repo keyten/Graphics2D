@@ -13,6 +13,7 @@ var $ = {},
 // Classes
 	Context,
 	Drawable,
+	Animation,
 	Rect, Circle, Curve, Path, Picture, Raster, Text,
 	Gradient, Pattern,
 
@@ -57,6 +58,8 @@ $.renderers = {};
 // {{include Context.js}}
 
 // {{include Drawable.js}}
+
+// {{include Animation.js}}
 
 // {{include Rect.js}}
 

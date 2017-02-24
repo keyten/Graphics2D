@@ -113,6 +113,11 @@ Context.prototype = {
 		return null;
 	},
 
+	each : function(func){
+		// todo: wrap
+		this.elements.forEach(func);
+		return this;
+	},
 
 	// Events
 	hoverElement : null,
@@ -137,6 +142,8 @@ Context.prototype = {
 			var element,
 				propagation = true,
 				coords = $.coordsOfElement(this.canvas);
+			// todo: move to this.contextCoords(x, y)
+			// may be used from outside
 
 			// negative contextX / contextY when canvas has a border
 			e.contextX = e.clientX - coords.x;
@@ -255,6 +262,7 @@ Context.prototype = {
 			}
 
 		}.bind(this));
+		// is the bind neccessary?
 		return this;
 	},
 
@@ -289,7 +297,7 @@ Context.prototype = {
 
 		this.listeners[event].forEach(function(callback){
 			callback.call(this, data);
-		}.bind(this));
+		}, this);
 		return this;
 	},
 

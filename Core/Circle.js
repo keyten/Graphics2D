@@ -9,7 +9,7 @@ Circle = new Class(Drawable, {
 
 		this.attrs.cx = args[0];
 		this.attrs.cy = args[1];
-		this.attrs.radius = args[2];
+		this.attrs.radius = Math.abs(args[2]);
 		if(args[3]){
 			this.styles.fillStyle = args[3];
 		}
@@ -21,20 +21,18 @@ Circle = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
-				this.attrs.cx = value;
 				this.update();
 			}
 		},
 		cy: {
 			set: function(value){
-				this.attrs.cy = value;
 				this.update();
 			}
 		},
 		radius: {
 			set: function(value){
-				this.attrs.radius = Math.abs(value);
 				this.update();
+				return Math.abs(value);
 			}
 		}
 	}),
@@ -58,7 +56,7 @@ Circle = new Class(Drawable, {
 
 	processPath: function(ctx){
 		ctx.beginPath();
-		ctx.arc(this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius), 0, Math.PI * 2, true);
+		ctx.arc(this.attrs.cx, this.attrs.cy, this.attrs.radius, 0, Math.PI * 2, true);
 	}
 
 });

@@ -1,84 +1,3 @@
-// Easing functions
-// Mootools :) partially
-$.easing = {
-	linear : function(x){
-		return x;
-	},
-	root : function(x){
-		return Math.sqrt(x);
-	},
-	pow : function(t, v){
-		return Math.pow(t, v || 6);
-	},
-	expo : function(t, v){
-		return Math.pow(v || 2, 8 * t - 8);
-	},
-	circ : function(t){
-		return 1 - Math.sin(Math.acos(t));
-	},
-	sine : function(t){
-		return 1 - Math.cos(t * Math.PI / 2);
-	},
-	back : function(t, v){
-		return Math.pow(t, 2) * ( (v || 1.618) * (t - 1) + t);
-	},
-	bounce : function(t){
-		for(var a = 0, b = 1; 1; a += b, b /= 2){
-			if(t >= (7 - 4 * a) / 11){
-				return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
-			}
-		}
-	},
-	elastic : function(t, v){
-		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
-	}
-};
-
-['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-	$.easing[name] = function(t){
-		return Math.pow(t, i+2);
-	};
-});
-
-function processEasing(func){
-	$.easing[i + 'In'] = func;
-	$.easing[i + 'Out'] = function(t, v){
-		return 1 - func(1 - t, v);
-	};
-	$.easing[i + 'InOut'] = function(t, v){
-		return t <= 0.5 ? func(2 * t, v) / 2 : (2 - func(2 * (1 - t), v)) / 2;
-	};
-}
-
-for(var i in $.easing){
-	// don't make functions within a loop -- jshint
-	if(Object.prototype.hasOwnProperty.call($.easing, i))
-		processEasing($.easing[i]);
-	// todo: make this code better :P
-}
-
-
-// Bounds class
-function Bounds(x, y, w, h){
-	if(w < 0){
-		w = -w;
-		x -= w;
-	}
-	if(h < 0){
-		h = -h;
-		y -= h;
-	}
-	// TODO: replace to left, right, top, etc
-	this.x = this.x1 = x;
-	this.y = this.y1 = y;
-	this.w = this.width  = w;
-	this.h = this.height = h;
-	this.x2 = x + w;
-	this.y2 = y + h;
-	this.cx = x + w / 2;
-	this.cy = y + h / 2;
-}
-
 // Class
 function Class(parent, properties){
 	if(!properties){
@@ -145,6 +64,27 @@ function Class(parent, properties){
 	extend(cls.prototype, properties);
 
 	return cls;
+}
+
+// Bounds class
+function Bounds(x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
+	// TODO: replace to left, right, top, etc
+	this.x = this.x1 = x;
+	this.y = this.y1 = y;
+	this.w = this.width  = w;
+	this.h = this.height = h;
+	this.x2 = x + w;
+	this.y2 = y + h;
+	this.cx = x + w / 2;
+	this.cy = y + h / 2;
 }
 
 // utils

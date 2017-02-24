@@ -49,7 +49,7 @@ Gradient = new Class({
 		}
 
 		var colors = this.attrs.colors,
-			keys = Object.keys(colors).sort();
+			keys = Object.keys(colors).sort(); // is this sort sorting them right? as numbera or as strings?
 
 		if(t < keys[0]){
 			return $.color(colors[keys[0]]);
@@ -168,6 +168,7 @@ Gradient.types = {
 					}
 					this.update();
 					return value;
+					// returns do not work!
 				}
 			},
 

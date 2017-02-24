@@ -19,7 +19,23 @@ rect.phys.on('pain', ...) // stress, force, etc?
 
 (function(window, $, undefined){
 
-	$.extend($.Shape.prototype, {
+	var defaultOptions = {
+		gravity: [0, -1]
+	};
+
+	$.Context.prototype.phys = function(options){
+		if(options === 'init'){
+			options = defaultOptions;
+		}
+
+		if(!this._physParameters){
+			this._physParameters = {};
+		}
+		$.extend(this._physParameters, options);
+		return this;
+	}
+
+	$.extend($.Drawable.prototype, {
 
 	});
 

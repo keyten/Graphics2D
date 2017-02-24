@@ -22,25 +22,21 @@ Rect = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
-				this.attrs.x = value;
 				this.update();
 			}
 		},
 		y: {
 			set: function(value){
-				this.attrs.y = value;
 				this.update();
 			}
 		},
 		width: {
 			set: function(value){
-				this.attrs.width = value;
 				this.update();
 			}
 		},
 		height: {
 			set: function(value){
-				this.attrs.height = value;
 				this.update();
 			}
 		},
@@ -50,8 +46,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.x;
 			},
 			set: function(value){
+				this.attrs.width += (this.attrs.x - value);
 				this.attrs.x = value;
 				this.update();
+				return null;
 			}
 		},
 		y1: {
@@ -59,8 +57,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.y;
 			},
 			set: function(value){
+				this.attrs.height += (this.attrs.y - value);
 				this.attrs.y = value;
 				this.update();
+				return null;
 			}
 		},
 		x2: {
@@ -70,6 +70,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.width = value - this.attrs.x;
 				this.update();
+				return null;
 			}
 		},
 		y2: {
@@ -79,6 +80,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.height = value - this.attrs.y;
 				this.update();
+				return null;
 			}
 		}
 	}),

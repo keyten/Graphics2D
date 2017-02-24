@@ -45,7 +45,7 @@ Path = new Class(Drawable, {
 	before: function(index, value, turnMoveToLine){
 		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
 		if(index === 0 && turnToLine !== false){
-			this.attrs.d[0].name = 'lineTo';
+			this.attrs.d[0].method = 'lineTo';
 		}
 
 		if(!isNaN(value[0])){
