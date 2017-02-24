@@ -33,6 +33,10 @@ Path = new Class(Drawable, {
 			return this.attrs.d[index];
 		}
 
+		if(!isNaN(value[0])){
+			value = [value];
+		}
+
 		value = Path.parse(value, this, index !== 0);
 		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
 		return this.update();
@@ -42,6 +46,10 @@ Path = new Class(Drawable, {
 		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
 		if(index === 0 && turnToLine !== false){
 			this.attrs.d[0].name = 'lineTo';
+		}
+
+		if(!isNaN(value[0])){
+			value = [value];
 		}
 
 		value = Path.parse(value, this, index !== 0);
@@ -117,15 +125,20 @@ Path = new Class(Drawable, {
 			maxX = -Infinity,
 			maxY = -Infinity,
 
-			currentBounds;
+			currentBounds,
+			currentPoint = [0, 0];
 		for(var i = 0; i < this.attrs.d.length; i++){
-			currentBounds = this.attrs.d[i].bounds();
-			minX = Math.min(minX, currentBounds.x1, currentBounds.x2);
-			maxX = Math.max(maxX, currentBounds.x1, currentBounds.x2);
-			minY = Math.min(minY, currentBounds.y1, currentBounds.y2);
-			maxY = Math.max(maxY, currentBounds.y1, currentBounds.y2);
+			currentBounds = this.attrs.d[i].bounds(currentPoint);
+			currentPoint = this.attrs.d[i].endAt() || currentPoint;
+			if(!currentBounds){
+				continue;
+			}
+			minX = Math.min(minX, currentBounds[0], currentBounds[2]);
+			maxX = Math.max(maxX, currentBounds[0], currentBounds[2]);
+			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
+			maxY = Math.max(maxY, currentBounds[1], currentBounds[3]);
 		}
-		return new Bounds(minX, minY, maxX - minX, maxY - minY);
+		return [minX, minY, maxX - minX, maxY - minY];
 	},
 
 	draw : function(ctx){
@@ -141,7 +154,6 @@ Path = new Class(Drawable, {
 
 Path.args = ['d', 'fill', 'stroke'];
 
-// some parts are commented here because I want to make Curve internal class
 Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
@@ -151,36 +163,24 @@ Path.parse = function(data, path, firstIsNotMove){
 		return Path.parseSVG(data, path, firstIsNotMove);
 	}
 
-	/* if(data instanceof Curve){
-		data.path = path;
-		return [data];
-	} */
-
 	var curves = [];
 	if(Array.isArray(data)){
 		for(var i = 0; i < data.length; i++){
 
-			// fix for [x,y] instead of [[x,y]]
-			// necessary for path.curve(index, [0, 0])
-			if(+data[1] === data[1]){
-				data = [data];
-			}
-
-			// Curve
-			/* if(data[i] instanceof Curve){
-				curves[i].push(data[i]);
-				curves[i].path = path;
-			}
-
-			// Array
-			else { */
+			if(data[i] instanceof Curve){
+				curves.push(data[i]);
+				data[i].path = path;
+			} else {
 				if(i === 0 && !firstIsNotMove){
-					curves.push(new Curve('moveTo', isNaN(data[i][0]) ? data[i].slice(1) : data[i], path));
-					continue;
+					curves.push(new Curve(
+						'moveTo',
+						isNaN(data[i][0]) ? data[i].slice(1) : data[i],
+						path
+					));
+				} else {
+					curves.push(Curve.fromArray(data[i], path));
 				}
-				curves.push(Curve.fromArray(data[i], path));
-			/* } */
-
+			}
 		}
 	}
 	return curves;
