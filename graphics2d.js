@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 03.02.2017
+ *  Last edit: 26.02.2017
  *  License: MIT / LGPL
  */
 
@@ -13,6 +13,7 @@ var $ = {},
 // Classes
 	Context,
 	Drawable,
+	Animation,
 	Rect, Circle, Curve, Path, Picture, Raster, Text,
 	Gradient, Pattern,
 
@@ -388,6 +389,11 @@ Context.prototype = {
 		return null;
 	},
 
+	each : function(func){
+		// todo: wrap
+		this.elements.forEach(func, this);
+		return this;
+	},
 
 	// Events
 	hoverElement : null,
@@ -412,6 +418,8 @@ Context.prototype = {
 			var element,
 				propagation = true,
 				coords = $.coordsOfElement(this.canvas);
+			// todo: move to this.contextCoords(x, y)
+			// may be used from outside
 
 			// negative contextX / contextY when canvas has a border
 			e.contextX = e.clientX - coords.x;
@@ -530,6 +538,7 @@ Context.prototype = {
 			}
 
 		}.bind(this));
+		// is the bind neccessary?
 		return this;
 	},
 
@@ -564,7 +573,7 @@ Context.prototype = {
 
 		this.listeners[event].forEach(function(callback){
 			callback.call(this, data);
-		}.bind(this));
+		}, this);
 		return this;
 	},
 
@@ -682,7 +691,7 @@ Drawable = new Class({
 	},
 
 	clone : function(attrs, styles, events){
-		// todo: test on each obj
+		// todo: test on every obj
 		var clone = new this.constructor([], this.context);
 
 		if(attrs === false){
@@ -696,6 +705,7 @@ Drawable = new Class({
 			clone.matrix = this.matrix;
 		} else {
 			clone.styles = Object.assign({}, this.styles); // how about deep extend? check
+			// must gradients be cloned?
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
 			}
@@ -731,7 +741,7 @@ Drawable = new Class({
 		if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
-			}.bind(this));
+			}, this);
 			return this;
 		}
 
@@ -745,7 +755,10 @@ Drawable = new Class({
 		}
 
 		if(this.attrHooks[name] && this.attrHooks[name].set){
-			this.attrHooks[name].set.call(this, value);
+			var result = this.attrHooks[name].set.call(this, value);
+			if(result !== null){
+				this.attrs[name] = result === undefined ? value : result;
+			}
 		} else {
 			this.attrs[name] = value;
 		}
@@ -759,6 +772,7 @@ Drawable = new Class({
 				return this.styles.fillStyle;
 			},
 			set: function(value){
+				// if(oldValue is gradient) oldValue.unbind(this);
 				this.styles.fillStyle = value;
 				this.update();
 			}
@@ -830,8 +844,11 @@ Drawable = new Class({
 			throw ('The object doesn\'t have shapeBounds method.');
 		}
 
+		// options.transform - 3 possible values (transformed boundbox, normalized boundbox (maximize transformed vertices), ignore transforms)
+		// options.around = 'fill' or 'stroke' or 'exclude' (stroke)
+		// maybe, options.processClip = true or false
 		var bounds = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
-		;
+		// do smth here
 		return new Bounds(bounds[0], bounds[1], bounds[2], bounds[3]);
 	},
 
@@ -883,7 +900,7 @@ Drawable = new Class({
 	fire : function(event, data){
 		(this.listeners[event] || []).forEach(function(callback){
 			callback.call(this, data);
-		}.bind(this));
+		}, this);
 		return this;
 	},
 
@@ -987,6 +1004,79 @@ Drawable = new Class({
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
+	},
+
+	// Animation
+	animate: function(attr, value, options){
+		// attr, value, duration, easing, callback
+		// attrs, duration, easing, callback
+		// attr, value, options
+		// attrs, options
+		if(attr + '' !== attr){
+			// the fx ob wiil not represent others
+			// object.fx.stop() will stop only one anim
+			if(+value === value || !value){
+				options = {duration: value, easing: options, callback: arguments[3]};
+			} else if(typeof value === 'function'){
+				options = {callback: value};
+			} else {
+				options = value;
+			}
+
+			Object.keys(attr).forEach(function(key, i){
+				this.animate(key, attr[key], options);
+				if(i === 0){
+					options.queue = false;
+					options.callback = null;
+				}
+			}, this);
+			return this;
+		}
+
+		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+			throw 'Animation for "' + attr + '" is not supported';
+		}
+
+		if(+options === options || !options){
+			options = {duration: options, callback: arguments[4], easing: arguments[3]};
+		} else if(typeof options === 'function'){
+			options = {callback: options};
+		}
+
+		var fx = new Animation(
+			options.duration,
+			options.easing,
+			options.callback
+		);
+
+		fx.prop = attr;
+		fx.tick = this.attrHooks[attr].anim;
+		fx.tickContext = this;
+		fx.prePlay = function(){
+			this.fx = fx;
+			this.attrHooks[attr].preAnim.call(this, fx, value);
+		}.bind(this);
+
+		var queue = options.queue;
+		if(queue !== false){
+			if(queue === true || queue === undefined){
+				if(!this._queue){
+					this._queue = [];
+				}
+				queue = this._queue;
+			} else if(queue instanceof Drawable){
+				queue = queue._queue;
+			}
+			fx.queue = queue;
+			queue.push(fx);
+			if(queue.length > 1){
+				return this;
+			}
+		}
+
+		fx.play();
+
+		return this;
 	}
 
 });
@@ -1088,6 +1178,203 @@ Context.prototype.eventsInteract.forEach(function(eventName){
 	};
 });
 
+// var anim = $.animation(300, 500, options);
+// anim.start(value => dosmth(value));
+
+Animation = new Class({
+
+	initialize: function(duration, easing, callback){
+		this.duration = duration || Animation.default.duration;
+		if(easing + '' === easing){
+			if(easing.indexOf('(') > -1){
+				this.easingParam = +easing.split('(')[1].split(')')[0];
+			}
+			this.easing = Animation.easing[easing.split('(')[0]];
+		} else {
+			this.easing = easing || Animation.easing.default;
+		}
+		this.callback = callback;
+	},
+
+	play: function(tick, context){
+		if(this.prePlay){
+			this.prePlay();
+		}
+		if(tick){
+			this.tick = tick;
+		}
+		if(context){
+			this.tickContext = context;
+		}
+
+		this.startTime = Date.now();
+		this.endTime = this.startTime + this.duration;
+		if(!Animation.queue.length){
+			requestAnimationFrame(Animation.do);
+		}
+		Animation.queue.push(this);
+	}
+
+});
+
+Animation.queue = [];
+
+Animation.do = function(){
+	var fx, t,
+		i = 0
+		now = Date.now();
+
+	for(var i = 0; i < Animation.queue.length; i++){
+		fx = Animation.queue[i];
+		t = (now - fx.startTime) / fx.duration;
+
+		if(t < 0){
+			continue;
+		}
+
+		if(t > 1){
+			t = 1;
+		}
+
+		fx.now = now;
+		fx.pos = fx.easing(t, fx.easingParam);
+		fx.tick.call(fx.tickContext, fx);
+
+		if(t === 1){
+			if(fx.callback){
+				// call him in requestAnimFrame?
+				// it must be called after the last update, i think
+				fx.callback.call(fx.tickContext, fx);
+			}
+
+			if(fx.queue){
+				fx.queue.shift();
+				if(fx.queue.length){
+					// init the next anim in the que
+					fx.queue[0].play();
+				}
+			}
+			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
+		}
+	}
+
+	if(Animation.queue.length){
+		requestAnimationFrame(Animation.do);
+	}
+};
+
+// Some tick functions
+Drawable.prototype.attrHooks._num = {
+	preAnim: function(fx, endValue){
+		fx.startValue = this.attrs[fx.prop];
+		fx.delta = endValue - fx.startValue;
+
+		if(endValue + '' === endValue){
+			if(endValue.indexOf('+=') === 0){
+				fx.delta = +endValue.substr(2);
+			} else if(endValue.indexOf('-=') === 0){
+				fx.delta = -endValue.substr(2);
+			}
+		}
+	},
+
+	anim: function(fx){
+		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+		this.update();
+	}
+};
+
+Drawable.prototype.attrHooks._numAttr = {
+	preAnim: function(fx, endValue){
+		fx.startValue = this.attr(fx.prop);
+		fx.delta = endValue - fx.startValue;
+	},
+
+	anim: function(fx){
+		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
+	}
+};
+
+// Easing functions
+Animation.easing = {
+
+	linear: function(x){
+		return x;
+	},
+
+	// jquery :P
+	swing: function(x){
+		return 0.5 - Math.cos(x * Math.PI) / 2;
+	},
+
+	sqrt: function(x){
+		return Math.sqrt(x);
+	},
+
+	pow: function(t, v){
+		return Math.pow(t, v || 6);
+	},
+
+	expo: function(t, v){
+		return Math.pow(v || 2, 8 * t - 8);
+	},
+
+	circ: function(t){
+		return 1 - Math.sin(Math.acos(t));
+	},
+
+	sine: function(t){
+		return 1 - Math.cos(t * Math.PI / 2);
+	},
+
+	back: function(t, v){
+		return Math.pow(t, 2) * ((v || 1.618) * (t - 1) + t);
+	},
+
+	bounce: function(t){
+		for(var a = 0, b = 1; 1; a += b, b /= 2){
+			if(t >= (7 - 4 * a) / 11){
+				return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
+			}
+		}
+	},
+
+	elastic: function(t, v){
+		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
+	}
+
+};
+
+Animation.easing.default = Animation.easing.swing;
+
+['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
+	Animation.easing[name] = function(t){
+		return Math.pow(t, i + 2);
+	};
+});
+
+Object.keys(Animation.easing).forEach(function(ease){
+	Animation.easing[ease + 'In'] = Animation.easing[ease];
+	Animation.easing[ease + 'Out'] = function(t, v){
+		return 1 - Animation.easing[ease](1 - t, v);
+	};
+	Animation.easing[ease + 'InOut'] = function(t, v){
+		if(t >= 0.5){
+			return Animation.easing[ease](2 * t, v) / 2;
+		} else {
+			return (2 - Animation.easing[ease](2 * (1 - t), v)) / 2;
+		}
+	};
+});
+
+Animation.default = {
+	duration: 500
+};
+
+$.animation = function(duration, easing, callback){
+	return new Animation(duration, easing, callback);
+};
+
 Rect = new Class(Drawable, {
 
 	initialize : function(args, context){
@@ -1112,25 +1399,21 @@ Rect = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
-				this.attrs.x = value;
 				this.update();
 			}
 		},
 		y: {
 			set: function(value){
-				this.attrs.y = value;
 				this.update();
 			}
 		},
 		width: {
 			set: function(value){
-				this.attrs.width = value;
 				this.update();
 			}
 		},
 		height: {
 			set: function(value){
-				this.attrs.height = value;
 				this.update();
 			}
 		},
@@ -1140,8 +1423,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.x;
 			},
 			set: function(value){
+				this.attrs.width += (this.attrs.x - value);
 				this.attrs.x = value;
 				this.update();
+				return null;
 			}
 		},
 		y1: {
@@ -1149,8 +1434,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.y;
 			},
 			set: function(value){
+				this.attrs.height += (this.attrs.y - value);
 				this.attrs.y = value;
 				this.update();
+				return null;
 			}
 		},
 		x2: {
@@ -1160,6 +1447,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.width = value - this.attrs.x;
 				this.update();
+				return null;
 			}
 		},
 		y2: {
@@ -1169,6 +1457,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.height = value - this.attrs.y;
 				this.update();
+				return null;
 			}
 		}
 	}),
@@ -1212,6 +1501,12 @@ Rect = new Class(Drawable, {
 
 Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 
+['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
+	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
+	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;
+	Rect.prototype.attrHooks[propName].anim = attr.anim;
+});
+
 $.rect = function(){
 	return new Rect(arguments);
 };
@@ -1241,20 +1536,18 @@ Circle = new Class(Drawable, {
 	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
-				this.attrs.cx = value;
 				this.update();
 			}
 		},
 		cy: {
 			set: function(value){
-				this.attrs.cy = value;
 				this.update();
 			}
 		},
 		radius: {
 			set: function(value){
-				this.attrs.radius = Math.abs(value);
 				this.update();
+				return value;
 			}
 		}
 	}),
@@ -1266,7 +1559,7 @@ Circle = new Class(Drawable, {
 	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawCircle(
-				[this.attrs.cx, this.attrs.cy, this.attrs.radius],
+				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
 				ctx, this.styles, this.matrix, this
 			);
 		}
@@ -1284,6 +1577,11 @@ Circle = new Class(Drawable, {
 });
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
+
+['cx', 'cy', 'radius'].forEach(function(propName){
+	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
+	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
+});
 
 $.circle = function(){
 	return new Circle(arguments);
@@ -1310,10 +1608,10 @@ Curve = new Class({
 
 	// Parameters
 	attr: function(name, value){
-		if(isObject(name)){
+		if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
-			}.bind(this));
+			}, this);
 			return this;
 		}
 
@@ -1325,122 +1623,95 @@ Curve = new Class({
 		return this.update();
 	},
 
-	bounds: function(){
-		return Curve.types[this.method].bounds(this.attrs);
+	bounds: function(prevEnd){
+		if(!Curve.types[this.method].bounds){
+			return null;
+		}
+		return Curve.types[this.method].bounds(prevEnd, this.attrs);
+	},
+
+	endAt: function(){
+		if(!Curve.types[this.method].endAt){
+			return null;
+		}
+		return Curve.types[this.method].endAt(this.attrs);
 	}
 });
 
 Curve.types = {
 	moveTo: {
 		attrs: ['x', 'y'],
-		bounds: function(attrs){
-			;
+		endAt: function(attrs){
+			return attrs;
 		}
 	},
 	lineTo: {
-		attrs: ['x', 'y']
-	}
-};
+		attrs: ['x', 'y'],
+		bounds: function(from, attrs){
+			return [from[0], from[1], attrs[0], attrs[1]];
+		},
+		endAt: function(attrs){
+			return attrs;
+		}
+	},
+	quadraticCurveTo: {
+		attrs: ['hx', 'hy', 'x', 'y'],
+		bounds: function(from, attrs){
+			var minX = Math.min(from[0], attrs[0], attrs[2]);
+			var minY = Math.min(from[1], attrs[1], attrs[3]);
+			var maxX = Math.max(from[0], attrs[0], attrs[2]);
+			var maxY = Math.max(from[1], attrs[1], attrs[3]);
+			return [minX, minY, maxX, maxY];
+		},
+		endAt: function(attrs){
+			return attrs.slice(2);
+		}
+	},
+	bezierCurveTo: {
+		attrs: ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
+		bounds: function(from, attrs){
+			var minX = Math.min(from[0], attrs[0], attrs[2], attrs[4]);
+			var minY = Math.min(from[1], attrs[1], attrs[3], attrs[5]);
+			var maxX = Math.max(from[0], attrs[0], attrs[2], attrs[4]);
+			var maxY = Math.max(from[1], attrs[1], attrs[3], attrs[5]);
+			return [minX, minY, maxX, maxY];
+		},
+		endAt: function(attrs){
+			return attrs.slice(4);
+		}
+	},
+	arc: {
+		attrs: ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
+		bounds: function(from, attrs){
+			var x = attrs[0],
+				y = attrs[1],
+				radius = attrs[2],
+				start = attrs[3],
+				end = attrs[4],
+				clockwise = attrs[5];
+				// todo: support 'from'
+			return [x - radius, y - radius, x + radius, y + radius];
+		},
+		endAt: function(attrs){
+			var x = attrs[0],
+				y = attrs[1],
+				radius = attrs[2],
+				delta = attrs[4] - attrs[3];
 
-/*
-Curve.curves = {
-	moveTo : {
-		_slice : [ , ],
-		points : function(){ return [this.args]; },
-		x : argument( 0 ),
-		y : argument( 1 )
-	},
-	lineTo : {
-		_slice : [ , ],
-		points : function(){ return [this.args]; },
-		_bounds : function( from ){
-			var end = this.args;
-			return new Bounds( from[0], from[1], end[0] - from[0], end[1] - from[1] );
-		},
-		x : argument( 0 ),
-		y : argument( 1 )
-	},
-	quadraticCurveTo : {
-		_slice : [ 2 ],
-		points : function(){
-			return [ this.args.slice(2), this.args.slice(0, 2) ];
-		},
-		_bounds : function( f ){
-			var a = this.args,
-				x1 = Math.min( a[0], a[2], f[0] ),
-				y1 = Math.min( a[1], a[3], f[1] ),
-				x2 = Math.max( a[0], a[2], f[0] ),
-				y2 = Math.max( a[1], a[3], f[1] );
-			return new Bounds( x1, y1, x2 - x1, y2 - y1 );
-		},
-		hx : argument( 0 ),
-		hy : argument( 1 ),
-		x  : argument( 2 ),
-		y  : argument( 3 )
-	},
-	bezierCurveTo : {
-		_slice : [ 4 ],
-		points : function(){
-			return [ this.args.slice(4), this.args.slice(2, 4), this.args.slice(0, 2) ];
-		},
-		_bounds : function( f ){
-			var a = this.args,
-				x1 = Math.min( a[0], a[2], a[4], f[0] ),
-				y1 = Math.min( a[1], a[3], a[5], f[1] ),
-				x2 = Math.max( a[0], a[2], a[4], f[0] ),
-				y2 = Math.max( a[1], a[3], a[5], f[1] );
-			return new Bounds( x1, y1, x2 - x1, y2 - y1 );
-		},
-		h1x : argument( 0 ),
-		h1y : argument( 1 ),
-		h2x : argument( 2 ),
-		h2y : argument( 3 ),
-		x   : argument( 4 ),
-		y   : argument( 5 )
-	},
-	arc : {
-		points : function(){
-			return [ this.args.slice(0, 2) ];
-		},
-		x         : argument( 0 ),
-		y         : argument( 1 ),
-		radius    : argument( 2 ),
-		start     : argument( 3 ),
-		end       : argument( 4 ),
-		clockwise : argument( 5 ),
-		endsIn : function(){
-			var x         = this.args[ 0 ],
-				y         = this.args[ 1 ],
-				radius    = this.args[ 2 ],
-				start     = this.args[ 3 ],
-				end       = this.args[ 4 ],
-				clockwise = this.args[ 5 ],
-				delta     = end - start;
-
-			if( clockwise ){
+			if(attrs[5]){
 				delta = -delta;
 			}
-
 			return [
-				x + Math.cos( delta ) * radius,
-				y + Math.sin( delta ) * radius
+				x + Math.cos(delta) * radius,
+				y + Math.sin(delta) * radius
 			];
 		}
 	},
-	arcTo : {
-		_slice : [ 2, 4 ],
-		points : function(){
-			return [ this.args.slice(0, 2), this.args.slice(2) ];
-		},
-		x1        : argument( 0 ),
-		y1        : argument( 1 ),
-		x2        : argument( 2 ),
-		y2        : argument( 3 ),
-		radius    : argument( 4 ),
-		clockwise : argument( 5 )
+	arcTo: {
+		attrs: ['x1', 'y1', 'x2', 'y2', 'radius', 'clockwise']
 	}
 };
- */
+
 Curve.fromArray = function(array, path){
 	if(array === true){
 		return closePath;
@@ -1450,11 +1721,11 @@ Curve.fromArray = function(array, path){
 		return new Curve(array[0], array.slice(1), path);
 	}
 
-	switch(array.length){
-		case 2: return new Curve('lineTo', array, path);
-		case 4: return new Curve('quadraticCurveTo', array, path);
-		case 6: return new Curve('bezierCurveTo', array, path);
-	}
+	return new Curve({
+		'2': 'lineTo',
+		'4': 'quadraticCurveTo',
+		'6': 'bezierCurveTo'
+	}[array.length], array, path);
 };
 
 $.curves = Curve.types;
@@ -1496,6 +1767,10 @@ Path = new Class(Drawable, {
 			return this.attrs.d[index];
 		}
 
+		if(!isNaN(value[0])){
+			value = [value];
+		}
+
 		value = Path.parse(value, this, index !== 0);
 		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
 		return this.update();
@@ -1504,7 +1779,11 @@ Path = new Class(Drawable, {
 	before: function(index, value, turnMoveToLine){
 		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
 		if(index === 0 && turnToLine !== false){
-			this.attrs.d[0].name = 'lineTo';
+			this.attrs.d[0].method = 'lineTo';
+		}
+
+		if(!isNaN(value[0])){
+			value = [value];
 		}
 
 		value = Path.parse(value, this, index !== 0);
@@ -1580,15 +1859,20 @@ Path = new Class(Drawable, {
 			maxX = -Infinity,
 			maxY = -Infinity,
 
-			currentBounds;
+			currentBounds,
+			currentPoint = [0, 0];
 		for(var i = 0; i < this.attrs.d.length; i++){
-			currentBounds = this.attrs.d[i].bounds();
-			minX = Math.min(minX, currentBounds.x1, currentBounds.x2);
-			maxX = Math.max(maxX, currentBounds.x1, currentBounds.x2);
-			minY = Math.min(minY, currentBounds.y1, currentBounds.y2);
-			maxY = Math.max(maxY, currentBounds.y1, currentBounds.y2);
+			currentBounds = this.attrs.d[i].bounds(currentPoint);
+			currentPoint = this.attrs.d[i].endAt() || currentPoint;
+			if(!currentBounds){
+				continue;
+			}
+			minX = Math.min(minX, currentBounds[0], currentBounds[2]);
+			maxX = Math.max(maxX, currentBounds[0], currentBounds[2]);
+			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
+			maxY = Math.max(maxY, currentBounds[1], currentBounds[3]);
 		}
-		return new Bounds(minX, minY, maxX - minX, maxY - minY);
+		return [minX, minY, maxX - minX, maxY - minY];
 	},
 
 	draw : function(ctx){
@@ -1604,7 +1888,6 @@ Path = new Class(Drawable, {
 
 Path.args = ['d', 'fill', 'stroke'];
 
-// some parts are commented here because I want to make Curve internal class
 Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
@@ -1614,36 +1897,24 @@ Path.parse = function(data, path, firstIsNotMove){
 		return Path.parseSVG(data, path, firstIsNotMove);
 	}
 
-	/* if(data instanceof Curve){
-		data.path = path;
-		return [data];
-	} */
-
 	var curves = [];
 	if(Array.isArray(data)){
 		for(var i = 0; i < data.length; i++){
 
-			// fix for [x,y] instead of [[x,y]]
-			// necessary for path.curve(index, [0, 0])
-			if(+data[1] === data[1]){
-				data = [data];
-			}
-
-			// Curve
-			/* if(data[i] instanceof Curve){
-				curves[i].push(data[i]);
-				curves[i].path = path;
-			}
-
-			// Array
-			else { */
+			if(data[i] instanceof Curve){
+				curves.push(data[i]);
+				data[i].path = path;
+			} else {
 				if(i === 0 && !firstIsNotMove){
-					curves.push(new Curve('moveTo', isNaN(data[i][0]) ? data[i].slice(1) : data[i], path));
-					continue;
+					curves.push(new Curve(
+						'moveTo',
+						isNaN(data[i][0]) ? data[i].slice(1) : data[i],
+						path
+					));
+				} else {
+					curves.push(Curve.fromArray(data[i], path));
 				}
-				curves.push(Curve.fromArray(data[i], path));
-			/* } */
-
+			}
 		}
 	}
 	return curves;
@@ -1685,11 +1956,6 @@ Picture = new Class(Drawable, {
 
 		this.attrs.image.addEventListener('load', function(event){
 			this.update();
-
-			if(this.attrs.image.blob){
-				domurl.revokeObjectURL(this.attrs.image.blob);
-			}
-
 			this.fire('load', event);
 		}.bind(this));
 
@@ -1739,6 +2005,13 @@ Picture = new Class(Drawable, {
 			}
 		}
 	}),
+
+	remove: function(){
+		this.super('remove');
+		if(this.attrs.image.blob){
+			domurl.revokeObjectURL(this.attrs.image.blob);
+		}
+	},
 
 	_realSize: function(){
 		var w = this.attrs.width,
@@ -1917,7 +2190,7 @@ Gradient = new Class({
 		}
 
 		var colors = this.attrs.colors,
-			keys = Object.keys(colors).sort();
+			keys = Object.keys(colors).sort(); // is this sort sorting them right? as numbera or as strings?
 
 		if(t < keys[0]){
 			return $.color(colors[keys[0]]);
@@ -2036,6 +2309,7 @@ Gradient.types = {
 					}
 					this.update();
 					return value;
+					// returns do not work!
 				}
 			},
 
@@ -2101,87 +2375,6 @@ Pattern = new Class({
 });
 
 $.Pattern = Pattern;
-
-// Easing functions
-// Mootools :) partially
-$.easing = {
-	linear : function(x){
-		return x;
-	},
-	root : function(x){
-		return Math.sqrt(x);
-	},
-	pow : function(t, v){
-		return Math.pow(t, v || 6);
-	},
-	expo : function(t, v){
-		return Math.pow(v || 2, 8 * t - 8);
-	},
-	circ : function(t){
-		return 1 - Math.sin(Math.acos(t));
-	},
-	sine : function(t){
-		return 1 - Math.cos(t * Math.PI / 2);
-	},
-	back : function(t, v){
-		return Math.pow(t, 2) * ( (v || 1.618) * (t - 1) + t);
-	},
-	bounce : function(t){
-		for(var a = 0, b = 1; 1; a += b, b /= 2){
-			if(t >= (7 - 4 * a) / 11){
-				return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
-			}
-		}
-	},
-	elastic : function(t, v){
-		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
-	}
-};
-
-['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-	$.easing[name] = function(t){
-		return Math.pow(t, i+2);
-	};
-});
-
-function processEasing(func){
-	$.easing[i + 'In'] = func;
-	$.easing[i + 'Out'] = function(t, v){
-		return 1 - func(1 - t, v);
-	};
-	$.easing[i + 'InOut'] = function(t, v){
-		return t <= 0.5 ? func(2 * t, v) / 2 : (2 - func(2 * (1 - t), v)) / 2;
-	};
-}
-
-for(var i in $.easing){
-	// don't make functions within a loop -- jshint
-	if(Object.prototype.hasOwnProperty.call($.easing, i))
-		processEasing($.easing[i]);
-	// todo: make this code better :P
-}
-
-
-// Bounds class
-function Bounds(x, y, w, h){
-	if(w < 0){
-		w = -w;
-		x -= w;
-	}
-	if(h < 0){
-		h = -h;
-		y -= h;
-	}
-	// TODO: replace to left, right, top, etc
-	this.x = this.x1 = x;
-	this.y = this.y1 = y;
-	this.w = this.width  = w;
-	this.h = this.height = h;
-	this.x2 = x + w;
-	this.y2 = y + h;
-	this.cx = x + w / 2;
-	this.cy = y + h / 2;
-}
 
 // Class
 function Class(parent, properties){
@@ -2249,6 +2442,27 @@ function Class(parent, properties){
 	extend(cls.prototype, properties);
 
 	return cls;
+}
+
+// Bounds class
+function Bounds(x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
+	// TODO: replace to left, right, top, etc
+	this.x = this.x1 = x;
+	this.y = this.y1 = y;
+	this.w = this.width  = w;
+	this.h = this.height = h;
+	this.x2 = x + w;
+	this.y2 = y + h;
+	this.cx = x + w / 2;
+	this.cy = y + h / 2;
 }
 
 // utils

@@ -108,7 +108,6 @@ Drawable = new Class({
 			return this.attrs[name];
 		}
 
-		// todo: set if it is not null
 		if(this.attrHooks[name] && this.attrHooks[name].set){
 			var result = this.attrHooks[name].set.call(this, value);
 			if(result !== null){
@@ -367,16 +366,71 @@ Drawable = new Class({
 		// attrs, duration, easing, callback
 		// attr, value, options
 		// attrs, options
+		if(attr + '' !== attr){
+			// the fx ob wiil not represent others
+			// object.fx.stop() will stop only one anim
+			if(+value === value || !value){
+				options = {duration: value, easing: options, callback: arguments[3]};
+			} else if(typeof value === 'function'){
+				options = {callback: value};
+			} else {
+				options = value;
+			}
 
-		var animObject = new Animation(
-			this.attr(attr),
-			value,
+			Object.keys(attr).forEach(function(key, i){
+				this.animate(key, attr[key], options);
+				if(i === 0){
+					options.queue = false;
+					options.callback = null;
+				}
+			}, this);
+			return this;
+		}
+
+		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+			throw 'Animation for "' + attr + '" is not supported';
+		}
+
+		if(+options === options || !options){
+			options = {duration: options, callback: arguments[4], easing: arguments[3]};
+		} else if(typeof options === 'function'){
+			options = {callback: options};
+		}
+
+		var fx = new Animation(
 			options.duration,
 			options.easing,
 			options.callback
 		);
 
-		animObject.start(this.attrHooks.anim);
+		fx.prop = attr;
+		fx.tick = this.attrHooks[attr].anim;
+		fx.tickContext = this;
+		fx.prePlay = function(){
+			this.fx = fx;
+			this.attrHooks[attr].preAnim.call(this, fx, value);
+		}.bind(this);
+
+		var queue = options.queue;
+		if(queue !== false){
+			if(queue === true || queue === undefined){
+				if(!this._queue){
+					this._queue = [];
+				}
+				queue = this._queue;
+			} else if(queue instanceof Drawable){
+				queue = queue._queue;
+			}
+			fx.queue = queue;
+			queue.push(fx);
+			if(queue.length > 1){
+				return this;
+			}
+		}
+
+		fx.play();
+
+		return this;
 	}
 
 });

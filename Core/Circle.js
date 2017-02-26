@@ -9,7 +9,7 @@ Circle = new Class(Drawable, {
 
 		this.attrs.cx = args[0];
 		this.attrs.cy = args[1];
-		this.attrs.radius = Math.abs(args[2]);
+		this.attrs.radius = args[2];
 		if(args[3]){
 			this.styles.fillStyle = args[3];
 		}
@@ -32,7 +32,7 @@ Circle = new Class(Drawable, {
 		radius: {
 			set: function(value){
 				this.update();
-				return Math.abs(value);
+				return value;
 			}
 		}
 	}),
@@ -44,7 +44,7 @@ Circle = new Class(Drawable, {
 	draw : function(ctx){
 		if(this._visible){
 			this.context.renderer.drawCircle(
-				[this.attrs.cx, this.attrs.cy, this.attrs.radius],
+				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
 				ctx, this.styles, this.matrix, this
 			);
 		}
@@ -56,12 +56,17 @@ Circle = new Class(Drawable, {
 
 	processPath: function(ctx){
 		ctx.beginPath();
-		ctx.arc(this.attrs.cx, this.attrs.cy, this.attrs.radius, 0, Math.PI * 2, true);
+		ctx.arc(this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius), 0, Math.PI * 2, true);
 	}
 
 });
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
+
+['cx', 'cy', 'radius'].forEach(function(propName){
+	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
+	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
+});
 
 $.circle = function(){
 	return new Circle(arguments);

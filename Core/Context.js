@@ -115,7 +115,7 @@ Context.prototype = {
 
 	each : function(func){
 		// todo: wrap
-		this.elements.forEach(func);
+		this.elements.forEach(func, this);
 		return this;
 	},
 

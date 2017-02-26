@@ -3,9 +3,7 @@
 
 Animation = new Class({
 
-	initialize: function(start, end, duration, easing, callback){
-		this.start = start;
-		this.end = end;
+	initialize: function(duration, easing, callback){
 		this.duration = duration || Animation.default.duration;
 		if(easing + '' === easing){
 			if(easing.indexOf('(') > -1){
@@ -13,25 +11,34 @@ Animation = new Class({
 			}
 			this.easing = Animation.easing[easing.split('(')[0]];
 		} else {
-			this.easing = easing || Animation.easing.linear;
+			this.easing = easing || Animation.easing.default;
 		}
 		this.callback = callback;
 	},
 
-	start: function(tickFunc){
+	play: function(tick, context){
+		if(this.prePlay){
+			this.prePlay();
+		}
+		if(tick){
+			this.tick = tick;
+		}
+		if(context){
+			this.tickContext = context;
+		}
+
 		this.startTime = Date.now();
 		this.endTime = this.startTime + this.duration;
-		Animation.queue.push(this);
-		if(!Animation.enabled){
+		if(!Animation.queue.length){
 			requestAnimationFrame(Animation.do);
 		}
+		Animation.queue.push(this);
 	}
 
 });
 
 Animation.queue = [];
 
-Animation.enabled = false;
 Animation.do = function(){
 	var fx, t,
 		i = 0
@@ -50,40 +57,61 @@ Animation.do = function(){
 		}
 
 		fx.now = now;
-		fx.pos = fx.easing(t);
-		fx.tick(fx);
+		fx.pos = fx.easing(t, fx.easingParam);
+		fx.tick.call(fx.tickContext, fx);
 
 		if(t === 1){
 			if(fx.callback){
-				fx.callback.call();
+				// call him in requestAnimFrame?
+				// it must be called after the last update, i think
+				fx.callback.call(fx.tickContext, fx);
 			}
-			// if(!elem._queue) elem._queue = [];
-			// fx.queue = elem._queue;
+
 			if(fx.queue){
-				// will it work right?!
 				fx.queue.shift();
 				if(fx.queue.length){
-					;
+					// init the next anim in the que
+					fx.queue[0].play();
 				}
 			}
+			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
 		}
 	}
 
 	if(Animation.queue.length){
 		requestAnimationFrame(Animation.do);
-	} else {
-		Animation.enabled = false;
 	}
 };
 
-// Some step functions
-Drawable.prototype.attrHooks._int = {
-	preAnim: function(fx){
-		fx.delta = fx.start - fx.end;
-		// +=, etc
+// Some tick functions
+Drawable.prototype.attrHooks._num = {
+	preAnim: function(fx, endValue){
+		fx.startValue = this.attrs[fx.prop];
+		fx.delta = endValue - fx.startValue;
+
+		if(endValue + '' === endValue){
+			if(endValue.indexOf('+=') === 0){
+				fx.delta = +endValue.substr(2);
+			} else if(endValue.indexOf('-=') === 0){
+				fx.delta = -endValue.substr(2);
+			}
+		}
 	},
+
 	anim: function(fx){
-		fx.elem.attr(fx.prop, fx.start + fx.delta * fx.pos);
+		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+		this.update();
+	}
+};
+
+Drawable.prototype.attrHooks._numAttr = {
+	preAnim: function(fx, endValue){
+		fx.startValue = this.attr(fx.prop);
+		fx.delta = endValue - fx.startValue;
+	},
+
+	anim: function(fx){
+		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
 	}
 };
 
@@ -92,6 +120,11 @@ Animation.easing = {
 
 	linear: function(x){
 		return x;
+	},
+
+	// jquery :P
+	swing: function(x){
+		return 0.5 - Math.cos(x * Math.PI) / 2;
 	},
 
 	sqrt: function(x){
@@ -132,6 +165,8 @@ Animation.easing = {
 
 };
 
+Animation.easing.default = Animation.easing.swing;
+
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
 		return Math.pow(t, i + 2);
@@ -156,6 +191,6 @@ Animation.default = {
 	duration: 500
 };
 
-$.animation = function(){
-	return new Animation();
+$.animation = function(duration, easing, callback){
+	return new Animation(duration, easing, callback);
 };
