@@ -32,7 +32,6 @@ Circle = new Class(Drawable, {
 		radius: {
 			set: function(value){
 				this.update();
-				return value;
 			}
 		}
 	}),

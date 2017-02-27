@@ -86,7 +86,7 @@ Animation.do = function(){
 // Some tick functions
 Drawable.prototype.attrHooks._num = {
 	preAnim: function(fx, endValue){
-		fx.startValue = this.attrs[fx.prop];
+		fx.startValue = this.attr(fx.prop);
 		fx.delta = endValue - fx.startValue;
 
 		if(endValue + '' === endValue){
@@ -105,10 +105,7 @@ Drawable.prototype.attrHooks._num = {
 };
 
 Drawable.prototype.attrHooks._numAttr = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
-	},
+	preAnim: Drawable.prototype.attrHooks._num.preAnim,
 
 	anim: function(fx){
 		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);

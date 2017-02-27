@@ -73,7 +73,7 @@ $.renderers = {};
 
 // {{include Raster.js}}
 
-// {{don't include Text.js}}
+// {{include Text.js}}
 
 // {{include Gradient.js}}
 
