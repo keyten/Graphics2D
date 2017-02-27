@@ -7,7 +7,7 @@ Text = new Class(Drawable, {
 			args = this.processObject(args[0], Text.args);
 		}
 
-		this.attrs.text = args[0];
+		this.attrs.text = args[0] + '';
 		this.attrs.font = Text.parseFont(args[1] || Text.font);
 		this.styles.font = Text.genFont(this.attrs.font);
 		this.attrs.x = args[2];
@@ -19,6 +19,7 @@ Text = new Class(Drawable, {
 			Drawable.processStroke(args[5], this.styles);
 		}
 
+		this.attrs.breakLines = true;
 		this.styles.textBaseline = 'top';
 	},
 
@@ -27,112 +28,190 @@ Text = new Class(Drawable, {
 			set: function(value){
 				this.lines = null;
 				this.update();
-				return value;
+				return value + '';
 			}
 		},
 		x: {
 			set: function(value){
 				this.update();
-				return value;
 			}
 		},
 		y: {
 			set: function(value){
 				this.update();
-				return value;
 			}
 		},
 		font: {
 			set: function(value){
-				value = Text.parseFont(value);
-				this.styles.font = Text.genFont(value);
+				Object.assign(this.attrs.font, Text.parseFont(value));
+				this.styles.font = Text.genFont(this.attrs.font);
 				this.update();
-				return value;
+				return this.attrs.font;
+			}
+		},
+		align: {
+			get: function(){
+				return this.styles.textAlign || 'left';
+			},
+			set: function(value){
+				this.styles.textAlign = value;
+				this.update();
+				return null;
+			}
+		},
+		baseline: {
+			get: function(){
+				return this.styles.textBaseline;
+			},
+			set: function(value){
+				this.styles.textBaseline = value;
+				this.update();
+				return null;
+			}
+		},
+		breakLines: {
+			set: function(){
+				this.update();
+			}
+		},
+		width: {
+			set: function(){
+				this.lines = null;
+				this.update();
+			}
+		},
+		lineHeight: {
+			set: function(){
+				this.lines = null;
+				this.update();
 			}
 		}
 	}),
 
 	lines: null,
 
-	processLines: function(){
-		// todo: move to renderer api?
-		// renderer.getTextWidth(text, style)
-		var text = this.attrs.text + '',
+	processLines: function(ctx){
+		var text = this.attrs.text,
 			lines = this.lines = [],
-			size = this.attrs.lineHeight || this.attrs.font.size,
-			ctx = getTemporaryCanvas(1, 1).getContext('2d'),
-			width = this.attrs.width || Infinity,
-			countline = 1,
-			align = this.styles.textAlign || 'left',
-			x = align === 'center' ? width / 2 : align === 'right' ? width : 0;
 
-		ctx.font = this.styles.font;
+			height = this.attrs.lineHeight || this.attrs.font.size,
+			maxWidth = this.attrs.width || Infinity,
+			x = maxWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0),
 
+			rend = this.context.renderer;
+
+		rend.preMeasure(this.styles.font);
 		text.split('\n').forEach(function(line){
-			// Does the line have to be splitted?
-			if(ctx.measureText(line).width > width){
+			if(rend.measure(line) > maxWidth){
 				var words = line.split(' '),
-					useline = '',
-					testline, i, len;
+					curline = '',
+					testline;
 
-				for(i = 0, len = words.length; i < len; i++){
-					testline = useline + words[i] + ' ';
+				for(var i = 0; i < words.length; i++){
+					testline = curline + words[i] + ' ';
 
-					if(ctx.measureText(testline).width > width){
-						lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
-						useline = words[i] + ' ';
-					}
-					else {
-						useline = testline;
+					if(rend.measure(testline) > maxWidth){
+						lines.push({
+							text: curline,
+							y: height * lines.length
+						});
+						curline = words[i] + ' ';
+					} else {
+						curline = testline;
 					}
 				}
-				lines.push({ text:useline, x:x, y:size * countline, count:countline++ });
+				lines.push({
+					text: curline,
+					y: height * lines.length
+				})
+			} else {
+				lines.push({
+					text: line,
+					y: height * lines.length
+				});
 			}
-			else {
-				lines.push({ text:line, x:x, y:size * countline, count:countline++ });
-			}
-
-		});
+		}, this);
+		rend.postMeasure();
 		return this;
 	},
 
 	shapeBounds : function(){
 		var align = this.styles.textAlign || 'left',
-			baseline = this.styles.textBaseline || 'top',
-			width = this.width(),
-			size = Number(this._font.size),
-			x = this._x,
-			y = this._y;
+			baseline = this.styles.textBaseline,
 
-		if(this._type === 'label'){
-			if(align === 'center')
-				x -= width/2;
-			else if(align === 'right')
-				x -= width;
+			width = this.attrs.width,
+			height = this.attrs.lineHeight || this.attrs.font.size,
 
-			if(baseline === 'middle')
-				y -= size/2;
-			else if(baseline === 'bottom' || baseline === 'ideographic')
-				y -= size;
-			else if(baseline === 'alphabetic')
-				y -= size * 0.8;
-			return new Bounds(x, y, width, size * 1.15);
+			x = this.attrs.x,
+			y = this.attrs.y;
+
+		if(baseline === 'middle'){
+			y -= this.attrs.font.size / 2;
+		} else if(baseline === 'bottom' || baseline === 'ideographic'){
+			y -= this.attrs.font.size;
+		} else if(baseline === 'alphabetic'){
+			y -= this.attrs.font.size * 0.8;
 		}
-		else {
-			return new Bounds(x, y, width, (size + this._lineSpace) * this._lines.length);
+
+		if(!this.attrs.breakLines){
+			this.context.renderer.preMeasure(this.styles.font);
+			width = this.context.renderer.measure(this.attrs.text);
+			this.context.renderer.postMeasure();
+
+			x -= width * ({
+				left: 0,
+				right: 1,
+				center: 0.5
+			})[align || 'left'];
+
+			return [x, y, width, this.attrs.font.size * 1.15];
+		} else {
+			if(!this.lines){
+				this.processLines();
+			}
+
+			if(!width){
+				width = 0;
+				this.context.renderer.preMeasure(this.styles.font);
+				this.lines.forEach(function(line){
+					width = Math.max(width, this.context.renderer.measure(line.text));
+				}, this);
+				this.context.renderer.postMeasure();
+			}
+
+			return [x, y, width, height * this.lines.length];
 		}
 	},
 
 	draw : function(ctx){
 		if(this._visible){
-			if(!this.lines){
-				this.processLines();
-			}
+			if(!this.attrs.breakLines){
+				this.context.renderer.drawTextLines(
+					[[{
+						text: this.attrs.text,
+						y: 0
+					}], this.attrs.x, this.attrs.y],
+					ctx, this.styles, this.matrix, this
+				);
+			} else {
+				if(!this.lines){
+					this.processLines(ctx);
+				}
 
-			this.context.renderer.drawText(
-				[this.attrs.text, this.attrs.x, this.attrs.y],
-				ctx, this.styles, this.matrix, this
-			);
+				var x = this.attrs.x;
+				if(this.attrs.width){
+					x += this.attrs.width * ({
+						left: 0,
+						center: 0.5,
+						right: 1
+					})[this.styles.textAlign || 'left'];
+				}
+
+				this.context.renderer.drawTextLines(
+					[this.lines, x, this.attrs.y],
+					ctx, this.styles, this.matrix, this
+				);
+			}
 		}
 	},
 

@@ -100,14 +100,24 @@ $.renderers['2d'] = {
 	},
 
 	// params = [text, x, y]
-	drawText: function(params, ctx, style, matrix, object){
+	drawTextLines: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
-		if(style.fillStyle){
-			ctx.fillText(params[0], params[1], params[2]);
+		var func;
+		if(style.fillStyle && !style.strokeStyle){
+			func = function(line){
+				ctx.fillText(line.text, params[1], params[2] + line.y);
+			};
+		} else if(style.fillStyle){
+			func = function(line){
+				ctx.fillText(line.text, params[1], params[2] + line.y);
+				ctx.strokeText(line.text, params[1], params[2] + line.y);
+			};
+		} else {
+			func = function(line){
+				ctx.strokeText(line.text, params[1], params[2] + line.y);
+			};
 		}
-		if(style.strokeStyle){
-			ctx.strokeText(params[0], params[1], params[2]);
-		}
+		params[0].forEach(func);
 		ctx.restore();
 	},
 
@@ -217,4 +227,18 @@ $.renderers['2d'] = {
 
 	// gradients, patterns
 
+	// text
+	_currentMeasureContext: null,
+	preMeasure: function(font){
+		this._currentMeasureContext = getTemporaryCanvas(1, 1).getContext('2d');
+		this._currentMeasureContext.save();
+		this._currentMeasureContext.font = font;
+	},
+	measure: function(text){
+		return this._currentMeasureContext.measureText(text).width;
+	},
+	postMeasure: function(){
+		this._currentMeasureContext.restore();
+		this._currentMeasureContext = null;
+	}
 };
