@@ -139,15 +139,53 @@ Context.prototype = {
 		}
 
 		this.canvas.addEventListener(event, function(e){
-			var element,
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			if(event === 'mouseout'){
+				e.targetObject = this.hoverElement;
+				this.hoverElement = null;
+
+				var coords = this.contextCoords(e.clientX, e.clientY);
+				e.contextX = coords[0];
+				e.contextY = coords[1];
+
+				if(e.targetObject && e.targetObject.fire){
+					if(!e.targetObject.fire('mouseout', e)){
+						e.stopPropagation();
+						e.preventDefault();
+					}
+				}
+			} else {
+				// negative contextX / contextY when canvas has a border
+				// not a bug, it's a feature :)
+				if(+e.clientX === e.clientX){
+					this._processPointParams(e, event, e);
+				}
+				['touch', 'changedTouches', 'targetTouches'].forEach(function(prop){
+					if(e[prop]){
+						Array.prototype.forEach.call(e.touches, function(touch){
+							this._processPointParams(touch, event, e);
+						}, this);
+					}
+				}, this);
+			}
+
+			if(propagation){
+				this.fire(event, e);
+			}
+			/* var element,
 				propagation = true,
 				coords = $.coordsOfElement(this.canvas);
-			// todo: move to this.contextCoords(x, y)
-			// may be used from outside
 
-			// negative contextX / contextY when canvas has a border
-			e.contextX = e.clientX - coords.x;
-			e.contextY = e.clientY - coords.y;
+
+			if(+e.clientX === e.clientX){
+				e.contextX = e.clientX - coords.x;
+				e.contextY = e.clientY - coords.y;
+			}
 
 			e.cancelContextPropagation = function(){
 				propagation = false;
@@ -156,7 +194,7 @@ Context.prototype = {
 			if(event === 'mouseout'){
 				element = this.hoverElement;
 				this.hoverElement = null;
-			} else {
+			} else if(+e.clientX === e.clientX) {
 				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 			}
 
@@ -172,10 +210,24 @@ Context.prototype = {
 
 			if(propagation){
 				this.fire(event, e);
-			}
+			} */
 		}.bind(this));
 
 		return this.listeners[event];
+	},
+
+	_processPointParams: function(point, name, event){
+		var coords = this.contextCoords(point.clientX, point.clientY);
+		point.contextX = coords[0];
+		point.contextY = coords[1];
+
+		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
+		if(point.targetObject && point.targetObject.fire){
+			if(!point.targetObject.fire(name, event)){
+				event.stopPropagation();
+				event.preventDefault();
+			}
+		}
 	},
 
 	eventsInteract: [
@@ -253,16 +305,19 @@ Context.prototype = {
 
 			if(last != current){
 				if(last && last.fire){
+					e.targetObject = last;
 					last.fire(out, e);
 				}
 				if(current && current.fire){
+					// it is not good to change event object
+					// make special class for event obs?
+					// e.originalEvent and etc
+					e.targetObject = current;
 					current.fire(over, e);
 				}
 				this[name] = current;
 			}
-
-		}.bind(this));
-		// is the bind neccessary?
+		});
 		return this;
 	},
 
@@ -299,6 +354,12 @@ Context.prototype = {
 			callback.call(this, data);
 		}, this);
 		return this;
+	},
+
+	// translates screen coords to context coords
+	contextCoords: function(x, y){
+		var coords = $.coordsOfElement(this.canvas);
+		return [x - coords.x, y - coords.y];
 	},
 
 	// Transforms

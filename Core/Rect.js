@@ -111,6 +111,7 @@ Rect = new Class(Drawable, {
 		}
 	},
 
+	// should apply the inverse of this.matrix to the point (x, y)
 	isPointIn : function(x, y){
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},

@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 26.02.2017
+ *  Last edit: 28.02.2017
  *  License: MIT / LGPL
  */
 
@@ -155,14 +155,24 @@ $.renderers['2d'] = {
 	},
 
 	// params = [text, x, y]
-	drawText: function(params, ctx, style, matrix, object){
+	drawTextLines: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
-		if(style.fillStyle){
-			ctx.fillText(params[0], params[1], params[2]);
+		var func;
+		if(style.fillStyle && !style.strokeStyle){
+			func = function(line){
+				ctx.fillText(line.text, params[1], params[2] + line.y);
+			};
+		} else if(style.fillStyle){
+			func = function(line){
+				ctx.fillText(line.text, params[1], params[2] + line.y);
+				ctx.strokeText(line.text, params[1], params[2] + line.y);
+			};
+		} else {
+			func = function(line){
+				ctx.strokeText(line.text, params[1], params[2] + line.y);
+			};
 		}
-		if(style.strokeStyle){
-			ctx.strokeText(params[0], params[1], params[2]);
-		}
+		params[0].forEach(func);
 		ctx.restore();
 	},
 
@@ -272,6 +282,20 @@ $.renderers['2d'] = {
 
 	// gradients, patterns
 
+	// text
+	_currentMeasureContext: null,
+	preMeasure: function(font){
+		this._currentMeasureContext = getTemporaryCanvas(1, 1).getContext('2d');
+		this._currentMeasureContext.save();
+		this._currentMeasureContext.font = font;
+	},
+	measure: function(text){
+		return this._currentMeasureContext.measureText(text).width;
+	},
+	postMeasure: function(){
+		this._currentMeasureContext.restore();
+		this._currentMeasureContext = null;
+	}
 };
 
 var Context;
@@ -415,15 +439,53 @@ Context.prototype = {
 		}
 
 		this.canvas.addEventListener(event, function(e){
-			var element,
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			if(event === 'mouseout'){
+				e.targetObject = this.hoverElement;
+				this.hoverElement = null;
+
+				var coords = this.contextCoords(e.clientX, e.clientY);
+				e.contextX = coords[0];
+				e.contextY = coords[1];
+
+				if(e.targetObject && e.targetObject.fire){
+					if(!e.targetObject.fire('mouseout', e)){
+						e.stopPropagation();
+						e.preventDefault();
+					}
+				}
+			} else {
+				// negative contextX / contextY when canvas has a border
+				// not a bug, it's a feature :)
+				if(+e.clientX === e.clientX){
+					this._processPointParams(e, event, e);
+				}
+				['touch', 'changedTouches', 'targetTouches'].forEach(function(prop){
+					if(e[prop]){
+						Array.prototype.forEach.call(e.touches, function(touch){
+							this._processPointParams(touch, event, e);
+						}, this);
+					}
+				}, this);
+			}
+
+			if(propagation){
+				this.fire(event, e);
+			}
+			/* var element,
 				propagation = true,
 				coords = $.coordsOfElement(this.canvas);
-			// todo: move to this.contextCoords(x, y)
-			// may be used from outside
 
-			// negative contextX / contextY when canvas has a border
-			e.contextX = e.clientX - coords.x;
-			e.contextY = e.clientY - coords.y;
+
+			if(+e.clientX === e.clientX){
+				e.contextX = e.clientX - coords.x;
+				e.contextY = e.clientY - coords.y;
+			}
 
 			e.cancelContextPropagation = function(){
 				propagation = false;
@@ -432,7 +494,7 @@ Context.prototype = {
 			if(event === 'mouseout'){
 				element = this.hoverElement;
 				this.hoverElement = null;
-			} else {
+			} else if(+e.clientX === e.clientX) {
 				element = this.getObjectInPoint(e.contextX, e.contextY, true);
 			}
 
@@ -448,10 +510,24 @@ Context.prototype = {
 
 			if(propagation){
 				this.fire(event, e);
-			}
+			} */
 		}.bind(this));
 
 		return this.listeners[event];
+	},
+
+	_processPointParams: function(point, name, event){
+		var coords = this.contextCoords(point.clientX, point.clientY);
+		point.contextX = coords[0];
+		point.contextY = coords[1];
+
+		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
+		if(point.targetObject && point.targetObject.fire){
+			if(!point.targetObject.fire(name, event)){
+				event.stopPropagation();
+				event.preventDefault();
+			}
+		}
 	},
 
 	eventsInteract: [
@@ -529,16 +605,19 @@ Context.prototype = {
 
 			if(last != current){
 				if(last && last.fire){
+					e.targetObject = last;
 					last.fire(out, e);
 				}
 				if(current && current.fire){
+					// it is not good to change event object
+					// make special class for event obs?
+					// e.originalEvent and etc
+					e.targetObject = current;
 					current.fire(over, e);
 				}
 				this[name] = current;
 			}
-
-		}.bind(this));
-		// is the bind neccessary?
+		});
 		return this;
 	},
 
@@ -575,6 +654,12 @@ Context.prototype = {
 			callback.call(this, data);
 		}, this);
 		return this;
+	},
+
+	// translates screen coords to context coords
+	contextCoords: function(x, y){
+		var coords = $.coordsOfElement(this.canvas);
+		return [x - coords.x, y - coords.y];
 	},
 
 	// Transforms
@@ -1266,7 +1351,7 @@ Animation.do = function(){
 // Some tick functions
 Drawable.prototype.attrHooks._num = {
 	preAnim: function(fx, endValue){
-		fx.startValue = this.attrs[fx.prop];
+		fx.startValue = this.attr(fx.prop);
 		fx.delta = endValue - fx.startValue;
 
 		if(endValue + '' === endValue){
@@ -1285,10 +1370,7 @@ Drawable.prototype.attrHooks._num = {
 };
 
 Drawable.prototype.attrHooks._numAttr = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
-	},
+	preAnim: Drawable.prototype.attrHooks._num.preAnim,
 
 	anim: function(fx){
 		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
@@ -1488,6 +1570,7 @@ Rect = new Class(Drawable, {
 		}
 	},
 
+	// should apply the inverse of this.matrix to the point (x, y)
 	isPointIn : function(x, y){
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},
@@ -1547,7 +1630,6 @@ Circle = new Class(Drawable, {
 		radius: {
 			set: function(value){
 				this.update();
-				return value;
 			}
 		}
 	}),
@@ -2137,7 +2219,274 @@ $.raster = function(){
 	return raster;
 };
 
-// {{don't include Text.js}}
+Text = new Class(Drawable, {
+
+	initialize : function(args, context){
+		this.super('initialize', arguments);
+
+		if(isObject(args[0])){
+			args = this.processObject(args[0], Text.args);
+		}
+
+		this.attrs.text = args[0] + '';
+		this.attrs.font = Text.parseFont(args[1] || Text.font);
+		this.styles.font = Text.genFont(this.attrs.font);
+		this.attrs.x = args[2];
+		this.attrs.y = args[3];
+		if(args[4]){
+			this.styles.fillStyle = args[4];
+		}
+		if(args[5]){
+			Drawable.processStroke(args[5], this.styles);
+		}
+
+		this.attrs.breakLines = true;
+		this.styles.textBaseline = 'top';
+	},
+
+	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+		text: {
+			set: function(value){
+				this.lines = null;
+				this.update();
+				return value + '';
+			}
+		},
+		x: {
+			set: function(value){
+				this.update();
+			}
+		},
+		y: {
+			set: function(value){
+				this.update();
+			}
+		},
+		font: {
+			set: function(value){
+				Object.assign(this.attrs.font, Text.parseFont(value));
+				this.styles.font = Text.genFont(this.attrs.font);
+				this.update();
+				return this.attrs.font;
+			}
+		},
+		align: {
+			get: function(){
+				return this.styles.textAlign || 'left';
+			},
+			set: function(value){
+				this.styles.textAlign = value;
+				this.update();
+				return null;
+			}
+		},
+		baseline: {
+			get: function(){
+				return this.styles.textBaseline;
+			},
+			set: function(value){
+				this.styles.textBaseline = value;
+				this.update();
+				return null;
+			}
+		},
+		breakLines: {
+			set: function(){
+				this.update();
+			}
+		},
+		width: {
+			set: function(){
+				this.lines = null;
+				this.update();
+			}
+		},
+		lineHeight: {
+			set: function(){
+				this.lines = null;
+				this.update();
+			}
+		}
+	}),
+
+	lines: null,
+
+	processLines: function(ctx){
+		var text = this.attrs.text,
+			lines = this.lines = [],
+
+			height = this.attrs.lineHeight || this.attrs.font.size,
+			maxWidth = this.attrs.width || Infinity,
+			x = maxWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0),
+
+			rend = this.context.renderer;
+
+		rend.preMeasure(this.styles.font);
+		text.split('\n').forEach(function(line){
+			if(rend.measure(line) > maxWidth){
+				var words = line.split(' '),
+					curline = '',
+					testline;
+
+				for(var i = 0; i < words.length; i++){
+					testline = curline + words[i] + ' ';
+
+					if(rend.measure(testline) > maxWidth){
+						lines.push({
+							text: curline,
+							y: height * lines.length
+						});
+						curline = words[i] + ' ';
+					} else {
+						curline = testline;
+					}
+				}
+				lines.push({
+					text: curline,
+					y: height * lines.length
+				})
+			} else {
+				lines.push({
+					text: line,
+					y: height * lines.length
+				});
+			}
+		}, this);
+		rend.postMeasure();
+		return this;
+	},
+
+	shapeBounds : function(){
+		var align = this.styles.textAlign || 'left',
+			baseline = this.styles.textBaseline,
+
+			width = this.attrs.width,
+			height = this.attrs.lineHeight || this.attrs.font.size,
+
+			x = this.attrs.x,
+			y = this.attrs.y;
+
+		if(baseline === 'middle'){
+			y -= this.attrs.font.size / 2;
+		} else if(baseline === 'bottom' || baseline === 'ideographic'){
+			y -= this.attrs.font.size;
+		} else if(baseline === 'alphabetic'){
+			y -= this.attrs.font.size * 0.8;
+		}
+
+		if(!this.attrs.breakLines){
+			this.context.renderer.preMeasure(this.styles.font);
+			width = this.context.renderer.measure(this.attrs.text);
+			this.context.renderer.postMeasure();
+
+			x -= width * ({
+				left: 0,
+				right: 1,
+				center: 0.5
+			})[align || 'left'];
+
+			return [x, y, width, this.attrs.font.size * 1.15];
+		} else {
+			if(!this.lines){
+				this.processLines();
+			}
+
+			if(!width){
+				width = 0;
+				this.context.renderer.preMeasure(this.styles.font);
+				this.lines.forEach(function(line){
+					width = Math.max(width, this.context.renderer.measure(line.text));
+				}, this);
+				this.context.renderer.postMeasure();
+			}
+
+			return [x, y, width, height * this.lines.length];
+		}
+	},
+
+	draw : function(ctx){
+		if(this._visible){
+			if(!this.attrs.breakLines){
+				this.context.renderer.drawTextLines(
+					[[{
+						text: this.attrs.text,
+						y: 0
+					}], this.attrs.x, this.attrs.y],
+					ctx, this.styles, this.matrix, this
+				);
+			} else {
+				if(!this.lines){
+					this.processLines(ctx);
+				}
+
+				var x = this.attrs.x;
+				if(this.attrs.width){
+					x += this.attrs.width * ({
+						left: 0,
+						center: 0.5,
+						right: 1
+					})[this.styles.textAlign || 'left'];
+				}
+
+				this.context.renderer.drawTextLines(
+					[this.lines, x, this.attrs.y],
+					ctx, this.styles, this.matrix, this
+				);
+			}
+		}
+	},
+
+	isPointIn : function(x, y){
+		var bounds = this.shapeBounds();
+		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+	}
+
+});
+
+Text.font = '10px sans-serif';
+Text.args = ['text', 'font', 'x', 'y', 'fill', 'stroke'];
+
+// 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
+Text.parseFont = function(font){
+	if(font + '' === font){
+		var object = {
+			family: ''
+		};
+		font.split(' ').forEach(function(part){
+			if(part === 'bold'){
+				object.bold = true;
+			} else if(part === 'italic'){
+				object.italic = true;
+			} else if(reNumberLike.test(part)){
+				object.size = $.distance(part);
+			} else {
+				object.family += ' ' + part;
+			}
+		});
+
+		object.family = object.family.trim();
+		return object;
+	}
+	return font;
+};
+
+// {family: 'Arial', size: 10, bold: true} -> 'bold 10px Arial'
+Text.genFont = function(font){
+	var string = '';
+	if(font.italic){
+		string += 'italic ';
+	}
+	if(font.bold){
+		string += 'bold ';
+	}
+	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
+};
+
+$.text = function(){
+	return new Text(arguments);
+};
+
+$.Text = Text;
 
 Gradient = new Class({
 	initialize: function(type, colors, from, to, context){

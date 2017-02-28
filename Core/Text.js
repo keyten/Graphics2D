@@ -215,7 +215,10 @@ Text = new Class(Drawable, {
 		}
 	},
 
-	isPointIn : function(x, y){}
+	isPointIn : function(x, y){
+		var bounds = this.shapeBounds();
+		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+	}
 
 });
 
