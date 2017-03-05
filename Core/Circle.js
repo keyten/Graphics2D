@@ -14,6 +14,7 @@ Circle = new Class(Drawable, {
 			this.styles.fillStyle = args[3];
 		}
 		if(args[4]){
+			this.attrs.stroke = args[4];
 			Drawable.processStroke(args[4], this.styles);
 		}
 	},

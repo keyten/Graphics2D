@@ -14,6 +14,7 @@ Path = new Class(Drawable, {
 			this.styles.fillStyle = args[1];
 		}
 		if(args[2]){
+			this.attrs.stroke = args[2];
 			Drawable.processStroke(args[2], this.styles);
 		}
 	},

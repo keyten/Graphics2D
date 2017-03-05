@@ -16,6 +16,7 @@ Text = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
+			this.attrs.stroke = args[5];
 			Drawable.processStroke(args[5], this.styles);
 		}
 

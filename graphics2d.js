@@ -1203,19 +1203,27 @@ Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
 		stroke = stroke.replace(/\s*\,\s*/g, ',').split(' ');
 
-		var opacity, l = stroke.length;
+		var opacity, l = stroke.length,
+			joinSet = false,
+			capSet = false;
+
 		while(l--){
 			if(reFloat.test(stroke[l])){
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = $.distance(stroke[l]);
 			} else if(stroke[l] === 'round'){
-				// wrong when changing!
-				style.lineJoin = style.lineJoin || 'round';
-				style.lineCap = style.lineCap || 'round';
+				if(!joinSet){
+					style.lineJoin = 'round';
+				}
+				if(!capSet){
+					style.lineCap = style.lineCap || 'round';
+				}
 			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
+				joinSet = true;
 				style.lineJoin = stroke[l];
 			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
+				capSet = true;
 				style.lineCap = stroke[l];
 			} else if(stroke[l][0] === '['){
 				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
@@ -1231,24 +1239,24 @@ Drawable.processStroke = function(stroke, style){
 			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
 		}
 	} else {
-		if(stroke.color){
+		if(stroke.color !== undefined){
 			style.strokeStyle = stroke.color;
 		}
-		if(stroke.opacity && style.strokeStyle){
+		if(stroke.opacity !== undefined && style.strokeStyle){
 			var parsed = $.color(style.strokeStyle);
 			parsed[3] = stroke.opacity;
 			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
 		}
-		if(stroke.width){
+		if(stroke.width !== undefined){
 			style.lineWidth = $.distance(stroke.width);
 		}
-		if(stroke.join){
+		if(stroke.join !== undefined){
 			style.lineJoin = stroke.join;
 		}
-		if(stroke.cap){
+		if(stroke.cap !== undefined){
 			style.lineCap = stroke.cap;
 		}
-		if(stroke.dash){
+		if(stroke.dash !== undefined){
 			if(stroke.dash in $.dashes){
 				style.lineDash = $.dashes[stroke.dash];
 			} else {
@@ -1507,6 +1515,7 @@ Rect = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
+			this.attrs.stroke = args[5];
 			Drawable.processStroke(args[5], this.styles);
 		}
 	},
@@ -1645,6 +1654,7 @@ Circle = new Class(Drawable, {
 			this.styles.fillStyle = args[3];
 		}
 		if(args[4]){
+			this.attrs.stroke = args[4];
 			Drawable.processStroke(args[4], this.styles);
 		}
 	},
@@ -1863,6 +1873,7 @@ Path = new Class(Drawable, {
 			this.styles.fillStyle = args[1];
 		}
 		if(args[2]){
+			this.attrs.stroke = args[2];
 			Drawable.processStroke(args[2], this.styles);
 		}
 	},
@@ -2270,6 +2281,7 @@ Text = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
+			this.attrs.stroke = args[5];
 			Drawable.processStroke(args[5], this.styles);
 		}
 
