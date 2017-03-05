@@ -177,40 +177,6 @@ Context.prototype = {
 			if(propagation){
 				this.fire(event, e);
 			}
-			/* var element,
-				propagation = true,
-				coords = $.coordsOfElement(this.canvas);
-
-
-			if(+e.clientX === e.clientX){
-				e.contextX = e.clientX - coords.x;
-				e.contextY = e.clientY - coords.y;
-			}
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			if(event === 'mouseout'){
-				element = this.hoverElement;
-				this.hoverElement = null;
-			} else if(+e.clientX === e.clientX) {
-				element = this.getObjectInPoint(e.contextX, e.contextY, true);
-			}
-
-			e.targetObject = element;
-
-			if(element && element.fire){
-				if(!element.fire(event, e)){
-					e.stopPropagation();
-					e.preventDefault();
-					return;
-				}
-			}
-
-			if(propagation){
-				this.fire(event, e);
-			} */
 		}.bind(this));
 
 		return this.listeners[event];

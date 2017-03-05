@@ -76,7 +76,7 @@ function Bounds(x, y, w, h){
 		h = -h;
 		y -= h;
 	}
-	// TODO: replace to left, right, top, etc
+
 	this.x = this.x1 = x;
 	this.y = this.y1 = y;
 	this.w = this.width  = w;

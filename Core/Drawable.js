@@ -1,7 +1,3 @@
-/* function doRectsIntersect(r1, r2){
-	return !(r1.x1 > r2.x2 || r1.x2 < r2.x1 || r1.y1 < r2.y2 || r1.y2 > r2.y1);
-} */
-
 var temporaryCanvas;
 
 function getTemporaryCanvas(width, height){
@@ -198,12 +194,84 @@ Drawable = new Class({
 			throw ('The object doesn\'t have shapeBounds method.');
 		}
 
+		options = Object.assign({
+			transform: 'normalized',
+			around: 'fill'
+		}, options);
+
+		var b = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
+
+		// around
+		if(options.around !== 'fill' && this.styles.strokeStyle){
+			var weight = (this.styles.lineWidth || 1) / 2;
+			if(options.around === 'exclude'){
+				weight = -weight;
+			}
+			b[0] -= weight;
+			b[1] -= weight;
+			b[2] += weight * 2;
+			b[3] += weight * 2;
+		}
+
+		var lt = [b[0], b[1]],
+			rt = [b[0] + b[2], b[1]],
+			lb = [b[0], b[1] + b[3]],
+			rb = [rt[0], lb[1]];
+
+		// transform
+		if(options.transform !== 'ignore'){
+			var matrix = this.matrix;
+
+			if(matrix){
+				lt[0] = [
+					lt[0] * matrix[0] + lt[1] * matrix[2] + matrix[4],
+					lt[1] =
+						lt[0] * matrix[1] + lt[1] * matrix[3] + matrix[5]
+				][0];
+
+				rt[0] = [
+					rt[0] * matrix[0] + rt[1] * matrix[2] + matrix[4],
+					rt[1] =
+						rt[0] * matrix[1] + rt[1] * matrix[3] + matrix[5]
+				][0];
+
+				lb[0] = [
+					lb[0] * matrix[0] + lb[1] * matrix[2] + matrix[4],
+					lb[1] =
+						lb[0] * matrix[1] + lb[1] * matrix[3] + matrix[5]
+				][0];
+
+				rb[0] = [
+					rb[0] * matrix[0] + rb[1] * matrix[2] + matrix[4],
+					rb[1] =
+						rb[0] * matrix[1] + rb[1] * matrix[3] + matrix[5]
+				][0];
+			}
+
+			if(options.transform === 'transformed'){
+				return {
+					lt: lt,
+					rt: rt,
+					lb: lb,
+					rb: rb
+				};
+			}
+
+			var minX = Math.min(lt[0], lb[0], rt[0], rb[0]),
+				minY = Math.min(lt[1], lb[1], rt[1], rb[1]);
+
+			return new Bounds(
+				minX,
+				minY,
+				Math.max(lt[0], lb[0], rt[0], rb[0]) - minX,
+				Math.max(lt[1], lb[1], rt[1], rb[1]) - minY
+			);
+		}
+
 		// options.transform - 3 possible values (transformed boundbox, normalized boundbox (maximize transformed vertices), ignore transforms)
 		// options.around = 'fill' or 'stroke' or 'exclude' (stroke)
 		// maybe, options.processClip = true or false
-		var bounds = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
-		// do smth here
-		return new Bounds(bounds[0], bounds[1], bounds[2], bounds[3]);
+		return new Bounds(b[0], b[1], b[2], b[3]);
 	},
 
 	corner : function(corner, options){
@@ -264,7 +332,7 @@ Drawable = new Class({
 			this.matrix = null;
 		} else {
 			if(pivot){
-				pivot = this.corner(pivot);
+				pivot = this.corner(pivot, {transform: 'ignore'});
 				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
 				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
 			}
@@ -367,6 +435,7 @@ Drawable = new Class({
 		// attr, value, options
 		// attrs, options
 		if(attr + '' !== attr){
+			// todo:
 			// the fx ob wiil not represent others
 			// object.fx.stop() will stop only one anim
 			if(+value === value || !value){

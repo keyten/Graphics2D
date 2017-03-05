@@ -225,8 +225,6 @@ $.renderers['2d'] = {
 		ctx.restore();
 	},
 
-	// gradients, patterns
-
 	// text
 	_currentMeasureContext: null,
 	preMeasure: function(font){
