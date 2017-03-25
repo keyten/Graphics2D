@@ -366,8 +366,8 @@ $.coordsOfElement = function(element){ // returns coords of a DOM element
 		style = window.getComputedStyle(element);
 
 	return {
-		x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
-		y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
+		x: box.left + parseInt(style.borderLeftWidth || 0) + parseInt(style.paddingLeft || 0),
+		y: box.top  + parseInt(style.borderTopWidth  || 0) + parseInt(style.paddingTop  || 0)
 	};
 };
 

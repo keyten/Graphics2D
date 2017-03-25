@@ -24,7 +24,7 @@ Curve = new Class({
 			return this;
 		}
 
-		name = Curve.types[this.name].attrs.indexOf(name);
+		name = Curve.types[this.method].attrs.indexOf(name);
 		if(value === undefined){
 			return this.attrs[name];
 		}

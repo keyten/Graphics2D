@@ -7,7 +7,6 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
-		console.time('Drawing time');
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -16,9 +15,16 @@ $.renderers['2d'] = {
 		}
 	},
 
-	postRedraw: function(ctx){
+	preDraw: function(ctx, delta){
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		if(delta.matrix){
+			ctx.setTransform.apply(ctx, delta.matrix);
+		}
+	},
+
+	postDraw: function(ctx){
 		ctx.restore();
-		console.timeEnd('Drawing time');
 	},
 
 	// params = [cx, cy, radius]

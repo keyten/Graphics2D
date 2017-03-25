@@ -74,7 +74,9 @@ Context.prototype = {
 		this.elements.push(element);
 
 		if(element.draw){
+			this.renderer.preDraw(this.context, this);
 			element.draw(this.context);
+			this.renderer.postDraw(this.context);
 		}
 
 		return element;
@@ -95,7 +97,7 @@ Context.prototype = {
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
-		this.renderer.postRedraw(ctx);
+		this.renderer.postDraw(ctx);
 		this._willUpdate = false;
 	},
 
@@ -304,10 +306,7 @@ Context.prototype = {
 			this.listeners[event] = [];
 		}
 
-		var index = this.listeners[event].indexOf(callback);
-		this.listeners = this.listeners[event]
-								.slice(0, index)
-								.concat( this.listeners[event].slice(index+1) );
+		this.listeners[event].splice(this.listeners[event].indexOf(callback), 1);
 		return this;
 	},
 
@@ -331,6 +330,11 @@ Context.prototype = {
 	// Transforms
 	matrix: null,
 	transform: function(a, b, c, d, e, f, pivot){
+		if(a === null){
+			this.matrix = null;
+			return this.update();
+		}
+
 		if(pivot){
 			if(pivot + '' === pivot){
 				pivot = $.corners[pivot];

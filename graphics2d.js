@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 05.03.2017
+ *  Last edit: 25.03.2017
  *  License: MIT / LGPL
  */
 
@@ -62,7 +62,6 @@ $.renderers['2d'] = {
 	},
 
 	preRedraw: function(ctx, delta){
-		console.time('Drawing time');
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -71,9 +70,16 @@ $.renderers['2d'] = {
 		}
 	},
 
-	postRedraw: function(ctx){
+	preDraw: function(ctx, delta){
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		if(delta.matrix){
+			ctx.setTransform.apply(ctx, delta.matrix);
+		}
+	},
+
+	postDraw: function(ctx){
 		ctx.restore();
-		console.timeEnd('Drawing time');
 	},
 
 	// params = [cx, cy, radius]
@@ -372,7 +378,9 @@ Context.prototype = {
 		this.elements.push(element);
 
 		if(element.draw){
+			this.renderer.preDraw(this.context, this);
 			element.draw(this.context);
+			this.renderer.postDraw(this.context);
 		}
 
 		return element;
@@ -393,7 +401,7 @@ Context.prototype = {
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
-		this.renderer.postRedraw(ctx);
+		this.renderer.postDraw(ctx);
 		this._willUpdate = false;
 	},
 
@@ -602,10 +610,7 @@ Context.prototype = {
 			this.listeners[event] = [];
 		}
 
-		var index = this.listeners[event].indexOf(callback);
-		this.listeners = this.listeners[event]
-								.slice(0, index)
-								.concat( this.listeners[event].slice(index+1) );
+		this.listeners[event].splice(this.listeners[event].indexOf(callback), 1);
 		return this;
 	},
 
@@ -629,6 +634,11 @@ Context.prototype = {
 	// Transforms
 	matrix: null,
 	transform: function(a, b, c, d, e, f, pivot){
+		if(a === null){
+			this.matrix = null;
+			return this.update();
+		}
+
 		if(pivot){
 			if(pivot + '' === pivot){
 				pivot = $.corners[pivot];
@@ -767,8 +777,9 @@ Drawable = new Class({
 
 	remove : function(){
 		this.context.elements.splice(this.context.elements.indexOf(this), 1);
+		this.update();
 		this.context = null;
-		return this.update();
+		return this;
 	},
 
 	hide: function(){
@@ -1175,6 +1186,12 @@ Drawable = new Class({
 			this.attrHooks[attr].preAnim.call(this, fx, value);
 		}.bind(this);
 
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+
 		var queue = options.queue;
 		if(queue !== false){
 			if(queue === true || queue === undefined){
@@ -1193,6 +1210,37 @@ Drawable = new Class({
 		}
 
 		fx.play();
+
+		return this;
+	},
+
+	pause: function(name){
+		if(!this._paused){
+			this._paused = [];
+		}
+
+		// pause changes the original array
+		// so we need slice
+		Animation.queue.slice().forEach(function(anim){
+			if(anim.elem === this && (!name || anim.name === name)){
+				anim.pause();
+				this._paused.push(anim);
+			}
+		}, this);
+		return this;
+	},
+
+	continue: function(name){
+		if(!this._paused){
+			return;
+		}
+
+		this._paused.slice().forEach(function(anim, index){
+			if(!name || anim.name === name){
+				anim.continue();
+				this._paused.splice(index, 1);
+			}
+		}, this);
 
 		return this;
 	}
@@ -1335,6 +1383,22 @@ Animation = new Class({
 
 		this.startTime = Date.now();
 		this.endTime = this.startTime + this.duration;
+		if(!Animation.queue.length){
+			requestAnimationFrame(Animation.do);
+		}
+		Animation.queue.push(this);
+	},
+
+	pause: function(){
+		this.pauseTime = Date.now();
+		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+	},
+
+	continue: function(){
+		var delta = this.pauseTime - this.startTime;
+		this.startTime = Date.now() - delta;
+		this.endTime = this.startTime + this.duration;
+
 		if(!Animation.queue.length){
 			requestAnimationFrame(Animation.do);
 		}
@@ -1740,7 +1804,7 @@ Curve = new Class({
 			return this;
 		}
 
-		name = Curve.types[this.name].attrs.indexOf(name);
+		name = Curve.types[this.method].attrs.indexOf(name);
 		if(value === undefined){
 			return this.attrs[name];
 		}
@@ -3138,8 +3202,8 @@ $.coordsOfElement = function(element){ // returns coords of a DOM element
 		style = window.getComputedStyle(element);
 
 	return {
-		x: box.left + parseInt(style.borderLeftWidth) + parseInt(style.paddingLeft),
-		y: box.top  + parseInt(style.borderTopWidth)  + parseInt(style.paddingTop)
+		x: box.left + parseInt(style.borderLeftWidth || 0) + parseInt(style.paddingLeft || 0),
+		y: box.top  + parseInt(style.borderTopWidth  || 0) + parseInt(style.paddingTop  || 0)
 	};
 };
 

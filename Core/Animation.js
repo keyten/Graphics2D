@@ -33,6 +33,22 @@ Animation = new Class({
 			requestAnimationFrame(Animation.do);
 		}
 		Animation.queue.push(this);
+	},
+
+	pause: function(){
+		this.pauseTime = Date.now();
+		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+	},
+
+	continue: function(){
+		var delta = this.pauseTime - this.startTime;
+		this.startTime = Date.now() - delta;
+		this.endTime = this.startTime + this.duration;
+
+		if(!Animation.queue.length){
+			requestAnimationFrame(Animation.do);
+		}
+		Animation.queue.push(this);
 	}
 
 });

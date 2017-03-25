@@ -72,8 +72,9 @@ Drawable = new Class({
 
 	remove : function(){
 		this.context.elements.splice(this.context.elements.indexOf(this), 1);
+		this.update();
 		this.context = null;
-		return this.update();
+		return this;
 	},
 
 	hide: function(){
@@ -480,6 +481,12 @@ Drawable = new Class({
 			this.attrHooks[attr].preAnim.call(this, fx, value);
 		}.bind(this);
 
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+
 		var queue = options.queue;
 		if(queue !== false){
 			if(queue === true || queue === undefined){
@@ -498,6 +505,37 @@ Drawable = new Class({
 		}
 
 		fx.play();
+
+		return this;
+	},
+
+	pause: function(name){
+		if(!this._paused){
+			this._paused = [];
+		}
+
+		// pause changes the original array
+		// so we need slice
+		Animation.queue.slice().forEach(function(anim){
+			if(anim.elem === this && (!name || anim.name === name)){
+				anim.pause();
+				this._paused.push(anim);
+			}
+		}, this);
+		return this;
+	},
+
+	continue: function(name){
+		if(!this._paused){
+			return;
+		}
+
+		this._paused.slice().forEach(function(anim, index){
+			if(!name || anim.name === name){
+				anim.continue();
+				this._paused.splice(index, 1);
+			}
+		}, this);
 
 		return this;
 	}
