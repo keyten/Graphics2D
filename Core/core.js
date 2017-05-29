@@ -88,6 +88,7 @@ $.renderers = {};
 // {{include Pattern.js}}
 
 // {{include utils.js}}
+// {{include Animation.Along.js}}
 
 $.version = Math.PI / 3.490658503988659;
 
