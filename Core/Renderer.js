@@ -194,6 +194,7 @@ $.renderers['2d'] = {
 
 		if(style.lineDash){
 			if(ctx.setLineDash){ // webkit
+				// there's also available ctx.lineDashOffset
 				ctx.setLineDash(style.lineDash);
 			} else {
 				ctx.mozDash = style.lineDash;

@@ -47,14 +47,14 @@ Drawable = new Class({
 		if(attrs === false){
 			clone.attrs = this.attrs;
 		} else {
-			clone.attrs = Object.assign({}, this.attrs);
+			clone.attrs = extend({}, this.attrs);
 		}
 
 		if(styles === false){
 			clone.styles = this.styles;
 			clone.matrix = this.matrix;
 		} else {
-			clone.styles = Object.assign({}, this.styles); // how about deep extend? check
+			clone.styles = extend({}, this.styles);
 			// must gradients be cloned?
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
@@ -64,13 +64,14 @@ Drawable = new Class({
 		if(events === false){
 			clone.listeners = this.listeners;
 		} else {
-			clone.listeners = Object.assign({}, this.listeners);
+			clone.listeners = extend({}, this.listeners);
 		}
 
 		return this.context.push(clone);
 	},
 
 	remove : function(){
+		// todo: stop animation
 		this.context.elements.splice(this.context.elements.indexOf(this), 1);
 		this.update();
 		this.context = null;
@@ -191,11 +192,12 @@ Drawable = new Class({
 
 	// Bounds
 	bounds : function(options){
+		// хорошо бы кэшировать shapeBounds
 		if(!this.shapeBounds){
-			throw ('The object doesn\'t have shapeBounds method.');
+			throw 'The object doesn\'t have shapeBounds method.';
 		}
 
-		options = Object.assign({
+		options = extend({
 			transform: 'normalized',
 			around: 'fill'
 		}, options);
@@ -276,6 +278,7 @@ Drawable = new Class({
 	},
 
 	corner : function(corner, options){
+		// todo: remove
 		if(Array.isArray(corner)){
 			return corner;
 		}
@@ -404,10 +407,12 @@ Drawable = new Class({
 		}
 
 		// todo: other renderers support
+		// как насчёт отрицательных x, y
 		var canvas = getTemporaryCanvas(bounds.width, bounds.height),
 			context = canvas.getContext('2d');
 
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
+		// там подключается renderer, что не прокатит для объектов чисто в памяти ( Graphics2D.rect(x,y,w,h) )
 		this.draw(context);
 		return canvas.toDataURL(type.type || type, type.quality || 1);
 	},
@@ -544,6 +549,7 @@ Drawable = new Class({
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
+		// remove spaces between commas
 		stroke = stroke.replace(/\s*\,\s*/g, ',').split(' ');
 
 		var opacity, l = stroke.length,
@@ -552,6 +558,7 @@ Drawable.processStroke = function(stroke, style){
 
 		while(l--){
 			if(reFloat.test(stroke[l])){
+				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = $.distance(stroke[l]);
@@ -612,6 +619,7 @@ Drawable.processStroke = function(stroke, style){
 Drawable.processShadow = function(shadow, style){
 	if(shadow + '' === shadow){
 		var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+		// remove spaces between commas
 		shadow = shadow.replace(/\s*\,\s*/g, ',').split(' ');
 		for(var i = 0; i < shadow.length; i++){
 			if(isNaN(+shadow[i][0])){

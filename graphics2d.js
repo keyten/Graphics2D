@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 25.03.2017
+ *  Last edit: 29.05.2017
  *  License: MIT / LGPL
  */
 
@@ -26,6 +26,14 @@ var $ = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
+	extend = Object.assign ? Object.assign : function(dest, source){
+		var keys = Object.keys(source),
+			l = keys.length;
+		while(l--){
+			dest[keys[l]] = source[keys[l]];
+		}
+		return dest;
+	}, // how about deep extend? check
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -249,6 +257,7 @@ $.renderers['2d'] = {
 
 		if(style.lineDash){
 			if(ctx.setLineDash){ // webkit
+				// there's also available ctx.lineDashOffset
 				ctx.setLineDash(style.lineDash);
 			} else {
 				ctx.mozDash = style.lineDash;
@@ -318,7 +327,7 @@ Context.prototype = {
 
 	// Elements
 	object: function(object){
-		return this.push(Object.assign(new Drawable(), object));
+		return this.push(extend(new Drawable(), object));
 	},
 
 	rect: function(){
@@ -411,6 +420,7 @@ Context.prototype = {
 
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
+		// todo: rename to pointerEvents
 			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
 				(elements[i].attrs.interaction || !mouse) ){
 				return elements[i];
@@ -420,8 +430,15 @@ Context.prototype = {
 	},
 
 	each : function(func){
-		// todo: wrap
-		this.elements.forEach(func, this);
+		if(func + '' === func){
+			var args = slice.call(arguments, 1),
+				funcName = func;
+			func = function(elem){
+				elem[funcName].apply(elem, args);
+			};
+		}
+		// slice is neccessary when removing obs
+		this.elements.slice().forEach(func, this);
 		return this;
 	},
 
@@ -595,9 +612,9 @@ Context.prototype = {
 
 	on : function(event, callback){
 		if(event + '' !== event){
-			for(var key in event) if(has(event, key)){
-				this.on(key, event[key]);
-			}
+			Object.keys(event).forEach(function(eventName){
+				this.on(eventName, event[eventName]);
+			});
 			return this;
 		}
 
@@ -752,14 +769,14 @@ Drawable = new Class({
 		if(attrs === false){
 			clone.attrs = this.attrs;
 		} else {
-			clone.attrs = Object.assign({}, this.attrs);
+			clone.attrs = extend({}, this.attrs);
 		}
 
 		if(styles === false){
 			clone.styles = this.styles;
 			clone.matrix = this.matrix;
 		} else {
-			clone.styles = Object.assign({}, this.styles); // how about deep extend? check
+			clone.styles = extend({}, this.styles);
 			// must gradients be cloned?
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
@@ -769,13 +786,14 @@ Drawable = new Class({
 		if(events === false){
 			clone.listeners = this.listeners;
 		} else {
-			clone.listeners = Object.assign({}, this.listeners);
+			clone.listeners = extend({}, this.listeners);
 		}
 
 		return this.context.push(clone);
 	},
 
 	remove : function(){
+		// todo: stop animation
 		this.context.elements.splice(this.context.elements.indexOf(this), 1);
 		this.update();
 		this.context = null;
@@ -896,11 +914,12 @@ Drawable = new Class({
 
 	// Bounds
 	bounds : function(options){
+		// хорошо бы кэшировать shapeBounds
 		if(!this.shapeBounds){
-			throw ('The object doesn\'t have shapeBounds method.');
+			throw 'The object doesn\'t have shapeBounds method.';
 		}
 
-		options = Object.assign({
+		options = extend({
 			transform: 'normalized',
 			around: 'fill'
 		}, options);
@@ -981,6 +1000,7 @@ Drawable = new Class({
 	},
 
 	corner : function(corner, options){
+		// todo: remove
 		if(Array.isArray(corner)){
 			return corner;
 		}
@@ -1109,10 +1129,12 @@ Drawable = new Class({
 		}
 
 		// todo: other renderers support
+		// как насчёт отрицательных x, y
 		var canvas = getTemporaryCanvas(bounds.width, bounds.height),
 			context = canvas.getContext('2d');
 
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
+		// там подключается renderer, что не прокатит для объектов чисто в памяти ( Graphics2D.rect(x,y,w,h) )
 		this.draw(context);
 		return canvas.toDataURL(type.type || type, type.quality || 1);
 	},
@@ -1249,6 +1271,7 @@ Drawable = new Class({
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
+		// remove spaces between commas
 		stroke = stroke.replace(/\s*\,\s*/g, ',').split(' ');
 
 		var opacity, l = stroke.length,
@@ -1257,6 +1280,7 @@ Drawable.processStroke = function(stroke, style){
 
 		while(l--){
 			if(reFloat.test(stroke[l])){
+				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = $.distance(stroke[l]);
@@ -1317,6 +1341,7 @@ Drawable.processStroke = function(stroke, style){
 Drawable.processShadow = function(shadow, style){
 	if(shadow + '' === shadow){
 		var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+		// remove spaces between commas
 		shadow = shadow.replace(/\s*\,\s*/g, ',').split(' ');
 		for(var i = 0; i < shadow.length; i++){
 			if(isNaN(+shadow[i][0])){
@@ -1584,7 +1609,7 @@ Rect = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
 				this.update();
@@ -1689,7 +1714,6 @@ Rect = new Class(Drawable, {
 });
 
 Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
-
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
 	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
 	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;
@@ -1723,7 +1747,7 @@ Circle = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
 				this.update();
@@ -1787,7 +1811,9 @@ Curve = new Class({
 	},
 
 	update: function(){
-		this.path.update();
+		if(this.path){
+			this.path.update();
+		}
 		return this;
 	},
 
@@ -1942,7 +1968,7 @@ Path = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		d: {
 			set: function(value){
 				this.update();
@@ -2087,6 +2113,10 @@ Path.parse = function(data, path, firstIsNotMove){
 		return Path.parseSVG(data, path, firstIsNotMove);
 	}
 
+	if(data[0] !== undefined && (+data[0] === data[0] || data[0] + '' === data[0])){
+		data = [data];
+	}
+
 	var curves = [];
 	if(Array.isArray(data)){
 		for(var i = 0; i < data.length; i++){
@@ -2151,10 +2181,10 @@ Picture = new Class(Drawable, {
 
 		this.attrs.image.addEventListener('error', function(e){
 			this.fire('error', event);
-		});
+		}.bind(this));
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
 				this.attrs.x = value;
@@ -2353,7 +2383,7 @@ Text = new Class(Drawable, {
 		this.styles.textBaseline = 'top';
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		text: {
 			set: function(value){
 				this.lines = null;
@@ -2373,7 +2403,7 @@ Text = new Class(Drawable, {
 		},
 		font: {
 			set: function(value){
-				Object.assign(this.attrs.font, Text.parseFont(value));
+				extend(this.attrs.font, Text.parseFont(value));
 				this.styles.font = Text.genFont(this.attrs.font);
 				this.update();
 				return this.attrs.font;
@@ -2616,8 +2646,8 @@ Gradient = new Class({
 		};
 
 		if(Gradient.types[this.type]){
-			this.attrHooks = Object.assign(
-				Object.assign({}, this.attrHooks),
+			this.attrHooks = extend(
+				extend({}, this.attrHooks),
 				Gradient.types[this.type].attrHooks
 			);
 
@@ -2842,7 +2872,7 @@ function Class(parent, properties){
 	}
 
 	var cls = function(){
-		return (this.initialize || emptyFunc).apply(this, arguments);
+		return this.initialize && this.initialize.apply(this, arguments);
 	};
 
 	if(parent){
@@ -2924,19 +2954,6 @@ function Bounds(x, y, w, h){
 }
 
 // utils
-// replace to Object.assign?
-// it doesn't work in ie :c
-function extend(a, b){
-	// странно, что в хроме разницы в производительности - вообще никакой
-	return Object.assign(a, b);
-	/* for(var i in b){
-		if(Object.prototype.hasOwnProperty.call(b,i)){
-			a[i] = b[i];
-		}
-	}
-	return a; */
-}
-
 function argument(index){
 	return function(value){
 		return this.argument( index, value );
@@ -2955,10 +2972,11 @@ function wrap(args){
 // typeofs
 /*
 use common typeofs
-String: a + '' === a
-Boolean: !!a === a
-Array: Array.isArray
-Number: +a === a
+String: something + '' === something
+Boolean: !!something === something
+Array: Array.isArray(something)
+Number: +something === something
+Function: typeof something === 'function'
  */
 
 function isObject(a){
@@ -3355,11 +3373,14 @@ $.distance = distance;
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element, renderer){
-	return new Context( (query + '' === query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
+	if(query + '' === query){
+		query = (element || window.document).querySelectorAll(query)[index || 0]
+	}
+	return new Context(query.canvas || query, renderer);
 };
 
 $.id = function(id, renderer){
-	return new Context( document.getElementById(id), renderer );
+	return new Context(document.getElementById(id), renderer);
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
@@ -3370,7 +3391,7 @@ if(typeof module === 'object' && typeof module.exports === 'object'){
 		return $;
 	});
 } else {
-	window.Graphics2D = $;
+	window.Delta = $;
 }
 
 })(typeof window !== 'undefined' ? window : this);

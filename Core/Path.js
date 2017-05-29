@@ -19,7 +19,7 @@ Path = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		d: {
 			set: function(value){
 				this.update();
@@ -162,6 +162,10 @@ Path.parse = function(data, path, firstIsNotMove){
 
 	if(data + '' === data){
 		return Path.parseSVG(data, path, firstIsNotMove);
+	}
+
+	if(data[0] !== undefined && (+data[0] === data[0] || data[0] + '' === data[0])){
+		data = [data];
 	}
 
 	var curves = [];

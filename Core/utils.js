@@ -6,7 +6,7 @@ function Class(parent, properties){
 	}
 
 	var cls = function(){
-		return (this.initialize || emptyFunc).apply(this, arguments);
+		return this.initialize && this.initialize.apply(this, arguments);
 	};
 
 	if(parent){
@@ -88,19 +88,6 @@ function Bounds(x, y, w, h){
 }
 
 // utils
-// replace to Object.assign?
-// it doesn't work in ie :c
-function extend(a, b){
-	// странно, что в хроме разницы в производительности - вообще никакой
-	return Object.assign(a, b);
-	/* for(var i in b){
-		if(Object.prototype.hasOwnProperty.call(b,i)){
-			a[i] = b[i];
-		}
-	}
-	return a; */
-}
-
 function argument(index){
 	return function(value){
 		return this.argument( index, value );
@@ -119,10 +106,11 @@ function wrap(args){
 // typeofs
 /*
 use common typeofs
-String: a + '' === a
-Boolean: !!a === a
-Array: Array.isArray
-Number: +a === a
+String: something + '' === something
+Boolean: !!something === something
+Array: Array.isArray(something)
+Number: +something === something
+Function: typeof something === 'function'
  */
 
 function isObject(a){

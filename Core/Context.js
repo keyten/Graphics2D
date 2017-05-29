@@ -14,7 +14,7 @@ Context.prototype = {
 
 	// Elements
 	object: function(object){
-		return this.push(Object.assign(new Drawable(), object));
+		return this.push(extend(new Drawable(), object));
 	},
 
 	rect: function(){
@@ -107,6 +107,7 @@ Context.prototype = {
 
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
+		// todo: rename to pointerEvents
 			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
 				(elements[i].attrs.interaction || !mouse) ){
 				return elements[i];
@@ -116,8 +117,15 @@ Context.prototype = {
 	},
 
 	each : function(func){
-		// todo: wrap
-		this.elements.forEach(func, this);
+		if(func + '' === func){
+			var args = slice.call(arguments, 1),
+				funcName = func;
+			func = function(elem){
+				elem[funcName].apply(elem, args);
+			};
+		}
+		// slice is neccessary when removing obs
+		this.elements.slice().forEach(func, this);
 		return this;
 	},
 
@@ -291,9 +299,9 @@ Context.prototype = {
 
 	on : function(event, callback){
 		if(event + '' !== event){
-			for(var key in event) if(has(event, key)){
-				this.on(key, event[key]);
-			}
+			Object.keys(event).forEach(function(eventName){
+				this.on(eventName, event[eventName]);
+			});
 			return this;
 		}
 

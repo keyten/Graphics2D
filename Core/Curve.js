@@ -7,7 +7,9 @@ Curve = new Class({
 	},
 
 	update: function(){
-		this.path.update();
+		if(this.path){
+			this.path.update();
+		}
 		return this;
 	},
 

@@ -27,10 +27,10 @@ Picture = new Class(Drawable, {
 
 		this.attrs.image.addEventListener('error', function(e){
 			this.fire('error', event);
-		});
+		}.bind(this));
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
 				this.attrs.x = value;

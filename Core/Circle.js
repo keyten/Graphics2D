@@ -19,7 +19,7 @@ Circle = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		cx: {
 			set: function(value){
 				this.update();

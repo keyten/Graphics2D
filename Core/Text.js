@@ -24,7 +24,7 @@ Text = new Class(Drawable, {
 		this.styles.textBaseline = 'top';
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		text: {
 			set: function(value){
 				this.lines = null;
@@ -44,7 +44,7 @@ Text = new Class(Drawable, {
 		},
 		font: {
 			set: function(value){
-				Object.assign(this.attrs.font, Text.parseFont(value));
+				extend(this.attrs.font, Text.parseFont(value));
 				this.styles.font = Text.genFont(this.attrs.font);
 				this.update();
 				return this.attrs.font;

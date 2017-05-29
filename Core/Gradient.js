@@ -17,8 +17,8 @@ Gradient = new Class({
 		};
 
 		if(Gradient.types[this.type]){
-			this.attrHooks = Object.assign(
-				Object.assign({}, this.attrHooks),
+			this.attrHooks = extend(
+				extend({}, this.attrHooks),
 				Gradient.types[this.type].attrHooks
 			);
 

@@ -26,6 +26,14 @@ var $ = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
+	extend = Object.assign ? Object.assign : function(dest, source){
+		var keys = Object.keys(source),
+			l = keys.length;
+		while(l--){
+			dest[keys[l]] = source[keys[l]];
+		}
+		return dest;
+	}, // how about deep extend? check
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -84,11 +92,14 @@ $.renderers = {};
 $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element, renderer){
-	return new Context( (query + '' === query) ? (element || window.document).querySelectorAll(query)[index || 0] : query.canvas || query, renderer );
+	if(query + '' === query){
+		query = (element || window.document).querySelectorAll(query)[index || 0]
+	}
+	return new Context(query.canvas || query, renderer);
 };
 
 $.id = function(id, renderer){
-	return new Context( document.getElementById(id), renderer );
+	return new Context(document.getElementById(id), renderer);
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
@@ -99,7 +110,7 @@ if(typeof module === 'object' && typeof module.exports === 'object'){
 		return $;
 	});
 } else {
-	window.Graphics2D = $;
+	window.Delta = $;
 }
 
 })(typeof window !== 'undefined' ? window : this);

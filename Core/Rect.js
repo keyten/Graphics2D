@@ -20,7 +20,7 @@ Rect = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(Object.assign({}, Drawable.prototype.attrHooks), {
+	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
 		x: {
 			set: function(value){
 				this.update();
@@ -125,7 +125,6 @@ Rect = new Class(Drawable, {
 });
 
 Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
-
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
 	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
 	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;
