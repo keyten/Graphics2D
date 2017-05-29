@@ -23,20 +23,22 @@ If the third argument is `true`, will ignore objects with mouse processing switc
 #### on(event, func)
 ```js
 ctx.on('click', function(e){
-    e.targetObject.fill('red');
+    if(e.targetObject){
+        e.targetObject.attr('fill', 'red');
+    }
     x = e.contextX;
     y = e.contextY;
 });
 ```
 Adds event listener to canvas. Extends event object (variable `e` in the example above) by 3 properties:
-- `targetObject` — the object contains the current cursor point.
+- `targetObject` — the object contains the current cursor point (or `null`).
 - `contextX`, `contextY` — mouse coordinates on the canvas (the left top corner of canvas is `(0,0)`).
 
 #### off(event, [func])
 ```js
 ctx.on('click', anyfunc);
 ctx.off('click', anyfunc);
-ctx.off('click');
+ctx.off('click'); // removes all the click listeners
 ```
 Removes event listener(s) from canvas.
 
@@ -57,7 +59,7 @@ Internal method, updates the canvas. Use it only if you update internal object p
 
 ### Event aliases
 ```js
-ctx.click(function(){ console.log(3); });
+ctx.click(function(){ console.log(3); }); // = on('click', function(){ console.log(3); });
 ctx.click(); // = fire('click');
 ```
 `click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseover`, `mouseout`, `mousewheel`, `focus`, `blur`.
@@ -82,7 +84,7 @@ ctx.path(data, [fill, stroke]);
 
 Image:
 ```js
-ctx.image(x, y, [width, height, crop]);
+ctx.image(image, x, y, [width, height, crop]);
 ```
 
 Text:
