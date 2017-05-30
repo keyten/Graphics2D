@@ -124,7 +124,7 @@ Text = new Class(Drawable, {
 				lines.push({
 					text: curline,
 					y: height * lines.length
-				})
+				});
 			} else {
 				lines.push({
 					text: line,

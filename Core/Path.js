@@ -92,11 +92,11 @@ Path = new Class(Drawable, {
 
 	// Parts addition
 	moveTo: function(x, y){
-		return this.push(['moveTo', x, y])
+		return this.push(['moveTo', x, y]);
 	},
 
 	lineTo : function(x, y){
-		return this.push(['lineTo', x, y])
+		return this.push(['lineTo', x, y]);
 	},
 
 	quadraticCurveTo : function(hx, hy, x, y){

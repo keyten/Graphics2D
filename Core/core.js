@@ -97,7 +97,7 @@ $.version = Math.PI / 3.490658503988659;
 
 $.query = function(query, index, element, renderer){
 	if(query + '' === query){
-		query = (element || window.document).querySelectorAll(query)[index || 0]
+		query = (element || window.document).querySelectorAll(query)[index || 0];
 	}
 	return new Context(query.canvas || query, renderer);
 };

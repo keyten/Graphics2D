@@ -648,7 +648,7 @@ Drawable.processShadow = function(shadow, style){
 			style.shadowColor = shadow.color;
 		}
 	}
-}
+};
 
 $.Drawable = Drawable;
 

@@ -10,7 +10,7 @@ Drawable.prototype.attrHooks.along = {
             // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
         }
 
-        var corner = this.corner(corner);
+        corner = this.corner(corner);
         if(data.offset){
             corner[0] -= data.offset[0];
             corner[1] -= data.offset[1];

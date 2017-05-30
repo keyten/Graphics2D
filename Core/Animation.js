@@ -57,7 +57,6 @@ Animation.queue = [];
 
 Animation.do = function(){
 	var fx, t,
-		i = 0
 		now = Date.now();
 
 	for(var i = 0; i < Animation.queue.length; i++){

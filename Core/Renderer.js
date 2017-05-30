@@ -47,19 +47,6 @@ $.renderers['2d'] = {
 		ctx.restore();
 	},
 
-	drawCircle: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		ctx.beginPath();
-		ctx.arc(params[0], params[1], params[2], 0, Math.PI * 2, true);
-		if(style.fillStyle){
-			ctx.fill();
-		}
-		if(style.strokeStyle){
-			ctx.stroke();
-		}
-		ctx.restore();
-	},
-
 	// params is an array of curves
 	drawPath: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
@@ -128,8 +115,9 @@ $.renderers['2d'] = {
 	},
 
 	makeGradient: function(delta, type, from, to, colors){
+		var hash;
 		if(delta.useCache){
-			var hash = this.hashGradient(type, from, to, colors);
+			hash = this.hashGradient(type, from, to, colors);
 			if(delta._cache[hash]){
 				return delta._cache[hash];
 			}
@@ -164,7 +152,7 @@ $.renderers['2d'] = {
 			} else if(from[1] === to[1]){
 				hash = ['hor', from[0], to[0], colors];
 			} else {
-				hash = [from[0], from[1], to[0], to[1], colors]
+				hash = [from[0], from[1], to[0], to[1], colors];
 			}
 		} else {
 			hash = [
