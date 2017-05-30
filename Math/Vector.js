@@ -15,10 +15,10 @@ Vector.prototype = {
 	},
 
 	angleWith: function(vec){
-		return Math.acos(this.dot(vec) / (this.len() * vec.len()));
+		return Math.acos(this.dot(vec) / (this.len() * vec.len())) * 180 / Math.PI;
 	},
 
-	// not sure we need it
+	// not sure it is needed
 	complexMultiply: function(vec){
 		return new Vector(this.x * vec.x - this.y * vec.y, this.x * vec.y + this.y * vec.x);
 	}
