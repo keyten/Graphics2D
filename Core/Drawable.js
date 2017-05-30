@@ -9,6 +9,10 @@ function getTemporaryCanvas(width, height){
 	return temporaryCanvas;
 }
 
+function DrawableAttrHooks(attrs){
+	extend(this, attrs); // deepExtend neccessary?
+}
+
 Drawable = new Class({
 
 	initialize: function(args){
@@ -118,7 +122,7 @@ Drawable = new Class({
 		return this;
 	},
 
-	attrHooks: {
+	attrHooks: DrawableAttrHooks.prototype = {
 		fill: {
 			get: function(){
 				return this.styles.fillStyle;
@@ -546,6 +550,8 @@ Drawable = new Class({
 	}
 
 });
+
+Drawable.attrHooks = Drawable.prototype.attrHooks;
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){

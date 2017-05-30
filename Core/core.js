@@ -33,7 +33,7 @@ var $ = {},
 			dest[keys[l]] = source[keys[l]];
 		}
 		return dest;
-	}, // how about deep extend? check
+	}, // Object.assign is not deep as well as the polyfill
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -66,6 +66,7 @@ $.renderers = {};
 // {{include Context.js}}
 
 // {{include Drawable.js}}
+// {{include Attrs.Transform.js}}
 
 // {{include Animation.js}}
 
@@ -74,6 +75,8 @@ $.renderers = {};
 // {{include Circle.js}}
 
 // {{include Curve.js}}
+// {{include Curve.Math.js}}
+// {{include Math.Line.js}}
 
 // {{include Path.js}}
 

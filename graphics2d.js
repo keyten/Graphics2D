@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 29.05.2017
+ *  Last edit: 30.05.2017
  *  License: MIT / LGPL
  */
 
@@ -33,7 +33,7 @@ var $ = {},
 			dest[keys[l]] = source[keys[l]];
 		}
 		return dest;
-	}, // how about deep extend? check
+	}, // Object.assign is not deep as well as the polyfill
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -731,6 +731,10 @@ function getTemporaryCanvas(width, height){
 	return temporaryCanvas;
 }
 
+function DrawableAttrHooks(attrs){
+	extend(this, attrs); // deepExtend neccessary?
+}
+
 Drawable = new Class({
 
 	initialize: function(args){
@@ -840,7 +844,7 @@ Drawable = new Class({
 		return this;
 	},
 
-	attrHooks: {
+	attrHooks: DrawableAttrHooks.prototype = {
 		fill: {
 			get: function(){
 				return this.styles.fillStyle;
@@ -1269,6 +1273,8 @@ Drawable = new Class({
 
 });
 
+Drawable.attrHooks = Drawable.prototype.attrHooks;
+
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
 		// remove spaces between commas
@@ -1376,6 +1382,74 @@ Context.prototype.eventsInteract.forEach(function(eventName){
 		].apply(this, [eventName].concat(slice.call(arguments)));
 	};
 });
+// todo:
+Drawable.prototype._genMatrix = function(){
+    this.transform(null);
+    (this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
+        if(!this.attrs[name]){
+            return;
+        }
+
+        if(name === 'translate'){
+            this.translate(this.attrs.translate[0], this.attrs.translate[1]);
+        } else if(name === 'rotate'){
+            this.rotate(this.attrs.rotate, this.attrs.rotatePivot);
+        } else if(name === 'scale'){
+            this.scale(this.attrs.scale[0], this.attrs.scale[1], this.attrs.scalePivot);
+        } else if(name === 'skew'){
+            this.skew(this.attrs.skew[0], this.attrs.skew[1], this.attrs.skewPivot);
+        }
+    }.bind(this));
+};
+
+Drawable.prototype.attrHooks.translate = {
+    get: function(){
+        return this.matrix ? this.matrix.slice(4) : [0, 0];
+    },
+
+    set: function(value){
+        this.attrs.translate = value;
+        this._genMatrix();
+        this.update();
+    }
+};
+
+Drawable.prototype.attrHooks.rotate = {
+    get: function(){
+        return this.attrs.rotate || 0;
+    },
+
+    set: function(value){
+        this.attrs.rotate = value;
+        this._genMatrix();
+        this.update();
+        return null;
+    }
+};
+
+Drawable.prototype.attrHooks.skew = {
+    get: function(){
+        return this.attrs.skew || [0, 0];
+    },
+
+    set: function(value){
+        this.attrs.skew = +value === value ? [value, value] : value;
+        this._genMatrix();
+        this.update();
+    }
+};
+
+Drawable.prototype.attrHooks.scale = {
+    get: function(){
+        return this.attrs.scale || [1, 1];
+    },
+
+    set: function(value){
+        this.attrs.scale = +value === value ? [value, value] : value;
+        this._genMatrix();
+        this.update();
+    }
+};
 
 // var anim = $.animation(300, 500, options);
 // anim.start(value => dosmth(value));
@@ -1557,7 +1631,7 @@ Animation.easing = {
 
 };
 
-Animation.easing.default = Animation.easing.swing;
+Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
 
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
@@ -1609,7 +1683,7 @@ Rect = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		x: {
 			set: function(value){
 				this.update();
@@ -1946,6 +2020,143 @@ Curve.fromArray = function(array, path){
 $.curves = Curve.types;
 
 $.Curve = Curve;
+Curve.epsilon = 0.0001;
+Curve.detail = 10;
+
+extend(Curve.prototype, {
+
+    startAt: function(){
+        var index = this.path.attrs.d.indexOf(this);
+        return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
+    },
+
+    pointAt: function(t, startPoint){
+        var type = Curve.types[this.method];
+
+        if(type && type.pointAt){
+            return type.pointAt(this, t, startPoint);
+        }
+
+        throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
+    },
+
+    tangentAt: function(t, epsilon, startPoint){
+        if(!epsilon){
+            epsilon = Curve.epsilon;
+        }
+
+        var t1 = t - epsilon,
+            t2 = t + epsilon;
+
+        if(t1 < 0){
+            t1 = 0;
+        }
+        if(t2 > 1){
+            t2 = 1;
+        }
+
+        var point1 = this.pointAt(t1, startPoint),
+            point2 = this.pointAt(t2, startPoint);
+
+        return Math.atan2(point2[1] - point1[1], point2[0] - point1[0]) * 180 / Math.PI;
+    },
+
+    normalAt: function(t, epsilon, startPoint){
+        return this.tangentAt(t, epsilon, startPoint) - 90;
+    },
+
+    length: function(detail){
+        if(!detail){
+            detail = Curve.detail;
+        }
+
+        var length = 0,
+            lastPoint = this.pointAt(0),
+            point;
+        for(var i = 1; i <= detail; i++){
+            point = this.pointAt(i / detail);
+            length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
+            lastPoint = point;
+        }
+        return length;
+    },
+
+    nearest: function(x, y, detail){
+        if(!detail){
+            detail = Curve.detail;
+        }
+
+        // todo: gradient descent
+        var point,
+            min = Infinity,
+            minPoint,
+            minI,
+            distance;
+        for(var i = 0; i <= detail; i++){
+            point = this.pointAt(i / detail);
+            distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
+            if(distance < min){
+                minPoint = point;
+                minI = i;
+                min = distance;
+            }
+        }
+
+        return {
+            point: minPoint,
+            t: minI / detail,
+            distance: min
+        };
+    }
+
+});
+Curve.types.lineTo.pointAt = function(curve, t, startPoint){
+    if(!startPoint){
+        startPoint = curve.startAt();
+    }
+    return [
+        startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
+        startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
+    ];
+};
+
+Curve.types.quadraticCurveTo.pointAt = function(curve, t, startPoint){
+    if(!startPoint){
+        startPoint = curve.startAt();
+    }
+
+	var x1 = startPoint[0],
+		y1 = startPoint[1],
+		hx = curve.attrs[0],
+		hy = curve.attrs[1],
+		x2 = curve.attrs[2],
+		y2 = curve.attrs[3];
+
+	return [
+        Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * hx + t * t * x2,
+        Math.pow(1 - t, 2) * y1 + 2 * t * (1 - t) * hy + t * t * y2
+    ];
+};
+
+Curve.types.bezierCurveTo.pointAt = function(curve, t, startPoint){
+    if(!startPoint){
+        startPoint = curve.startAt();
+    }
+
+	var x1 = startPoint[0],
+		y1 = startPoint[1],
+		h1x = curve.attrs[0],
+		h1y = curve.attrs[1],
+		h2x = curve.attrs[2],
+		h2y = curve.attrs[3],
+		x2 = curve.attrs[4],
+		y2 = curve.attrs[5];
+
+	return [
+        Math.pow(1 - t, 3) * x1 + 3 * t * Math.pow(1 - t, 2) * h1x + 3 * t * t * (1 - t) * h2x + t * t * t * x2,
+        Math.pow(1 - t, 3) * y1 + 3 * t * Math.pow(1 - t, 2) * h1y + 3 * t * t * (1 - t) * h2y + t * t * t * y2
+    ];
+};
 
 var closePath = new Curve('closePath', []);
 
@@ -3369,96 +3580,49 @@ function distance(value, dontsnap){
 }
 
 $.distance = distance;
-// Some tick functions
-/* Drawable.prototype.attrHooks._num = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
-
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
-			}
-		}
-	},
-
-	anim: function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
-	}
-};
- */
-
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
-// todo: нужно как-то научиться расширять attrHooks у Drawable, чтобы это переносилось на дочерние attrHooks
-Rect.prototype.attrHooks.along = {
-    preAnim: function(fx, curve){
-        if(!(curve instanceof Curve)){
-            // нужно в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
+Drawable.prototype.attrHooks.along = {
+    preAnim: function(fx, data){
+        var curve = data.curve,
+            corner = data.corner || 'center';
+        if(data instanceof Curve || data instanceof Path){
+            curve = data;
+            // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
         }
-        var bounds = this.bounds();
-        fx.initialCoords = [bounds.x, bounds.y];
 
-        fx.startCurvePoint = curve.startAt();
+        var corner = this.corner(corner);
+        if(data.offset){
+            corner[0] -= data.offset[0];
+            corner[1] -= data.offset[1];
+        }
+        fx.initialCoords = corner;
         fx.curve = curve;
-        // todo: smth.animate('curve', { curve: ..., rotate: true, corner: 'center', offset: [10, 0] })
-        // чтоб объект мог двигаться за центр, а не за уголок, например
+        // true if the curve is changed while animation
+        // and it is always works like dynamic for some curves
+        if(!data.dynamic){
+            fx.startCurvePoint = curve.startAt();
+        }
+        this.attr('rotatePivot', corner);
+        if(+data.rotate === data.rotate){
+            this.attr('rotate', data.rotate);
+        } else if(data.rotate === true){
+            fx.rotate = true;
+        }
+        fx.addRotate = data.addRotate || 0;
     },
 
     anim: function(fx){
-        var point = fx.curve.pointAt(fx.pos);
+        var point = fx.curve.pointAt(fx.pos, fx.startCurvePoint);
         point[0] -= fx.initialCoords[0];
         point[1] -= fx.initialCoords[1];
         this.attr('translate', point);
+        if(fx.rotate === true){
+            this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
+        }
     }
 };
-
-// перенести в math
-Curve.prototype.pointAt = function(t, startPoint){
-    var type = Curve.types[this.method];
-    if(type && type.pointAt){
-        return type.pointAt(this, t);
-    }
-    throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
-};
-
-Curve.prototype.startAt = function(){
-    var index = this.path.attrs.d.indexOf(this);
-    return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
-};
-
-Curve.types.lineTo.pointAt = function(curve, t, startPoint){
-    if(!startPoint){
-        startPoint = curve.startAt();
-    }
-    return [
-        startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
-        startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
-    ];
-};
-
-// перенести в TransformAttrs
-Drawable.prototype._genMatrix = function(){
-    // todo: заранее всё перемножить и тут описать в общем виде
-    this.matrix = [1, 0, 0, 1, this.attrs.translate[0], this.attrs.translate[1]];
-};
-
-Rect.prototype.attrHooks.translate = {
-    get: function(){
-        return this.matrix ? this.matrix.slice(4) : [0, 0];
-    },
-
-    set: function(value){
-        this.attrs.translate = value;
-        this._genMatrix();
-        this.update();
-    }
-};
-// Drawable.prototype.attrHooks.rotate = ...
 
 $.version = Math.PI / 3.490658503988659;
 

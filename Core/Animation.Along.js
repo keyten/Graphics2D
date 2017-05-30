@@ -1,90 +1,43 @@
-// Some tick functions
-/* Drawable.prototype.attrHooks._num = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
-
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
-			}
-		}
-	},
-
-	anim: function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
-	}
-};
- */
-
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
-// todo: нужно как-то научиться расширять attrHooks у Drawable, чтобы это переносилось на дочерние attrHooks
-Rect.prototype.attrHooks.along = {
-    preAnim: function(fx, curve){
-        if(!(curve instanceof Curve)){
-            // нужно в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
+Drawable.prototype.attrHooks.along = {
+    preAnim: function(fx, data){
+        var curve = data.curve,
+            corner = data.corner || 'center';
+        if(data instanceof Curve || data instanceof Path){
+            curve = data;
+            // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
         }
-        var bounds = this.bounds();
-        fx.initialCoords = [bounds.x, bounds.y];
 
-        fx.startCurvePoint = curve.startAt();
+        var corner = this.corner(corner);
+        if(data.offset){
+            corner[0] -= data.offset[0];
+            corner[1] -= data.offset[1];
+        }
+        fx.initialCoords = corner;
         fx.curve = curve;
-        // todo: smth.animate('curve', { curve: ..., rotate: true, corner: 'center', offset: [10, 0] })
-        // чтоб объект мог двигаться за центр, а не за уголок, например
+        // true if the curve is changed while animation
+        // and it is always works like dynamic for some curves
+        if(!data.dynamic){
+            fx.startCurvePoint = curve.startAt();
+        }
+        this.attr('rotatePivot', corner);
+        if(+data.rotate === data.rotate){
+            this.attr('rotate', data.rotate);
+        } else if(data.rotate === true){
+            fx.rotate = true;
+        }
+        fx.addRotate = data.addRotate || 0;
     },
 
     anim: function(fx){
-        var point = fx.curve.pointAt(fx.pos);
+        var point = fx.curve.pointAt(fx.pos, fx.startCurvePoint);
         point[0] -= fx.initialCoords[0];
         point[1] -= fx.initialCoords[1];
         this.attr('translate', point);
+        if(fx.rotate === true){
+            this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
+        }
     }
 };
-
-// перенести в math
-Curve.prototype.pointAt = function(t, startPoint){
-    var type = Curve.types[this.method];
-    if(type && type.pointAt){
-        return type.pointAt(this, t);
-    }
-    throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
-};
-
-Curve.prototype.startAt = function(){
-    var index = this.path.attrs.d.indexOf(this);
-    return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
-};
-
-Curve.types.lineTo.pointAt = function(curve, t, startPoint){
-    if(!startPoint){
-        startPoint = curve.startAt();
-    }
-    return [
-        startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
-        startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
-    ];
-};
-
-// перенести в TransformAttrs
-Drawable.prototype._genMatrix = function(){
-    // todo: заранее всё перемножить и тут описать в общем виде
-    this.matrix = [1, 0, 0, 1, this.attrs.translate[0], this.attrs.translate[1]];
-};
-
-Rect.prototype.attrHooks.translate = {
-    get: function(){
-        return this.matrix ? this.matrix.slice(4) : [0, 0];
-    },
-
-    set: function(value){
-        this.attrs.translate = value;
-        this._genMatrix();
-        this.update();
-    }
-};
-// Drawable.prototype.attrHooks.rotate = ...

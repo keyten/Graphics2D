@@ -178,7 +178,7 @@ Animation.easing = {
 
 };
 
-Animation.easing.default = Animation.easing.swing;
+Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
 
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
