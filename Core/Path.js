@@ -19,7 +19,7 @@ Path = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		d: {
 			set: function(value){
 				this.update();
@@ -39,6 +39,7 @@ Path = new Class(Drawable, {
 		}
 
 		value = Path.parse(value, this, index !== 0);
+		// todo: when removing curve unbind it from path
 		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
 		return this.update();
 	},
@@ -162,6 +163,11 @@ Path.parse = function(data, path, firstIsNotMove){
 
 	if(data + '' === data){
 		return Path.parseSVG(data, path, firstIsNotMove);
+	}
+
+	if(data instanceof Curve){
+		data.path = path;
+		return [data];
 	}
 
 	if(data[0] !== undefined && (+data[0] === data[0] || data[0] + '' === data[0])){

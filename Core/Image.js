@@ -30,7 +30,7 @@ Picture = new Class(Drawable, {
 		}.bind(this));
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		x: {
 			set: function(value){
 				this.attrs.x = value;

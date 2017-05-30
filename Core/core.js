@@ -92,6 +92,7 @@ $.renderers = {};
 
 // {{include utils.js}}
 // {{include Animation.Along.js}}
+// {{include Animation.Morph.js}}
 
 $.version = Math.PI / 3.490658503988659;
 

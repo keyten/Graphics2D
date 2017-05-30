@@ -1808,7 +1808,7 @@ Circle = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		cx: {
 			set: function(value){
 				this.update();
@@ -2166,7 +2166,7 @@ Path = new Class(Drawable, {
 		}
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		d: {
 			set: function(value){
 				this.update();
@@ -2186,6 +2186,7 @@ Path = new Class(Drawable, {
 		}
 
 		value = Path.parse(value, this, index !== 0);
+		// todo: when removing curve unbind it from path
 		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
 		return this.update();
 	},
@@ -2311,6 +2312,11 @@ Path.parse = function(data, path, firstIsNotMove){
 		return Path.parseSVG(data, path, firstIsNotMove);
 	}
 
+	if(data instanceof Curve){
+		data.path = path;
+		return [data];
+	}
+
 	if(data[0] !== undefined && (+data[0] === data[0] || data[0] + '' === data[0])){
 		data = [data];
 	}
@@ -2382,7 +2388,7 @@ Picture = new Class(Drawable, {
 		}.bind(this));
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		x: {
 			set: function(value){
 				this.attrs.x = value;
@@ -2581,7 +2587,7 @@ Text = new Class(Drawable, {
 		this.styles.textBaseline = 'top';
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		text: {
 			set: function(value){
 				this.lines = null;
@@ -3570,6 +3576,7 @@ $.distance = distance;
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
+// todo: direction
 Drawable.prototype.attrHooks.along = {
     preAnim: function(fx, data){
         var curve = data.curve,
@@ -3579,7 +3586,9 @@ Drawable.prototype.attrHooks.along = {
             // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
         }
 
-        corner = this.corner(corner);
+        corner = this.corner(corner, data.cornerOptions || {
+            transform: 'ignore'
+        });
         if(data.offset){
             corner[0] -= data.offset[0];
             corner[1] -= data.offset[1];
@@ -3607,6 +3616,89 @@ Drawable.prototype.attrHooks.along = {
         this.attr('translate', point);
         if(fx.rotate === true){
             this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
+        }
+    }
+};
+// {moduleName Animation.Morph}
+// {requires Math.Curve}
+
+var CurveApprox = new Class(Curve, {
+    initialize: function(method, attrs, path, detail){
+        this.super('initialize', arguments);
+        this.attrs.detail = detail;
+    },
+
+    genPoints: function(startPoint){
+        var detail = this.attrs.detail || Curve.detail;
+        var points = [startPoint || this.startAt()];
+        for(var i = 1; i <= detail; i++){
+            points.push(this.pointAt(i / detail, points[0]));
+        }
+        return points;
+    },
+
+    process: function(ctx){
+        if(!this._points){
+            this._points = this.genPoints();
+        }
+
+        this._points.forEach(function(point){
+            ctx.lineTo(point[0], point[1]);
+        });
+    }
+});
+
+$.CurveApprox = CurveApprox; // todo: replace everywhere $ to Delta
+
+Path.prototype.attrHooks.morph = {
+    preAnim: function(fx, data){
+        var curve = data.curve,
+            to = data.to,
+
+            start = curve.startAt(), // иногда кидает ошибку, если несколько анимаций морфа
+            index = curve.path.attr('d').indexOf(curve);
+
+        // заменяем кривую на её аппроксимацию
+        fx.startCurve = curve;
+        fx.endCurve = Path.parse(to, null, true)[0]; // todo: multiple curves & paths
+
+        var curveApprox = new CurveApprox(curve.method, curve.attrs, curve.path, data.detail);
+        fx.startPoints = curveApprox._points = curveApprox.genPoints(start);
+
+        // получаем конечные точки аппроксимации
+        fx.endPoints = new CurveApprox(fx.endCurve.method, fx.endCurve.attrs, null, data.detail).genPoints(start);
+        fx.deltas = fx.endPoints.map(function(endPoint, i){
+            return [
+                endPoint[0] - fx.startPoints[i][0],
+                endPoint[1] - fx.startPoints[i][1]
+            ];
+        });
+        // todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
+        curve.path.part(index, curveApprox);
+        fx.curve = curveApprox;
+        fx.index = index;
+    },
+
+    anim: function(fx){
+        // noise animation
+        // maybe plugin after
+        /* fx.curve._points = fx.curve._points.map(function(point, i){
+            return [
+                fx.startPoints[i][0],
+                fx.startPoints[i][1] + Math.random() * 10
+            ];
+        }); */
+
+        fx.curve._points = fx.curve._points.map(function(point, i){
+            return [
+                fx.startPoints[i][0] + fx.deltas[i][0] * fx.pos,
+                fx.startPoints[i][1] + fx.deltas[i][1] * fx.pos
+            ];
+        });
+        fx.curve.update();
+
+        if(fx.pos === 1){
+            fx.curve.path.part(fx.index, fx.endCurve);
         }
     }
 };

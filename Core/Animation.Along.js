@@ -1,6 +1,7 @@
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
+// todo: direction
 Drawable.prototype.attrHooks.along = {
     preAnim: function(fx, data){
         var curve = data.curve,
@@ -10,7 +11,9 @@ Drawable.prototype.attrHooks.along = {
             // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
         }
 
-        corner = this.corner(corner);
+        corner = this.corner(corner, data.cornerOptions || {
+            transform: 'ignore'
+        });
         if(data.offset){
             corner[0] -= data.offset[0];
             corner[1] -= data.offset[1];

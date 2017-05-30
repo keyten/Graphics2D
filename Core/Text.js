@@ -24,7 +24,7 @@ Text = new Class(Drawable, {
 		this.styles.textBaseline = 'top';
 	},
 
-	attrHooks: extend(extend({}, Drawable.prototype.attrHooks), {
+	attrHooks: new DrawableAttrHooks({
 		text: {
 			set: function(value){
 				this.lines = null;
