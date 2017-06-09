@@ -33,10 +33,6 @@ Context.prototype = {
 		return this.push(new Picture(arguments, this));
 	},
 
-	raster: function(){
-		return this.push(new Raster(arguments, this));
-	},
-
 	text: function(){
 		return this.push(new Text(arguments, this));
 	},

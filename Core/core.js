@@ -14,7 +14,7 @@ var Delta = {},
 	Context,
 	Drawable,
 	Animation,
-	Rect, Circle, Curve, Path, Picture, Raster, Text,
+	Rect, Circle, Curve, Path, Picture, Text,
 	Gradient, Pattern,
 
 // Local variables
@@ -81,8 +81,6 @@ Delta.renderers = {};
 // {{include Path.js}}
 
 // {{include Image.js}}
-
-// {{include Raster.js}}
 
 // {{include Text.js}}
 
