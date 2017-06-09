@@ -4,7 +4,7 @@ Context = function(canvas, renderer){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.renderer = $.renderers[renderer || '2d'];
+	this.renderer = Delta.renderers[renderer || '2d'];
 	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
@@ -331,7 +331,7 @@ Context.prototype = {
 
 	// translates screen coords to context coords
 	contextCoords: function(x, y){
-		var coords = $.coordsOfElement(this.canvas);
+		var coords = Delta.coordsOfElement(this.canvas);
 		return [x - coords.x, y - coords.y];
 	},
 
@@ -345,7 +345,7 @@ Context.prototype = {
 
 		if(pivot){
 			if(pivot + '' === pivot){
-				pivot = $.corners[pivot];
+				pivot = Delta.corners[pivot];
 				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
 			}
 
@@ -353,7 +353,7 @@ Context.prototype = {
 			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
 		}
 
-		this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
+		this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		return this.update();
 	},
 
@@ -405,4 +405,4 @@ Context.prototype = {
 	}
 };
 
-$.Context = Context;
+Delta.Context = Context;

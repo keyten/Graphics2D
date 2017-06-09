@@ -201,10 +201,10 @@ Path.parseSVG = function(data, path, firstIsNotMove){
 	return [];
 };
 
-$.path = function(){
+Delta.path = function(){
 	var path = new Path(arguments);
 	path.init();
 	return path;
 };
 
-$.Path = Path;
+Delta.Path = Path;

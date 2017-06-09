@@ -11,6 +11,8 @@ Pattern = new Class({
 				domurl.revokeObjectURL(blob);
 			}
 		}.bind(this));
+
+		// todo: error process?
 	},
 
 	update: function(){
@@ -27,4 +29,4 @@ Pattern = new Class({
 	}
 });
 
-$.Pattern = Pattern;
+Delta.Pattern = Pattern;

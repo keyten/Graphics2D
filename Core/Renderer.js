@@ -1,4 +1,4 @@
-$.renderers['2d'] = {
+Delta.renderers['2d'] = {
 
 	// renderer.init(g2dcontext, canvas);
 	init: function(delta, canvas){

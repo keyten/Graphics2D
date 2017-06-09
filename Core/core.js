@@ -8,7 +8,7 @@
 (function(window, undefined){
 
 // The main graphics2D class
-var $ = {},
+var Delta = {},
 
 // Classes
 	Context,
@@ -37,29 +37,29 @@ var $ = {},
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
-	                        window.webkitRequestAnimationFrame	||
-	                        window.mozRequestAnimationFrame		||
-	                        window.oRequestAnimationFrame		||
-	                        window.msRequestAnimationFrame		||
-	                        function(callback){
-	                        	return window.setTimeout(callback, 1000 / 60);
-	                        },
+							window.webkitRequestAnimationFrame	||
+							window.mozRequestAnimationFrame		||
+							window.oRequestAnimationFrame		||
+							window.msRequestAnimationFrame		||
+							function(callback){
+								return window.setTimeout(callback, 1000 / 60);
+							},
 
 	cancelAnimationFrame = window.cancelAnimationFrame			||
-	                       window.webkitCancelAnimationFrame	||
-	                       window.mozCancelAnimationFrame		||
-	                       window.oCancelAnimationFrame			||
-	                       window.msCancelAnimationFrame		||
+						   window.webkitCancelAnimationFrame	||
+						   window.mozCancelAnimationFrame		||
+						   window.oCancelAnimationFrame			||
+						   window.msCancelAnimationFrame		||
 
-	                       window.cancelRequestAnimationFrame		||
-	                       window.webkitCancelRequestAnimationFrame	||
-	                       window.mozCancelRequestAnimationFrame	||
-	                       window.oCancelRequestAnimationFrame		||
-	                       window.msCancelRequestAnimationFrame		||
+						   window.cancelRequestAnimationFrame		||
+						   window.webkitCancelRequestAnimationFrame	||
+						   window.mozCancelRequestAnimationFrame	||
+						   window.oCancelRequestAnimationFrame		||
+						   window.msCancelRequestAnimationFrame		||
 
-	                       window.clearTimeout;
+						   window.clearTimeout;
 
-$.renderers = {};
+Delta.renderers = {};
 
 // {{include Renderer.js}}
 
@@ -94,28 +94,28 @@ $.renderers = {};
 // {{include Animation.Along.js}}
 // {{include Animation.Morph.js}}
 
-$.version = Math.PI / 3.490658503988659;
+Delta.version = 1.5;
 
-$.query = function(query, index, element, renderer){
+Delta.query = function(query, index, element, renderer){
 	if(query + '' === query){
 		query = (element || window.document).querySelectorAll(query)[index || 0];
 	}
 	return new Context(query.canvas || query, renderer);
 };
 
-$.id = function(id, renderer){
+Delta.id = function(id, renderer){
 	return new Context(document.getElementById(id), renderer);
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
-	module.exports = $;
+	module.exports = Delta;
 } else if(typeof define === 'function' && define.amd){
 	// todo: define with a name?
 	define([], function(){
-		return $;
+		return Delta;
 	});
 } else {
-	window.Delta = $;
+	window.Delta = Delta;
 }
 
 })(typeof window !== 'undefined' ? window : this);

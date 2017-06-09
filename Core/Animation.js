@@ -1,4 +1,4 @@
-// var anim = $.animation(300, 500, options);
+// var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
 
 Animation = new Class({
@@ -203,6 +203,6 @@ Animation.default = {
 	duration: 500
 };
 
-$.animation = function(duration, easing, callback){
+Delta.animation = function(duration, easing, callback){
 	return new Animation(duration, easing, callback);
 };

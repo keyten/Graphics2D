@@ -131,8 +131,8 @@ Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 	Rect.prototype.attrHooks[propName].anim = attr.anim;
 });
 
-$.rect = function(){
+Delta.rect = function(){
 	return new Rect(arguments);
 };
 
-$.Rect = Rect;
+Delta.Rect = Rect;

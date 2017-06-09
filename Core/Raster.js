@@ -23,7 +23,7 @@ Raster = new Class(Drawable, {
 
 Raster.args = ['data', 'x', 'y'];
 
-$.raster = function(){
+Delta.raster = function(){
 	var raster = new Raster(arguments);
 	return raster;
 };

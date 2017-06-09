@@ -92,7 +92,7 @@ function argument(index){
 	return function(value){
 		return this.argument( index, value );
 	};
-}
+} // не нужно
 
 // wrapper for quick calls
 function wrap(args){
@@ -118,13 +118,11 @@ function isObject(a){
 }
 
 function isPivot(v){
-	return Array.isArray(v) || v in $.corners;
+	return Array.isArray(v) || v in Delta.corners;
 }
 
-$.reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/;
-
 function isNumberLike(value){
-	return +value === value || (value + '' === value && $.reNumberLike.test(value));
+	return +value === value || (value + '' === value && reNumberLike.test(value));
 }
 
 // todo: Pattern.isPatternLike();
@@ -141,17 +139,17 @@ function isPatternLike(value){
 			) );
 }
 
-$.Class = Class;
-$.Bounds = Bounds;
-$.extend = extend;
-$.argument = argument;
-$.wrap = wrap;
-$.isObject = isObject;
-$.isNumberLike = isNumberLike;
-$.isPatternLike = isPatternLike;
+Delta.Class = Class;
+Delta.Bounds = Bounds;
+Delta.extend = extend;
+Delta.argument = argument;
+Delta.wrap = wrap;
+Delta.isObject = isObject;
+Delta.isNumberLike = isNumberLike;
+Delta.isPatternLike = isPatternLike;
 
 // constants
-$.dashes = {
+Delta.dashes = {
 	shortdash:			[4, 1],
 	shortdot:			[1, 1],
 	shortdashdot:		[4, 1, 1, 1],
@@ -164,14 +162,14 @@ $.dashes = {
 	longdashdotdot:		[8, 3, 1, 3, 1, 3]
 };
 
-$.fileTypes = {
+Delta.fileTypes = {
 	'jpeg': 'image/jpeg',
 	'jpg': 'image/jpeg',
 	'png': 'image/png',
 	'webp': 'image/webp'
 };
 
-$.corners = {
+Delta.corners = {
 	'left'  : [0, 0.5],
 	'right' : [1, 0.5],
 	'top'   : [0.5, 0],
@@ -196,7 +194,7 @@ $.corners = {
 	'br'	: [1, 1]
 };
 
-$.colors = { // http://www.w3.org/TR/css3-color/#svg-color
+Delta.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 	'aliceblue':				'f0f8ff',
 	'antiquewhite':				'faebd7',
 	'aqua':						'0ff',
@@ -349,7 +347,7 @@ $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 };
 
 // DOM
-$.coordsOfElement = function(element){ // returns coords of a DOM element
+Delta.coordsOfElement = function(element){ // returns coords of a DOM element
 	var box = element.getBoundingClientRect(),
 		style = window.getComputedStyle(element);
 
@@ -360,12 +358,12 @@ $.coordsOfElement = function(element){ // returns coords of a DOM element
 };
 
 // Clean functions
-$.clone = function(object){
+Delta.clone = function(object){
 	var result = new object.constructor();
 	for(var i in object){
 		if(has(object, i)){
 			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
-				result[i] = $.clone(object[i]);
+				result[i] = Delta.clone(object[i]);
 			} else {
 				result[i] = object[i];
 			}
@@ -375,8 +373,8 @@ $.clone = function(object){
 };
 
 
-// renamed from $.multiply
-$.transform = function(m1, m2){ // multiplies two 2D-transform matrices
+// renamed from Delta.multiply
+Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
 		m1[1] * m2[0] + m1[3] * m2[1],
@@ -387,7 +385,7 @@ $.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	];
 };
 
-$.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined){
 		return;
 	}
@@ -428,8 +426,8 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
 	}
 	// 'red'
-	else if(value in $.colors){
-		return $.color('#' + $.colors[value]);
+	else if(value in Delta.colors){
+		return Delta.color('#' + Delta.colors[value]);
 	}
 	// 'rand'
 	else if(value === 'rand'){
@@ -439,8 +437,8 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 	return [0, 0, 0, 0];
 };
 
-$.angleUnit = 'grad';
-$.unit = 'px';
+Delta.angleUnit = 'grad';
+Delta.unit = 'px';
 
 var units = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
 var defaultUnits = {
@@ -457,18 +455,18 @@ var defaultUnits = {
 	// in: 90
 };
 
-$.snapToPixels = 0;
+Delta.snapToPixels = 0;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
-	if($.snapToPixels && !dontsnap){
-		return Math.round($.distance(value, true) / $.snapToPixels) * $.snapToPixels;
+	if(Delta.snapToPixels && !dontsnap){
+		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}
 
 	if(+value === value){
-		if( $.unit !== 'px'){
-			return $.distance( value + '' + $.unit );
+		if( Delta.unit !== 'px'){
+			return Delta.distance( value + '' + Delta.unit );
 		}
 
 		return value;
@@ -479,16 +477,16 @@ function distance(value, dontsnap){
 		return parseInt(value);
 	}
 
-	if(!$.units){
+	if(!Delta.units){
 		if(!document){
-			$.units = defaultUnits;
+			Delta.units = defaultUnits;
 		} else {
 			var div = document.createElement('div');
 			document.body.appendChild(div); // FF don't need this :)
-			$.units = {};
+			Delta.units = {};
 			units.forEach(function(unit){
 				div.style.width = '1' + unit;
-				$.units[unit] = parseFloat(getComputedStyle(div).width);
+				Delta.units[unit] = parseFloat(getComputedStyle(div).width);
 			});
 			document.body.removeChild(div);
 		}
@@ -499,7 +497,7 @@ function distance(value, dontsnap){
 	if(unit === ''){
 		return value;
 	}
-	return Math.round($.units[unit] * value);
+	return Math.round(Delta.units[unit] * value);
 }
 
-$.distance = distance;
+Delta.distance = distance;

@@ -1,14 +1,14 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 30.05.2017
+ *  Last edit: 09.06.2017
  *  License: MIT / LGPL
  */
 
 (function(window, undefined){
 
 // The main graphics2D class
-var $ = {},
+var Delta = {},
 
 // Classes
 	Context,
@@ -37,31 +37,31 @@ var $ = {},
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
-	                        window.webkitRequestAnimationFrame	||
-	                        window.mozRequestAnimationFrame		||
-	                        window.oRequestAnimationFrame		||
-	                        window.msRequestAnimationFrame		||
-	                        function(callback){
-	                        	return window.setTimeout(callback, 1000 / 60);
-	                        },
+							window.webkitRequestAnimationFrame	||
+							window.mozRequestAnimationFrame		||
+							window.oRequestAnimationFrame		||
+							window.msRequestAnimationFrame		||
+							function(callback){
+								return window.setTimeout(callback, 1000 / 60);
+							},
 
 	cancelAnimationFrame = window.cancelAnimationFrame			||
-	                       window.webkitCancelAnimationFrame	||
-	                       window.mozCancelAnimationFrame		||
-	                       window.oCancelAnimationFrame			||
-	                       window.msCancelAnimationFrame		||
+						   window.webkitCancelAnimationFrame	||
+						   window.mozCancelAnimationFrame		||
+						   window.oCancelAnimationFrame			||
+						   window.msCancelAnimationFrame		||
 
-	                       window.cancelRequestAnimationFrame		||
-	                       window.webkitCancelRequestAnimationFrame	||
-	                       window.mozCancelRequestAnimationFrame	||
-	                       window.oCancelRequestAnimationFrame		||
-	                       window.msCancelRequestAnimationFrame		||
+						   window.cancelRequestAnimationFrame		||
+						   window.webkitCancelRequestAnimationFrame	||
+						   window.mozCancelRequestAnimationFrame	||
+						   window.oCancelRequestAnimationFrame		||
+						   window.msCancelRequestAnimationFrame		||
 
-	                       window.clearTimeout;
+						   window.clearTimeout;
 
-$.renderers = {};
+Delta.renderers = {};
 
-$.renderers['2d'] = {
+Delta.renderers['2d'] = {
 
 	// renderer.init(g2dcontext, canvas);
 	init: function(delta, canvas){
@@ -305,7 +305,7 @@ Context = function(canvas, renderer){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.renderer = $.renderers[renderer || '2d'];
+	this.renderer = Delta.renderers[renderer || '2d'];
 	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
@@ -632,7 +632,7 @@ Context.prototype = {
 
 	// translates screen coords to context coords
 	contextCoords: function(x, y){
-		var coords = $.coordsOfElement(this.canvas);
+		var coords = Delta.coordsOfElement(this.canvas);
 		return [x - coords.x, y - coords.y];
 	},
 
@@ -646,7 +646,7 @@ Context.prototype = {
 
 		if(pivot){
 			if(pivot + '' === pivot){
-				pivot = $.corners[pivot];
+				pivot = Delta.corners[pivot];
 				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
 			}
 
@@ -654,7 +654,7 @@ Context.prototype = {
 			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
 		}
 
-		this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
+		this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		return this.update();
 	},
 
@@ -706,7 +706,7 @@ Context.prototype = {
 	}
 };
 
-$.Context = Context;
+Delta.Context = Context;
 
 var temporaryCanvas;
 
@@ -999,8 +999,8 @@ Drawable = new Class({
 
 		var bounds = this.bounds(options);
 		return [
-			bounds.x + bounds.w * $.corners[corner][0],
-			bounds.y + bounds.h * $.corners[corner][1]
+			bounds.x + bounds.w * Delta.corners[corner][0],
+			bounds.y + bounds.h * Delta.corners[corner][1]
 		];
 	},
 
@@ -1054,7 +1054,7 @@ Drawable = new Class({
 				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
 				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
 			}
-			this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
+			this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		}
 		return this.update();
 	},
@@ -1116,8 +1116,8 @@ Drawable = new Class({
 
 		if(type === undefined){
 			type = 'image/png';
-		} else if(type in $.fileTypes){
-			type = $.fileTypes[type];
+		} else if(type in Delta.fileTypes){
+			type = Delta.fileTypes[type];
 		}
 
 		// todo: other renderers support
@@ -1277,7 +1277,7 @@ Drawable.processStroke = function(stroke, style){
 				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
-				style.lineWidth = $.distance(stroke[l]);
+				style.lineWidth = Delta.distance(stroke[l]);
 			} else if(stroke[l] === 'round'){
 				if(!joinSet){
 					style.lineJoin = 'round';
@@ -1293,14 +1293,14 @@ Drawable.processStroke = function(stroke, style){
 				style.lineCap = stroke[l];
 			} else if(stroke[l][0] === '['){
 				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-			} else if(stroke[l] in $.dashes){
-				style.lineDash = $.dashes[stroke[l]];
+			} else if(stroke[l] in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke[l]];
 			} else {
 				style.strokeStyle = stroke[l];
 			}
 		}
 		if(opacity){
-			stroke = $.color(style.strokeStyle);
+			stroke = Delta.color(style.strokeStyle);
 			stroke[3] = opacity;
 			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
 		}
@@ -1309,12 +1309,12 @@ Drawable.processStroke = function(stroke, style){
 			style.strokeStyle = stroke.color;
 		}
 		if(stroke.opacity !== undefined && style.strokeStyle){
-			var parsed = $.color(style.strokeStyle);
+			var parsed = Delta.color(style.strokeStyle);
 			parsed[3] = stroke.opacity;
 			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
 		}
 		if(stroke.width !== undefined){
-			style.lineWidth = $.distance(stroke.width);
+			style.lineWidth = Delta.distance(stroke.width);
 		}
 		if(stroke.join !== undefined){
 			style.lineJoin = stroke.join;
@@ -1323,8 +1323,8 @@ Drawable.processStroke = function(stroke, style){
 			style.lineCap = stroke.cap;
 		}
 		if(stroke.dash !== undefined){
-			if(stroke.dash in $.dashes){
-				style.lineDash = $.dashes[stroke.dash];
+			if(stroke.dash in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke.dash];
 			} else {
 				style.lineDash = stroke.dash;
 			}
@@ -1341,18 +1341,18 @@ Drawable.processShadow = function(shadow, style){
 			if(isNaN(+shadow[i][0])){
 				style.shadowColor = shadow[i];
 			} else {
-				style[shadowProps.shift()] = $.distance(shadow[i]);
+				style[shadowProps.shift()] = Delta.distance(shadow[i]);
 			}
 		}
 	} else {
 		if(shadow.x !== undefined){
-			style.shadowOffsetX = $.distance(shadow.x);
+			style.shadowOffsetX = Delta.distance(shadow.x);
 		}
 		if(shadow.y !== undefined){
-			style.shadowOffsetY = $.distance(shadow.y);
+			style.shadowOffsetY = Delta.distance(shadow.y);
 		}
 		if(shadow.blur !== undefined){
-			style.shadowBlur = $.distance(shadow.blur || 0);
+			style.shadowBlur = Delta.distance(shadow.blur || 0);
 		}
 		if(shadow.color){
 			style.shadowColor = shadow.color;
@@ -1360,7 +1360,7 @@ Drawable.processShadow = function(shadow, style){
 	}
 };
 
-$.Drawable = Drawable;
+Delta.Drawable = Drawable;
 
 // events aliases
 Context.prototype.eventsInteract.forEach(function(eventName){
@@ -1372,74 +1372,74 @@ Context.prototype.eventsInteract.forEach(function(eventName){
 });
 // todo:
 Drawable.prototype._genMatrix = function(){
-    this.transform(null);
-    (this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
-        if(!this.attrs[name]){
-            return;
-        }
+	this.transform(null);
+	(this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
+		if(!this.attrs[name]){
+			return;
+		}
 
-        if(name === 'translate'){
-            this.translate(this.attrs.translate[0], this.attrs.translate[1]);
-        } else if(name === 'rotate'){
-            this.rotate(this.attrs.rotate, this.attrs.rotatePivot);
-        } else if(name === 'scale'){
-            this.scale(this.attrs.scale[0], this.attrs.scale[1], this.attrs.scalePivot);
-        } else if(name === 'skew'){
-            this.skew(this.attrs.skew[0], this.attrs.skew[1], this.attrs.skewPivot);
-        }
-    }.bind(this));
+		if(name === 'translate'){
+			this.translate(this.attrs.translate[0], this.attrs.translate[1]);
+		} else if(name === 'rotate'){
+			this.rotate(this.attrs.rotate, this.attrs.rotatePivot);
+		} else if(name === 'scale'){
+			this.scale(this.attrs.scale[0], this.attrs.scale[1], this.attrs.scalePivot);
+		} else if(name === 'skew'){
+			this.skew(this.attrs.skew[0], this.attrs.skew[1], this.attrs.skewPivot);
+		}
+	}.bind(this));
 };
 
 Drawable.prototype.attrHooks.translate = {
-    get: function(){
-        return this.matrix ? this.matrix.slice(4) : [0, 0];
-    },
+	get: function(){
+		return this.matrix ? this.matrix.slice(4) : [0, 0];
+	},
 
-    set: function(value){
-        this.attrs.translate = value;
-        this._genMatrix();
-        this.update();
-    }
+	set: function(value){
+		this.attrs.translate = value;
+		this._genMatrix();
+		this.update();
+	}
 };
 
 Drawable.prototype.attrHooks.rotate = {
-    get: function(){
-        return this.attrs.rotate || 0;
-    },
+	get: function(){
+		return this.attrs.rotate || 0;
+	},
 
-    set: function(value){
-        this.attrs.rotate = value;
-        this._genMatrix();
-        this.update();
-        return null;
-    }
+	set: function(value){
+		this.attrs.rotate = value;
+		this._genMatrix();
+		this.update();
+		return null;
+	}
 };
 
 Drawable.prototype.attrHooks.skew = {
-    get: function(){
-        return this.attrs.skew || [0, 0];
-    },
+	get: function(){
+		return this.attrs.skew || [0, 0];
+	},
 
-    set: function(value){
-        this.attrs.skew = +value === value ? [value, value] : value;
-        this._genMatrix();
-        this.update();
-    }
+	set: function(value){
+		this.attrs.skew = +value === value ? [value, value] : value;
+		this._genMatrix();
+		this.update();
+	}
 };
 
 Drawable.prototype.attrHooks.scale = {
-    get: function(){
-        return this.attrs.scale || [1, 1];
-    },
+	get: function(){
+		return this.attrs.scale || [1, 1];
+	},
 
-    set: function(value){
-        this.attrs.scale = +value === value ? [value, value] : value;
-        this._genMatrix();
-        this.update();
-    }
+	set: function(value){
+		this.attrs.scale = +value === value ? [value, value] : value;
+		this._genMatrix();
+		this.update();
+	}
 };
 
-// var anim = $.animation(300, 500, options);
+// var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
 
 Animation = new Class({
@@ -1644,7 +1644,7 @@ Animation.default = {
 	duration: 500
 };
 
-$.animation = function(duration, easing, callback){
+Delta.animation = function(duration, easing, callback){
 	return new Animation(duration, easing, callback);
 };
 
@@ -1781,11 +1781,11 @@ Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 	Rect.prototype.attrHooks[propName].anim = attr.anim;
 });
 
-$.rect = function(){
+Delta.rect = function(){
 	return new Rect(arguments);
 };
 
-$.Rect = Rect;
+Delta.Rect = Rect;
 
 Circle = new Class(Drawable, {
 
@@ -1857,11 +1857,11 @@ Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
 });
 
-$.circle = function(){
+Delta.circle = function(){
 	return new Circle(arguments);
 };
 
-$.Circle = Circle;
+Delta.Circle = Circle;
 
 // todo: rename to PathPart
 Curve = new Class({
@@ -1883,7 +1883,7 @@ Curve = new Class({
 	},
 
 	// Parameters
-	attr: function(name, value){
+	attr: function(name, value){ // name to prop
 		if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
@@ -2004,145 +2004,107 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
-$.curves = Curve.types;
+Delta.curves = Curve.types;
 
-$.Curve = Curve;
+Delta.Curve = Curve;
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
 
 extend(Curve.prototype, {
 
-    startAt: function(){
-        var index = this.path.attrs.d.indexOf(this);
-        return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
-    },
+	startAt: function(){
+		var index = this.path.attrs.d.indexOf(this);
+		return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
+	},
 
-    pointAt: function(t, startPoint){
-        var type = Curve.types[this.method];
+	pointAt: function(t, startPoint){
+		var type = Curve.types[this.method];
 
-        if(type && type.pointAt){
-            return type.pointAt(this, t, startPoint);
-        }
+		if(type && type.pointAt){
+			return type.pointAt(this, t, startPoint);
+		}
 
-        throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
-    },
+		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
+	},
 
-    tangentAt: function(t, epsilon, startPoint){
-        if(!epsilon){
-            epsilon = Curve.epsilon;
-        }
+	tangentAt: function(t, epsilon, startPoint){
+		if(!epsilon){
+			epsilon = Curve.epsilon;
+		}
 
-        var t1 = t - epsilon,
-            t2 = t + epsilon;
+		var t1 = t - epsilon,
+			t2 = t + epsilon;
 
-        if(t1 < 0){
-            t1 = 0;
-        }
-        if(t2 > 1){
-            t2 = 1;
-        }
+		if(t1 < 0){
+			t1 = 0;
+		}
+		if(t2 > 1){
+			t2 = 1;
+		}
 
-        var point1 = this.pointAt(t1, startPoint),
-            point2 = this.pointAt(t2, startPoint);
+		var point1 = this.pointAt(t1, startPoint),
+			point2 = this.pointAt(t2, startPoint);
 
-        return Math.atan2(point2[1] - point1[1], point2[0] - point1[0]) * 180 / Math.PI;
-    },
+		return Math.atan2(point2[1] - point1[1], point2[0] - point1[0]) * 180 / Math.PI;
+	},
 
-    normalAt: function(t, epsilon, startPoint){
-        return this.tangentAt(t, epsilon, startPoint) - 90;
-    },
+	normalAt: function(t, epsilon, startPoint){
+		return this.tangentAt(t, epsilon, startPoint) - 90;
+	},
 
-    length: function(detail){
-        if(!detail){
-            detail = Curve.detail;
-        }
+	length: function(detail){
+		if(!detail){
+			detail = Curve.detail;
+		}
 
-        var length = 0,
-            lastPoint = this.pointAt(0),
-            point;
-        for(var i = 1; i <= detail; i++){
-            point = this.pointAt(i / detail);
-            length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
-            lastPoint = point;
-        }
-        return length;
-    },
+		var length = 0,
+			lastPoint = this.pointAt(0),
+			point;
+		for(var i = 1; i <= detail; i++){
+			point = this.pointAt(i / detail);
+			length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
+			lastPoint = point;
+		}
+		return length;
+	},
 
-    nearest: function(x, y, detail){
-        if(!detail){
-            detail = Curve.detail;
-        }
+	nearest: function(x, y, detail){
+		if(!detail){
+			detail = Curve.detail;
+		}
 
-        // todo: gradient descent
-        var point,
-            min = Infinity,
-            minPoint,
-            minI,
-            distance;
-        for(var i = 0; i <= detail; i++){
-            point = this.pointAt(i / detail);
-            distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
-            if(distance < min){
-                minPoint = point;
-                minI = i;
-                min = distance;
-            }
-        }
+		// todo: gradient descent
+		var point,
+			min = Infinity,
+			minPoint,
+			minI,
+			distance;
+		for(var i = 0; i <= detail; i++){
+			point = this.pointAt(i / detail);
+			distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
+			if(distance < min){
+				minPoint = point;
+				minI = i;
+				min = distance;
+			}
+		}
 
-        return {
-            point: minPoint,
-            t: minI / detail,
-            distance: min
-        };
-    }
+		return {
+			point: minPoint,
+			t: minI / detail,
+			distance: min
+		};
+	}
 
 });
 Curve.types.lineTo.pointAt = function(curve, t, startPoint){
-    if(!startPoint){
-        startPoint = curve.startAt();
-    }
-    return [
-        startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
-        startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
-    ];
-};
-
-Curve.types.quadraticCurveTo.pointAt = function(curve, t, startPoint){
-    if(!startPoint){
-        startPoint = curve.startAt();
-    }
-
-	var x1 = startPoint[0],
-		y1 = startPoint[1],
-		hx = curve.attrs[0],
-		hy = curve.attrs[1],
-		x2 = curve.attrs[2],
-		y2 = curve.attrs[3];
-
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
 	return [
-        Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * hx + t * t * x2,
-        Math.pow(1 - t, 2) * y1 + 2 * t * (1 - t) * hy + t * t * y2
-    ];
-};
-
-Curve.types.bezierCurveTo.pointAt = function(curve, t, startPoint){
-    if(!startPoint){
-        startPoint = curve.startAt();
-    }
-
-	var x1 = startPoint[0],
-		y1 = startPoint[1],
-		h1x = curve.attrs[0],
-		h1y = curve.attrs[1],
-		h2x = curve.attrs[2],
-		h2y = curve.attrs[3],
-		x2 = curve.attrs[4],
-		y2 = curve.attrs[5];
-
-	return [
-        Math.pow(1 - t, 3) * x1 + 3 * t * Math.pow(1 - t, 2) * h1x + 3 * t * t * (1 - t) * h2x + t * t * t * x2,
-        Math.pow(1 - t, 3) * y1 + 3 * t * Math.pow(1 - t, 2) * h1y + 3 * t * t * (1 - t) * h2y + t * t * t * y2
-    ];
+		startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
+		startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
+	];
 };
 
 var closePath = new Curve('closePath', []);
@@ -2348,13 +2310,13 @@ Path.parseSVG = function(data, path, firstIsNotMove){
 	return [];
 };
 
-$.path = function(){
+Delta.path = function(){
 	var path = new Path(arguments);
 	path.init();
 	return path;
 };
 
-$.Path = Path;
+Delta.Path = Path;
 
 Picture = new Class(Drawable, {
 
@@ -2524,12 +2486,12 @@ Picture.parse = function(image){
 	return image;
 };
 
-$.image = function(){
+Delta.image = function(){
 	var image = new Picture(arguments);
 	return image;
 };
 
-$.Image = Picture;
+Delta.Image = Picture;
 
 Raster = new Class(Drawable, {
 
@@ -2556,7 +2518,7 @@ Raster = new Class(Drawable, {
 
 Raster.args = ['data', 'x', 'y'];
 
-$.raster = function(){
+Delta.raster = function(){
 	var raster = new Raster(arguments);
 	return raster;
 };
@@ -2801,7 +2763,7 @@ Text.parseFont = function(font){
 			} else if(part === 'italic'){
 				object.italic = true;
 			} else if(reNumberLike.test(part)){
-				object.size = $.distance(part);
+				object.size = Delta.distance(part);
 			} else {
 				object.family += ' ' + part;
 			}
@@ -2825,11 +2787,11 @@ Text.genFont = function(font){
 	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 };
 
-$.text = function(){
+Delta.text = function(){
 	return new Text(arguments);
 };
 
-$.Text = Text;
+Delta.Text = Text;
 
 Gradient = new Class({
 	initialize: function(type, colors, from, to, context){
@@ -2878,22 +2840,22 @@ Gradient = new Class({
 			return this.update();
 		}
 		if(this.attrs.colors[t]){
-			return $.color(this.attrs.colors[t]);
+			return Delta.color(this.attrs.colors[t]);
 		}
 
 		var colors = this.attrs.colors,
 			keys = Object.keys(colors).sort(); // is this sort sorting them right? as numbera or as strings?
 
 		if(t < keys[0]){
-			return $.color(colors[keys[0]]);
+			return Delta.color(colors[keys[0]]);
 		} else if(t > keys[keys.length - 1]){
-			return $.color(colors[keys[keys.length - 1]]);
+			return Delta.color(colors[keys[keys.length - 1]]);
 		}
 
 		for(var i = 0; i < keys.length; i++){
 			if(+keys[i] > t){
-				var c1 = $.color(colors[keys[i - 1]]),
-					c2 = $.color(colors[keys[i]]);
+				var c1 = Delta.color(colors[keys[i - 1]]),
+					c2 = Delta.color(colors[keys[i]]);
 				t = (t - +keys[i - 1]) / (+keys[i] - +keys[i - 1]);
 				return [
 					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
@@ -3035,7 +2997,7 @@ Gradient.types = {
 	}
 };
 
-$.Gradient = Gradient;
+Delta.Gradient = Gradient;
 
 Pattern = new Class({
 	initialize: function(image, repeat, context){
@@ -3050,6 +3012,8 @@ Pattern = new Class({
 				domurl.revokeObjectURL(blob);
 			}
 		}.bind(this));
+
+		// todo: error process?
 	},
 
 	update: function(){
@@ -3066,7 +3030,7 @@ Pattern = new Class({
 	}
 });
 
-$.Pattern = Pattern;
+Delta.Pattern = Pattern;
 
 // Class
 function Class(parent, properties){
@@ -3162,7 +3126,7 @@ function argument(index){
 	return function(value){
 		return this.argument( index, value );
 	};
-}
+} // не нужно
 
 // wrapper for quick calls
 function wrap(args){
@@ -3188,13 +3152,11 @@ function isObject(a){
 }
 
 function isPivot(v){
-	return Array.isArray(v) || v in $.corners;
+	return Array.isArray(v) || v in Delta.corners;
 }
 
-$.reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/;
-
 function isNumberLike(value){
-	return +value === value || (value + '' === value && $.reNumberLike.test(value));
+	return +value === value || (value + '' === value && reNumberLike.test(value));
 }
 
 // todo: Pattern.isPatternLike();
@@ -3211,17 +3173,17 @@ function isPatternLike(value){
 			) );
 }
 
-$.Class = Class;
-$.Bounds = Bounds;
-$.extend = extend;
-$.argument = argument;
-$.wrap = wrap;
-$.isObject = isObject;
-$.isNumberLike = isNumberLike;
-$.isPatternLike = isPatternLike;
+Delta.Class = Class;
+Delta.Bounds = Bounds;
+Delta.extend = extend;
+Delta.argument = argument;
+Delta.wrap = wrap;
+Delta.isObject = isObject;
+Delta.isNumberLike = isNumberLike;
+Delta.isPatternLike = isPatternLike;
 
 // constants
-$.dashes = {
+Delta.dashes = {
 	shortdash:			[4, 1],
 	shortdot:			[1, 1],
 	shortdashdot:		[4, 1, 1, 1],
@@ -3234,14 +3196,14 @@ $.dashes = {
 	longdashdotdot:		[8, 3, 1, 3, 1, 3]
 };
 
-$.fileTypes = {
+Delta.fileTypes = {
 	'jpeg': 'image/jpeg',
 	'jpg': 'image/jpeg',
 	'png': 'image/png',
 	'webp': 'image/webp'
 };
 
-$.corners = {
+Delta.corners = {
 	'left'  : [0, 0.5],
 	'right' : [1, 0.5],
 	'top'   : [0.5, 0],
@@ -3266,7 +3228,7 @@ $.corners = {
 	'br'	: [1, 1]
 };
 
-$.colors = { // http://www.w3.org/TR/css3-color/#svg-color
+Delta.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 	'aliceblue':				'f0f8ff',
 	'antiquewhite':				'faebd7',
 	'aqua':						'0ff',
@@ -3419,7 +3381,7 @@ $.colors = { // http://www.w3.org/TR/css3-color/#svg-color
 };
 
 // DOM
-$.coordsOfElement = function(element){ // returns coords of a DOM element
+Delta.coordsOfElement = function(element){ // returns coords of a DOM element
 	var box = element.getBoundingClientRect(),
 		style = window.getComputedStyle(element);
 
@@ -3430,12 +3392,12 @@ $.coordsOfElement = function(element){ // returns coords of a DOM element
 };
 
 // Clean functions
-$.clone = function(object){
+Delta.clone = function(object){
 	var result = new object.constructor();
 	for(var i in object){
 		if(has(object, i)){
 			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
-				result[i] = $.clone(object[i]);
+				result[i] = Delta.clone(object[i]);
 			} else {
 				result[i] = object[i];
 			}
@@ -3445,8 +3407,8 @@ $.clone = function(object){
 };
 
 
-// renamed from $.multiply
-$.transform = function(m1, m2){ // multiplies two 2D-transform matrices
+// renamed from Delta.multiply
+Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
 		m1[1] * m2[0] + m1[3] * m2[1],
@@ -3457,7 +3419,7 @@ $.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	];
 };
 
-$.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
 	if(value === undefined){
 		return;
 	}
@@ -3498,8 +3460,8 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
 	}
 	// 'red'
-	else if(value in $.colors){
-		return $.color('#' + $.colors[value]);
+	else if(value in Delta.colors){
+		return Delta.color('#' + Delta.colors[value]);
 	}
 	// 'rand'
 	else if(value === 'rand'){
@@ -3509,8 +3471,8 @@ $.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), g
 	return [0, 0, 0, 0];
 };
 
-$.angleUnit = 'grad';
-$.unit = 'px';
+Delta.angleUnit = 'grad';
+Delta.unit = 'px';
 
 var units = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
 var defaultUnits = {
@@ -3527,18 +3489,18 @@ var defaultUnits = {
 	// in: 90
 };
 
-$.snapToPixels = 0;
+Delta.snapToPixels = 0;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
-	if($.snapToPixels && !dontsnap){
-		return Math.round($.distance(value, true) / $.snapToPixels) * $.snapToPixels;
+	if(Delta.snapToPixels && !dontsnap){
+		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}
 
 	if(+value === value){
-		if( $.unit !== 'px'){
-			return $.distance( value + '' + $.unit );
+		if( Delta.unit !== 'px'){
+			return Delta.distance( value + '' + Delta.unit );
 		}
 
 		return value;
@@ -3549,16 +3511,16 @@ function distance(value, dontsnap){
 		return parseInt(value);
 	}
 
-	if(!$.units){
+	if(!Delta.units){
 		if(!document){
-			$.units = defaultUnits;
+			Delta.units = defaultUnits;
 		} else {
 			var div = document.createElement('div');
 			document.body.appendChild(div); // FF don't need this :)
-			$.units = {};
+			Delta.units = {};
 			units.forEach(function(unit){
 				div.style.width = '1' + unit;
-				$.units[unit] = parseFloat(getComputedStyle(div).width);
+				Delta.units[unit] = parseFloat(getComputedStyle(div).width);
 			});
 			document.body.removeChild(div);
 		}
@@ -3569,162 +3531,134 @@ function distance(value, dontsnap){
 	if(unit === ''){
 		return value;
 	}
-	return Math.round($.units[unit] * value);
+	return Math.round(Delta.units[unit] * value);
 }
 
-$.distance = distance;
+Delta.distance = distance;
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
 // todo: direction
 Drawable.prototype.attrHooks.along = {
-    preAnim: function(fx, data){
-        var curve = data.curve,
-            corner = data.corner || 'center';
-        if(data instanceof Curve || data instanceof Path){
-            curve = data;
-            // нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
-        }
+	preAnim: function(fx, data){
+		var curve = data.curve,
+			corner = data.corner || 'center';
+		if(data instanceof Curve || data instanceof Path){
+			curve = data;
+			// нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
+		}
 
-        corner = this.corner(corner, data.cornerOptions || {
-            transform: 'ignore'
-        });
-        if(data.offset){
-            corner[0] -= data.offset[0];
-            corner[1] -= data.offset[1];
-        }
-        fx.initialCoords = corner;
-        fx.curve = curve;
-        // true if the curve is changed while animation
-        // and it is always works like dynamic for some curves
-        if(!data.dynamic){
-            fx.startCurvePoint = curve.startAt();
-        }
-        this.attr('rotatePivot', corner);
-        if(+data.rotate === data.rotate){
-            this.attr('rotate', data.rotate);
-        } else if(data.rotate === true){
-            fx.rotate = true;
-        }
-        fx.addRotate = data.addRotate || 0;
-    },
+		corner = this.corner(corner, data.cornerOptions || {
+			transform: 'ignore'
+		});
+		if(data.offset){
+			corner[0] -= data.offset[0];
+			corner[1] -= data.offset[1];
+		}
+		fx.initialCoords = corner;
+		fx.curve = curve;
+		// true if the curve is changed while animation
+		// and it is always works like dynamic for some curves
+		if(!data.dynamic){
+			fx.startCurvePoint = curve.startAt();
+		}
+		this.attr('rotatePivot', corner);
+		if(+data.rotate === data.rotate){
+			this.attr('rotate', data.rotate);
+		} else if(data.rotate === true){
+			fx.rotate = true;
+		}
+		fx.addRotate = data.addRotate || 0;
+	},
 
-    anim: function(fx){
-        var point = fx.curve.pointAt(fx.pos, fx.startCurvePoint);
-        point[0] -= fx.initialCoords[0];
-        point[1] -= fx.initialCoords[1];
-        this.attr('translate', point);
-        if(fx.rotate === true){
-            this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
-        }
-    }
+	anim: function(fx){
+		var point = fx.curve.pointAt(fx.pos, fx.startCurvePoint);
+		point[0] -= fx.initialCoords[0];
+		point[1] -= fx.initialCoords[1];
+		this.attr('translate', point);
+		if(fx.rotate === true){
+			this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
+		}
+	}
 };
 // {moduleName Animation.Morph}
-// {requires Math.Curve}
-
-var CurveApprox = new Class(Curve, {
-    initialize: function(method, attrs, path, detail){
-        this.super('initialize', arguments);
-        this.attrs.detail = detail;
-    },
-
-    genPoints: function(startPoint){
-        var detail = this.attrs.detail || Curve.detail;
-        var points = [startPoint || this.startAt()];
-        for(var i = 1; i <= detail; i++){
-            points.push(this.pointAt(i / detail, points[0]));
-        }
-        return points;
-    },
-
-    process: function(ctx){
-        if(!this._points){
-            this._points = this.genPoints();
-        }
-
-        this._points.forEach(function(point){
-            ctx.lineTo(point[0], point[1]);
-        });
-    }
-});
-
-$.CurveApprox = CurveApprox; // todo: replace everywhere $ to Delta
+// {requires Curve.Math, Curve.Approx}
 
 Path.prototype.attrHooks.morph = {
-    preAnim: function(fx, data){
-        var curve = data.curve,
-            to = data.to,
+	preAnim: function(fx, data){
+		var curve = data.curve,
+			to = data.to,
 
-            start = curve.startAt(), // иногда кидает ошибку, если несколько анимаций морфа
-            index = curve.path.attr('d').indexOf(curve);
+			start = curve.startAt(), // иногда кидает ошибку, если несколько анимаций морфа
+			index = curve.path.attr('d').indexOf(curve);
 
-        // заменяем кривую на её аппроксимацию
-        fx.startCurve = curve;
-        fx.endCurve = Path.parse(to, null, true)[0]; // todo: multiple curves & paths
+		// заменяем кривую на её аппроксимацию
+		fx.startCurve = curve;
+		fx.endCurve = Path.parse(to, null, true)[0]; // todo: multiple curves & paths
 
-        var curveApprox = new CurveApprox(curve.method, curve.attrs, curve.path, data.detail);
-        fx.startPoints = curveApprox._points = curveApprox.genPoints(start);
+		var curveApprox = new CurveApprox(curve.method, curve.attrs, curve.path, data.detail);
+		fx.startPoints = curveApprox._points = curveApprox.genPoints(start);
 
-        // получаем конечные точки аппроксимации
-        fx.endPoints = new CurveApprox(fx.endCurve.method, fx.endCurve.attrs, null, data.detail).genPoints(start);
-        fx.deltas = fx.endPoints.map(function(endPoint, i){
-            return [
-                endPoint[0] - fx.startPoints[i][0],
-                endPoint[1] - fx.startPoints[i][1]
-            ];
-        });
-        // todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
-        curve.path.part(index, curveApprox);
-        fx.curve = curveApprox;
-        fx.index = index;
-    },
+		// получаем конечные точки аппроксимации
+		fx.endPoints = new CurveApprox(fx.endCurve.method, fx.endCurve.attrs, null, data.detail).genPoints(start);
+		fx.deltas = fx.endPoints.map(function(endPoint, i){
+			return [
+				endPoint[0] - fx.startPoints[i][0],
+				endPoint[1] - fx.startPoints[i][1]
+			];
+		});
+		// todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
+		curve.path.part(index, curveApprox);
+		fx.curve = curveApprox;
+		fx.index = index;
+	},
 
-    anim: function(fx){
-        // noise animation
-        // maybe plugin after
-        /* fx.curve._points = fx.curve._points.map(function(point, i){
-            return [
-                fx.startPoints[i][0],
-                fx.startPoints[i][1] + Math.random() * 10
-            ];
-        }); */
+	anim: function(fx){
+		// noise animation
+		// maybe plugin after
+		/* fx.curve._points = fx.curve._points.map(function(point, i){
+			return [
+				fx.startPoints[i][0],
+				fx.startPoints[i][1] + Math.random() * 10
+			];
+		}); */
 
-        fx.curve._points = fx.curve._points.map(function(point, i){
-            return [
-                fx.startPoints[i][0] + fx.deltas[i][0] * fx.pos,
-                fx.startPoints[i][1] + fx.deltas[i][1] * fx.pos
-            ];
-        });
-        fx.curve.update();
+		fx.curve._points = fx.curve._points.map(function(point, i){
+			return [
+				fx.startPoints[i][0] + fx.deltas[i][0] * fx.pos,
+				fx.startPoints[i][1] + fx.deltas[i][1] * fx.pos
+			];
+		});
+		fx.curve.update();
 
-        if(fx.pos === 1){
-            fx.curve.path.part(fx.index, fx.endCurve);
-        }
-    }
+		if(fx.pos === 1){
+			fx.curve.path.part(fx.index, fx.endCurve);
+		}
+	}
 };
 
-$.version = Math.PI / 3.490658503988659;
+Delta.version = 1.5;
 
-$.query = function(query, index, element, renderer){
+Delta.query = function(query, index, element, renderer){
 	if(query + '' === query){
 		query = (element || window.document).querySelectorAll(query)[index || 0];
 	}
 	return new Context(query.canvas || query, renderer);
 };
 
-$.id = function(id, renderer){
+Delta.id = function(id, renderer){
 	return new Context(document.getElementById(id), renderer);
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
-	module.exports = $;
+	module.exports = Delta;
 } else if(typeof define === 'function' && define.amd){
 	// todo: define with a name?
 	define([], function(){
-		return $;
+		return Delta;
 	});
 } else {
-	window.Delta = $;
+	window.Delta = Delta;
 }
 
 })(typeof window !== 'undefined' ? window : this);

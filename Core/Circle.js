@@ -68,8 +68,8 @@ Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
 });
 
-$.circle = function(){
+Delta.circle = function(){
 	return new Circle(arguments);
 };
 
-$.Circle = Circle;
+Delta.Circle = Circle;

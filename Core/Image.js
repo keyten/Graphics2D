@@ -166,9 +166,9 @@ Picture.parse = function(image){
 	return image;
 };
 
-$.image = function(){
+Delta.image = function(){
 	var image = new Picture(arguments);
 	return image;
 };
 
-$.Image = Picture;
+Delta.Image = Picture;

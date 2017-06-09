@@ -18,7 +18,7 @@ Curve = new Class({
 	},
 
 	// Parameters
-	attr: function(name, value){
+	attr: function(name, value){ // name to prop
 		if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
@@ -139,6 +139,6 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
-$.curves = Curve.types;
+Delta.curves = Curve.types;
 
-$.Curve = Curve;
+Delta.Curve = Curve;

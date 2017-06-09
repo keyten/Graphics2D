@@ -238,7 +238,7 @@ Text.parseFont = function(font){
 			} else if(part === 'italic'){
 				object.italic = true;
 			} else if(reNumberLike.test(part)){
-				object.size = $.distance(part);
+				object.size = Delta.distance(part);
 			} else {
 				object.family += ' ' + part;
 			}
@@ -262,8 +262,8 @@ Text.genFont = function(font){
 	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 };
 
-$.text = function(){
+Delta.text = function(){
 	return new Text(arguments);
 };
 
-$.Text = Text;
+Delta.Text = Text;

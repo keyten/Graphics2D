@@ -45,22 +45,22 @@ Gradient = new Class({
 			return this.update();
 		}
 		if(this.attrs.colors[t]){
-			return $.color(this.attrs.colors[t]);
+			return Delta.color(this.attrs.colors[t]);
 		}
 
 		var colors = this.attrs.colors,
 			keys = Object.keys(colors).sort(); // is this sort sorting them right? as numbera or as strings?
 
 		if(t < keys[0]){
-			return $.color(colors[keys[0]]);
+			return Delta.color(colors[keys[0]]);
 		} else if(t > keys[keys.length - 1]){
-			return $.color(colors[keys[keys.length - 1]]);
+			return Delta.color(colors[keys[keys.length - 1]]);
 		}
 
 		for(var i = 0; i < keys.length; i++){
 			if(+keys[i] > t){
-				var c1 = $.color(colors[keys[i - 1]]),
-					c2 = $.color(colors[keys[i]]);
+				var c1 = Delta.color(colors[keys[i - 1]]),
+					c2 = Delta.color(colors[keys[i]]);
 				t = (t - +keys[i - 1]) / (+keys[i] - +keys[i - 1]);
 				return [
 					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
@@ -202,4 +202,4 @@ Gradient.types = {
 	}
 };
 
-$.Gradient = Gradient;
+Delta.Gradient = Gradient;

@@ -289,8 +289,8 @@ Drawable = new Class({
 
 		var bounds = this.bounds(options);
 		return [
-			bounds.x + bounds.w * $.corners[corner][0],
-			bounds.y + bounds.h * $.corners[corner][1]
+			bounds.x + bounds.w * Delta.corners[corner][0],
+			bounds.y + bounds.h * Delta.corners[corner][1]
 		];
 	},
 
@@ -344,7 +344,7 @@ Drawable = new Class({
 				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
 				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
 			}
-			this.matrix = $.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
+			this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
 		}
 		return this.update();
 	},
@@ -406,8 +406,8 @@ Drawable = new Class({
 
 		if(type === undefined){
 			type = 'image/png';
-		} else if(type in $.fileTypes){
-			type = $.fileTypes[type];
+		} else if(type in Delta.fileTypes){
+			type = Delta.fileTypes[type];
 		}
 
 		// todo: other renderers support
@@ -567,7 +567,7 @@ Drawable.processStroke = function(stroke, style){
 				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
-				style.lineWidth = $.distance(stroke[l]);
+				style.lineWidth = Delta.distance(stroke[l]);
 			} else if(stroke[l] === 'round'){
 				if(!joinSet){
 					style.lineJoin = 'round';
@@ -583,14 +583,14 @@ Drawable.processStroke = function(stroke, style){
 				style.lineCap = stroke[l];
 			} else if(stroke[l][0] === '['){
 				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-			} else if(stroke[l] in $.dashes){
-				style.lineDash = $.dashes[stroke[l]];
+			} else if(stroke[l] in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke[l]];
 			} else {
 				style.strokeStyle = stroke[l];
 			}
 		}
 		if(opacity){
-			stroke = $.color(style.strokeStyle);
+			stroke = Delta.color(style.strokeStyle);
 			stroke[3] = opacity;
 			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
 		}
@@ -599,12 +599,12 @@ Drawable.processStroke = function(stroke, style){
 			style.strokeStyle = stroke.color;
 		}
 		if(stroke.opacity !== undefined && style.strokeStyle){
-			var parsed = $.color(style.strokeStyle);
+			var parsed = Delta.color(style.strokeStyle);
 			parsed[3] = stroke.opacity;
 			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
 		}
 		if(stroke.width !== undefined){
-			style.lineWidth = $.distance(stroke.width);
+			style.lineWidth = Delta.distance(stroke.width);
 		}
 		if(stroke.join !== undefined){
 			style.lineJoin = stroke.join;
@@ -613,8 +613,8 @@ Drawable.processStroke = function(stroke, style){
 			style.lineCap = stroke.cap;
 		}
 		if(stroke.dash !== undefined){
-			if(stroke.dash in $.dashes){
-				style.lineDash = $.dashes[stroke.dash];
+			if(stroke.dash in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke.dash];
 			} else {
 				style.lineDash = stroke.dash;
 			}
@@ -631,18 +631,18 @@ Drawable.processShadow = function(shadow, style){
 			if(isNaN(+shadow[i][0])){
 				style.shadowColor = shadow[i];
 			} else {
-				style[shadowProps.shift()] = $.distance(shadow[i]);
+				style[shadowProps.shift()] = Delta.distance(shadow[i]);
 			}
 		}
 	} else {
 		if(shadow.x !== undefined){
-			style.shadowOffsetX = $.distance(shadow.x);
+			style.shadowOffsetX = Delta.distance(shadow.x);
 		}
 		if(shadow.y !== undefined){
-			style.shadowOffsetY = $.distance(shadow.y);
+			style.shadowOffsetY = Delta.distance(shadow.y);
 		}
 		if(shadow.blur !== undefined){
-			style.shadowBlur = $.distance(shadow.blur || 0);
+			style.shadowBlur = Delta.distance(shadow.blur || 0);
 		}
 		if(shadow.color){
 			style.shadowColor = shadow.color;
@@ -650,7 +650,7 @@ Drawable.processShadow = function(shadow, style){
 	}
 };
 
-$.Drawable = Drawable;
+Delta.Drawable = Drawable;
 
 // events aliases
 Context.prototype.eventsInteract.forEach(function(eventName){
