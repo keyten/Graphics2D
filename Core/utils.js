@@ -5,7 +5,7 @@ function Class(parent, properties){
 		parent = null;
 	}
 
-	var cls = function(){
+	var init = function(){
 		return this.initialize && this.initialize.apply(this, arguments);
 	};
 
@@ -13,9 +13,9 @@ function Class(parent, properties){
 
 		if(properties.liftInits){
 			// go to the parent
-			cls = function(){
-				if(cls.prototype.__initialize__){
-					return cls.prototype.__initialize__.apply(this,arguments);
+			init = function(){
+				if(init.prototype.__initialize__){
+					return init.prototype.__initialize__.apply(this,arguments);
 				}
 
 				var inits = [],
@@ -32,8 +32,8 @@ function Class(parent, properties){
 					}
 				}
 
-				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize){
-					return cls.prototype.initialize.apply(this,arguments);
+				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
+					return init.prototype.initialize.apply(this,arguments);
 				}
 			};
 		}
@@ -41,11 +41,11 @@ function Class(parent, properties){
 		// prototype inheriting
 		var sklass = function(){};
 		sklass.prototype = parent.prototype;
-		cls.prototype = new sklass();
-		cls.prototype.superclass = parent.prototype;
-		cls.prototype.constructor = cls;
+		init.prototype = new sklass();
+		init.prototype.superclass = parent.prototype;
+		init.prototype.constructor = init;
 
-		cls.prototype.super = function(name, args){
+		init.prototype.super = function(name, args){
 			// при вызове super внутри таймаута получим бесконечный цикл
 			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
 			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
@@ -61,9 +61,9 @@ function Class(parent, properties){
 		};
 	}
 
-	extend(cls.prototype, properties);
+	extend(init.prototype, properties);
 
-	return cls;
+	return init;
 }
 
 // Bounds class
@@ -398,7 +398,9 @@ Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5
 
 	// rgba(255, 100, 20, 0.5)
 	if(value.indexOf('rgb') === 0){
-		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',').map(function(v){
+		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',');
+		var opacity = value[3];
+		value = value.slice(0, 3).map(function(v, i){
 			// rgba(100%, 0%, 50%, 1)
 			if(v.indexOf('%') > 0){
 				return Math.round(parseInt(v) * 2.55);
@@ -406,9 +408,10 @@ Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5
 			return parseInt(v);
 		});
 
-		if(value.length === 3){
-			value.push(1);
+		if(opacity === undefined){
+			opacity = 1;
 		}
+		value.push(Number(opacity));
 
 		return value;
 	}

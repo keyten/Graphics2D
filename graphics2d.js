@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 09.06.2017
+ *  Last edit: 17.06.2017
  *  License: MIT / LGPL
  */
 
@@ -301,11 +301,11 @@ Delta.renderers['2d'] = {
 
 var Context;
 
-Context = function(canvas, renderer){
+Context = function(canvas){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.renderer = Delta.renderers[renderer || '2d'];
+	this.renderer = Delta.renderers['2d'];
 	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
@@ -390,11 +390,13 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
+			console.time();
 		this.renderer.preRedraw(ctx, this);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.renderer.postDraw(ctx);
+			console.timeEnd();
 		this._willUpdate = false;
 	},
 
@@ -703,6 +705,10 @@ Context.prototype = {
 };
 
 Delta.Context = Context;
+
+Delta.contexts = {
+	'2d': Context
+};
 
 var temporaryCanvas;
 
@@ -1859,12 +1865,11 @@ Delta.circle = function(){
 
 Delta.Circle = Circle;
 
-// todo: rename to PathPart
 Curve = new Class({
-	initialize: function(method, attrs, path){
+	initialize: function(method, funcAttrs, path){
 		this.method = method;
 		this.path = path;
-		this.attrs = attrs;
+		this.funcAttrs = funcAttrs;
 	},
 
 	update: function(){
@@ -1875,46 +1880,52 @@ Curve = new Class({
 	},
 
 	process: function(ctx){
-		ctx[this.method].apply(ctx, this.attrs);
+		ctx[this.method].apply(ctx, this.funcAttrs);
 	},
 
 	// Parameters
-	attr: function(name, value){ // name to prop
-		if(name + '' !== name){
-			Object.keys(name).forEach(function(key){
-				this.attr(key, name[key]);
+	attr: function(prop, value){
+		if(prop + '' !== prop){
+			Object.keys(prop).forEach(function(key){
+				this.attr(key, prop[key]);
 			}, this);
 			return this;
 		}
 
-		name = Curve.types[this.method].attrs.indexOf(name);
+		// attrHooks
+		var index = Curve.canvasFunctions[this.method].attrs.indexOf(prop);
 		if(value === undefined){
-			return this.attrs[name];
+			return index > -1 ? this.funcAttrs[index] : (this.attrs || {})[prop];
 		}
-		this.attrs[name] = value;
+
+		if(index > -1){
+			this.funcAttrs[index] = value;
+		} else {
+			(this.attrs || (this.attrs = {}))[prop] = value;
+		}
 		return this.update();
 	},
 
 	bounds: function(prevEnd){
-		if(!Curve.types[this.method].bounds){
+		if(!Curve.canvasFunctions[this.method].bounds){
 			return null;
 		}
-		return Curve.types[this.method].bounds(prevEnd, this.attrs);
+		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.funcAttrs);
 	},
 
 	endAt: function(){
-		if(!Curve.types[this.method].endAt){
+		if(!Curve.canvasFunctions[this.method].endAt){
 			return null;
 		}
-		return Curve.types[this.method].endAt(this.attrs);
+		return Curve.canvasFunctions[this.method].endAt(this.funcAttrs);
 	}
 });
 
-Curve.types = {
+Curve.canvasFunctions = {
 	moveTo: {
 		attrs: ['x', 'y'],
 		endAt: function(attrs){
-			return attrs;
+			return attrs.slice();
 		}
 	},
 	lineTo: {
@@ -1923,7 +1934,7 @@ Curve.types = {
 			return [from[0], from[1], attrs[0], attrs[1]];
 		},
 		endAt: function(attrs){
-			return attrs;
+			return attrs.slice();
 		}
 	},
 	quadraticCurveTo: {
@@ -1989,8 +2000,8 @@ Curve.fromArray = function(array, path){
 		return closePath;
 	}
 
-	if(array[0] in Curve.types){
-		return new Curve(array[0], array.slice(1), path);
+	if(array[0] in Delta.curves){
+		return new Delta.curves[array[0]](array[0], array.slice(1), path);
 	}
 
 	return new Curve({
@@ -2000,7 +2011,14 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
-Delta.curves = Curve.types;
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
 
 Delta.Curve = Curve;
 Curve.epsilon = 0.0001;
@@ -2014,10 +2032,10 @@ extend(Curve.prototype, {
 	},
 
 	pointAt: function(t, startPoint){
-		var type = Curve.types[this.method];
+		var fn = Curve.canvasFunctions[this.method];
 
-		if(type && type.pointAt){
-			return type.pointAt(this, t, startPoint);
+		if(fn && fn.pointAt){
+			return fn.pointAt(this, t, startPoint);
 		}
 
 		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
@@ -2046,6 +2064,16 @@ extend(Curve.prototype, {
 
 	normalAt: function(t, epsilon, startPoint){
 		return this.tangentAt(t, epsilon, startPoint) - 90;
+	},
+
+	splitAt: function(t, startPoint){
+		var fn = Curve.canvasFunctions[this.method];
+
+		if(fn && fn.splitAt){
+			return fn.splitAt(this, t, startPoint);
+		}
+
+		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
 	},
 
 	length: function(detail){
@@ -2093,15 +2121,134 @@ extend(Curve.prototype, {
 	}
 
 });
-Curve.types.lineTo.pointAt = function(curve, t, startPoint){
+Curve.canvasFunctions.moveTo.pointAt = function(curve, t, startPoint){
+	return curve.funcAttrs;
+};
+
+// todo: attrs instead of curve?
+Curve.canvasFunctions.lineTo.pointAt = function(curve, t, startPoint){
 	if(!startPoint){
 		startPoint = curve.startAt();
 	}
 	return [
-		startPoint[0] + t * (curve.attrs[0] - startPoint[0]),
-		startPoint[1] + t * (curve.attrs[1] - startPoint[1]),
+		startPoint[0] + t * (curve.funcAttrs[0] - startPoint[0]),
+		startPoint[1] + t * (curve.funcAttrs[1] - startPoint[1]),
 	];
 };
+
+Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
+	var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
+	return {
+		start: [
+			startPoint,
+			point
+		],
+		end: [
+			point,
+			[curve.funcAttrs[0], curve.funcAttrs[1]]
+		]
+	};
+};
+
+Curve.canvasFunctions.quadraticCurveTo.pointAt = function(curve, t, startPoint){
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
+
+	var x1 = startPoint[0],
+		y1 = startPoint[1],
+		p = curve.funcAttrs;
+
+	return [
+		Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * p[0] + t * t * p[2],
+		Math.pow(1 - t, 2) * y1 + 2 * t * (1 - t) * p[1] + t * t * p[3]
+	];
+};
+
+Curve.canvasFunctions.quadraticCurveTo.splitAt = function(curve, t, startPoint){
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
+	var p = curve.funcAttrs;
+	var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
+	return {
+		start: [
+			startPoint,
+			[
+				t * p[0] - (t - 1) * startPoint[0],
+				t * p[1] - (t - 1) * startPoint[1]
+			],
+			point
+		],
+		end: [
+			point,
+			[
+				t * p[2] - (t - 1) * p[0],
+				t * p[3] - (t - 1) * p[1]
+			],
+			[
+				p[2],
+				p[3]
+			]
+		]
+	};
+};
+
+Curve.canvasFunctions.bezierCurveTo.pointAt = function(curve, t, startPoint){
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
+
+	var x1 = startPoint[0],
+		y1 = startPoint[1],
+		p = curve.funcAttrs;
+
+	return [
+		Math.pow(1 - t, 3) * x1 + 3 * t * Math.pow(1 - t, 2) * p[0] + 3 * t * t * (1 - t) * p[2] + t * t * t * p[4],
+		Math.pow(1 - t, 3) * y1 + 3 * t * Math.pow(1 - t, 2) * p[1] + 3 * t * t * (1 - t) * p[3] + t * t * t * p[5]
+	];
+};
+
+Curve.canvasFunctions.bezierCurveTo.splitAt = function(curve, t, startPoint){
+	if(!startPoint){
+		startPoint = curve.startAt();
+	}
+	var p = curve.funcAttrs;
+	var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
+	return {
+		start: [
+			startPoint,
+			[
+				t * p[0] - (t - 1) * startPoint[0],
+				t * p[1] - (t - 1) * startPoint[1]
+			],
+			[
+				t * t * p[2] - 2 * t * (t - 1) * p[0] + (t - 1) * (t - 1) * startPoint[0],
+				t * t * p[3] - 2 * t * (t - 1) * p[1] + (t - 1) * (t - 1) * startPoint[1]
+			],
+			point
+		],
+		end: [
+			point,
+			[
+				t * t * p[4] - 2 * t * (t - 1) * p[2] + (t - 1) * (t - 1) * p[0],
+				t * t * p[5] - 2 * t * (t - 1) * p[3] + (t - 1) * (t - 1) * p[1]
+			],
+			[
+				t * p[4] - (t - 1) * p[2],
+				t * p[5] - (t - 1) * p[3]
+			],
+			[
+				p[4],
+				p[5]
+			]
+		]
+	};
+};
+
 
 var closePath = new Curve('closePath', []);
 
@@ -2133,8 +2280,8 @@ Path = new Class(Drawable, {
 		}
 	}),
 
-	// Parts
-	part: function(index, value){
+	// Curves
+	curve: function(index, value){
 		if(value === undefined){
 			return this.attrs.d[index];
 		}
@@ -2196,7 +2343,11 @@ Path = new Class(Drawable, {
 		return this.attrs.d.reduce.apply(this.attrs.d, arguments);
 	},
 
-	// Parts addition
+	index: function(curve){
+		return this.attrs.d.indexOf(curve);
+	},
+
+	// Curves addition
 	moveTo: function(x, y){
 		return this.push(['moveTo', x, y]);
 	},
@@ -2313,6 +2464,107 @@ Delta.path = function(){
 };
 
 Delta.Path = Path;
+// requires Curve.Math
+
+// todo: transforms support
+extend(Path.prototype, {
+
+    length: function(){
+        return this.attrs.d.reduce(function(sum, curve){
+            return sum + curve.length();
+        }, 0);
+    },
+
+    startAt: function(){
+        return this.pointAt(0);
+    },
+
+    curveAt: function(t){
+        if(t < 0 || t > 1){
+            return null;
+        }
+        var curves = this.attrs.d;
+        if(t === 1){
+            // must return the last (geometric! not moveTo) curve
+            t = 1 - Number.EPSILON;
+        }
+        var len = this.length();
+        var currentLen = 0;
+        for(var i = 0; i <= curves.length; i++){
+            if(currentLen / len > t){
+                return curves[i - 1];
+            }
+            currentLen += curves[i].length();
+        }
+        return null;
+    },
+
+    _pathToCurveParams: function(t){
+        if(t < 0 || t > 1){
+            // todo: add values < 0 and > 1 for elasticOut animation
+            return null;
+        }
+        var curves = this.attrs.d;
+
+        var len = this.length();
+        var lenStart;
+        var lenEnd = 0;
+        var curve;
+        for(var i = 0; i <= curves.length; i++){
+            if(lenEnd / len > t){
+                curve = curves[i - 1];
+                break;
+            }
+            lenStart = lenEnd;
+            lenEnd += curves[i].length();
+        }
+
+        return {
+            t: (t - lenStart / len) / ((lenEnd - lenStart) / len),
+            curve: curve
+        };
+    },
+
+    pointAt: function(t){
+        if(t === 1){
+            // must return the end of the last geometric (! not moveTo!) curve
+            return this.curveAt(1).endAt();
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.pointAt(curveParams.t);
+    },
+
+    tangentAt: function(t){
+        if(t === 1){
+            t = 1 - Number.EPSILON;
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.tangentAt(curveParams.t);
+    },
+
+    normalAt: function(t){
+        if(t === 1){
+            t = 1 - Number.EPSILON;
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.normalAt(curveParams.t);
+    },
+
+    nearest: function(x, y, detail){
+        return this.attrs.d.reduce(function(current, curve){
+            var nearest = curve.nearest(x, y, detail);
+            if(nearest.distance < current.distance){
+                return nearest;
+            }
+            return current;
+        }, {
+            point: null,
+            t: 0,
+            distance: Infinity
+        });
+    }
+
+});
 
 Picture = new Class(Drawable, {
 
@@ -3005,7 +3257,7 @@ function Class(parent, properties){
 		parent = null;
 	}
 
-	var cls = function(){
+	var init = function(){
 		return this.initialize && this.initialize.apply(this, arguments);
 	};
 
@@ -3013,9 +3265,9 @@ function Class(parent, properties){
 
 		if(properties.liftInits){
 			// go to the parent
-			cls = function(){
-				if(cls.prototype.__initialize__){
-					return cls.prototype.__initialize__.apply(this,arguments);
+			init = function(){
+				if(init.prototype.__initialize__){
+					return init.prototype.__initialize__.apply(this,arguments);
 				}
 
 				var inits = [],
@@ -3032,8 +3284,8 @@ function Class(parent, properties){
 					}
 				}
 
-				if(cls.prototype.initialize && properties.initialize === cls.prototype.initialize){
-					return cls.prototype.initialize.apply(this,arguments);
+				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
+					return init.prototype.initialize.apply(this,arguments);
 				}
 			};
 		}
@@ -3041,11 +3293,11 @@ function Class(parent, properties){
 		// prototype inheriting
 		var sklass = function(){};
 		sklass.prototype = parent.prototype;
-		cls.prototype = new sklass();
-		cls.prototype.superclass = parent.prototype;
-		cls.prototype.constructor = cls;
+		init.prototype = new sklass();
+		init.prototype.superclass = parent.prototype;
+		init.prototype.constructor = init;
 
-		cls.prototype.super = function(name, args){
+		init.prototype.super = function(name, args){
 			// при вызове super внутри таймаута получим бесконечный цикл
 			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
 			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
@@ -3061,9 +3313,9 @@ function Class(parent, properties){
 		};
 	}
 
-	extend(cls.prototype, properties);
+	extend(init.prototype, properties);
 
-	return cls;
+	return init;
 }
 
 // Bounds class
@@ -3398,7 +3650,9 @@ Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5
 
 	// rgba(255, 100, 20, 0.5)
 	if(value.indexOf('rgb') === 0){
-		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',').map(function(v){
+		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',');
+		var opacity = value[3];
+		value = value.slice(0, 3).map(function(v, i){
 			// rgba(100%, 0%, 50%, 1)
 			if(v.indexOf('%') > 0){
 				return Math.round(parseInt(v) * 2.55);
@@ -3406,9 +3660,10 @@ Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5
 			return parseInt(v);
 		});
 
-		if(value.length === 3){
-			value.push(1);
+		if(opacity === undefined){
+			opacity = 1;
 		}
+		value.push(Number(opacity));
 
 		return value;
 	}
@@ -3504,15 +3759,14 @@ Delta.distance = distance;
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
-// todo: direction
 Drawable.prototype.attrHooks.along = {
 	preAnim: function(fx, data){
-		var curve = data.curve,
-			corner = data.corner || 'center';
+		var curve = data.curve;
 		if(data instanceof Curve || data instanceof Path){
 			curve = data;
-			// нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
+			data = {};
 		}
+		var corner = data.corner || 'center'
 
 		corner = this.corner(corner, data.cornerOptions || {
 			transform: 'ignore'
@@ -3523,9 +3777,9 @@ Drawable.prototype.attrHooks.along = {
 		}
 		fx.initialCoords = corner;
 		fx.curve = curve;
-		// true if the curve is changed while animation
-		// and it is always works like dynamic for some curves
 		if(!data.dynamic){
+			// true if the curve is changed while animation
+			// and along animation works like dynamic for some curves always
 			fx.startCurvePoint = curve.startAt();
 		}
 		this.attr('rotatePivot', corner);
@@ -3574,7 +3828,7 @@ Path.prototype.attrHooks.morph = {
 			];
 		});
 		// todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
-		curve.path.part(index, curveApprox);
+		curve.path.curve(index, curveApprox);
 		fx.curve = curveApprox;
 		fx.index = index;
 	},
@@ -3598,29 +3852,463 @@ Path.prototype.attrHooks.morph = {
 		fx.curve.update();
 
 		if(fx.pos === 1){
-			fx.curve.path.part(fx.index, fx.endCurve);
+			fx.curve.path.curve(fx.index, fx.endCurve);
 		}
 	}
 };
+var CurveApprox = new Class(Curve, {
+	initialize: function(method, attrs, path, detail){
+		this.super('initialize', arguments);
+		this.attrs.detail = detail;
+	},
 
-Delta.version = 1.5;
+	genPoints: function(startPoint){
+		var detail = this.attrs.detail || Curve.detail;
+		var points = [startPoint || this.startAt()];
+		for(var i = 1; i <= detail; i++){
+			points.push(this.pointAt(i / detail, points[0]));
+		}
+		return points;
+	},
 
-Delta.query = function(query, index, element, renderer){
-	if(query + '' === query){
-		query = (element || window.document).querySelectorAll(query)[index || 0];
+	process: function(ctx){
+		if(!this._points){
+			this._points = this.genPoints();
+		}
+
+		this._points.forEach(function(point){
+			ctx.lineTo(point[0], point[1]);
+		});
 	}
-	return new Context(query.canvas || query, renderer);
+});
+
+Delta.CurveApprox = CurveApprox;
+
+var CurvePolyline = new Class(Curve, {
+	initialize: function(method, attrs, path){
+		this.super('initialize', arguments);
+		this.attrs = {
+			points: attrs
+		};
+	},
+
+	process: function(ctx){
+		if(!this._points){
+			this._points = this.genPoints();
+		}
+
+		this._points.forEach(function(point){
+			ctx.lineTo(point[0], point[1]);
+		});
+	}
+});
+
+Delta.CurvePolyline = CurvePolyline;
+
+var GLContext;
+
+// всё, где комментарий "// {{debug}}", нужно убрать из прода (todo: встроить {{debug}} ... {{/debug}} в grunt модуль)
+/*
+Основные оптимизации:
+ - Рисовать объекты с одним буфером вместе.
+ - Рисовать более ближние объекты первыми.
+ */
+
+GLContext = new Class(Context, {
+	initialize: function(canvas){
+		// WebGL
+		this.gl = this._getAndPrepareGLContext(canvas);
+		if(!this.gl){
+			return new Delta.contexts['2d'](canvas);
+		}
+		this.shaders = {};
+		this.buffers = {};
+
+		// Context
+		this.canvas    = canvas;
+		this.elements  = [];
+		this.listeners = {};
+		// array for not yet drawn obs
+		this._missing  = [];
+		this.drawMissingBound = this.drawMissing.bind(this);
+
+		this.updateNowBounded = this.updateNow.bind(this);
+	},
+
+	_getAndPrepareGLContext: function(canvas){
+		var gl;
+
+		if(gl = canvas.getContext('webgl'));
+		else if(gl = canvas.getContext('experimental-webgl'));
+		else if(gl = canvas.getContext('webkit-3d'));
+		else if(gl = canvas.getContext('moz-webgl'));
+		else {
+			// webgl is not supported
+			return null;
+		}
+
+		// проверить, нужно ли вообще эту функцию вызывать
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.clearColor(1, 0.8, 0.9, 1); // maybe 0,0,0,0?
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		return gl;
+	},
+
+	// Methods
+	push : function(element){
+		element.context = this;
+		this.elements.push(element);
+
+		if(element.shadersRequired){
+			element.shadersRequired.forEach(function(shaderName){
+				this.initShader(shaderName);
+			}.bind(this));
+		}
+
+		if(element.drawGL){
+			this._missing.push(element);
+			if(!this._willDrawMissing){
+				requestAnimationFrame(this.drawMissingBound);
+				this._willDrawMissing = true;
+			}
+			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
+			// а в этом тике надо компилировать все нужные для запушленного объекта шейдеры
+			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
+			// и используется первым :P
+			// element.drawGL(this.gl);
+		}
+
+		return element;
+	},
+
+	initShader: function(name){
+		if(this.shaders[name]){
+			return;
+		}
+
+		if(!GLContext.shadersFactory[name]){
+			throw "The shader \"" + name + "\" is not exist.";
+		}
+
+		this.shaders[name] = GLContext.shadersFactory[name](this.gl, this);
+	},
+
+	drawMissing: function(){
+		this._willDrawMissing = false;
+
+		// Рисовать нужно с depth-буфером и в обратном порядке (чтобы gl-ю приходилось меньше рисовать).
+		// Кроме того, подключенный последним шейдер будет заюзан в таком порядке первым.
+		// Кроме того, нужно группировать объекты по шейдерам / буферам.
+		// Но пока не всё понятно в случае с depthtest с blending mode
+		var gl = this.gl;
+		console.time();
+		this._missing.forEach(function(element){
+			element.drawGL(gl);
+		});
+		console.timeEnd();
+	}
+
+});
+
+GLContext.shadersFactory = {
+	'fragment-common': function(gl){
+		return Delta.createShader(gl, gl.FRAGMENT_SHADER, [
+			'#ifdef GL_ES',
+				'precision highp float;',
+			'#endif',
+
+			'varying vec4 vColor;', // а этот шейдер типа не умеет в униформы?
+			'void main(void){',
+				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
+			'}'
+		].join('\n'));;
+	}
 };
 
-Delta.id = function(id, renderer){
-	return new Context(document.getElementById(id), renderer);
+// GL utilities
+Delta.createShader = function(gl, type, source){
+	var shader = gl.createShader(type);
+	gl.shaderSource(shader, source);
+	gl.compileShader(shader);
+	// {{debug}}
+	if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+		var log = gl.getShaderInfoLog(shader);
+		gl.deleteShader(shader);
+		throw "Shader compilation error: " + log;
+	}
+	// {{/debug}}
+	return shader;
+}
+
+Delta.contexts['gl'] = GLContext;
+GLContext.shadersFactory['vertex-rect'] = function(gl){
+	return Delta.createShader(gl, gl.VERTEX_SHADER, [
+		'attribute vec2 aVertexPosition;',
+		'uniform vec4 rectCoords;',
+		'uniform vec4 uColor;',
+		'varying vec4 vColor;',
+		 'float canvasWidth = ' + gl.canvas.width + '.0;',
+		 'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+		'void main(void){',
+			'vColor = uColor;',
+			'gl_Position = vec4(',
+				// тут можно поделить на canvasWidth всё сразу
+				'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+				'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
+				'1.0,',
+				'1.0',
+			');',
+		'}'
+	].join('\n'));
+};
+
+GLContext.shadersFactory['program-rect'] = function(gl, delta){
+	var program = gl.createProgram();
+	gl.attachShader(program, delta.shaders['vertex-rect']);
+	gl.attachShader(program, delta.shaders['fragment-common']);
+	gl.linkProgram(program);
+
+	// {{debug}}
+	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+		throw "Could not initialize shaders";
+	}
+	// {{/debug}}
+
+	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+	gl.useProgram(program);
+	program.uColor = gl.getUniformLocation(program, 'uColor');
+	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+	gl.enableVertexAttribArray(program.v_aVertexPosition);
+	return program;
+}
+
+Rect.prototype.shadersRequired = ['fragment-common', 'vertex-rect', 'program-rect'];
+
+Rect.prototype.drawGL = function(gl){
+	var delta = this.context;
+
+	if(!delta.buffers['rect']){
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+			-1, -1,
+			1, 1,
+			1, -1,
+
+			-1, -1,
+			1, 1,
+			-1, 1
+		]), gl.STATIC_DRAW);
+
+		delta.buffers['rect'] = vertexBuffer;
+	}
+
+	var color = Delta.color(this.styles.fillStyle);
+
+	gl.uniform4f(
+		delta.shaders['program-rect'].uColor,
+		color[0],
+		color[1],
+		color[2],
+		color[3]
+	);
+
+	gl.uniform4f(
+		delta.shaders['program-rect'].rectCoords,
+		this.attrs.x,
+		this.attrs.y,
+		this.attrs.width,
+		this.attrs.height
+	);
+
+	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+};
+
+GLContext.shadersFactory['vertex-path'] = function(gl){
+	return Delta.createShader(gl, gl.VERTEX_SHADER, [
+		'attribute vec2 aVertexPosition;',
+		'uniform vec4 rectCoords;',
+		'uniform vec4 uColor;',
+		'varying vec4 vColor;',
+		'float canvasWidth = ' + gl.canvas.width + '.0;',
+		'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+		'void main(void){',
+			'vColor = uColor;',
+			'gl_Position = vec4(',
+				'aVertexPosition[0],',
+				'aVertexPosition[1],',
+				'1.0,',
+				'1.0',
+			');',
+		'}'
+	].join('\n'));
+};
+
+GLContext.shadersFactory['program-path'] = function(gl, delta){
+	var program = gl.createProgram();
+	gl.attachShader(program, delta.shaders['vertex-path']);
+	gl.attachShader(program, delta.shaders['fragment-common']);
+	gl.linkProgram(program);
+
+	// {{debug}}
+	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+		throw "Could not initialize shaders";
+	}
+	// {{/debug}}
+
+	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+	gl.useProgram(program);
+	program.uColor = gl.getUniformLocation(program, 'uColor');
+	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+	gl.enableVertexAttribArray(program.v_aVertexPosition);
+	return program;
+}
+
+Path.prototype.shadersRequired = ['fragment-common', 'vertex-path', 'program-path'];
+
+Path.prototype.drawGL = function(gl){
+	var delta = this.context;
+
+	if(!delta.buffers['rect']){
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+			0.0, 0.0,
+			0.5, 0.5,
+			0.5, 0.0,
+			0.5, -0.5,
+			-1.0, 0.0
+		]), gl.STATIC_DRAW);
+
+		delta.buffers['rect'] = vertexBuffer;
+	}
+
+	var color = Delta.color(this.styles.fillStyle);
+	gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
+	gl.uniform4f(
+		delta.shaders['program-rect'].rectCoords,
+		10,
+		10,
+		200,
+		200
+	);
+
+	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+	gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
+};
+
+
+
+var defaultOptions = {
+	gravity: [0, 1]
+};
+
+Context.prototype.phys = function(options){
+	options = Delta.extend(Delta.extend({}, defaultOptions), options);
+
+	// move to attrs?
+	if(!this._physParameters){
+		this._physParameters = {};
+		this._physActiveObjects = [];
+	}
+
+	Delta.extend(this._physParameters, options);
+
+	return this;
+};
+
+Drawable.prototype.phys = function(options){
+	var ctx = this.context;
+	if(!ctx._physActiveObjects){
+		ctx.phys();
+	}
+
+	// move to attrs?
+	if(!this._physParameters){
+		this._physParameters = {
+			velocity: [0, 0],
+			acceleration: [0, 0],
+			mass: 1
+		};
+	}
+	if(options){
+		Delta.extend(this._physParameters, options);
+	}
+
+	if(ctx._physActiveObjects.indexOf(this) === -1){
+		ctx._physActiveObjects.push(this);
+	}
+
+	ctx.physUpdate();
+
+	return this;
+};
+
+Context.prototype.physUpdate = function(){
+	if(this._willPhysUpdate){
+		return;
+	}
+
+	if(!this.physTickBound){
+		this.physTickBound = this.physTick.bind(this);
+	}
+
+	requestAnimationFrame(this.physTickBound);
+};
+
+Context.prototype.physTick = function(){
+	var list = this._physActiveObjects;
+	list.slice().forEach(function(element, i){
+		if(!element.physTick()){
+			list.splice(i, 1);
+		}
+	});
+
+	if(list.length){
+		requestAnimationFrame(this.physTickBound);
+	} else {
+		this._willPhysUpdate = false;
+	}
+};
+
+Drawable.prototype.physTick = function(){
+	var ctxOptions = this.context._physParameters;
+	var options = this._physParameters;
+	if(options.velocity[0] !== 0 || options.velocity[1] !== 0){
+		this.translate(options.velocity[0], options.velocity[1]);
+	}
+	options.velocity[0] += options.acceleration[0];
+	options.velocity[1] += options.acceleration[1];
+	// gravity
+	if(!options.ignoreGravity){
+		options.velocity[0] += ctxOptions.gravity[0] * options.mass;
+		options.velocity[1] += ctxOptions.gravity[1] * options.mass;
+	}
+	return options.velocity[0] !== 0 || options.velocity[1] !== 0;
+};
+
+Delta.version = "1.9.0";
+
+Delta.query = function(query, context, index, element){
+	if(query + '' === query){
+		query = (element || document).querySelectorAll(query)[index || 0];
+	}
+	return new Delta.contexts[context || '2d'](query.canvas || query);
+};
+
+Delta.id = function(id, context){
+	return new Delta.contexts[context || '2d'](document.getElementById(id));
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
 	module.exports = Delta;
 } else if(typeof define === 'function' && define.amd){
-	// todo: define with a name?
-	define([], function(){
+	define('Delta', [], function(){
 		return Delta;
 	});
 } else {

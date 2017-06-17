@@ -25,7 +25,7 @@ Path.prototype.attrHooks.morph = {
 			];
 		});
 		// todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
-		curve.path.part(index, curveApprox);
+		curve.path.curve(index, curveApprox);
 		fx.curve = curveApprox;
 		fx.index = index;
 	},
@@ -49,7 +49,7 @@ Path.prototype.attrHooks.morph = {
 		fx.curve.update();
 
 		if(fx.pos === 1){
-			fx.curve.path.part(fx.index, fx.endCurve);
+			fx.curve.path.curve(fx.index, fx.endCurve);
 		}
 	}
 };

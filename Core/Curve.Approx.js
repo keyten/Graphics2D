@@ -25,4 +25,24 @@ var CurveApprox = new Class(Curve, {
 });
 
 Delta.CurveApprox = CurveApprox;
-// todo: rename to CurvePolyline
+
+var CurvePolyline = new Class(Curve, {
+	initialize: function(method, attrs, path){
+		this.super('initialize', arguments);
+		this.attrs = {
+			points: attrs
+		};
+	},
+
+	process: function(ctx){
+		if(!this._points){
+			this._points = this.genPoints();
+		}
+
+		this._points.forEach(function(point){
+			ctx.lineTo(point[0], point[1]);
+		});
+	}
+});
+
+Delta.CurvePolyline = CurvePolyline;

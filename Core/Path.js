@@ -28,8 +28,8 @@ Path = new Class(Drawable, {
 		}
 	}),
 
-	// Parts
-	part: function(index, value){
+	// Curves
+	curve: function(index, value){
 		if(value === undefined){
 			return this.attrs.d[index];
 		}
@@ -91,7 +91,11 @@ Path = new Class(Drawable, {
 		return this.attrs.d.reduce.apply(this.attrs.d, arguments);
 	},
 
-	// Parts addition
+	index: function(curve){
+		return this.attrs.d.indexOf(curve);
+	},
+
+	// Curves addition
 	moveTo: function(x, y){
 		return this.push(['moveTo', x, y]);
 	},

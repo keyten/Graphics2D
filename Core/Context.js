@@ -1,10 +1,10 @@
 var Context;
 
-Context = function(canvas, renderer){
+Context = function(canvas){
 	this.canvas    = canvas;
 	this.elements  = [];
 	this.listeners = {};
-	this.renderer = Delta.renderers[renderer || '2d'];
+	this.renderer = Delta.renderers['2d'];
 	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
@@ -89,11 +89,13 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
+			console.time();
 		this.renderer.preRedraw(ctx, this);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.renderer.postDraw(ctx);
+			console.timeEnd();
 		this._willUpdate = false;
 	},
 

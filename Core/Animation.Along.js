@@ -1,15 +1,14 @@
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
-// todo: direction
 Drawable.prototype.attrHooks.along = {
 	preAnim: function(fx, data){
-		var curve = data.curve,
-			corner = data.corner || 'center';
+		var curve = data.curve;
 		if(data instanceof Curve || data instanceof Path){
 			curve = data;
-			// нужно для Path в fx.curve запихать объект, который будет выдавать pointAt(t) для всего пути
+			data = {};
 		}
+		var corner = data.corner || 'center'
 
 		corner = this.corner(corner, data.cornerOptions || {
 			transform: 'ignore'
@@ -20,9 +19,9 @@ Drawable.prototype.attrHooks.along = {
 		}
 		fx.initialCoords = corner;
 		fx.curve = curve;
-		// true if the curve is changed while animation
-		// and it is always works like dynamic for some curves
 		if(!data.dynamic){
+			// true if the curve is changed while animation
+			// and along animation works like dynamic for some curves always
 			fx.startCurvePoint = curve.startAt();
 		}
 		this.attr('rotatePivot', corner);

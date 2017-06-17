@@ -65,6 +65,10 @@ Delta.renderers = {};
 
 // {{include Context.js}}
 
+Delta.contexts = {
+	'2d': Context
+};
+
 // {{include Drawable.js}}
 // {{include Attrs.Transform.js}}
 
@@ -77,8 +81,11 @@ Delta.renderers = {};
 // {{include Curve.js}}
 // {{include Curve.Math.js}}
 // {{include Math.Line.js}}
+// {{include Math.Quadratic.js}}
+// {{include Math.Bezier.js}}
 
 // {{include Path.js}}
+// {{include Path.Math.js}}
 
 // {{include Image.js}}
 
@@ -91,25 +98,31 @@ Delta.renderers = {};
 // {{include utils.js}}
 // {{include Animation.Along.js}}
 // {{include Animation.Morph.js}}
+// {{include Curve.Approx.js}}
 
-Delta.version = 1.5;
+// {{include Context.WebGL.js}}
+// {{include Rect.WebGL.js}}
+// {{include Path.WebGL.js}}
 
-Delta.query = function(query, index, element, renderer){
+// {{include Phys.js}}
+
+Delta.version = "{{version}}";
+
+Delta.query = function(query, context, index, element){
 	if(query + '' === query){
-		query = (element || window.document).querySelectorAll(query)[index || 0];
+		query = (element || document).querySelectorAll(query)[index || 0];
 	}
-	return new Context(query.canvas || query, renderer);
+	return new Delta.contexts[context || '2d'](query.canvas || query);
 };
 
-Delta.id = function(id, renderer){
-	return new Context(document.getElementById(id), renderer);
+Delta.id = function(id, context){
+	return new Delta.contexts[context || '2d'](document.getElementById(id));
 };
 
 if(typeof module === 'object' && typeof module.exports === 'object'){
 	module.exports = Delta;
 } else if(typeof define === 'function' && define.amd){
-	// todo: define with a name?
-	define([], function(){
+	define('Delta', [], function(){
 		return Delta;
 	});
 } else {

@@ -1,9 +1,8 @@
-// todo: rename to PathPart
 Curve = new Class({
-	initialize: function(method, attrs, path){
+	initialize: function(method, funcAttrs, path){
 		this.method = method;
 		this.path = path;
-		this.attrs = attrs;
+		this.funcAttrs = funcAttrs;
 	},
 
 	update: function(){
@@ -14,46 +13,52 @@ Curve = new Class({
 	},
 
 	process: function(ctx){
-		ctx[this.method].apply(ctx, this.attrs);
+		ctx[this.method].apply(ctx, this.funcAttrs);
 	},
 
 	// Parameters
-	attr: function(name, value){ // name to prop
-		if(name + '' !== name){
-			Object.keys(name).forEach(function(key){
-				this.attr(key, name[key]);
+	attr: function(prop, value){
+		if(prop + '' !== prop){
+			Object.keys(prop).forEach(function(key){
+				this.attr(key, prop[key]);
 			}, this);
 			return this;
 		}
 
-		name = Curve.types[this.method].attrs.indexOf(name);
+		// attrHooks
+		var index = Curve.canvasFunctions[this.method].attrs.indexOf(prop);
 		if(value === undefined){
-			return this.attrs[name];
+			return index > -1 ? this.funcAttrs[index] : (this.attrs || {})[prop];
 		}
-		this.attrs[name] = value;
+
+		if(index > -1){
+			this.funcAttrs[index] = value;
+		} else {
+			(this.attrs || (this.attrs = {}))[prop] = value;
+		}
 		return this.update();
 	},
 
 	bounds: function(prevEnd){
-		if(!Curve.types[this.method].bounds){
+		if(!Curve.canvasFunctions[this.method].bounds){
 			return null;
 		}
-		return Curve.types[this.method].bounds(prevEnd, this.attrs);
+		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.funcAttrs);
 	},
 
 	endAt: function(){
-		if(!Curve.types[this.method].endAt){
+		if(!Curve.canvasFunctions[this.method].endAt){
 			return null;
 		}
-		return Curve.types[this.method].endAt(this.attrs);
+		return Curve.canvasFunctions[this.method].endAt(this.funcAttrs);
 	}
 });
 
-Curve.types = {
+Curve.canvasFunctions = {
 	moveTo: {
 		attrs: ['x', 'y'],
 		endAt: function(attrs){
-			return attrs;
+			return attrs.slice();
 		}
 	},
 	lineTo: {
@@ -62,7 +67,7 @@ Curve.types = {
 			return [from[0], from[1], attrs[0], attrs[1]];
 		},
 		endAt: function(attrs){
-			return attrs;
+			return attrs.slice();
 		}
 	},
 	quadraticCurveTo: {
@@ -128,8 +133,8 @@ Curve.fromArray = function(array, path){
 		return closePath;
 	}
 
-	if(array[0] in Curve.types){
-		return new Curve(array[0], array.slice(1), path);
+	if(array[0] in Delta.curves){
+		return new Delta.curves[array[0]](array[0], array.slice(1), path);
 	}
 
 	return new Curve({
@@ -139,6 +144,13 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
-Delta.curves = Curve.types;
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
 
 Delta.Curve = Curve;

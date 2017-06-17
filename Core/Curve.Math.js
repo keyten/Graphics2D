@@ -9,10 +9,10 @@ extend(Curve.prototype, {
 	},
 
 	pointAt: function(t, startPoint){
-		var type = Curve.types[this.method];
+		var fn = Curve.canvasFunctions[this.method];
 
-		if(type && type.pointAt){
-			return type.pointAt(this, t, startPoint);
+		if(fn && fn.pointAt){
+			return fn.pointAt(this, t, startPoint);
 		}
 
 		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
@@ -41,6 +41,16 @@ extend(Curve.prototype, {
 
 	normalAt: function(t, epsilon, startPoint){
 		return this.tangentAt(t, epsilon, startPoint) - 90;
+	},
+
+	splitAt: function(t, startPoint){
+		var fn = Curve.canvasFunctions[this.method];
+
+		if(fn && fn.splitAt){
+			return fn.splitAt(this, t, startPoint);
+		}
+
+		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
 	},
 
 	length: function(detail){
