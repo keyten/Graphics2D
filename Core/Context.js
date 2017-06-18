@@ -99,6 +99,7 @@ Context.prototype = {
 		this._willUpdate = false;
 	},
 
+	// todo: rename to objectInPoint
 	getObjectInPoint : function(x, y, mouse){
 		var elements = this.elements,
 			i = elements.length;
@@ -106,8 +107,8 @@ Context.prototype = {
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
 		// todo: rename to pointerEvents
-			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
-				(elements[i].attrs.interaction || !mouse) ){
+			if( elements[i].isPointIn && (elements[i].attrs.interaction || !mouse) &&
+				elements[i].isPointIn(x,y) ){
 				return elements[i];
 			}
 		}
@@ -173,9 +174,9 @@ Context.prototype = {
 				if(+e.clientX === e.clientX){
 					this._processPointParams(e, event, e);
 				}
-				['touch', 'changedTouches', 'targetTouches'].forEach(function(prop){
+				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
 					if(e[prop]){
-						Array.prototype.forEach.call(e.touches, function(touch){
+						Array.prototype.forEach.call(e[prop], function(touch){
 							this._processPointParams(touch, event, e);
 						}, this);
 					}

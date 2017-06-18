@@ -474,9 +474,9 @@ Context.prototype = {
 				if(+e.clientX === e.clientX){
 					this._processPointParams(e, event, e);
 				}
-				['touch', 'changedTouches', 'targetTouches'].forEach(function(prop){
+				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
 					if(e[prop]){
-						Array.prototype.forEach.call(e.touches, function(touch){
+						Array.prototype.forEach.call(e[prop], function(touch){
 							this._processPointParams(touch, event, e);
 						}, this);
 					}

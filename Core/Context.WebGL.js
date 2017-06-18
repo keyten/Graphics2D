@@ -23,8 +23,8 @@ GLContext = new Class(Context, {
 		this.listeners = {};
 		// array for not yet drawn obs
 		this._missing  = [];
-		this.drawMissingBound = this.drawMissing.bind(this);
 
+		this.drawMissingBound = this.drawMissing.bind(this);
 		this.updateNowBounded = this.updateNow.bind(this);
 	},
 
