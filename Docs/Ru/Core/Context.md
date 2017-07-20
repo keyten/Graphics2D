@@ -1,15 +1,66 @@
 Delta.Context
 ===================
 
-Свой собственный контекст библиотеки, с помощью которого и можно рисовать. Можно получить так:
+Свой собственный контекст библиотеки, с помощью которого и можно рисовать. Его можно получить так:
 ```js
-var ctx = Graphics2D.id('element'); // canvas с id element
-var ctx = Graphics2D.query('canvas', 0); // первый canvas на странице
-// можно передать и сам элемент
-var ctx = Graphics2D.query(document.getElementById('foo'));
+var ctx = Delta(document.getElementById('foo'));
+var ctx = Delta.id('element'); // canvas с id element
+var ctx = Delta.query('canvas', 0); // первый canvas на странице
 ```
 
 Класс контекста: `Delta.Context`.
+### Элементы
+Различные элементы можно создавать прямо на холсте:
+
+Прямоугольник:
+```js
+ctx.rect(x, y, width, height, [fill, stroke]);
+```
+
+Круг:
+```js
+ctx.circle(centerX, centerY, radius, [fill, stroke]);
+```
+
+Путь:
+```js
+ctx.path(data, [fill, stroke]);
+```
+
+Изображение:
+```js
+ctx.image(x, y, [width, height, crop]);
+```
+
+Текст:
+```js
+ctx.text(text, x, y, [font, fill, stroke]);
+```
+
+Градиент:
+```js
+ctx.gradient(type, colors, from, to);
+```
+
+Паттерн (повторяющийся рисунок):
+```js
+ctx.pattern(image, repeat);
+```
+
+Произвольный объект со своей функцией рисования:
+```js
+ctx.object(data);
+```
+
+Также есть несколько алиасов, которые на самом деле создают path.
+```js
+ctx.line(x1, y1, x2, y2, [stroke]);
+ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
+ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
+ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
+```
+
+Подробно о каждом объекте — в его разделе документации.
 
 ### Методы
 Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:
@@ -18,33 +69,49 @@ ctx.on(‘click’, firstListener)
    .on(‘click’, secondListener)
    .rotate(1)
    .translate(10, 10);
+```
 
 #### on(event, func)
+Ставит обработчик события на canvas. Передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:
+- `targetObject` - объект DeltaJS, на котором находится мышь (либо `null`).
+- `contextX`, `contextY` - координаты мыши на canvas (так, например, левый верхний угол canvas - это `contextX = contextY = 0`).
+
 ```js
-ctx.on('click', function(e){
-    if(e.targetObject){
-        e.targetObject.attr(‘fill’, ’red');
+ctx.on('click', function(event){
+    if(event.targetObject){
+        event.targetObject.attr(‘fill’, ’red');
+    } else {
+        ctx.circle({
+            cx: event.contextX,
+            cy: event.contextY,
+            fill: 'blue'
+        });
     }
-    x = e.contextX;
-    y = e.contextY;
 });
 ```
-Ставит обработчик события на холст. Помимо прочего, расширяет объект `event` (переменная `e` в примере) 3 свойствами:
-- `targetObject` - на каком объекте холста находится мышь.
-- `contextX`, `contextY` - координаты мыши на холсте.
 
-В случае touch-событий этими свойствами расширяется каждый объект в `event.touches`, `event.changedTouches`, `event.targetTouches`.
+В случае touch-событий эти свойства добавляются в каждый объект в `event.touches`, `event.changedTouches`, `event.targetTouches`.
 
-*Примечание: если у canvas-а есть border, события мыши будут ловиться и на нём, но с отрицательными contextX / contextY.*
+В `this` обработчика — контекст DeltaJS.
+
+*Примечание: если у canvas есть border, события мыши будут ловиться и на нём, но с отрицательными contextX / contextY.*
 
 #### off(event, [func])
 ```js
-ctx.on('click', anyfunc);
+// TODO: написать более вменяемый пример
+ctx.on('click', someFunc);
 
-ctx.off('click', anyfunc); // убирает конкретный обработчик
-ctx.off('click'); // убирает все обработчики по click
+function someFunc(){
+    alert('Hello, Delta!');
+    ctx.off('click', someFunc); // убирает обработчик someFunc
+}
+
+// по событию mousewheel удаляем все обработчики клика
+ctx.on('mousewheel', function(){
+    ctx.off('click');
+})
 ```
-Убирает обработчик события с холста.
+Убирает либо конкретный обработчик события, либо все обработчики события.
 
 #### fire(event, [data])
 ```js
@@ -62,7 +129,7 @@ ctx.getObjectInPoint(10, 10);
 Если передать третьим параметром `true`, проигнорирует объекты, у которых параметр `interaction` в `false`.
 
 #### contextCoords(x, y)
-Транслирует экранные координаты (`event.clientX` и `event.clientY`) в координаты контекста. Возвращает массив.
+Транслирует экранные координаты (`event.clientX` и `event.clientY`) в координаты контекста. Возвращает массив с координатами.
 
 Например, мы хотим отловить клик в координатах (10, 10) на контексте:
 ```js
@@ -84,7 +151,7 @@ ctx.on(‘click’, function(event){
 ```
 
 #### update
-Принудительно обновляет холст. Обычно он обновляется сам, когда вы меняете свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов и т.п., может пригодиться. Например:
+Принудительно обновляет холст. Обычно он обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов и т.п., может пригодиться. Например:
 
 ```js
 var rect = ctx.rect(10, 10, 200, 200, ‘red’);
@@ -172,58 +239,5 @@ ctx.transform(m11, m21, m12, m22, m13, m23);
 ```js
 ctx.rotate(90, [0, 0]);
 ```
-
-### Элементы
-Различные элементы можно создавать прямо на холсте:
-
-Прямоугольник:
-```js
-ctx.rect(x, y, width, height, [fill, stroke]);
-```
-
-Круг:
-```js
-ctx.circle(centerX, centerY, radius, [fill, stroke]);
-```
-
-Путь:
-```js
-ctx.path(data, [fill, stroke]);
-```
-
-Изображение:
-```js
-ctx.image(x, y, [width, height, crop]);
-```
-
-Текст:
-```js
-ctx.text(text, x, y, [font, fill, stroke]);
-```
-
-Градиент:
-```js
-ctx.gradient(type, colors, from, to);
-```
-
-Паттерн (повторяющийся рисунок):
-```js
-ctx.pattern(image, repeat);
-```
-
-Произвольный объект:
-```js
-ctx.object(data);
-```
-
-Также есть несколько алиасов, которые на самом деле создают path.
-```js
-ctx.line(x1, y1, x2, y2, [stroke]);
-ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
-ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
-ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
-```
-
-Подробно о каждом объекте — в его разделе документации.
 
 *Примечание: речь о контексте с 2D-рендером. WebGL-контекст имеет дополнительные свойства и методы.*

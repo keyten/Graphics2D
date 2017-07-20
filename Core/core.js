@@ -19,7 +19,6 @@ var Delta = {},
 
 // Local variables
 	document = window.document,
-	emptyFunc = function(){},
 	toString = Object.prototype.toString,
 	slice = Array.prototype.slice,
 	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
