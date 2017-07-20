@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 17.06.2017
+ *  Last edit: 20.07.2017
  *  License: MIT / LGPL
  */
 
@@ -390,16 +390,15 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
-			console.time();
 		this.renderer.preRedraw(ctx, this);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.renderer.postDraw(ctx);
-			console.timeEnd();
 		this._willUpdate = false;
 	},
 
+	// todo: rename to objectInPoint
 	getObjectInPoint : function(x, y, mouse){
 		var elements = this.elements,
 			i = elements.length;
@@ -407,8 +406,8 @@ Context.prototype = {
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
 		// todo: rename to pointerEvents
-			if( elements[i].isPointIn && elements[i].isPointIn(x,y) &&
-				(elements[i].attrs.interaction || !mouse) ){
+			if( elements[i].isPointIn && (elements[i].attrs.interaction || !mouse) &&
+				elements[i].isPointIn(x,y) ){
 				return elements[i];
 			}
 		}
@@ -709,6 +708,8 @@ Delta.Context = Context;
 Delta.contexts = {
 	'2d': Context
 };
+
+Delta.Math = {};
 
 var temporaryCanvas;
 
@@ -1869,6 +1870,8 @@ Curve = new Class({
 	initialize: function(method, funcAttrs, path){
 		this.method = method;
 		this.path = path;
+		this.attrs = {};
+		this.attrHooks = Curve.canvasFunctions[method].attrHooks;
 		this.funcAttrs = funcAttrs;
 	},
 
@@ -1884,27 +1887,7 @@ Curve = new Class({
 	},
 
 	// Parameters
-	attr: function(prop, value){
-		if(prop + '' !== prop){
-			Object.keys(prop).forEach(function(key){
-				this.attr(key, prop[key]);
-			}, this);
-			return this;
-		}
-
-		// attrHooks
-		var index = Curve.canvasFunctions[this.method].attrs.indexOf(prop);
-		if(value === undefined){
-			return index > -1 ? this.funcAttrs[index] : (this.attrs || {})[prop];
-		}
-
-		if(index > -1){
-			this.funcAttrs[index] = value;
-		} else {
-			(this.attrs || (this.attrs = {}))[prop] = value;
-		}
-		return this.update();
-	},
+	attr: Drawable.prototype.attr,
 
 	bounds: function(prevEnd){
 		if(!Curve.canvasFunctions[this.method].bounds){
@@ -1923,13 +1906,13 @@ Curve = new Class({
 
 Curve.canvasFunctions = {
 	moveTo: {
-		attrs: ['x', 'y'],
+		attrHooks: makeAttrHooks(['x', 'y']),
 		endAt: function(attrs){
 			return attrs.slice();
 		}
 	},
 	lineTo: {
-		attrs: ['x', 'y'],
+		attrHooks: makeAttrHooks(['x', 'y']),
 		bounds: function(from, attrs){
 			return [from[0], from[1], attrs[0], attrs[1]];
 		},
@@ -1938,7 +1921,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	quadraticCurveTo: {
-		attrs: ['hx', 'hy', 'x', 'y'],
+		attrHooks: makeAttrHooks(['hx', 'hy', 'x', 'y']),
 		bounds: function(from, attrs){
 			var minX = Math.min(from[0], attrs[0], attrs[2]);
 			var minY = Math.min(from[1], attrs[1], attrs[3]);
@@ -1951,7 +1934,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	bezierCurveTo: {
-		attrs: ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
+		attrHooks: makeAttrHooks(['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y']),
 		bounds: function(from, attrs){
 			var minX = Math.min(from[0], attrs[0], attrs[2], attrs[4]);
 			var minY = Math.min(from[1], attrs[1], attrs[3], attrs[5]);
@@ -1964,7 +1947,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	arc: {
-		attrs: ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
+		attrHooks: makeAttrHooks(['x', 'y', 'radius', 'start', 'end', 'clockwise']),
 		bounds: function(from, attrs){
 			var x = attrs[0],
 				y = attrs[1],
@@ -1991,9 +1974,34 @@ Curve.canvasFunctions = {
 		}
 	},
 	arcTo: {
-		attrs: ['x1', 'y1', 'x2', 'y2', 'radius', 'clockwise']
+		attrHooks: makeAttrHooks(['x1', 'y1', 'x2', 'y2', 'radius', 'clockwise'])
 	}
 };
+
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
+
+function makeAttrHooks(argList){
+	var attrHooks = {};
+	argList.forEach(function(arg, i){
+		attrHooks[arg] = {
+			get: function(){
+				return this.funcAttrs[i];
+			},
+			set: function(value){
+				this.funcAttrs[i] = value;
+				this.update();
+			}
+		};
+	});
+	return attrHooks;
+}
 
 Curve.fromArray = function(array, path){
 	if(array === true){
@@ -2009,15 +2017,6 @@ Curve.fromArray = function(array, path){
 		'4': 'quadraticCurveTo',
 		'6': 'bezierCurveTo'
 	}[array.length], array, path);
-};
-
-Delta.curves = {
-	moveTo: Curve,
-	lineTo: Curve,
-	quadraticCurveTo: Curve,
-	bezierCurveTo: Curve,
-	arc: Curve,
-	arcTo: Curve
 };
 
 Delta.Curve = Curve;
@@ -2121,6 +2120,141 @@ extend(Curve.prototype, {
 	}
 
 });
+var CurveCatmull = new Class(Curve, {
+	initialize: function(method, attrs, path, detail){
+        this.super('initialize', arguments);
+        // h1x, h1y, h2x, h2y, x, y, [detail]
+    },
+
+    tangentAt: function(t, startPoint){
+        if(!startPoint){
+            // startAt is defined in Curve.Math
+            startPoint = this.startAt();
+        }
+
+        var x1 = startPoint[0],
+            y1 = startPoint[1],
+            h1x = this.funcAttrs[0],
+            h1y = this.funcAttrs[1],
+            h2x = this.funcAttrs[2],
+            h2y = this.funcAttrs[3],
+            x2 = this.funcAttrs[4],
+            y2 = this.funcAttrs[5];
+
+		return Math.atan2(
+			0.5 * ( 3*t*t*(-h1y+3*y1-3*y2+h2y) + 2*t*(2*h1y-5*y1+4*y2-h2y) + (-h1y+y2)  ),
+			0.5 * ( 3*t*t*(-h1x+3*x1-3*x2+h2x) + 2*t*(2*h1x-5*x1+4*x2-h2x) + (-h1x+x2)  )
+		) / Math.PI * 180;
+    },
+
+    pointAt: function(t, startPoint){
+        if(!startPoint){
+            // startAt is defined in Curve.Math
+            startPoint = this.startAt();
+        }
+
+        var x1 = startPoint[0],
+            y1 = startPoint[1],
+            h1x = this.funcAttrs[0],
+            h1y = this.funcAttrs[1],
+            h2x = this.funcAttrs[2],
+            h2y = this.funcAttrs[3],
+            x2 = this.funcAttrs[4],
+            y2 = this.funcAttrs[5];
+
+		return [
+            0.5 * ((-h1x + 3*x1 - 3*x2 + h2x)*t*t*t
+				+ (2*h1x - 5*x1 + 4*x2 - h2x)*t*t
+				+ (-x1 + x2)*t
+				+ 2*x1),
+		    0.5 * ((-h1y + 3*y1 - 3*y2 + h2y)*t*t*t
+				+ (2*h1y - 5*y1 + 4*y2 - h2y)*t*t
+				+ (-y1 + y2)*t
+                + 2*y1)
+        ];
+    },
+
+    // todo: convert to bezier
+    process: function(ctx){
+        // startAt is defined in Curve.Math
+        var startPoint = this.startAt(),
+            detail = Curve.detail,
+            point;
+        for(var i = 0; i <= detail; i++){
+            point = this.pointAt(i / detail, startPoint);
+            ctx.lineTo(point[0], point[1]);
+        }
+    }
+});
+
+Delta.curves['catmullTo'] = CurveCatmull;
+Delta.Math.EPSILON_intersection = Number.EPSILON;
+
+Delta.Math.Line = {
+	pointAt: function(start, end, t){
+		return [
+			start[0] + t * (end[0] - start[0]),
+			start[1] + t * (end[1] - start[1])
+		];
+	},
+
+	splitAt: function(start, end, t){
+		var point = Delta.Math.Line.pointAt(start, end, t);
+		return {
+			start: [start, point],
+			end: [point, end]
+		};
+	},
+
+	length: function(start, end){
+		return Math.sqrt(
+			Math.pow(end[0] - start[0], 2) + Math.pow(end[1] - start[1], 2)
+		);
+	},
+
+// why is this func?
+	same: function(line1start, line1end, line2start, line2end){
+		return (
+			Math.abs(line1start[0] - line2start[0]) < Number.EPSILON &&
+			Math.abs(line1start[1] - line2start[1]) < Number.EPSILON &&
+			Math.abs(line1end[0] - line2end[0]) < Number.EPSILON &&
+			Math.abs(line1end[1] - line1end[1]) < Number.EPSILON
+		);
+	},
+
+	// todo: почитать Кормена про этот алгоритм
+	intersection: function(line1start, line1end, line2start, line2end){
+		// what if line1start == line1end or line2start == line2end ?
+		// P1x + (P2x - P1x)t = Q1x + (Q2x - Q1x)v
+		// P1y + (P2y - P1y)t = Q1y + (Q2y - Q1y)v
+
+		// (P2x - P1x)t + (Q1x - Q2x)v = Q1x - P1x
+		// (P2y - P1y)t + (Q1y - Q2y)v = Q1y - P1y
+
+		var det = (line1end[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line1end[1] - line1start[0]) * (line2start[0] - line2end[0]);
+		if(Math.abs(det) < Delta.Math.EPSILON_intersection){
+			if(line1end[0] < line2start[0] || line1start[0] > line2end[0]){
+				return null;
+			}
+
+			// note: lines can intersect in 2 points ([-5,-5], [5, 5] and [-4, -4], [4, 4])
+			// and what if they are same?
+			;
+		} else {
+			var det1 = (line2start[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line2start[1] - line1start[1]) * (line2start[0] - line2end[0]),
+				t = det1 / det;
+			// det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]);
+			// v = det2 / det;
+			if(t >= 0 && t <= 1){
+				return Delta.Math.Line.pointAt(line1start, line1end, t);
+			} else {
+				return null;
+			}
+		}
+	}
+};
+
+// Curves
 Curve.canvasFunctions.moveTo.pointAt = function(curve, t, startPoint){
 	return curve.funcAttrs;
 };
@@ -2151,6 +2285,45 @@ Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
 			[curve.funcAttrs[0], curve.funcAttrs[1]]
 		]
 	};
+};
+
+Delta.Math.Quadratic = {
+	pointAt: function(start, handle, end, t){
+		return [
+			Math.pow(1 - t, 2) * start[0] + 2 * t * (1 - t) * handle[0] + t * t * end[0],
+			Math.pow(1 - t, 2) * start[1] + 2 * t * (1 - t) * handle[1] + t * t * end[1]
+		];
+	},
+
+	splitAt: function(start, handle, end, t){
+		var point = Delta.Math.Quadratic.pointAt(start, handle, end, t);
+		return {
+			start: [
+				start,
+				[
+					t * handle[0] + (1 - t) * start[0],
+					t * handle[1] + (1 - t) * start[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * end[0] + (1 - t) * handle[0],
+					t * end[1] + (1 - t) * handle[1]
+				],
+				end
+			]
+		};
+	},
+
+	length: function(start, handle, end){
+		;
+	},
+
+	intersect: function(line1start, line1handle, line1end, line2start, line2handle, line2end){
+		//;
+	}
 };
 
 Curve.canvasFunctions.quadraticCurveTo.pointAt = function(curve, t, startPoint){
@@ -2195,6 +2368,56 @@ Curve.canvasFunctions.quadraticCurveTo.splitAt = function(curve, t, startPoint){
 			]
 		]
 	};
+};
+
+Delta.Math.Bezier = {
+	pointAt: function(start, handle1, handle2, end, t){
+		return [
+			Math.pow(1 - t, 3) * start[0] + 3 * t * Math.pow(1 - t, 2) * handle1[0] + 3 * t * t * (1 - t) * handle2[0] + t * t * t * end[0],
+			Math.pow(1 - t, 3) * start[1] + 3 * t * Math.pow(1 - t, 2) * handle1[1] + 3 * t * t * (1 - t) * handle2[1] + t * t * t * end[1]
+		];
+	},
+
+	splitAt: function(start, handle1, handle2, end, t){
+		var point = Delta.Math.Bezier.pointAt(start, handle1, handle2, end, t);
+		return {
+			start: [
+				start,
+				[
+					t * handle1[0] + (1 - t) * start[0],
+					t * handle2[1] + (1 - t) * start[1]
+				],
+				[
+					t * t * handle2[0] + 2 * t * (1 - t) * handle1[0] + Math.pow(1 - t, 2) * start[0],
+					t * t * handle2[1] + 2 * t * (1 - t) * handle1[1] + Math.pow(1 - t, 2) * start[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * t * end[0] + 2 * t * (1 - t) * handle2[0] + Math.pow(1 - t, 2) * handle1[0],
+					t * t * end[1] + 2 * t * (1 - t) * handle2[1] + Math.pow(1 - t, 2) * handle1[1]
+				],
+				[
+					t * end[0] - (1 - t) * handle2[0],
+					t * end[1] - (1 - t) * handle2[1]
+				],
+				end
+			]
+		};
+	},
+
+	length: function(start, handle1, handle2, end){
+		;
+	},
+
+	intersect: function(
+		line1start, line1handle1, line1handle2, line1end,
+		line2start, line2handle1, line2handle2, line2end
+		){
+		//;
+	}
 };
 
 Curve.canvasFunctions.bezierCurveTo.pointAt = function(curve, t, startPoint){
@@ -2249,8 +2472,6 @@ Curve.canvasFunctions.bezierCurveTo.splitAt = function(curve, t, startPoint){
 	};
 };
 
-
-var closePath = new Curve('closePath', []);
 
 Path = new Class(Drawable, {
 
@@ -2458,9 +2679,7 @@ Path.parseSVG = function(data, path, firstIsNotMove){
 };
 
 Delta.path = function(){
-	var path = new Path(arguments);
-	path.init();
-	return path;
+	return new Path(arguments);
 };
 
 Delta.Path = Path;
@@ -3930,8 +4149,8 @@ GLContext = new Class(Context, {
 		this.listeners = {};
 		// array for not yet drawn obs
 		this._missing  = [];
-		this.drawMissingBound = this.drawMissing.bind(this);
 
+		this.drawMissingBound = this.drawMissing.bind(this);
 		this.updateNowBounded = this.updateNow.bind(this);
 	},
 
@@ -4001,11 +4220,9 @@ GLContext = new Class(Context, {
 		// Кроме того, нужно группировать объекты по шейдерам / буферам.
 		// Но пока не всё понятно в случае с depthtest с blending mode
 		var gl = this.gl;
-		console.time();
 		this._missing.forEach(function(element){
 			element.drawGL(gl);
 		});
-		console.timeEnd();
 	}
 
 });
@@ -4222,6 +4439,8 @@ Context.prototype.phys = function(options){
 	return this;
 };
 
+// у объекта должна быть физ. форма (например, позволить полигону работать в физике как кругу)
+// позволить склеивать объекты разной массы
 Drawable.prototype.phys = function(options){
 	var ctx = this.context;
 	if(!ctx._physActiveObjects){
@@ -4291,6 +4510,7 @@ Drawable.prototype.physTick = function(){
 	}
 	return options.velocity[0] !== 0 || options.velocity[1] !== 0;
 };
+
 
 Delta.version = "1.9.0";
 

@@ -1,5 +1,3 @@
-var closePath = new Curve('closePath', []);
-
 Path = new Class(Drawable, {
 
 	initialize : function(args, context){
@@ -206,9 +204,7 @@ Path.parseSVG = function(data, path, firstIsNotMove){
 };
 
 Delta.path = function(){
-	var path = new Path(arguments);
-	path.init();
-	return path;
+	return new Path(arguments);
 };
 
 Delta.Path = Path;

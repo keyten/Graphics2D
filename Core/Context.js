@@ -89,13 +89,11 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
-			console.time();
 		this.renderer.preRedraw(ctx, this);
 		this.elements.forEach(function(object){
 			object.draw(ctx);
 		});
 		this.renderer.postDraw(ctx);
-			console.timeEnd();
 		this._willUpdate = false;
 	},
 

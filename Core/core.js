@@ -69,6 +69,8 @@ Delta.contexts = {
 	'2d': Context
 };
 
+// {{include math.js}}
+
 // {{include Drawable.js}}
 // {{include Attrs.Transform.js}}
 
@@ -80,6 +82,7 @@ Delta.contexts = {
 
 // {{include Curve.js}}
 // {{include Curve.Math.js}}
+// {{include Curve.Catmull.js}}
 // {{include Math.Line.js}}
 // {{include Math.Quadratic.js}}
 // {{include Math.Bezier.js}}
@@ -105,6 +108,7 @@ Delta.contexts = {
 // {{include Path.WebGL.js}}
 
 // {{include Phys.js}}
+// {{include Editor.Transform.js}}
 
 Delta.version = "{{version}}";
 

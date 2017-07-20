@@ -1,3 +1,5 @@
+Delta.Math.Rect = {};
+
 function intersect(box1, box2){
 	if(box1.x1 > box2.x2 || box2.x1 > box1.x2){
 		return false;

@@ -16,6 +16,8 @@ Context.prototype.phys = function(options){
 	return this;
 };
 
+// у объекта должна быть физ. форма (например, позволить полигону работать в физике как кругу)
+// позволить склеивать объекты разной массы
 Drawable.prototype.phys = function(options){
 	var ctx = this.context;
 	if(!ctx._physActiveObjects){

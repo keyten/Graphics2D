@@ -94,11 +94,9 @@ GLContext = new Class(Context, {
 		// Кроме того, нужно группировать объекты по шейдерам / буферам.
 		// Но пока не всё понятно в случае с depthtest с blending mode
 		var gl = this.gl;
-		console.time();
 		this._missing.forEach(function(element){
 			element.drawGL(gl);
 		});
-		console.timeEnd();
 	}
 
 });

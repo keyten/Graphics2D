@@ -2,6 +2,8 @@ Curve = new Class({
 	initialize: function(method, funcAttrs, path){
 		this.method = method;
 		this.path = path;
+		this.attrs = {};
+		this.attrHooks = Curve.canvasFunctions[method].attrHooks;
 		this.funcAttrs = funcAttrs;
 	},
 
@@ -17,27 +19,7 @@ Curve = new Class({
 	},
 
 	// Parameters
-	attr: function(prop, value){
-		if(prop + '' !== prop){
-			Object.keys(prop).forEach(function(key){
-				this.attr(key, prop[key]);
-			}, this);
-			return this;
-		}
-
-		// attrHooks
-		var index = Curve.canvasFunctions[this.method].attrs.indexOf(prop);
-		if(value === undefined){
-			return index > -1 ? this.funcAttrs[index] : (this.attrs || {})[prop];
-		}
-
-		if(index > -1){
-			this.funcAttrs[index] = value;
-		} else {
-			(this.attrs || (this.attrs = {}))[prop] = value;
-		}
-		return this.update();
-	},
+	attr: Drawable.prototype.attr,
 
 	bounds: function(prevEnd){
 		if(!Curve.canvasFunctions[this.method].bounds){
@@ -56,13 +38,13 @@ Curve = new Class({
 
 Curve.canvasFunctions = {
 	moveTo: {
-		attrs: ['x', 'y'],
+		attrHooks: makeAttrHooks(['x', 'y']),
 		endAt: function(attrs){
 			return attrs.slice();
 		}
 	},
 	lineTo: {
-		attrs: ['x', 'y'],
+		attrHooks: makeAttrHooks(['x', 'y']),
 		bounds: function(from, attrs){
 			return [from[0], from[1], attrs[0], attrs[1]];
 		},
@@ -71,7 +53,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	quadraticCurveTo: {
-		attrs: ['hx', 'hy', 'x', 'y'],
+		attrHooks: makeAttrHooks(['hx', 'hy', 'x', 'y']),
 		bounds: function(from, attrs){
 			var minX = Math.min(from[0], attrs[0], attrs[2]);
 			var minY = Math.min(from[1], attrs[1], attrs[3]);
@@ -84,7 +66,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	bezierCurveTo: {
-		attrs: ['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y'],
+		attrHooks: makeAttrHooks(['h1x', 'h1y', 'h2x', 'h2y', 'x', 'y']),
 		bounds: function(from, attrs){
 			var minX = Math.min(from[0], attrs[0], attrs[2], attrs[4]);
 			var minY = Math.min(from[1], attrs[1], attrs[3], attrs[5]);
@@ -97,7 +79,7 @@ Curve.canvasFunctions = {
 		}
 	},
 	arc: {
-		attrs: ['x', 'y', 'radius', 'start', 'end', 'clockwise'],
+		attrHooks: makeAttrHooks(['x', 'y', 'radius', 'start', 'end', 'clockwise']),
 		bounds: function(from, attrs){
 			var x = attrs[0],
 				y = attrs[1],
@@ -124,9 +106,34 @@ Curve.canvasFunctions = {
 		}
 	},
 	arcTo: {
-		attrs: ['x1', 'y1', 'x2', 'y2', 'radius', 'clockwise']
+		attrHooks: makeAttrHooks(['x1', 'y1', 'x2', 'y2', 'radius', 'clockwise'])
 	}
 };
+
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
+
+function makeAttrHooks(argList){
+	var attrHooks = {};
+	argList.forEach(function(arg, i){
+		attrHooks[arg] = {
+			get: function(){
+				return this.funcAttrs[i];
+			},
+			set: function(value){
+				this.funcAttrs[i] = value;
+				this.update();
+			}
+		};
+	});
+	return attrHooks;
+}
 
 Curve.fromArray = function(array, path){
 	if(array === true){
@@ -142,15 +149,6 @@ Curve.fromArray = function(array, path){
 		'4': 'quadraticCurveTo',
 		'6': 'bezierCurveTo'
 	}[array.length], array, path);
-};
-
-Delta.curves = {
-	moveTo: Curve,
-	lineTo: Curve,
-	quadraticCurveTo: Curve,
-	bezierCurveTo: Curve,
-	arc: Curve,
-	arcTo: Curve
 };
 
 Delta.Curve = Curve;

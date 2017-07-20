@@ -6,25 +6,25 @@ Delta.Context
 var ctx = Graphics2D.id('element'); // canvas с id element
 var ctx = Graphics2D.query('canvas', 0); // первый canvas на странице
 // можно передать и сам элемент
-var ctx = Graphics2D.query( document.getElementById('foo') );
+var ctx = Graphics2D.query(document.getElementById('foo'));
 ```
 
 Класс контекста: `Delta.Context`.
 
 ### Методы
-Все методы возвращают сам контекст, если не требуется иного.
-
-#### getObjectInPoint(x, y)
+Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:
 ```js
-ctx.getObjectInPoint(10, 10);
-```
-Возвращает объект, находящийся в точке `(x; y)`, либо `null`, если такого нет.
-Если передать третьим параметром `true`, проигнорирует объекты, у которых параметр `interaction` в `false`.
+ctx.on(‘click’, firstListener)
+   .on(‘click’, secondListener)
+   .rotate(1)
+   .translate(10, 10);
 
 #### on(event, func)
 ```js
 ctx.on('click', function(e){
-    e.targetObject.fill('red');
+    if(e.targetObject){
+        e.targetObject.attr(‘fill’, ’red');
+    }
     x = e.contextX;
     y = e.contextY;
 });
@@ -48,11 +48,18 @@ ctx.off('click'); // убирает все обработчики по click
 
 #### fire(event, [data])
 ```js
-ctx.on('click', function(data){ console.log(data.text); });
+ctx.on(‘someCustomEvent’, function(data){ console.log(data.text); });
 
-ctx.fire('click', {text:'anytext'});
+ctx.fire(‘someCustomEvent’, {text:'anytext'});
 ```
 Запускает все установленные обработчики события.
+
+#### getObjectInPoint(x, y)
+```js
+ctx.getObjectInPoint(10, 10);
+```
+Возвращает объект, находящийся в точке `(x; y)`, либо `null`, если такого нет.
+Если передать третьим параметром `true`, проигнорирует объекты, у которых параметр `interaction` в `false`.
 
 #### contextCoords(x, y)
 Транслирует экранные координаты (`event.clientX` и `event.clientY`) в координаты контекста. Возвращает массив.
@@ -66,18 +73,33 @@ canvas.addEventListener('click', function(event){
     }
 });
 ```
-*Но лучше это делать через ctx.on('click', ...) и contextX / contextY.*
+
+*Но лучше это делать через ctx.on('click', ...) и contextX / contextY:*
+```js
+ctx.on(‘click’, function(event){
+    if(event.contextX === 10 && event.contextY === 10){
+        console.log(‘Ура!’);
+    }
+});
+```
 
 #### update
+Принудительно обновляет холст. Обычно он обновляется сам, когда вы меняете свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов и т.п., может пригодиться. Например:
+
 ```js
+var rect = ctx.rect(10, 10, 200, 200, ‘red’);
+// а вот если вызвать rect.attr(‘fill’, ‘blue’), холст обновится сам
+rect.style.fillStyle = ‘blue’;
 ctx.update();
 ```
-Обновляет холст. Требуется, если вы вручную хотите изменять внутренние параметры объектов и т.п.
 
-### Алиасы
+### Алиасы событий
 ```js
 ctx.click(function(){ console.log(3); });
-ctx.click(); // = fire('click');
+// вместо ctx.on(‘click’, function(){ console.log(3); });
+
+ctx.click();
+// вместо ctx.fire('click');
 ```
 Все возможные алиасы:
  - `click`
@@ -204,4 +226,4 @@ ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
 
 Подробно о каждом объекте — в его разделе документации.
 
-*Примечание: речь о контексте с 2D-рендером. WebGL-контекст имеет дополнительные свойства.*
+*Примечание: речь о контексте с 2D-рендером. WebGL-контекст имеет дополнительные свойства и методы.*
