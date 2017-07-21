@@ -1,10 +1,10 @@
-var Handlebars, markdown = {}, isLog = true;
+var Handlebars,
+	markdown = {},
+	isLog = true;
 
 module.exports = function(grunt) {
 
 	grunt.initConfig({});
-
-	function build(){}
 
 	grunt.registerTask('build', function(){
 		var template = grunt.file.read('template/index.html');
@@ -12,16 +12,17 @@ module.exports = function(grunt) {
 		if(grunt.file.exists('config.json')){
 			config = grunt.file.readJSON('config.json');
 		}
+
 		grunt.file.recurse('pages', function(path){
 			var content = grunt.file.read(path),
 				url = path.split('.'),
 				extension = url.pop();
 
 			url = url.join('/').split('/').slice(1);
+
 			if(url[url.length-1] === 'index'){
 				url = url.join('/') + '.html';
-			}
-			else {
+			} else {
 				url = url.join('/') + '/index.html';
 			}
 
@@ -39,8 +40,9 @@ module.exports = function(grunt) {
 				return;
 			}
 
-			if(isLog)
+			if(isLog){
 				grunt.log.writeln('Page processing: ' + path);
+			}
 			grunt.file.write(url, content);
 		});
 	});
@@ -483,7 +485,7 @@ var __module2__ = (function(__dependency1__, __dependency2__) {
 			if(context.hasOwnProperty(key)) {
 				// We're running the iterations one step out of sync so we can detect
 				// the last iteration without have to scan the object twice and create
-				// an itermediate keys array. 
+				// an itermediate keys array.
 				if (priorKey) {
 				execIteration(priorKey, i-1);
 				}
@@ -1039,7 +1041,7 @@ var __module9__ = (function() {
 
 	var $0 = $$.length - 1;
 	switch (yystate) {
-	case 1: return $$[$0-1]; 
+	case 1: return $$[$0-1];
 	break;
 	case 2:this.$ = new yy.Program($$[$0], null, {}, yy.locInfo(this._$));
 	break;
@@ -1079,7 +1081,7 @@ var __module9__ = (function() {
 		program.chained = true;
 
 		this.$ = { strip: $$[$0-2].strip, program: program, chain: true };
-	
+
 	break;
 	case 19:this.$ = $$[$0];
 	break;
@@ -1121,7 +1123,7 @@ var __module9__ = (function() {
 	break;
 	case 38:this.$ = yy.preparePath(false, $$[$0], this._$);
 	break;
-	case 39: $$[$0-2].push({part: $$[$0], separator: $$[$0-1]}); this.$ = $$[$0-2]; 
+	case 39: $$[$0-2].push({part: $$[$0], separator: $$[$0-1]}); this.$ = $$[$0-2];
 	break;
 	case 40:this.$ = [{part: $$[$0]}];
 	break;
@@ -1470,22 +1472,22 @@ var __module9__ = (function() {
 										 this.begin("mu");
 									 }
 									 if(yy_.yytext) return 14;
-									 
+
 	break;
 	case 1:return 14;
 	break;
 	case 2:
 									 this.popState();
 									 return 14;
-									 
+
 	break;
 	case 3:
 									yy_.yytext = yy_.yytext.substr(5, yy_.yyleng-9);
 									this.popState();
 									return 16;
-									 
+
 	break;
-	case 4: return 14; 
+	case 4: return 14;
 	break;
 	case 5:
 	this.popState();
@@ -1496,13 +1498,13 @@ var __module9__ = (function() {
 	break;
 	case 7:return 62;
 	break;
-	case 8: return 17; 
+	case 8: return 17;
 	break;
 	case 9:
 									this.popState();
 									this.begin('raw');
 									return 21;
-									 
+
 	break;
 	case 10:return 53;
 	break;
@@ -1846,7 +1848,7 @@ var __module10__ = (function(__dependency1__) {
 	return mustache.strip;
 	};
 
-	WhitespaceControl.prototype.PartialStatement = 
+	WhitespaceControl.prototype.PartialStatement =
 		WhitespaceControl.prototype.CommentStatement = function(node) {
 	/* istanbul ignore next */
 	var strip = node.strip || {};

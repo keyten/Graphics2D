@@ -1,4 +1,4 @@
-<div id="menu">
+<!-- <div id="menu">
 	<a href="/features/">Features</a>
 	<a href="http://github.com/keyten/Graphics2D">Github</a>
 	<a href="http://github.com/keyten/Graphics2D/issues">Bugs & Issues</a>
@@ -19,4 +19,78 @@
 	<a href="/examples/gradients/">Gradients</a>
 	<a href="/examples/transformations">Transformations</a>
 	<a href="/examples/textblock">Textblock</a>
-</div>
+</div> -->
+
+<!-- можно написать в фичах про:
+Touch devices support
+HDPI devices
+Serialization, deserialization ( ctx.load('./objects.json'); )
+
+И записать:
+### А также:
+ - Физ. движок.
+ - Графики.
+ - Математическая библиотека.
+ - Фильтры.
+ - Работа с кривыми и путями.
+ Блаблаблаблабла.
+
+(вообще запилить бы большую страницу с демками по каждой теме)
+-->
+<div class="description">
+			 DeltaJS is a powerful, quick and simple JavaScript framework for drawing and creating interaction on HTML5 Canvas.
+		</div>
+		<h2>Features</h2>
+		<div class="column1">
+			<h3>Easy working with objects</h3>
+			<p>Object-oriented API</p>
+			<!-- по маусоверу должен слева (или справа в зависимости от колонки) открываться балун с примером -->
+			<pre><code>// getting the context
+var ctx = Delta.query('#example1');
+
+// making two circles
+var first = ctx.circle(200, 200, 50, '#0af');
+var second = ctx.circle(250, 250, 70, '#a0f');
+
+// adding a stroke to the 1st circle
+first.attr('stroke', '2px black');</code></pre>
+			<h3>Transforms</h3>
+			<p>Add and rotate a rect</p>
+			<pre><code>// making a rect
+var rect = ctx.rect(100, 100, 50, 50, 'red');
+
+// rotate it on 45 degree
+rect.rotate(45);</code></pre>
+			<p style="margin-top: 15px">Rotate on 1 degree each millisecond</p>
+			<pre><code>setInterval(function(){
+    rect.rotate(1);
+});</code></pre>
+		</div>
+		<div class="column2">
+			<h3>Mouse events</h3>
+			<p>An object changing its color on hover.</p>
+			<pre><code>// making a triangle as a path
+var triangle = ctx.path([
+    [100, 10],
+    [10, 90],
+    [190, 90]
+], 'red');
+
+// adding event listeners
+triangle.on('mouseover', function(){
+	this.attr('fill', 'blue');
+}).on('mouseout', function(){
+	this.attr('fill', 'red');
+});</code></pre>
+			<h3>Animation</h3>
+			<p>Add and animate a rect</p>
+			<pre><code>// making a rect
+var rect = ctx.rect(10, 100, 80, 50, 'red');
+
+// animate
+rect.animate({
+    x: 100,
+    width: 40,
+    fill: 'blue'
+}, 1000);</code></pre>
+		</div>
