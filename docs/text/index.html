@@ -5,7 +5,9 @@
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
-	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
 	<script>
 		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
 			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
@@ -31,66 +33,51 @@
 		</a>
 	</header>
 
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is a powerful, quick and simple JavaScript framework for drawing and creating interaction on HTML5 Canvas.
+	</div>
+
 	<content>
-		<h1>Text</h1>
-
+		<h1 id="text">Text</h1>
 <p>A text. Parameters: <code>text</code>, <code>[font]</code>, <code>x</code>, <code>y</code>, <code>fill</code>, <code>stroke</code>.</p>
-
 <pre><code>var text = ctx.text(&#39;Hello, world\n:)&#39;, 10, 10, &#39;black&#39;);
-var text2 = ctx.text(&#39;Kyle Katarn, at your service...&#39;, &#39;Arial 12pt&#39;, 10, 50, &#39;red&#39;);</code></pre>
-
-<p>Or</p>
-
+var text2 = ctx.text(&#39;Kyle Katarn, at your service...&#39;, &#39;Arial 12pt&#39;, 10, 50, &#39;red&#39;);
+</code></pre><p>Or</p>
 <pre><code>var text = ctx.text({
-	text: loremIpsumText,
-	font: &#39;Arial 15pt&#39;,
-	x: 10,
-	y: 10,
+    text: loremIpsumText,
+    font: &#39;Arial 15pt&#39;,
+    x: 10,
+    y: 10,
 
-	align: &#39;center&#39;,
-	width: 100,
-	baseline: &#39;top&#39;,
+    align: &#39;center&#39;,
+    width: 100,
+    baseline: &#39;top&#39;,
 
-	fill: &#39;blue&#39;
-});</code></pre>
-
-<p><em>Note: if you&#39;re using width (the block&#39;s width), then adding auto breaklines.</em></p>
-
-<h2>Methods</h2>
-
-<h3>x, y</h3>
-
+    fill: &#39;blue&#39;
+});
+</code></pre><p><em>Note: if you&#39;re using width (the block&#39;s width), then adding auto breaklines.</em></p>
+<h2 id="methods">Methods</h2>
+<h3 id="x-y">x, y</h3>
 <p>Sets / returns properties.</p>
-
-<pre><code>text.x(); // -> 10
+<pre><code>text.x(); // -&gt; 10
 text.x(20);
 
-text.y(); // -> 10
-text.y(20);</code></pre>
-
-<h3>width</h3>
-
+text.y(); // -&gt; 10
+text.y(20);
+</code></pre><h3 id="width">width</h3>
 <p>The block&#39;s max width.</p>
-
-<pre><code>text.width(); // -> 200
-text.width(100);</code></pre>
-
-<p>Or the text width:</p>
-
+<pre><code>text.width(); // -&gt; 200
+text.width(100);
+</code></pre><p>Or the text width:</p>
 <pre><code>var t = ctx.text(&#39;Hey, G2D :P&#39;, 10, 10);
-t.width(); // -> (number in pixels)</code></pre>
-
-<h3>breaklines</h3>
-
+t.width(); // -&gt; (number in pixels)
+</code></pre><h3 id="breaklines">breaklines</h3>
 <p>Boolean.</p>
+<pre><code>text.breaklines(false);
+</code></pre><h3 id="font">font</h3>
+<pre><code>text.font(); // -&gt; { family (string), size (int), bold, italic (bool) }
 
-<pre><code>text.breaklines(false);</code></pre>
-
-<h3>font</h3>
-
-<pre><code>text.font(); // -> { family (string), size (int), bold, italic (bool) }
-
-text.font(true); // -> &#39;Arial 12px&#39;
+text.font(true); // -&gt; &#39;Arial 12px&#39;
 
 text.font(&#39;Comic Sans MS 2px bold&#39;);
 // or:
@@ -100,34 +87,26 @@ text.font(&#39;Comic 2px Sans bold MS&#39;);
 
 // P.S. Don&#39;t use Comic Sans
 
-// text.font({ family: &#39;Arial&#39;, bold: true });</code></pre>
-
-<h3>align</h3>
-
+// text.font({ family: &#39;Arial&#39;, bold: true });
+</code></pre><h3 id="align">align</h3>
 <p>Default: <code>left</code>. Also: <code>center</code>, <code>right</code>.</p>
-
 <pre><code>text.align();
-text.align(&#39;center&#39;);</code></pre>
-
-<h3>baseline</h3>
-
+text.align(&#39;center&#39;);
+</code></pre><h3 id="baseline">baseline</h3>
 <p>Vertical align.</p>
-
-<h2>Object</h2>
-
+<h2 id="object">Object</h2>
 <p><code>Graphics2D.Text</code> -- class.</p>
-
-<pre><code>text.width === Graphics2D.Text.prototype.width;</code></pre>
-
-<p><code>Graphics2D.text</code> -- abstract objects without context.</p>
-
+<pre><code>text.width === Graphics2D.Text.prototype.width;
+</code></pre><p><code>Graphics2D.text</code> -- abstract objects without context.</p>
 <pre><code>var text = Graphics2D.text(&#39;There is no spoon&#39;, 10, 10);
 text.fill(&#39;red&#39;);
 text.rotate(3);
-ctx.push(text);</code></pre>
+ctx.push(text);
+</code></pre>
 	</content>
 
 	<footer>
+
 		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
 			<option>English</option>
 			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
@@ -136,94 +115,10 @@ ctx.push(text);</code></pre>
 
 		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
 	</footer>
-<style>
-content > .description {
-	background: #eee;
-	box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.1);
-	font-size: 25px;
-	font-weight: 100;
-	line-height: 40px;
-	padding-top: 40px;
-	padding-bottom: 40px;
-
-	margin-bottom: 30px;
-}
-
-content > .column1,
-content > .column2 {
-	display: inline-block;
-	padding: 0;
-	width: 29%;
-	vertical-align: top;
-	margin-top: 5px;
-}
-
-content > .column1 {
-	margin-left: 20%;
-	margin-right: 2%;
-}
-
-content > .column2 {}
-
-content p {
-	font-weight: 300;
-	margin-bottom: 10px;
-}
-
-content h3 {
-	background: rgba(140, 137, 180, 0.6);
-	color: white;
-	margin-top: 15px;
-	margin-bottom: 18px;
-	font-weight: 400;
-	font-size: 18px;
-	padding: 5px;
-	border-radius: 2px;
-	text-shadow: 0 0 1px rgba(0, 0, 0, 0.9);
-}
-
-
-</style>
 
 <!-- highlight.js - style tomorrow -->
 <!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
 <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
-	<!-- header -->
-<!--	<div id="header_wrap" class="outer">
-		<header class="inner">
-			<div id="header_menu">
-				<a href="/">Home</a>
-				<a href="/sandbox/">Sandbox</a>
-				<a href="/examples/">Examples</a>
-				<a href="/docs/">Docs</a>
-				<a href="/download/">Download</a>
-				<a href="/plugins/">Plugins</a>
-			</div>
-			<h1 id="project_title">Graphics2D.js</h1>
-			<span id="project_tagline">canvas framework</span>
-		</header>
-	</div> -->
-
-	<!-- content -->
-<!--	<div id="main_content_wrap" class="outer">
-		<section id="main_content" class="inner">
-
-		</section>
-	</div> -->
-
-	<!-- footer -->
-<!--	<div id="footer_wrap" class="outer">
-		<footer class="inner">
-			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
-				<option>English</option>
-				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
-			</select>
-
-
-			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
-		</footer>
-	</div> -->
-
 </body>
 </html>

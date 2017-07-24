@@ -5,7 +5,9 @@
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
-	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
 	<script>
 		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
 			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
@@ -31,111 +33,105 @@
 		</a>
 	</header>
 
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is a powerful, quick and simple JavaScript framework for drawing and creating interaction on HTML5 Canvas.
+	</div>
+
 	<content>
-		<h1>Path</h1>
-
+		<h1 id="path">Path</h1>
 <p>A path (contains curves).</p>
-
 <pre><code>var path = ctx.path([
-	[10, 10],
-	[200, 200],
-	[400, 10]
-], &#39;red&#39;, &#39;blue 5&#39;);</code></pre>
-
-<ul><li>First point -- moveTo.</li><li>2 arguments -- lineTo.</li><li>4 arguments -- quadraticCurveTo.</li><li>6 arguments -- bezierCurveTo.</li><li><code>true</code> -- closePath.</li><li><p>First argument is string -- curve.</p><p>var path = ctx.path([
-	[10, 10],
-	[&#39;arc&#39;, 100, 100, ...]
-]);</p></li><li><p>Curve:</p><p>var path = ctx.path([
-	new Graphics2D.Curve(&#39;lineTo&#39;, [10, 10])
-]);</p></li></ul>
-
-<h2>Methods</h2>
-
-<h3>curve</h3>
-
+    [10, 10],
+    [200, 200],
+    [400, 10]
+], &#39;red&#39;, &#39;blue 5&#39;);
+</code></pre><ul>
+<li>First point -- moveTo.</li>
+<li>2 arguments -- lineTo.</li>
+<li>4 arguments -- quadraticCurveTo.</li>
+<li>6 arguments -- bezierCurveTo.</li>
+<li><code>true</code> -- closePath.</li>
+<li><p>First argument is string -- curve.</p>
+<p> var path = ctx.path([</p>
+<pre><code> [10, 10],
+ [&#39;arc&#39;, 100, 100, ...]
+</code></pre><p> ]);</p>
+</li>
+<li><p>Curve:</p>
+<p> var path = ctx.path([</p>
+<pre><code> new Graphics2D.Curve(&#39;lineTo&#39;, [10, 10])
+</code></pre><p> ]);</p>
+</li>
+</ul>
+<h2 id="methods">Methods</h2>
+<h3 id="curve">curve</h3>
 <p>Returns / replaces a curve.</p>
-
 <pre><code>var curve = path.curve(1);
-curve.x(); // -> 200
+curve.x(); // -&gt; 200
 
 // replace 2nd curve to moveTo
 path.curve(1, [&#39;moveTo&#39;, 100, 100]);
 
 // replace 2nd curve to two curves
-path.curve(1, [[100, 100], [&#39;moveTo&#39;, 200, 200]]);</code></pre>
-
-<h3>curves</h3>
-
+path.curve(1, [[100, 100], [&#39;moveTo&#39;, 200, 200]]);
+</code></pre><h3 id="curves">curves</h3>
 <p>Returns / replaces all the curves.</p>
-
 <pre><code>var curves = path.curves();
 // array with Curve objects
 
-path.curves([[100, 100], [200, 200]]);</code></pre>
-
-<h3>before</h3>
-
+path.curves([[100, 100], [200, 200]]);
+</code></pre><h3 id="before">before</h3>
 <p>Puts a curve before other.</p>
-
 <pre><code>// put a lineTo before 2nd
-path.before(1, [100, 100]);</code></pre>
-
-<h3>after</h3>
-
+path.before(1, [100, 100]);
+</code></pre><h3 id="after">after</h3>
 <p>Puts a curve after.</p>
-
-<h3>remove</h3>
-
+<h3 id="remove">remove</h3>
 <p>Removes a curve.</p>
-
 <pre><code>// remove the 2nd curve
 path.remove(1);
 
 // without parameters -- removes the path, inherited from Shape
-path.remove();</code></pre>
-
-<h3>push</h3>
-
+path.remove();
+</code></pre><h3 id="push">push</h3>
 <p>Pushes a curve. Is used by other functions.</p>
-
-<pre><code>path.push( new Graphics2D.Curve(&#39;lineTo&#39;, [100, 100]) );</code></pre>
-
-<h3>add</h3>
-
+<pre><code>path.push( new Graphics2D.Curve(&#39;lineTo&#39;, [100, 100]) );
+</code></pre><h3 id="add">add</h3>
 <p>Adds a curve.</p>
-
-<pre><code>path.add(&#39;lineTo&#39;, [200, 200]);</code></pre>
-
-<h3>Curve functions</h3>
-
-<ul><li><code>moveTo(x, y)</code>.</li><li><code>lineTo(x, y)</code>.</li><li><code>quadraticCurveTo(hx, hy, x, y)</code>.</li><li><code>bezierCurveTo(h1x, h1y, h2x, h2y, x, y)</code>.</li><li><code>arc(x, y, radius, start, end, clockwise)</code>.</li><li><code>arcTo(x1, y1, x2, y2, radius, clockwise)</code>.</li><li><p><code>closePath</code>.</p><p>path.moveTo(100, 100);
-path.lineTo(200, 200);
-path.quadraticCurveTo(300, 200, 300, 100);
-path.closePath();</p></li></ul>
-
-<h3>merge</h3>
-
+<pre><code>path.add(&#39;lineTo&#39;, [200, 200]);
+</code></pre><h3 id="curve-functions">Curve functions</h3>
+<ul>
+<li><code>moveTo(x, y)</code>.</li>
+<li><code>lineTo(x, y)</code>.</li>
+<li><code>quadraticCurveTo(hx, hy, x, y)</code>.</li>
+<li><code>bezierCurveTo(h1x, h1y, h2x, h2y, x, y)</code>.</li>
+<li><code>arc(x, y, radius, start, end, clockwise)</code>.</li>
+<li><code>arcTo(x1, y1, x2, y2, radius, clockwise)</code>.</li>
+<li><p><code>closePath</code>.</p>
+<p> path.moveTo(100, 100);
+ path.lineTo(200, 200);
+ path.quadraticCurveTo(300, 200, 300, 100);
+ path.closePath();</p>
+</li>
+</ul>
+<h3 id="merge">merge</h3>
 <p>Merges a path with other.</p>
-
-<pre><code>path.merge(path2);</code></pre>
-
-<h2>Object</h2>
-
+<pre><code>path.merge(path2);
+</code></pre><h2 id="object">Object</h2>
 <p><code>Graphics2D.Path</code> -- class.</p>
-
-<pre><code>path.curve === Graphics2D.Path.prototype.curve;</code></pre>
-
-<p><code>Graphics2D.path</code> -- abstract object without context.</p>
-
+<pre><code>path.curve === Graphics2D.Path.prototype.curve;
+</code></pre><p><code>Graphics2D.path</code> -- abstract object without context.</p>
 <pre><code>var path = Graphics2D.path([]);
 path.moveTo(10, 10);
 path.lineTo(200, 200);
 path.fill(&#39;red&#39;);
 
-ctx.push(path);</code></pre>
+ctx.push(path);
+</code></pre>
 	</content>
 
 	<footer>
+
 		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
 			<option>English</option>
 			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
@@ -144,94 +140,10 @@ ctx.push(path);</code></pre>
 
 		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
 	</footer>
-<style>
-content > .description {
-	background: #eee;
-	box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.1);
-	font-size: 25px;
-	font-weight: 100;
-	line-height: 40px;
-	padding-top: 40px;
-	padding-bottom: 40px;
-
-	margin-bottom: 30px;
-}
-
-content > .column1,
-content > .column2 {
-	display: inline-block;
-	padding: 0;
-	width: 29%;
-	vertical-align: top;
-	margin-top: 5px;
-}
-
-content > .column1 {
-	margin-left: 20%;
-	margin-right: 2%;
-}
-
-content > .column2 {}
-
-content p {
-	font-weight: 300;
-	margin-bottom: 10px;
-}
-
-content h3 {
-	background: rgba(140, 137, 180, 0.6);
-	color: white;
-	margin-top: 15px;
-	margin-bottom: 18px;
-	font-weight: 400;
-	font-size: 18px;
-	padding: 5px;
-	border-radius: 2px;
-	text-shadow: 0 0 1px rgba(0, 0, 0, 0.9);
-}
-
-
-</style>
 
 <!-- highlight.js - style tomorrow -->
 <!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
 <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
-	<!-- header -->
-<!--	<div id="header_wrap" class="outer">
-		<header class="inner">
-			<div id="header_menu">
-				<a href="/">Home</a>
-				<a href="/sandbox/">Sandbox</a>
-				<a href="/examples/">Examples</a>
-				<a href="/docs/">Docs</a>
-				<a href="/download/">Download</a>
-				<a href="/plugins/">Plugins</a>
-			</div>
-			<h1 id="project_title">Graphics2D.js</h1>
-			<span id="project_tagline">canvas framework</span>
-		</header>
-	</div> -->
-
-	<!-- content -->
-<!--	<div id="main_content_wrap" class="outer">
-		<section id="main_content" class="inner">
-
-		</section>
-	</div> -->
-
-	<!-- footer -->
-<!--	<div id="footer_wrap" class="outer">
-		<footer class="inner">
-			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
-				<option>English</option>
-				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
-			</select>
-
-
-			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
-		</footer>
-	</div> -->
-
 </body>
 </html>

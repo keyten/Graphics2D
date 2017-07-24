@@ -5,7 +5,9 @@
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
 	<meta name="description" content="Graphics2D: JavaScript canvas library" />
-	<link rel="stylesheet" type="text/css" media="screen" href="/css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
 	<script>
 		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
 			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
@@ -31,130 +33,209 @@
 		</a>
 	</header>
 
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is a powerful, quick and simple JavaScript framework for drawing and creating interaction on HTML5 Canvas.
+	</div>
+
 	<content>
-		<h1>Context</h1>
+		<h1 id="delta-context">Delta.Context</h1>
+<p>Свой собственный контекст библиотеки, с помощью которого и можно рисовать. Его можно получить так:</p>
+<pre><code class="lang-js">var ctx = Delta(document.getElementById(&#39;foo&#39;));
+var ctx = Delta.id(&#39;element&#39;); // canvas с id element
+var ctx = Delta.query(&#39;canvas&#39;, 0); // первый canvas на странице
+</code></pre>
+<p>Класс контекста: Delta.Context.</p>
+<h3 id="-">Элементы</h3>
+<p>Различные элементы можно создавать прямо на холсте:</p>
+<p>Прямоугольник:</p>
+<pre><code class="lang-js">ctx.rect(x, y, width, height, [fill, stroke]);
+</code></pre>
+<p>Круг:</p>
+<pre><code class="lang-js">ctx.circle(centerX, centerY, radius, [fill, stroke]);
+</code></pre>
+<p>Путь:</p>
+<pre><code class="lang-js">ctx.path(data, [fill, stroke]);
+</code></pre>
+<p>Изображение:</p>
+<pre><code class="lang-js">ctx.image(x, y, [width, height, crop]);
+</code></pre>
+<p>Текст:</p>
+<pre><code class="lang-js">ctx.text(text, x, y, [font, fill, stroke]);
+</code></pre>
+<p>Градиент:</p>
+<pre><code class="lang-js">ctx.gradient(type, colors, from, to);
+</code></pre>
+<p>Паттерн (повторяющийся рисунок):</p>
+<pre><code class="lang-js">ctx.pattern(image, repeat);
+</code></pre>
+<p>Произвольный объект со своей функцией рисования:</p>
+<pre><code class="lang-js">ctx.object(data);
+</code></pre>
+<p>Также есть несколько алиасов, которые на самом деле создают path.</p>
+<pre><code class="lang-js">ctx.line(x1, y1, x2, y2, [stroke]);
+ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
+ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
+ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
+</code></pre>
+<p>Подробно о каждом объекте — в его разделе документации.</p>
+<h3 id="-">Методы</h3>
+<p>Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:</p>
+<pre><code class="lang-js">ctx.on(‘click’, firstListener)
+   .on(‘click’, secondListener)
+   .rotate(1)
+   .translate(10, 10);
+</code></pre>
+<h4 id="on-event-func-">on(event, func)</h4>
+<p>Ставит обработчик события на canvas. Передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:</p>
+<ul>
+<li><code>targetObject</code> - объект DeltaJS, на котором находится мышь (либо <code>null</code>).</li>
+<li><code>contextX</code>, <code>contextY</code> - координаты мыши на canvas (так, например, левый верхний угол canvas - это <code>contextX = contextY = 0</code>).</li>
+</ul>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, function(event){
+    if(event.targetObject){
+        event.targetObject.attr(‘fill’, ’red&#39;);
+    } else {
+        ctx.circle({
+            cx: event.contextX,
+            cy: event.contextY,
+            fill: &#39;blue&#39;
+        });
+    }
+});
+</code></pre>
+<p>В случае touch-событий эти свойства добавляются в каждый объект в <code>event.touches</code>, <code>event.changedTouches</code>, <code>event.targetTouches</code>.</p>
+<p>В <code>this</code> обработчика — контекст DeltaJS.</p>
+<p><em>Примечание: если у canvas есть border, события мыши будут ловиться и на нём, но с отрицательными contextX / contextY.</em></p>
+<h4 id="off-event-func-">off(event, [func])</h4>
+<pre><code class="lang-js">// TODO: написать более вменяемый пример
+ctx.on(&#39;click&#39;, someFunc);
 
-<p>Basic Graphics2D context. You can use on of this functions:</p>
+function someFunc(){
+    alert(&#39;Hello, Delta!&#39;);
+    ctx.off(&#39;click&#39;, someFunc); // убирает обработчик someFunc
+}
 
-<pre><code>var ctx = Graphics2D.id(&#39;mycanvas&#39;);
-var ctx = Graphics2D.query(&#39;canvas&#39;); // the first canvas
-var ctx = Graphics2D.query(&#39;canvas&#39;, 1); // the second canvas
-var ctx = Graphics2D.query( document.getElementById(&#39;mycanvas&#39;) );</code></pre>
+// по событию mousewheel удаляем все обработчики клика
+ctx.on(&#39;mousewheel&#39;, function(){
+    ctx.off(&#39;click&#39;);
+})
+</code></pre>
+<p>Убирает либо конкретный обработчик события, либо все обработчики события.</p>
+<h4 id="fire-event-data-">fire(event, [data])</h4>
+<pre><code class="lang-js">ctx.on(‘someCustomEvent’, function(data){ console.log(data.text); });
 
-<p>Or</p>
-
-<pre><code>var cnv = document.createElement(&#39;canvas&#39;);
-var ctx = new Graphics2D.Context(cnv);</code></pre>
-
-<h2>Methods</h2>
-
-<p>All methods returns their context instead of undefined.</p>
-
-<h3>getObjectInPoint( x, y, [mouse] )</h3>
-
-<p>Returns an object in <strong>(x, y)</strong> or null. <code>Mouse = true</code> - pass objects without mouse processing (the <code>mouse</code> method to switch off).</p>
-
-<pre><code>var first = ctx.rect(0, 0, 10, 10, &#39;red&#39;),
-	second = ctx.rect(5, 5, 10, 10, &#39;blue&#39;);
-second.mouse(false);
-ctx.getObjectInPoint(7, 7); // == second
-ctx.getObjectInPoint(7, 7, true); // == first</code></pre>
-
-<h3>push( object )</h3>
-
-<p>Adds <em>object</em> to redraw and event processing. More is (/tutorials/native/)[here].</p>
-
-<pre><code>ctx.push({
-	draw : function(ctx){
-		ctx.fillRect(0, 0, 1, 1);
-	}
-});</code></pre>
-
-<h3>update</h3>
-
-<p>Redraws canvas in 1 ms (without repeating):</p>
-
-<pre><code>ctx.update();
+ctx.fire(‘someCustomEvent’, {text:&#39;anytext&#39;});
+</code></pre>
+<p>Запускает все установленные обработчики события.</p>
+<h4 id="getobjectinpoint-x-y-">getObjectInPoint(x, y)</h4>
+<pre><code class="lang-js">ctx.getObjectInPoint(10, 10);
+</code></pre>
+<p>Возвращает объект, находящийся в точке <code>(x; y)</code>, либо <code>null</code>, если такого нет.
+Если передать третьим параметром <code>true</code>, проигнорирует объекты, у которых параметр <code>interaction</code> в <code>false</code>.</p>
+<h4 id="contextcoords-x-y-">contextCoords(x, y)</h4>
+<p>Транслирует экранные координаты (<code>event.clientX</code> и <code>event.clientY</code>) в координаты контекста. Возвращает массив с координатами.</p>
+<p>Например, мы хотим отловить клик в координатах (10, 10) на контексте:</p>
+<pre><code class="lang-js">canvas.addEventListener(&#39;click&#39;, function(event){
+    var coords = ctx.contextCoords(event.clientX, event.clientY);
+    if(coords[0] === 10 &amp;&amp; coords[1] === 10){
+        console.log(&#39;Ура!&#39;);
+    }
+});
+</code></pre>
+<p><em>Но лучше это делать через ctx.on(&#39;click&#39;, ...) и contextX / contextY:</em></p>
+<pre><code class="lang-js">ctx.on(‘click’, function(event){
+    if(event.contextX === 10 &amp;&amp; event.contextY === 10){
+        console.log(‘Ура!’);
+    }
+});
+</code></pre>
+<h4 id="update">update</h4>
+<p>Принудительно обновляет холст. Обычно он обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов и т.п., может пригодиться. Например:</p>
+<pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, ‘red’);
+// а вот если вызвать rect.attr(‘fill’, ‘blue’), холст обновится сам
+rect.style.fillStyle = ‘blue’;
 ctx.update();
-ctx.update(); // 3 calls, 1 update</code></pre>
+</code></pre>
+<h3 id="-">Алиасы событий</h3>
+<pre><code class="lang-js">ctx.click(function(){ console.log(3); });
+// вместо ctx.on(‘click’, function(){ console.log(3); });
 
-<p><em>Note: use ctx._update() for instant update.</em>
-<em>Note2: you don&#39;t need this function, all objects update canvas themselves.</em></p>
+ctx.click();
+// вместо ctx.fire(&#39;click&#39;);
+</code></pre>
+<p>Все возможные алиасы:</p>
+<ul>
+<li><code>click</code></li>
+<li><code>dblclick</code></li>
+<li><code>mousedown</code></li>
+<li><code>mouseup</code></li>
+<li><code>mousemove</code></li>
+<li><code>mouseover</code></li>
+<li><code>mouseout</code></li>
+<li><code>mouseenter</code></li>
+<li><code>mouseleave</code></li>
+<li><code>mousewheel</code></li>
+<li><code>focus</code></li>
+<li><code>blur</code></li>
+<li><code>keypress</code></li>
+<li><code>keydown</code></li>
+<li><code>keyup</code></li>
+<li><code>touchstart</code></li>
+<li><code>touchmove</code></li>
+<li><code>touchend</code></li>
+<li><code>touchcancel</code></li>
+<li><code>pointerover</code></li>
+<li><code>pointerenter</code></li>
+<li><code>pointerdown</code></li>
+<li><code>pointermove</code></li>
+<li><code>pointerup</code></li>
+<li><code>pointercancel</code></li>
+<li><code>pointerout</code></li>
+<li><code>pointerleave</code></li>
+<li><code>gotpointercapture</code></li>
+<li><code>lostpointercapture</code></li>
+</ul>
+<h3 id="-">Трансформации</h3>
+<p>Можно трансформировать весь холст. Везде кроме <code>translate</code> можно задавать pivot - точку, которая останется на месте при деформации.</p>
+<pre><code class="lang-js">ctx.translate(x, y);
 
-<h3>on( event, function )</h3>
+ctx.rotate(45); // поворот на 45 градусов вокруг центра
+ctx.rotate(1, &#39;left top&#39;); // на 1 градус вокруг верхней левой точки
 
-<p>Adds listener to canvas. Event object have 3 special properties.</p>
+ctx.scale(factor); // масштаб в factor раз по обоим осям (вокруг центра)
+ctx.scale(x, y); // масштаб в x и y раз по осям (вокруг центра)
+ctx.scale(factor, &#39;left top&#39;); // масштаб вокруг верхней левой точки
+ctx.scale(x, y, &#39;left top&#39;);
 
-<pre><code>ctx.on(&#39;click&#39;, function(e){
-	// this == ctx
-	e.targetObject; // object on canvas or null
-	e.contextX; // mouse coordinates on context
-	e.contextY;
-});</code></pre>
+ctx.skew(factor); // скос на factor градусов
+ctx.skew(x, y);
+ctx.skew(factor, &#39;left top&#39;);
+ctx.skew(x, y, &#39;left top&#39;);
+</code></pre>
+<p>Кроме того, можно трансформировать с помощью матрицы:</p>
+<pre><code class="lang-js">ctx.transform(m11, m21, m12, m22, m13, m23);
+</code></pre>
+<p>Сама текущая матрица находится в <code>ctx.matrix</code> (все вышеперечисленные методы её изменяют). Либо <code>null</code>.</p>
+<p>Возможные pivot-ы. Считаются относительно boundbox-а фигуры:</p>
+<ul>
+<li><code>left</code> - центр левой стороны.</li>
+<li><code>right</code> - центр правой стороны.</li>
+<li><code>top</code> - центр верхней стороны.</li>
+<li><code>bottom</code> - центр нижней стороны.</li>
+<li><code>left top</code>, <code>top left</code>, <code>lt</code>, <code>tl</code> - верхний левый угол.</li>
+<li><code>left bottom</code>, <code>bottom left</code>, <code>lb</code>, <code>bl</code> - нижний левый.</li>
+<li><code>right top</code>, <code>top right</code>, <code>rt</code>, <code>tr</code> - верхний правый.</li>
+<li><code>right bottom</code>, <code>bottom right</code>, <code>rb</code>, <code>br</code> - нижний правый.</li>
+</ul>
+<p>Также можно передать координаты точки. Например:</p>
+<pre><code class="lang-js">ctx.rotate(90, [0, 0]);
+</code></pre>
+<p><em>Примечание: речь о контексте с 2D-рендером. WebGL-контекст имеет дополнительные свойства и методы.</em></p>
 
-<p><em>Note: you can use timers:</em></p>
-
-<pre><code>ctx.on(1000, function(e){
-	// this == ctx
-});</code></pre>
-
-<h3>once( event, function )</h3>
-
-<p>Listener, that will be removed after first call.</p>
-
-<h3>off( [event, [function]] )</h3>
-
-<p>Removes: 1. One listener. 2. All the listeners of an event. 3. All the listeners.</p>
-
-<pre><code>ctx.off(&#39;click&#39;, callback);
-ctx.off(&#39;click&#39;);
-ctx.off();</code></pre>
-
-<h3>fire( event, [data] )</h3>
-
-<p>Calls all the listeners of event.</p>
-
-<pre><code>ctx.on(&#39;click&#39;, function(data){
-	console.log(data.text);
-});
-ctx.fire(&#39;click&#39;, { text:&#39;anytext&#39; });
-// -> &#39;anytext&#39; to console</code></pre>
-
-<h3>Aliases</h3>
-
-<p>With argument = <code>on</code>, without = <code>fire</code>.</p>
-
-<pre><code>ctx.click(function(e){
-	console.log(3);
-});
-ctx.click(); // = ctx.fire(&#39;click&#39;);</code></pre>
-
-<p>Available aliases:
- - <code>click</code>
- - <code>dblclick</code>
- - <code>mousedown</code>
- - <code>mouseup</code>
- - <code>mousemove</code>
- - <code>mouseover</code>
- - <code>mouseout</code>
- - <code>mousewheel</code>
- - <code>focus</code>
- - <code>blur</code>
- - <code>touchstart</code>
- - <code>touchmove</code>
- - <code>touchend</code>
- - <code>keypress</code>
- - <code>keydown</code>
- - <code>keyup</code></p>
-
-<h3>Elements</h3>
-
-<p>See other objects.</p>
-
-<pre><code>ctx.rect(10, 10, 200, 200, &#39;black&#39;);</code></pre>
 	</content>
 
 	<footer>
+
 		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
 			<option>English</option>
 			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
@@ -163,94 +244,10 @@ ctx.click(); // = ctx.fire(&#39;click&#39;);</code></pre>
 
 		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
 	</footer>
-<style>
-content > .description {
-	background: #eee;
-	box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.1);
-	font-size: 25px;
-	font-weight: 100;
-	line-height: 40px;
-	padding-top: 40px;
-	padding-bottom: 40px;
-
-	margin-bottom: 30px;
-}
-
-content > .column1,
-content > .column2 {
-	display: inline-block;
-	padding: 0;
-	width: 29%;
-	vertical-align: top;
-	margin-top: 5px;
-}
-
-content > .column1 {
-	margin-left: 20%;
-	margin-right: 2%;
-}
-
-content > .column2 {}
-
-content p {
-	font-weight: 300;
-	margin-bottom: 10px;
-}
-
-content h3 {
-	background: rgba(140, 137, 180, 0.6);
-	color: white;
-	margin-top: 15px;
-	margin-bottom: 18px;
-	font-weight: 400;
-	font-size: 18px;
-	padding: 5px;
-	border-radius: 2px;
-	text-shadow: 0 0 1px rgba(0, 0, 0, 0.9);
-}
-
-
-</style>
 
 <!-- highlight.js - style tomorrow -->
 <!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
 <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
-	<!-- header -->
-<!--	<div id="header_wrap" class="outer">
-		<header class="inner">
-			<div id="header_menu">
-				<a href="/">Home</a>
-				<a href="/sandbox/">Sandbox</a>
-				<a href="/examples/">Examples</a>
-				<a href="/docs/">Docs</a>
-				<a href="/download/">Download</a>
-				<a href="/plugins/">Plugins</a>
-			</div>
-			<h1 id="project_title">Graphics2D.js</h1>
-			<span id="project_tagline">canvas framework</span>
-		</header>
-	</div> -->
-
-	<!-- content -->
-<!--	<div id="main_content_wrap" class="outer">
-		<section id="main_content" class="inner">
-
-		</section>
-	</div> -->
-
-	<!-- footer -->
-<!--	<div id="footer_wrap" class="outer">
-		<footer class="inner">
-			<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
-				<option>English</option>
-				<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
-			</select>
-
-
-			<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
-		</footer>
-	</div> -->
-
 </body>
 </html>
