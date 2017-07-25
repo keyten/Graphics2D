@@ -18,17 +18,39 @@ a:hover {
 	transition: 0.3s;
 }
 
+h1, h2, h3, h4, h5, h6 {
+	margin-top: 15px;
+	margin-bottom: 5px;
+}
+
 h2 {
 	font-weight: 400;
 	font-size: 30px;
-	color: rgba(100, 127, 200, 0.8);
+}
+
+ul, ol {
+	margin: 10px 0;
+	padding-left: 20px;
+}
+
+ul li, ol li {
+	padding: 5px 0;
+}
+
+p {
+	margin: 10px 0;
 }
 
 pre {
 	background: #eee;
 	padding: 5px;
 	border-radius: 5px;
-/*	font-family: 'Source Code Pro'; */
+	margin: 10px 0;
+}
+
+code {
+	font-family: 'Source Code Pro'; /* todo: найти шрифт с кириллицей */
+	font-size: 10pt;
 }
 
 header {
