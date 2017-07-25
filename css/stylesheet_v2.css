@@ -18,34 +18,44 @@ a:hover {
 	transition: 0.3s;
 }
 
+content h1:first-child,
+content h2:first-child,
+content h3:first-child,
+content h4:first-child,
+content h5:first-child,
+content h6:first-child {
+	margin-top: 10px;
+}
+
 h1, h2, h3, h4, h5, h6 {
-	margin-top: 15px;
-	margin-bottom: 5px;
+	margin-top: 25px;
+	margin-bottom: 15px;
 	font-weight: 400;
 }
 
+/* todo: посинхронизировать размеры с гитхабовскими */
 h1 {
-	font-size: 35px;
+	font-size: 2em;
 }
 
 h2 {
-	font-size: 30px;
+	font-size: 1.5em;
 }
 
 h3 {
-	font-size: 26px;
+	font-size: 1.25em;
 }
 
 h4 {
-	font-size: 23px;
+	font-size: 1em;
 }
 
 h5 {
-	font-size: 20px;
+	font-size: 0.875em;
 }
 
 h6 {
-	font-size: 18px;
+	font-size: 0.85em;
 }
 
 ul, ol {
@@ -59,6 +69,7 @@ ul li, ol li {
 
 p {
 	margin: 10px 0;
+	line-height: 16pt;
 }
 
 pre {
@@ -69,8 +80,18 @@ pre {
 }
 
 code {
-	font-family: 'Source Code Pro'; /* todo: найти шрифт с кириллицей */
+	font-family: 'Source Code Pro', Menlo, Consolas, Monospace, monospace;
+	font-size: 11pt; /* only for source code pro! */
+	background: #eee;
+	border-radius: 5px;
+	padding: 3px 5px;
+	margin: 0 1px;
+}
+
+pre code {
 	font-size: 10pt;
+	margin: 0;
+	padding: 0;
 }
 
 header {

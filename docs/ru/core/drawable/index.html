@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Delta.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
+	<script>
+		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
+			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
+		}
+	</script>
+</head>
+<body>
+
+<!-- http://tholman.com/github-corners/ -->
+<a href="https://github.com/keyten/Graphics2D" class="github-corner" aria-label="View source on Github"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#FD6C6C; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+<style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+
+	<header>
+		<div class="menu">
+			<a href="/download/">Download</a>
+			<a href="/docs/">Core</a>
+			<a href="/docs/">More</a>
+			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
+			<a href="/examples/">Examples</a>
+			<!-- Sandbox, m? -->
+		</div>
+
+		<a href="/">
+			<h1>
+				<span class="delta">Δ</span>.js
+			</h1>
+		</a>
+	</header>
+
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is an <b>HTML5 Canvas</b> framework. It is quick, simple and <b>very powerful</b>.
+	</div>
+
+	<content>
+		<h2 id="delta-drawable">Delta.Drawable</h2>
+<p><code>Delta.Drawable</code> — абстрактный класс, от которого наследуются все рисуемые объекты: <code>Rect</code>, <code>Circle</code>, <code>Path</code>, <code>Image</code>, <code>Text</code>, а также кастомные объекты (созданные через <code>ctx.object</code>).</p>
+<p>Здесь перечислены их общие функции, а также некоторые другие общие особенности.</p>
+<h3 id="-">Создание</h3>
+<p>Любой объект можно создать двумя способами — передавая список аргументов или же объект с параметрами. Во втором случае можно дополнительно передать свойства <code>opacity</code>, <code>composite</code>, <code>clip</code>, <code>visible</code>.</p>
+<p>В первом случае первыми передаются параметры самого объекта, затем заливка и обводка (<code>fill</code> и <code>stroke</code>). Вместо заливки или обводки можно указать <code>null</code> или <code>undefined</code>.
+Например:</p>
+<pre><code class="lang-js">// квадрат с заливкой и обводкой
+ctx.rect(10, 10, 200, 200, &#39;black&#39;, &#39;2px black round&#39;);
+
+// квадрат без заливки с обводкой
+ctx.rect(200, 200, 30, 30, null, &#39;5pt green&#39;);
+
+// квадрат без всего:
+ctx.rect(10, 10, 10, 10, null, null);
+// или:
+ctx.rect(10, 10, 10, 10);
+</code></pre>
+<p>Второй случай:</p>
+<pre><code class="lang-js">ctx.rect({
+  x: 10,
+  y: 10,
+  width: 200,
+  height: 200,
+
+  fill: &#39;black&#39;,
+  opacity: 0.8,
+  composite: &#39;xor&#39;
+});
+</code></pre>
+<p>Можно создавать объекты без заливки и обводки: они будут невидимы, но при этом будут реагировать на события мыши (отключается через <code>obj.attr(&#39;interaction&#39;, false)</code>). Подобным образом можно создавать кликабельные области.</p>
+<p>Также везде в качестве координат можно указывать CSS-координаты:</p>
+<pre><code class="lang-js">ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39; &#39;1em&#39;);
+</code></pre>
+<h3 id="-">Методы:</h3>
+<p>Практически все параметры следуют &quot;jQuery-way&quot;: вместо 2 функций &quot;getAttr&quot; и &quot;setAttr&quot; здесь присутствует одна функция &quot;attr&quot;, которая ведёт себя по-разному в зависимости от аргументов. Отказ от традиционных свойств объекта (<code>shape.fill = &#39;red&#39;</code>) связан с тем, что изменение любого свойства вызывает перерисовку контекста, в традиционных свойствах это возможно только через геттеры / сеттеры ES5.</p>
+<p>Помимо этого, использование методов вместо свойств позволяет использовать чеининг:</p>
+<pre><code class="lang-js">shape.attr(&#39;fill&#39;, &#39;red&#39;)
+     .attr(&#39;stroke&#39;, &#39;blue 2px&#39;)
+     .on(&#39;click&#39;, &#39;fill&#39;, &#39;blue&#39;)
+     .rotate(45);
+</code></pre>
+<h4 id="fill">fill</h4>
+<p>Заливка объекта:</p>
+<pre><code class="lang-js">rect.fill(&#39;red&#39;);
+rect.fill(); // -&gt; &#39;red&#39;
+</code></pre>
+<p>Объект со свойством <code>colors</code> воспринимается как градиент:</p>
+<pre><code class="lang-js">rect.fill({
+    colors:[&#39;red&#39;, &#39;green&#39;, &#39;black&#39;],
+    from: &#39;top&#39;,
+    to: &#39;bottom&#39;
+});
+</code></pre>
+<p>Если передаётся объект со свойством <code>image</code>, картинка (обычный dom-элемент <code>img</code> или объект <code>Image</code>), или же строка, начинающаяся с <code>http://</code>, <code>./</code>, <code>../</code> или <code>data</code>, это понимается как текстура.</p>
+<pre><code class="lang-js">rect.fill(&#39;./image.jpg&#39;);
+</code></pre>
+<p>При этом создаётся объект <code>Gradient</code> или <code>Pattern</code>, который можно дальше изменять:</p>
+<pre><code class="lang-js">rect.fill({
+    colors: [&#39;white&#39;, &#39;black&#39;],
+    from: &#39;top&#39;,
+    to: &#39;bottom&#39;
+});
+
+rect.fill().color(0.5, &#39;red&#39;);
+</code></pre>
+<h4 id="stroke">stroke</h4>
+<p>Обводка объекта:</p>
+<pre><code class="lang-js">rect.stroke(&#39;10px red&#39;);
+rect.stroke(); // -&gt; {color: &#39;red&#39;, width: 10}
+</code></pre>
+<p>Чтобы изменить, можно передать строку или объект:</p>
+<pre><code class="lang-js">rect.stroke(&#39;0.5em round square [1,2] green 0.5&#39;);
+rect.stroke({
+    color: &#39;black&#39;,
+    width: &#39;4px&#39;,
+    join: &#39;round&#39;,
+    cap: &#39;butt&#39;,
+    dash: &#39;dot&#39;
+});
+</code></pre>
+<p>При этом изменяются только указанные параметры:</p>
+<pre><code class="lang-js">rect.stroke(&#39;7pt&#39;); // изменит только толщину, не тронув цвет и всё остальное
+</code></pre>
+<p>Возможные параметры:</p>
+<ul>
+<li><code>width</code> / ширина -- <code>2px</code>, <code>0.5em</code>, <code>8</code> и т.п.</li>
+<li><code>color</code> / цвет -- <code>#f00</code>, <code>green</code>, <code>rgb(0,0,0)</code> и т.п.</li>
+<li><code>join</code>  / тип соединений -- <code>miter</code>, <code>bevel</code>, <code>round</code>.</li>
+<li><code>cap</code>   / тип скруглений -- <code>butt</code>, <code>square</code>, <code>round</code>.</li>
+<li><code>dash</code>  / пунктир -- <code>[1,2,2]</code>, <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.</li>
+<li>прозрачность -- <code>0.5</code>, <code>.3</code> -- всегда только float, указывается только в текстовом варианте, вычисляется сразу же (сделано для удобства -- например, <code>green 0.5</code> вместо <code>rgba(0, 128, 0, 0.5)</code>).</li>
+</ul>
+<p>Можно сбросить все параметры (убрать stroke), передав <code>null</code>:</p>
+<pre><code class="lang-js">rect.stroke(null);
+</code></pre>
+<h4 id="opacity">opacity</h4>
+<p>Прозрачность (число от 0 до 1).</p>
+<h4 id="composite">composite</h4>
+<p>Функция наложения объектов друг на друга. Варианты: <code>source-over</code>, <code>source-atop</code>, <code>source-in</code>, <code>source-out</code>, <code>destination-over</code>, <code>destination-atop</code>, <code>destination-in</code>, <code>destination-out</code>, <code>lighter</code>, <code>darker</code>, <code>copy</code>, <code>xor</code>.</p>
+<p>Некоторые браузеры поддерживают немного больше: <code>normal</code>, <code>multiply</code>, <code>screen</code>, <code>overlay</code>, <code>darken</code>, <code>lighten</code>, <code>color-dodge</code>, <code>color-burn</code>, <code>hard-light</code>, <code>soft-light</code>, <code>difference</code>, <code>exclusion</code>, <code>hue</code>, <code>saturation</code>, <code>color</code>, <code>luminosity</code>.</p>
+<p>Стандарт: <a href="http://dev.w3.org/fxtf/compositing-1">http://dev.w3.org/fxtf/compositing-1</a>
+MDN: <a href="http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing">http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing</a></p>
+<h4 id="hide-show">hide, show</h4>
+<p>Делают объект видимым / невидимым. Без анимации, просто отключают его отрисовку.</p>
+<p>Ожидается, что невидимый объект не будет реагировать на события, поэтому <code>hide</code> / <code>show</code> также включают / отключают обработку событий мыши. Если требуется другое поведение, нужно использовать функцию <code>mouse</code> после этого.</p>
+<h4 id="cursor">cursor</h4>
+<p>Устанавливает курсор при наведении мыши на объект. <em>(пока работает не всегда корректно)</em></p>
+<pre><code class="lang-js">rect.cursor(&#39;pointer&#39;);
+</code></pre>
+<h4 id="z">z</h4>
+<p>Z-index объекта.</p>
+<p>Z-index в понятии Graphics2D -- просто индекс элемента (а, соответственно, и каким по счёту отрисовывается):</p>
+<pre><code class="lang-js">// предполагается, что canvas пуст, так что начальный z-index = 0
+var a = ctx.rect(10, 10, 200, 200);
+var b = ctx.circle(100, 100, 50);
+a.z(); // -&gt; 0
+b.z(); // -&gt; 1
+
+b.z(0);
+b.z(); // -&gt; 0
+a.z(); // -&gt; 1
+</code></pre>
+<p>Двух объектов с одинаковым индексом существовать на одном контексте не может.</p>
+<h4 id="ispointin-x-y-">isPointIn(x, y)</h4>
+<p>Возвращает <code>true</code>, если точка <code>(x; y)</code> находится внутри объекта / фигуры, иначе <code>false</code>.</p>
+<p>При этом учитывается сама фигура, а не её прямоугольник.</p>
+<h4 id="bounds">bounds</h4>
+<p>/*
+Возвращает прямоугольник (хитбокс) объекта. Свойства:</p>
+<ul>
+<li><code>x</code>, <code>y</code> или <code>x1</code>, <code>y1</code> -- координаты левой верхней точки.</li>
+<li><code>x2</code>, <code>y2</code> -- координаты правой нижней точки.</li>
+<li><code>width</code>, <code>height</code> = <code>w</code>, <code>h</code> -- ширина и высота.</li>
+<li><code>cx</code>, <code>cy</code> -- координаты центра.</li>
+</ul>
+<p>Также можно передать объект со свойством <code>transform</code> (true / false) и <code>stroke</code> (true / false / &#39;exclude&#39;) -- обрабатывать ли трансформацию и обводку (&#39;exclude&#39; исключает размеры обводки из объекта):</p>
+<pre><code class="lang-js">var bounds1 = shape.bounds(),
+    bounds2 = shape.bounds({ transform: false });
+</code></pre>
+<p>По умолчанию <code>transform: true, stroke: false</code>. */</p>
+<h4 id="corner">corner</h4>
+<p>Возвращает координаты одного из углов объекта:</p>
+<pre><code class="lang-js">var coords = shape.corner(&#39;left top&#39;);
+// -&gt; [x, y]
+</code></pre>
+<p>Также можно передать объект со свойством <code>from</code> и отступом от угла:</p>
+<pre><code class="lang-js">shape.corner({ from: &#39;left top&#39;, x: 10, y: 50 });
+// -&gt; [x + 10, y + 50]
+</code></pre>
+<p>Возможные значения: углы (<code>left top</code>, <code>right top</code>, <code>left bottom</code>, <code>right bottom</code>), возможна перестановка слов (<code>left top</code> = <code>top left</code>), возможны сокращения (<code>left top</code> = <code>lt</code> = <code>tl</code>), также есть середины сторон (<code>left</code>, <code>top</code>, <code>right</code>, <code>bottom</code>) и центр (<code>center</code>).</p>
+<h4 id="clip">clip</h4>
+<p>Маска объекта (фигура, скрывающая часть исходного объекта).</p>
+<p>Можно передать любой стандартный объект контекста:</p>
+<pre><code class="lang-js">shape.clip( ctx.path([[0, 0], [100, 100], [200, 0]]) );
+</code></pre>
+<p>Если передаются 4 аргумента, то создаётся прямоугольник (x, y, width, height). Передаются абсолютные координаты (координаты canvas-а, а не координаты самого объекта):</p>
+<pre><code class="lang-js">shape.clip( 0, 0, 30, 30 );
+</code></pre>
+<p>3 аргумента -- координаты круга (cx, cy, radius):</p>
+<pre><code class="lang-js">shape.clip( 50, 50, 100 );
+</code></pre>
+<p>1 аргумент -- путь:</p>
+<pre><code class="lang-js">shape.clip([[0, 0], [200, 200], [200, 0]]);
+</code></pre>
+<p>Или своя функция:</p>
+<pre><code class="lang-js">shape.clip({
+    processPath: function(ctx){
+        // ctx -- стандартный 2D Context
+        ctx.moveTo( 10, 10 );
+        ctx.lineTo( 300, 300 );
+        ctx.lineTo( 300, 0 );
+        ctx.closePath();
+    }
+});
+</code></pre>
+<p>Переданный первым аргументом <code>null</code> удаляет маску:</p>
+<pre><code class="lang-js">shape.clip(null);
+</code></pre>
+<h4 id="remove">remove</h4>
+<p>Удаляет объект из отрисовки контекста (но при этом объект остаётся в памяти, так что его можно использовать в дальнейшем, в т.ч. вставить обратно в контекст):</p>
+<pre><code class="lang-js">var rect = ctx.rect( 100, 100, 50, 50, &#39;blue&#39; );
+rect.remove();
+
+rect.x(); // -&gt; 100
+
+ctx.push( rect ); // возвращает объект в контекст
+</code></pre>
+<h4 id="shadow">shadow</h4>
+<p>Тень. Можно передать объект с параметрами:</p>
+<pre><code class="lang-js">shape.shadow({
+    x: 0,
+    y: 5,
+    blur: 5,
+    color: &#39;black&#39;,
+    opacity: 0.5
+});
+</code></pre>
+<p>Можно передавать в CSS-форме (<code>x y blur color</code>):</p>
+<pre><code class="lang-js">shape.shadow(&#39;0 2px 2px red&#39;);
+</code></pre>
+<p>Изменять и получать параметры по отдельности (числовые параметры возвращаются в пикселях):</p>
+<pre><code class="lang-js">shape.shadow(&#39;blur&#39;); // -&gt; 2
+shape.shadow(&#39;blur&#39;, 5);
+</code></pre>
+<h3 id="-">События</h3>
+<p>Функции:</p>
+<ul>
+<li><code>on(event, func)</code></li>
+<li><code>off(event, [func])</code></li>
+<li><code>fire(event, [object])</code></li>
+<li><code>click</code></li>
+<li><code>dblclick</code></li>
+<li><code>mousedown</code></li>
+<li><code>mouseup</code></li>
+<li><code>mousemove</code></li>
+<li><code>mouseover</code></li>
+<li><code>mouseout</code></li>
+<li><code>mousewheel</code></li>
+<li><code>focus</code></li>
+<li><code>blur</code>
+работают абсолютно аналогично соответствующим функциям контекста.</li>
+</ul>
+<h4 id="mouse">mouse</h4>
+<p>Включает / отключает обработку событий мыши. Объект, на котором отключена обработка событий мыши, становится &quot;проницаемым&quot;: события мыши будут срабатывать на элементах под ним.</p>
+<pre><code class="lang-js">// отключаем
+shape.mouse(false);
+
+// включаем
+shape.mouse(true);
+</code></pre>
+<h3 id="-">Трансформации</h3>
+<p>Все трансформации (кроме <code>translate</code>) принимают параметр <code>pivot</code> -- центр трансформации (например, в случае с <code>rotate</code> -- вокруг какой точки происходит вращение). Можно передать как абсолютные координаты (<code>[0,0]</code>, <code>{x:10, y:10}</code>), так и одну из точек фигуры: <code>left</code>, <code>right</code>, <code>top</code>, <code>bottom</code>, <code>left top</code> / <code>top left</code> / <code>lt</code> / <code>tl</code> и т.д.</p>
+<p>По умолчанию точка -- центр фигуры.</p>
+<h4 id="scale">scale</h4>
+<pre><code class="lang-js">rect.scale(2);
+rect.scale(0.5, 0.5);
+rect.scale(2, &#39;left top&#39;);
+rect.scale(0.5, 0.5, &#39;center&#39;);
+</code></pre>
+<p>Увеличивает фигуру, можно передать как по x,y разные размеры, так и одинаковые.</p>
+<h4 id="rotate">rotate</h4>
+<pre><code class="lang-js">rect.rotate(45);
+rect.rotate(10, &#39;left&#39;);
+</code></pre>
+<p>Поворачивает фигуру, указываются градусы (можно перевести градусы в радианы как <code>degree / 180 * Math.PI</code>, а налогично наоборот <code>rad / Math.PI * 180</code>).</p>
+<h4 id="skew">skew</h4>
+<pre><code class="lang-js">rect.skew(10, 0);
+rect.skew(5);
+rect.skew(-10, 0, &#39;left&#39;);
+rect.skew(-5, &#39;top&#39;);
+</code></pre>
+<p>&quot;Сдвигает&quot; фигуру. Указываются градусы.</p>
+<h4 id="translate-x-y-">translate(x, y)</h4>
+<pre><code class="lang-js">rect.translate(10, 10);
+</code></pre>
+<p>Сдвигает фигуру по осям координат. Полезно, когда мы по-разному трансформировали фигуру, у неё смещаются оси координат, и простое изменение её координат даст нам немного неожиданное поведение.</p>
+<h4 id="transform">transform</h4>
+<pre><code class="lang-js">rect.transform(2, 0, 0, 1.5, 0, 0); // вокруг центра
+rect.transform(0.5, 0, 0, 0.75, 0, 0, &#39;top&#39;);
+</code></pre>
+<p>Трансформирует фигуру. Как это делается, подробнее здесь: <a href="http://www.intuit.ru/studies/courses/1063/210/lecture/5434?page=5">http://www.intuit.ru/studies/courses/1063/210/lecture/5434?page=5</a></p>
+<h3 id="-">Анимация</h3>
+<p>Функция <code>animate</code>:</p>
+<pre><code class="lang-js">rect.animate(&#39;width&#39;, &#39;2em&#39;);
+// param, value, duration, easing, after
+rect.animate(&#39;width&#39;, 200,  3000, &#39;bounceOut&#39;, function(){ this.fill(&#39;blue&#39;); });
+
+rect.animate({ width:200, x:0 }, 3000, &#39;bounceOut&#39;, afterfunc);
+rect.animate({ fill: &#39;red&#39;, stroke:&#39;4px&#39; }, {
+ duration: 1000,
+ easing: function(x){ return Math.pow(x, 4) },
+ after: function(){ this.hide() }
+});
+</code></pre>
+<p>Вроде бы всё понятно. Доступные параметры для анимирования:</p>
+<ul>
+<li><code>opacity</code></li>
+<li><code>fill</code> (без поддержки градиентов и текстур)</li>
+<li><code>stroke</code> (только цвет и ширина)</li>
+<li><code>crop</code> -- для изображений</li>
+<li><code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, <code>cx</code>, <code>cy</code>, <code>radius</code> -- параметры фигур</li>
+<li><code>rotate</code>, <code>scale</code>, <code>scaleX</code>, <code>scaleY</code>, <code>skew</code>, <code>skewX</code>, <code>skewY</code>, <code>translate</code>, <code>translateX</code>, <code>translateY</code> -- трансформации. Все только вокруг центра фигуры, по-другому пока никак. Вот так: <code>skew:[10,3]</code> писать нельзя (пока что), нужно так: <code>skewX:10, skewY:3</code>.</li>
+</ul>
+<p>Можно добавить свои...</p>
+
+	</content>
+
+	<footer>
+
+		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+			<option>English</option>
+			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+		</select>
+
+
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+	</footer>
+
+<!-- highlight.js - style tomorrow -->
+<!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

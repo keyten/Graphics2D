@@ -16,6 +16,10 @@ Handlebars.registerHelper('nequals', function(a, b, c){
 	}
 });
 
+var ignoreNames = [
+	'' // files started from . (.DS_Store for ex.)
+];
+
 module.exports = function(grunt) {
 
 	grunt.initConfig({});
@@ -33,6 +37,11 @@ module.exports = function(grunt) {
 				extension = url.pop();
 
 			url = url.join('/').split('/').slice(1);
+			url = url.map(part => part.toLowerCase());
+
+			if(ignoreNames.indexOf(url[url.length-1]) > -1){
+				return;
+			}
 
 			if(url[url.length-1] === 'index'){
 				url = url.join('/') + '.html';

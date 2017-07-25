@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Delta.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
+	<script>
+		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
+			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
+		}
+	</script>
+</head>
+<body>
+
+<!-- http://tholman.com/github-corners/ -->
+<a href="https://github.com/keyten/Graphics2D" class="github-corner" aria-label="View source on Github"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#FD6C6C; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+<style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+
+	<header>
+		<div class="menu">
+			<a href="/download/">Download</a>
+			<a href="/docs/">Core</a>
+			<a href="/docs/">More</a>
+			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
+			<a href="/examples/">Examples</a>
+			<!-- Sandbox, m? -->
+		</div>
+
+		<a href="/">
+			<h1>
+				<span class="delta">Δ</span>.js
+			</h1>
+		</a>
+	</header>
+
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is an <b>HTML5 Canvas</b> framework. It is quick, simple and <b>very powerful</b>.
+	</div>
+
+	<content>
+		<h1 id="graphics2d-context">Graphics2D.Context</h1>
+<p><code>Graphics2D.Context</code> — the library&#39;s context, can be got one of these ways:</p>
+<pre><code class="lang-js">var ctx = Graphics2D.id(&#39;element&#39;); // canvas with id=&quot;element&quot;
+var ctx = Graphics2D.query(&#39;canvas&#39;, 0); // the first canvas on the page
+// query also receives the dom element
+var ctx = Graphics2D.query( document.getElementById(&#39;foo&#39;) );
+</code></pre>
+<h3 id="methods">Methods</h3>
+<p>All the methods return the context (so you can use jQuery-like chaining), if not otherwise required.</p>
+<h4 id="getobjectinpoint-x-y-">getObjectInPoint(x, y)</h4>
+<pre><code class="lang-js">ctx.getObjectInPoint(10, 10);
+</code></pre>
+<p>Returns an object in point <code>(x; y)</code>, or <code>null</code>, if there&#39;s not.
+If the third argument is <code>true</code>, will ignore objects with mouse processing turned off (<code>interaction</code> attr).</p>
+<h4 id="on-event-func-">on(event, func)</h4>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, function(e){
+    if(e.targetObject){
+        e.targetObject.attr(&#39;fill&#39;, &#39;red&#39;);
+    }
+    x = e.contextX;
+    y = e.contextY;
+});
+</code></pre>
+<p>Adds an event listener to canvas. Extends event object (variable <code>e</code> in the example above) by 3 properties:</p>
+<ul>
+<li><code>targetObject</code> — the object which contains the current cursor point (or <code>null</code>).</li>
+<li><code>contextX</code>, <code>contextY</code> — mouse coordinates on the canvas (for ex., the left top corner of canvas is <code>(0,0)</code>).</li>
+</ul>
+<h4 id="off-event-func-">off(event, [func])</h4>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, anyfunc);
+ctx.off(&#39;click&#39;, anyfunc);
+ctx.off(&#39;click&#39;); // removes all the click listeners
+</code></pre>
+<p>Removes event listener(s) from canvas.</p>
+<p>Note: <code>ctx.off(&#39;click&#39;)</code> will only remove context listeners (set with ctx.on), but not the elements&#39;.</p>
+<h4 id="fire-event-data-">fire(event, [data])</h4>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, function(data){ console.log(data.text); });
+ctx.fire(&#39;click&#39;, {text:&#39;anytext&#39;});
+</code></pre>
+<p>Fires all the event listeners.</p>
+<h4 id="update">update</h4>
+<pre><code class="lang-js">ctx.update();
+</code></pre>
+<p>Internal method, updates the canvas. Use it only if you update internal object parameters or something like.</p>
+<h3 id="event-aliases">Event aliases</h3>
+<pre><code class="lang-js">ctx.click(function(){ console.log(3); }); // = on(&#39;click&#39;, function(){ console.log(3); });
+ctx.click(); // = fire(&#39;click&#39;);
+</code></pre>
+<p><code>click</code>, <code>dblclick</code>, <code>mousedown</code>, <code>mouseup</code>, <code>mousemove</code>, <code>mouseover</code>, <code>mouseout</code>, <code>mousewheel</code>, <code>focus</code>, <code>blur</code>.</p>
+<h3 id="elements">Elements</h3>
+<p>You can create obs directly on the canvas:</p>
+<p>Rectangle:</p>
+<pre><code class="lang-js">ctx.rect(x, y, width, height, [fill, stroke]);
+</code></pre>
+<p>Circle:</p>
+<pre><code class="lang-js">ctx.circle(centerX, centerY, radius, [fill, stroke]);
+</code></pre>
+<p>Path:</p>
+<pre><code class="lang-js">ctx.path(data, [fill, stroke]);
+</code></pre>
+<p>Image:</p>
+<pre><code class="lang-js">ctx.image(image, x, y, [width, height, crop]);
+</code></pre>
+<p>Text:</p>
+<pre><code class="lang-js">ctx.text(text, font, x, y, [fill, stroke]);
+</code></pre>
+<p>Gradient:</p>
+<pre><code class="lang-js">ctx.gradient([type], colors, [from, to]);
+</code></pre>
+<p>Pattern:</p>
+<pre><code class="lang-js">ctx.pattern(image, [repeat]);
+</code></pre>
+
+	</content>
+
+	<footer>
+
+		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+			<option>English</option>
+			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+		</select>
+
+
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+	</footer>
+
+<!-- highlight.js - style tomorrow -->
+<!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

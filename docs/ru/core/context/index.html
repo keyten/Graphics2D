@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Delta.js</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+	<meta name="description" content="Graphics2D: JavaScript canvas library" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="../../../../../css/stylesheet_v2.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="./css/stylesheet_v2.css" />
+	<script>
+		if(location.href.indexOf('keyten.github.io/Graphics2D/') > -1){
+			location.href = location.href.replace('keyten.github.io/Graphics2D', 'graphics2d.js.org');
+		}
+	</script>
+</head>
+<body>
+
+<!-- http://tholman.com/github-corners/ -->
+<a href="https://github.com/keyten/Graphics2D" class="github-corner" aria-label="View source on Github"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#FD6C6C; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+<style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+
+	<header>
+		<div class="menu">
+			<a href="/download/">Download</a>
+			<a href="/docs/">Core</a>
+			<a href="/docs/">More</a>
+			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
+			<a href="/examples/">Examples</a>
+			<!-- Sandbox, m? -->
+		</div>
+
+		<a href="/">
+			<h1>
+				<span class="delta">Δ</span>.js
+			</h1>
+		</a>
+	</header>
+
+	<div class="index-page-description" style="display:none">
+			 DeltaJS is an <b>HTML5 Canvas</b> framework. It is quick, simple and <b>very powerful</b>.
+	</div>
+
+	<content>
+		<h1 id="delta-context">Delta.Context</h1>
+<p>Свой собственный контекст библиотеки, с помощью которого и можно рисовать. Его можно получить так:</p>
+<pre><code class="lang-js">var ctx = Delta(document.getElementById(&#39;foo&#39;));
+var ctx = Delta.id(&#39;element&#39;); // canvas с id element
+var ctx = Delta.query(&#39;canvas&#39;, 0); // первый canvas на странице
+</code></pre>
+<p>Класс контекста: <code>Delta.Context</code>.</p>
+<h2 id="-">Элементы</h2>
+<p>У контекста есть функции для создания объектов на нём:</p>
+<p>Прямоугольник:</p>
+<pre><code class="lang-js">ctx.rect(x, y, width, height, [fill, stroke]);
+</code></pre>
+<p>Круг:</p>
+<pre><code class="lang-js">ctx.circle(centerX, centerY, radius, [fill, stroke]);
+</code></pre>
+<p>Путь:</p>
+<pre><code class="lang-js">ctx.path(data, [fill, stroke]);
+</code></pre>
+<p>Изображение:</p>
+<pre><code class="lang-js">ctx.image(x, y, [width, height, crop]);
+</code></pre>
+<p>Текст:</p>
+<pre><code class="lang-js">ctx.text(text, x, y, [font, fill, stroke]);
+</code></pre>
+<p>Градиент:</p>
+<pre><code class="lang-js">ctx.gradient(type, colors, from, to);
+</code></pre>
+<p>Паттерн (повторяющийся рисунок):</p>
+<pre><code class="lang-js">ctx.pattern(image, repeat);
+</code></pre>
+<p>Произвольный объект со своей функцией рисования:</p>
+<pre><code class="lang-js">ctx.object(data);
+</code></pre>
+<p>Также есть несколько алиасов, которые на самом деле создают path.</p>
+<pre><code class="lang-js">ctx.line(x1, y1, x2, y2, [stroke]);
+ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
+ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
+ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
+</code></pre>
+<h2 id="-">Методы</h2>
+<p>Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:</p>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, firstListener)
+   .on(&#39;click&#39;, secondListener)
+   .rotate(1)
+   .translate(10, 10);
+</code></pre>
+<h3 id="-on-event-func-">Метод on(event, func)</h3>
+<p>Добавляет обработчик события на canvas. Передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:</p>
+<ul>
+<li><code>targetObject</code> - объект DeltaJS, на котором находится мышь (либо <code>null</code>).</li>
+<li><code>contextX</code>, <code>contextY</code> - координаты мыши на canvas (так, например, левый верхний угол canvas - это <code>contextX = contextY = 0</code>).</li>
+</ul>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, function(event){
+    if(event.targetObject){
+        // при клике по кругу круг будет перекрашиваться в красный
+        event.targetObject.attr(&#39;fill&#39;, &#39;red&#39;);
+    } else {
+        // при клике по пустому месту на нём появится синий круг
+        ctx.circle({
+            cx: event.contextX,
+            cy: event.contextY,
+            radius: 20,
+            fill: &#39;blue&#39;
+        });
+    }
+});
+</code></pre>
+<p>В случае touch-событий эти свойства добавляются в каждый объект в <code>event.touches</code>, <code>event.changedTouches</code>, <code>event.targetTouches</code>.</p>
+<p>В <code>this</code> обработчика — контекст DeltaJS.</p>
+<p><em>Примечание:</em> если у canvas есть border, события мыши будут ловиться и на нём, но с отрицательными contextX / contextY.</p>
+<h3 id="-off-event-func-">Метод off(event, [func])</h3>
+<p>Если передано 2 параметра, убирает <code>func</code> как обработчик события <code>event</code>.</p>
+<p>Если передан 1 параметр — убирает все обработчики события <code>event</code>.</p>
+<pre><code class="lang-js">// обработчик, добавляющий круги в месте клика
+ctx.on(&#39;click&#39;, onContextClick)
+function onContextClick(event){
+    console.log(&#39;Hello, Delta!&#39;);
+
+    ctx.off(&#39;click&#39;, onContextClick);
+    // если вызвать ctx.off(&#39;click&#39;), удалятся вообще все обработчики кликов
+}
+</code></pre>
+<h3 id="-fire-event-data-">Метод fire(event, [data])</h3>
+<p>Запускает все установленные обработчики события <code>event</code>, передавая в обработчик <code>data</code>.</p>
+<pre><code class="lang-js">ctx.on(&#39;someCustomEvent&#39;, function(data){
+    console.log(data.text);
+});
+
+ctx.fire(&#39;someCustomEvent&#39;, {
+    text: &#39;anytext&#39;
+});
+</code></pre>
+<h3 id="-getobjectinpoint-x-y-">Метод getObjectInPoint(x, y)</h3>
+<pre><code class="lang-js">ctx.getObjectInPoint(10, 10);
+</code></pre>
+<p>Возвращает объект, находящийся в точке <code>(x; y)</code>, либо <code>null</code>, если такого нет.</p>
+<p>Если передать третьим параметром <code>true</code>, проигнорирует объекты, у которых параметр <code>interaction</code> в <code>false</code>.</p>
+<h3 id="-contextcoords-x-y-">Метод contextCoords(x, y)</h3>
+<p>Транслирует экранные координаты (<code>event.clientX</code> и <code>event.clientY</code>) в координаты контекста. Возвращает массив с координатами.</p>
+<p>Например, мы хотим отловить клик в координатах (10, 10) на контексте:</p>
+<pre><code class="lang-js">canvas.addEventListener(&#39;click&#39;, function(event){
+    var coords = ctx.contextCoords(event.clientX, event.clientY);
+    if(coords[0] === 10 &amp;&amp; coords[1] === 10){
+        console.log(&#39;Ура!&#39;);
+    }
+});
+</code></pre>
+<p><em>Но лучше это делать через <code>ctx.on(&#39;click&#39;, ...)</code> и <code>contextX / contextY</code>:</em></p>
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, function(event){
+    if(event.contextX === 10 &amp;&amp; event.contextY === 10){
+        console.log(&#39;Ура!&#39;);
+    }
+});
+</code></pre>
+<p><em>Пояснение:</em> <strong>координаты контекста</strong> — это такие (декартовы) координаты, в которых левая верхняя точка canvas равна (0, 0) а правая — ширине и высоте canvas. В события мыши / тачей приходят экранные координаты. Чтобы определить, находятся ли они внутри какой-то фигуры на canvas, нужно преобразовать их в координаты контекста.</p>
+<h3 id="-update-">Внутренний метод update()</h3>
+<p>Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки).</p>
+<p>Обычно контекст обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов. Например:</p>
+<pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, &#39;red&#39;);
+// если вызвать rect.attr(&#39;fill&#39;, &#39;blue&#39;), холст обновится сам
+rect.style.fillStyle = &#39;blue&#39;;
+ctx.update();
+</code></pre>
+<h2 id="-">Алиасы событий</h2>
+<pre><code class="lang-js">ctx.click(function(){ console.log(3); });
+// эквивалентно ctx.on(&#39;click&#39;, function(){ console.log(3); });
+
+ctx.click();
+// эквивалентно ctx.fire(&#39;click&#39;);
+</code></pre>
+<p>Все возможные алиасы:</p>
+<ul>
+<li><code>click</code></li>
+<li><code>dblclick</code></li>
+<li><code>mousedown</code></li>
+<li><code>mouseup</code></li>
+<li><code>mousemove</code></li>
+<li><code>mouseover</code></li>
+<li><code>mouseout</code></li>
+<li><code>mouseenter</code></li>
+<li><code>mouseleave</code></li>
+<li><code>mousewheel</code></li>
+<li><code>focus</code></li>
+<li><code>blur</code></li>
+<li><code>keypress</code></li>
+<li><code>keydown</code></li>
+<li><code>keyup</code></li>
+<li><code>touchstart</code></li>
+<li><code>touchmove</code></li>
+<li><code>touchend</code></li>
+<li><code>touchcancel</code></li>
+<li><code>pointerover</code></li>
+<li><code>pointerenter</code></li>
+<li><code>pointerdown</code></li>
+<li><code>pointermove</code></li>
+<li><code>pointerup</code></li>
+<li><code>pointercancel</code></li>
+<li><code>pointerout</code></li>
+<li><code>pointerleave</code></li>
+<li><code>gotpointercapture</code></li>
+<li><code>lostpointercapture</code></li>
+</ul>
+<h2 id="-">Трансформации</h2>
+<p>Можно трансформировать весь холст. Везде кроме <code>translate</code> можно задавать pivot - точку, которая останется на месте при деформации.</p>
+<pre><code class="lang-js">ctx.translate(x, y);
+
+ctx.rotate(45); // поворот на 45 градусов вокруг центра
+ctx.rotate(1, &#39;left top&#39;); // на 1 градус вокруг верхней левой точки
+
+ctx.scale(factor); // масштаб в factor раз по обоим осям (вокруг центра)
+ctx.scale(x, y); // масштаб в x и y раз по осям (вокруг центра)
+ctx.scale(factor, &#39;left top&#39;); // масштаб вокруг верхней левой точки
+ctx.scale(x, y, &#39;left top&#39;);
+
+ctx.skew(factor); // скос на factor градусов
+ctx.skew(x, y);
+ctx.skew(factor, &#39;left top&#39;);
+ctx.skew(x, y, &#39;left top&#39;);
+</code></pre>
+<p>Кроме того, можно трансформировать с помощью матрицы:</p>
+<pre><code class="lang-js">ctx.transform(m11, m21, m12, m22, m13, m23);
+</code></pre>
+<p>Сама текущая матрица находится в <code>ctx.matrix</code> (все вышеперечисленные методы её изменяют). Либо <code>null</code>.</p>
+<p>Возможные pivot-ы. Считаются относительно boundbox-а фигуры:</p>
+<ul>
+<li><code>left</code> - центр левой стороны.</li>
+<li><code>right</code> - центр правой стороны.</li>
+<li><code>top</code> - центр верхней стороны.</li>
+<li><code>bottom</code> - центр нижней стороны.</li>
+<li><code>left top</code>, <code>top left</code>, <code>lt</code>, <code>tl</code> - верхний левый угол.</li>
+<li><code>left bottom</code>, <code>bottom left</code>, <code>lb</code>, <code>bl</code> - нижний левый.</li>
+<li><code>right top</code>, <code>top right</code>, <code>rt</code>, <code>tr</code> - верхний правый.</li>
+<li><code>right bottom</code>, <code>bottom right</code>, <code>rb</code>, <code>br</code> - нижний правый.</li>
+</ul>
+<p>Также можно передать координаты точки. Например:</p>
+<pre><code class="lang-js">ctx.rotate(90, [0, 0]);
+</code></pre>
+<h2 id="-">Примечание</h2>
+<p>Здесь речь о контексте с 2D-рендером. При рисовании с помощью другого рендера возвращается другой контекст (например, в случае WebGL-рендера это <code>Delta.GLContext</code>), реализующий те же методы и, возможно, разные свои.</p>
+
+	</content>
+
+	<footer>
+
+		<select style="float:right;margin-top:6px;" onchange="location.href = 'http://graphics2d.js.org/ru/'">
+			<option>English</option>
+			<option onclick="location.href = 'http://graphics2d.js.org/ru/'">Русский</option>
+		</select>
+
+
+		<p class="copyright">Graphics2D maintained by <a href="https://github.com/keyten">Keyten</a> <a href="http://keyten.habrahabr.ru" target="_blank">[H]</a></p>
+	</footer>
+
+<!-- highlight.js - style tomorrow -->
+<!-- <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"> -->
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
