@@ -1,6 +1,7 @@
 var Handlebars = require('handlebars');
 var marked = require('marked');
 var isLog = true;
+var scripts = require('./template/scripts');
 
 // Keyten's handlebars additions
 Handlebars.registerHelper('equals', function(a, b, c){
@@ -38,6 +39,21 @@ module.exports = function(grunt) {
 			} else {
 				url = url.join('/') + '/index.html';
 			}
+
+			scripts.forEach(function(script){
+				var testResult;
+				if(typeof script.test === 'function'){
+					testResult = script.test(url, content, path);
+				} else if(typeof script.test === 'string'){
+					testResult = url === script.test;
+				} else if(script.test instanceof RegExp){
+					testResult = script.test.test(url);
+				}
+
+				if(testResult){
+					content = script.process(url, content, path);
+				}
+			});
 
 			if(extension === 'html' || extension === 'htm'){
 				content = processHTML(content, template, url, path, config);
