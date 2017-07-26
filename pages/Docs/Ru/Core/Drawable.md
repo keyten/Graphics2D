@@ -1,14 +1,13 @@
-## Delta.Drawable
+# Delta.Drawable
 
 `Delta.Drawable` — абстрактный класс, от которого наследуются все рисуемые объекты: `Rect`, `Circle`, `Path`, `Image`, `Text`, а также кастомные объекты (созданные через `ctx.object`).
 
-Здесь перечислены их общие функции, а также некоторые другие общие особенности.
+Здесь перечислены их общие методы, а также некоторые другие общие особенности.
 
-### Создание
-Любой объект можно создать двумя способами — передавая список аргументов или же объект с параметрами. Во втором случае можно дополнительно передать свойства `opacity`, `composite`, `clip`, `visible`.
+## Создание
+Любой объект можно создать двумя способами — передавая список аргументов или же объект с параметрами.
 
 В первом случае первыми передаются параметры самого объекта, затем заливка и обводка (`fill` и `stroke`). Вместо заливки или обводки можно указать `null` или `undefined`.
-Например:
 ```js
 // квадрат с заливкой и обводкой
 ctx.rect(10, 10, 200, 200, 'black', '2px black round');
@@ -22,30 +21,64 @@ ctx.rect(10, 10, 10, 10, null, null);
 ctx.rect(10, 10, 10, 10);
 ```
 
-Второй случай:
+Во втором случае можно дополнительно передать свойства `opacity`, `composite`, `clip`, `visible`, `interaction`:
 ```js
 ctx.rect({
-  x: 10,
-  y: 10,
-  width: 200,
-  height: 200,
+    x: 10,
+    y: 10,
+    width: 200,
+    height: 200,
 
-  fill: 'black',
-  opacity: 0.8,
-  composite: 'xor'
+    fill: 'black',
+    opacity: 0.8,
+    composite: 'xor'
 });
 ```
 
-Можно создавать объекты без заливки и обводки: они будут невидимы, но при этом будут реагировать на события мыши (отключается через `obj.attr('interaction', false)`). Подобным образом можно создавать кликабельные области.
+Можно создавать объекты без заливки и обводки, либо со свойством `visible` в `false`: они будут невидимы, но при этом будут реагировать на события мыши (отключается через `obj.attr('interaction', false)`). Подобным образом можно создавать кликабельные области.
 
-Также везде в качестве координат можно указывать CSS-координаты:
+## CSS-расстояния
+Везде в качестве координат можно указывать CSS-координаты:
 ```js
-ctx.rect('10pt', '10pt', '0.5em' '1em');
+var rect = ctx.rect('10pt', '10pt', '0.5em' '1em');
+rect.attr('width', '1vw');
 ```
 
-### Методы:
+По умолчанию передаваемые числа считаются пикселями:
+```js
+ctx.rect(10, 10, 10, 10);
+// работает как
+ctx.rect('10px', '10px', '10px', '10px');
+```
 
-Практически все параметры следуют "jQuery-way": вместо 2 функций "getAttr" и "setAttr" здесь присутствует одна функция "attr", которая ведёт себя по-разному в зависимости от аргументов. Отказ от традиционных свойств объекта (`shape.fill = 'red'`) связан с тем, что изменение любого свойства вызывает перерисовку контекста, в традиционных свойствах это возможно только через геттеры / сеттеры ES5.
+Регулируется свойством `Delta.defaultDistance` (меняйте его до рисования!). По умолчанию равно `px`.
+// внутри дельты всё всегда хранится в пикселях, но конвертится обратно внутри геттера attr
+// return this.attrs.x / Delta.units[Delta.defaultDistance];
+
+Кроме того, все переданные величины конвертируются в `defaultDistance` и возвращаются в таком виде.
+```js
+// Delta.defaultDistance = 'px'
+rect.attr('x', '20pt');
+rect.attr('x'); // -> 26.6562 (20pt in pixels)
+```
+
+Многие CSS-координаты (`pt`, `em` и ряд других) независимы от разрешения экрана, что решает проблемы с Ретиной и не только.
+
+## Свойства
+
+### Внутреннее свойство styles
+Содержит стили, которые устанавливаются 2D-контексту перед рисованием. При изменении нужно вызвать метод `update()`.
+
+```js
+rect.styles.fillStyle = 'blue';
+rect.update();
+```
+
+*Работает только в canvas-рендере.*
+
+## Методы
+
+Практически все параметры следуют "jQuery-way": вместо 2 функций `getAttr` и `setAttr` здесь присутствует одна функция `attr`, которая ведёт себя по-разному в зависимости от аргументов. Отказ от традиционных свойств объекта (`shape.fill = 'red'`) связан с тем, что изменение любого свойства вызывает перерисовку контекста, в традиционных свойствах это возможно только через геттеры / сеттеры ES5.
 
 Помимо этого, использование методов вместо свойств позволяет использовать чеининг:
 ```js
@@ -54,6 +87,206 @@ shape.attr('fill', 'red')
      .on('click', 'fill', 'blue')
      .rotate(45);
 ```
+
+### Метод attr(property)
+Возвращает значение параметра `property`.
+```js
+var rect = ctx.rect({
+    x: 10,
+    y: 15,
+    width: 40,
+    height: 40
+});
+
+rect.attr('x'); // -> 10
+```
+
+### Метод attr(property, value)
+Устанавливает значение параметра `property` в `value`.
+```js
+rect.attr('x', 200);
+```
+
+Метод `attr` также позволяет получать и устанавливать свои собственные параметры.
+
+----
+Можно добавлять геттеры и сеттеры (и аниматоры) в `Delta.Drawable.prototype.attrHooks`. Этот объект является прототипом для `attrHooks` в наследниках классов (например, `Delta.Rect`), поэтому его изменение затронет также `attrHooks` дочерних классов.
+
+### Метод remove
+Удаляет объект с контекста (но не из памяти, так что остаётся возможность добавить его туда вновь методом `ctx.push`).
+
+### Метод clone([cloneAttrs, [cloneStyles, [cloneEvents]]])
+Клонирует объект. Можно клонировать не полностью — например, оставить на два объекта один объект стилей (тогда при изменении стилей одного из объектов будет меняться и второй).
+- `cloneAttrs` — параметры.
+- `cloneStyles` — стили (и трансформации).
+- `cloneEvents` — события.
+
+По умолчанию все равны `true` (клонировать всё).
+
+// todo: необходим deepClone везде
+
+### Метод bounds([transform, [around]])
+Возвращает boundbox объекта.
+transform = true, 'tight' or false
+around = 'fill', 'stroke', 'strokeExclude'
+
+### Метод corner(cornerName, [transform, [around]])
+Возвращает точку boundbox объекта по её имени. Например:
+```js
+var aabb = elem.bounds();
+
+elem.corner('top left');
+// вернёт [aabb.x1, aabb.y1]
+
+elem.corner('center');
+// вернёт [aabb.cx, aabb.cy]
+
+elem.corner('right bottom');
+// вернёт [aabb.x2, aabb.y2]
+```
+
+Все возможные точки:
+ - `left` - центр левой стороны.
+ - `right` - центр правой стороны.
+ - `top` - центр верхней стороны.
+ - `bottom` - центр нижней стороны.
+ - `left top`, `top left`, `lt`, `tl` - верхний левый угол.
+ - `left bottom`, `bottom left`, `lb`, `bl` - нижний левый.
+ - `right top`, `top right`, `rt`, `tr` - верхний правый.
+ - `right bottom`, `bottom right`, `rb`, `br` - нижний правый.
+
+### Метод on(event, func)
+// todo: eventHooks
+
+Добавляет объекту обработчик события.
+
+```js
+rect.on('click', function(event){
+    this.attr('fill', 'blue');
+});
+```
+
+В `this` обработчика — сам объект.
+
+Как и в случае событий контекста, в `event` есть дополнительные свойства `targetObject`, `contextX`, `contextY`.
+
+Также поддерживаются быстрые вызовы:
+```js
+rect.on('click', 'remove');
+// работает как
+rect.on('click', function(){
+    this.remove();
+})
+
+rect.on('click', 'attr', 'fill', 'blue');
+// работает как
+rect.on('click', function(){
+    this.attr('fill', 'blue');
+})
+```
+
+### Метод off(event, [func])
+Если передано 2 параметра, убирает `func` как обработчик события `event`.
+
+Если передан 1 параметр — убирает все обработчики события `event`.
+
+```js
+rect.on('click', onContextClick);
+
+function onContextClick(event){
+    console.log('Hello, Delta!');
+
+    rect.off('click', onContextClick);
+    // если вызвать rect.off('click'), удалятся вообще все обработчики кликов
+}
+```
+
+### Метод fire(event, [data])
+Запускает все установленные обработчики события `event`, передавая в обработчик `data`.
+```js
+rect.on('someCustomEvent', function(data){
+    console.log(data.text);
+});
+
+rect.fire('someCustomEvent', {
+    text: 'anytext'
+});
+```
+
+### Метод toDataURL([options, [bounds]])
+Рисует объект и возвращает картинку в формате Data:URL.
+
+```js
+var rect = ctx.rect(10, 10, 200, 200, 'blue');
+
+var image = rect.toDataURL();
+window.open(image);
+```
+
+Первым аргументом можно передать опции рисования, либо просто формат (по умолчанию `png`):
+```js
+rect.toDataURL({
+    type: 'png',
+    quality: 0.9 // по умолчанию 1
+});
+
+rect.toDataURL('png'); // в короткой форме поддерживаются jpg, png, webp
+rect.toDataURL('image/jpeg'); // можно передать mimeType
+```
+
+Вторым аргументом можно передать произвольный boundbox для картинки.
+
+### Метод toImageData([bounds])
+Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.
+
+## Параметры
+Меняются методом `attr`.
+
+### fill
+
+## Алиасы событий
+Можно использовать краткую форму для `on` и `fire`:
+```js
+ctx.click(function(){ console.log(3); });
+// работает как ctx.on('click', function(){ console.log(3); });
+
+ctx.click();
+// работает как ctx.fire('click');
+```
+Все возможные алиасы:
+ - `click`
+ - `dblclick`
+ - `mousedown`
+ - `mouseup`
+ - `mousemove`
+ - `mouseover`
+ - `mouseout`
+ - `mouseenter`
+ - `mouseleave`
+ - `mousewheel`
+ - `focus`
+ - `blur`
+ - `keypress`
+ - `keydown`
+ - `keyup`
+ - `touchstart`
+ - `touchmove`
+ - `touchend`
+ - `touchcancel`
+ - `pointerover`
+ - `pointerenter`
+ - `pointerdown`
+ - `pointermove`
+ - `pointerup`
+ - `pointercancel`
+ - `pointerout`
+ - `pointerleave`
+ - `gotpointercapture`
+ - `lostpointercapture`
+
+## Трансформации
+
+## Анимация
 
 #### fill
 Заливка объекта:

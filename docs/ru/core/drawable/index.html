@@ -45,13 +45,12 @@
 	</div>
 
 	<content>
-		<h2 id="delta-drawable">Delta.Drawable</h2>
+		<h1 id="delta-drawable">Delta.Drawable</h1>
 <p><code>Delta.Drawable</code> — абстрактный класс, от которого наследуются все рисуемые объекты: <code>Rect</code>, <code>Circle</code>, <code>Path</code>, <code>Image</code>, <code>Text</code>, а также кастомные объекты (созданные через <code>ctx.object</code>).</p>
-<p>Здесь перечислены их общие функции, а также некоторые другие общие особенности.</p>
-<h3 id="-">Создание</h3>
-<p>Любой объект можно создать двумя способами — передавая список аргументов или же объект с параметрами. Во втором случае можно дополнительно передать свойства <code>opacity</code>, <code>composite</code>, <code>clip</code>, <code>visible</code>.</p>
-<p>В первом случае первыми передаются параметры самого объекта, затем заливка и обводка (<code>fill</code> и <code>stroke</code>). Вместо заливки или обводки можно указать <code>null</code> или <code>undefined</code>.
-Например:</p>
+<p>Здесь перечислены их общие методы, а также некоторые другие общие особенности.</p>
+<h2 id="-">Создание</h2>
+<p>Любой объект можно создать двумя способами — передавая список аргументов или же объект с параметрами.</p>
+<p>В первом случае первыми передаются параметры самого объекта, затем заливка и обводка (<code>fill</code> и <code>stroke</code>). Вместо заливки или обводки можно указать <code>null</code> или <code>undefined</code>.</p>
 <pre><code class="lang-js">// квадрат с заливкой и обводкой
 ctx.rect(10, 10, 200, 200, &#39;black&#39;, &#39;2px black round&#39;);
 
@@ -63,30 +62,218 @@ ctx.rect(10, 10, 10, 10, null, null);
 // или:
 ctx.rect(10, 10, 10, 10);
 </code></pre>
-<p>Второй случай:</p>
+<p>Во втором случае можно дополнительно передать свойства <code>opacity</code>, <code>composite</code>, <code>clip</code>, <code>visible</code>, <code>interaction</code>:</p>
 <pre><code class="lang-js">ctx.rect({
-  x: 10,
-  y: 10,
-  width: 200,
-  height: 200,
+    x: 10,
+    y: 10,
+    width: 200,
+    height: 200,
 
-  fill: &#39;black&#39;,
-  opacity: 0.8,
-  composite: &#39;xor&#39;
+    fill: &#39;black&#39;,
+    opacity: 0.8,
+    composite: &#39;xor&#39;
 });
 </code></pre>
-<p>Можно создавать объекты без заливки и обводки: они будут невидимы, но при этом будут реагировать на события мыши (отключается через <code>obj.attr(&#39;interaction&#39;, false)</code>). Подобным образом можно создавать кликабельные области.</p>
-<p>Также везде в качестве координат можно указывать CSS-координаты:</p>
-<pre><code class="lang-js">ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39; &#39;1em&#39;);
+<p>Можно создавать объекты без заливки и обводки, либо со свойством <code>visible</code> в <code>false</code>: они будут невидимы, но при этом будут реагировать на события мыши (отключается через <code>obj.attr(&#39;interaction&#39;, false)</code>). Подобным образом можно создавать кликабельные области.</p>
+<h2 id="css-">CSS-расстояния</h2>
+<p>Везде в качестве координат можно указывать CSS-координаты:</p>
+<pre><code class="lang-js">var rect = ctx.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;0.5em&#39; &#39;1em&#39;);
+rect.attr(&#39;width&#39;, &#39;1vw&#39;);
 </code></pre>
-<h3 id="-">Методы:</h3>
-<p>Практически все параметры следуют &quot;jQuery-way&quot;: вместо 2 функций &quot;getAttr&quot; и &quot;setAttr&quot; здесь присутствует одна функция &quot;attr&quot;, которая ведёт себя по-разному в зависимости от аргументов. Отказ от традиционных свойств объекта (<code>shape.fill = &#39;red&#39;</code>) связан с тем, что изменение любого свойства вызывает перерисовку контекста, в традиционных свойствах это возможно только через геттеры / сеттеры ES5.</p>
+<p>По умолчанию передаваемые числа считаются пикселями:</p>
+<pre><code class="lang-js">ctx.rect(10, 10, 10, 10);
+// работает как
+ctx.rect(&#39;10px&#39;, &#39;10px&#39;, &#39;10px&#39;, &#39;10px&#39;);
+</code></pre>
+<p>Регулируется свойством <code>Delta.defaultDistance</code> (меняйте его до рисования!). По умолчанию равно <code>px</code>.
+// внутри дельты всё всегда хранится в пикселях, но конвертится обратно внутри геттера attr
+// return this.attrs.x / Delta.units[Delta.defaultDistance];</p>
+<p>Кроме того, все переданные величины конвертируются в <code>defaultDistance</code> и возвращаются в таком виде.</p>
+<pre><code class="lang-js">// Delta.defaultDistance = &#39;px&#39;
+rect.attr(&#39;x&#39;, &#39;20pt&#39;);
+rect.attr(&#39;x&#39;); // -&gt; 26.6562 (20pt in pixels)
+</code></pre>
+<p>Многие CSS-координаты (<code>pt</code>, <code>em</code> и ряд других) независимы от разрешения экрана, что решает проблемы с Ретиной и не только.</p>
+<h2 id="-">Свойства</h2>
+<h3 id="-styles">Внутреннее свойство styles</h3>
+<p>Содержит стили, которые устанавливаются 2D-контексту перед рисованием. При изменении нужно вызвать метод <code>update()</code>.</p>
+<pre><code class="lang-js">rect.styles.fillStyle = &#39;blue&#39;;
+rect.update();
+</code></pre>
+<p><em>Работает только в canvas-рендере.</em></p>
+<h2 id="-">Методы</h2>
+<p>Практически все параметры следуют &quot;jQuery-way&quot;: вместо 2 функций <code>getAttr</code> и <code>setAttr</code> здесь присутствует одна функция <code>attr</code>, которая ведёт себя по-разному в зависимости от аргументов. Отказ от традиционных свойств объекта (<code>shape.fill = &#39;red&#39;</code>) связан с тем, что изменение любого свойства вызывает перерисовку контекста, в традиционных свойствах это возможно только через геттеры / сеттеры ES5.</p>
 <p>Помимо этого, использование методов вместо свойств позволяет использовать чеининг:</p>
 <pre><code class="lang-js">shape.attr(&#39;fill&#39;, &#39;red&#39;)
      .attr(&#39;stroke&#39;, &#39;blue 2px&#39;)
      .on(&#39;click&#39;, &#39;fill&#39;, &#39;blue&#39;)
      .rotate(45);
 </code></pre>
+<h3 id="-attr-property-">Метод attr(property)</h3>
+<p>Возвращает значение параметра <code>property</code>.</p>
+<pre><code class="lang-js">var rect = ctx.rect({
+    x: 10,
+    y: 15,
+    width: 40,
+    height: 40
+});
+
+rect.attr(&#39;x&#39;); // -&gt; 10
+</code></pre>
+<h3 id="-attr-property-value-">Метод attr(property, value)</h3>
+<p>Устанавливает значение параметра <code>property</code> в <code>value</code>.</p>
+<pre><code class="lang-js">rect.attr(&#39;x&#39;, 200);
+</code></pre>
+<p>Метод <code>attr</code> также позволяет получать и устанавливать свои собственные параметры.</p>
+<hr>
+<p>Можно добавлять геттеры и сеттеры (и аниматоры) в <code>Delta.Drawable.prototype.attrHooks</code>. Этот объект является прототипом для <code>attrHooks</code> в наследниках классов (например, <code>Delta.Rect</code>), поэтому его изменение затронет также <code>attrHooks</code> дочерних классов.</p>
+<h3 id="-remove">Метод remove</h3>
+<p>Удаляет объект с контекста (но не из памяти, так что остаётся возможность добавить его туда вновь методом <code>ctx.push</code>).</p>
+<h3 id="-clone-cloneattrs-clonestyles-cloneevents-">Метод clone([cloneAttrs, [cloneStyles, [cloneEvents]]])</h3>
+<p>Клонирует объект. Можно клонировать не полностью — например, оставить на два объекта один объект стилей (тогда при изменении стилей одного из объектов будет меняться и второй).</p>
+<ul>
+<li><code>cloneAttrs</code> — параметры.</li>
+<li><code>cloneStyles</code> — стили (и трансформации).</li>
+<li><code>cloneEvents</code> — события.</li>
+</ul>
+<p>По умолчанию все равны <code>true</code> (клонировать всё).</p>
+<p>// todo: необходим deepClone везде</p>
+<h3 id="-bounds-transform-around-">Метод bounds([transform, [around]])</h3>
+<p>Возвращает boundbox объекта.
+transform = true, &#39;tight&#39; or false
+around = &#39;fill&#39;, &#39;stroke&#39;, &#39;strokeExclude&#39;</p>
+<h3 id="-corner-cornername-transform-around-">Метод corner(cornerName, [transform, [around]])</h3>
+<p>Возвращает точку boundbox объекта по её имени. Например:</p>
+<pre><code class="lang-js">var aabb = elem.bounds();
+
+elem.corner(&#39;top left&#39;);
+// вернёт [aabb.x1, aabb.y1]
+
+elem.corner(&#39;center&#39;);
+// вернёт [aabb.cx, aabb.cy]
+
+elem.corner(&#39;right bottom&#39;);
+// вернёт [aabb.x2, aabb.y2]
+</code></pre>
+<p>Все возможные точки:</p>
+<ul>
+<li><code>left</code> - центр левой стороны.</li>
+<li><code>right</code> - центр правой стороны.</li>
+<li><code>top</code> - центр верхней стороны.</li>
+<li><code>bottom</code> - центр нижней стороны.</li>
+<li><code>left top</code>, <code>top left</code>, <code>lt</code>, <code>tl</code> - верхний левый угол.</li>
+<li><code>left bottom</code>, <code>bottom left</code>, <code>lb</code>, <code>bl</code> - нижний левый.</li>
+<li><code>right top</code>, <code>top right</code>, <code>rt</code>, <code>tr</code> - верхний правый.</li>
+<li><code>right bottom</code>, <code>bottom right</code>, <code>rb</code>, <code>br</code> - нижний правый.</li>
+</ul>
+<h3 id="-on-event-func-">Метод on(event, func)</h3>
+<p>// todo: eventHooks</p>
+<p>Добавляет объекту обработчик события.</p>
+<pre><code class="lang-js">rect.on(&#39;click&#39;, function(event){
+    this.attr(&#39;fill&#39;, &#39;blue&#39;);
+});
+</code></pre>
+<p>В <code>this</code> обработчика — сам объект.</p>
+<p>Как и в случае событий контекста, в <code>event</code> есть дополнительные свойства <code>targetObject</code>, <code>contextX</code>, <code>contextY</code>.</p>
+<p>Также поддерживаются быстрые вызовы:</p>
+<pre><code class="lang-js">rect.on(&#39;click&#39;, &#39;remove&#39;);
+// работает как
+rect.on(&#39;click&#39;, function(){
+    this.remove();
+})
+
+rect.on(&#39;click&#39;, &#39;attr&#39;, &#39;fill&#39;, &#39;blue&#39;);
+// работает как
+rect.on(&#39;click&#39;, function(){
+    this.attr(&#39;fill&#39;, &#39;blue&#39;);
+})
+</code></pre>
+<h3 id="-off-event-func-">Метод off(event, [func])</h3>
+<p>Если передано 2 параметра, убирает <code>func</code> как обработчик события <code>event</code>.</p>
+<p>Если передан 1 параметр — убирает все обработчики события <code>event</code>.</p>
+<pre><code class="lang-js">rect.on(&#39;click&#39;, onContextClick);
+
+function onContextClick(event){
+    console.log(&#39;Hello, Delta!&#39;);
+
+    rect.off(&#39;click&#39;, onContextClick);
+    // если вызвать rect.off(&#39;click&#39;), удалятся вообще все обработчики кликов
+}
+</code></pre>
+<h3 id="-fire-event-data-">Метод fire(event, [data])</h3>
+<p>Запускает все установленные обработчики события <code>event</code>, передавая в обработчик <code>data</code>.</p>
+<pre><code class="lang-js">rect.on(&#39;someCustomEvent&#39;, function(data){
+    console.log(data.text);
+});
+
+rect.fire(&#39;someCustomEvent&#39;, {
+    text: &#39;anytext&#39;
+});
+</code></pre>
+<h3 id="-todataurl-options-bounds-">Метод toDataURL([options, [bounds]])</h3>
+<p>Рисует объект и возвращает картинку в формате Data:URL.</p>
+<pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, &#39;blue&#39;);
+
+var image = rect.toDataURL();
+window.open(image);
+</code></pre>
+<p>Первым аргументом можно передать опции рисования, либо просто формат (по умолчанию <code>png</code>):</p>
+<pre><code class="lang-js">rect.toDataURL({
+    type: &#39;png&#39;,
+    quality: 0.9 // по умолчанию 1
+});
+
+rect.toDataURL(&#39;png&#39;); // в короткой форме поддерживаются jpg, png, webp
+rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
+</code></pre>
+<p>Вторым аргументом можно передать произвольный boundbox для картинки.</p>
+<h3 id="-toimagedata-bounds-">Метод toImageData([bounds])</h3>
+<p>Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.</p>
+<h2 id="-">Параметры</h2>
+<p>Меняются методом <code>attr</code>.</p>
+<h3 id="fill">fill</h3>
+<h2 id="-">Алиасы событий</h2>
+<p>Можно использовать краткую форму для <code>on</code> и <code>fire</code>:</p>
+<pre><code class="lang-js">ctx.click(function(){ console.log(3); });
+// работает как ctx.on(&#39;click&#39;, function(){ console.log(3); });
+
+ctx.click();
+// работает как ctx.fire(&#39;click&#39;);
+</code></pre>
+<p>Все возможные алиасы:</p>
+<ul>
+<li><code>click</code></li>
+<li><code>dblclick</code></li>
+<li><code>mousedown</code></li>
+<li><code>mouseup</code></li>
+<li><code>mousemove</code></li>
+<li><code>mouseover</code></li>
+<li><code>mouseout</code></li>
+<li><code>mouseenter</code></li>
+<li><code>mouseleave</code></li>
+<li><code>mousewheel</code></li>
+<li><code>focus</code></li>
+<li><code>blur</code></li>
+<li><code>keypress</code></li>
+<li><code>keydown</code></li>
+<li><code>keyup</code></li>
+<li><code>touchstart</code></li>
+<li><code>touchmove</code></li>
+<li><code>touchend</code></li>
+<li><code>touchcancel</code></li>
+<li><code>pointerover</code></li>
+<li><code>pointerenter</code></li>
+<li><code>pointerdown</code></li>
+<li><code>pointermove</code></li>
+<li><code>pointerup</code></li>
+<li><code>pointercancel</code></li>
+<li><code>pointerout</code></li>
+<li><code>pointerleave</code></li>
+<li><code>gotpointercapture</code></li>
+<li><code>lostpointercapture</code></li>
+</ul>
+<h2 id="-">Трансформации</h2>
+<h2 id="-">Анимация</h2>
 <h4 id="fill">fill</h4>
 <p>Заливка объекта:</p>
 <pre><code class="lang-js">rect.fill(&#39;red&#39;);

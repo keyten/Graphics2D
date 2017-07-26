@@ -37,6 +37,11 @@ ctx.image(x, y, [width, height, crop]);
 ctx.text(text, x, y, [font, fill, stroke]);
 ```
 
+Произвольный объект со своей функцией рисования:
+```js
+ctx.object(data);
+```
+
 Градиент:
 ```js
 ctx.gradient(type, colors, from, to);
@@ -47,17 +52,36 @@ ctx.gradient(type, colors, from, to);
 ctx.pattern(image, repeat);
 ```
 
-Произвольный объект со своей функцией рисования:
-```js
-ctx.object(data);
-```
-
 Также есть несколько алиасов, которые на самом деле создают path.
 ```js
 ctx.line(x1, y1, x2, y2, [stroke]);
 ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
 ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
 ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
+```
+
+## Свойства
+
+### Свойство useCache
+Если установить в `true`, контекст будет кэшировать градиенты. Прирост производительности от этого кажется сомнительным, так что по умолчанию стоит в `false`.
+
+*Работает только в canvas-рендере.*
+
+### Свойство elements
+Массив всех объектов контекста.
+
+```js
+var ctx = Delta(canvas);
+var circle = ctx.circle(0, 0, 0);
+
+ctx.elements.length; // 1
+ctx.elements[0] === circle; // true
+```
+
+При изменении нужно вызвать метод `update`.
+```js
+ctx.elements.splice(1, 1);
+ctx.update();
 ```
 
 ## Методы
@@ -67,6 +91,26 @@ ctx.on('click', firstListener)
    .on('click', secondListener)
    .rotate(1)
    .translate(10, 10);
+```
+
+### Метод each(func)
+Вызывает `func` в цикле для каждого объекта контекста. В `this` передаётся контекст.
+```js
+ctx.each(function(element){
+    element.remove();
+});
+```
+Удаление объектов из `ctx.elements` не мешает исполнению цикла.
+
+### Метод push(object)
+Позволяет добавить объект в `ctx.elements` (и список перерисовки контекста).
+
+```js
+var rect = Delta.rect(200, 200, 10, 10, 'black');
+ctx.push(rect);
+
+// работает как
+ctx.rect(200, 200, 10, 10, 'black');
 ```
 
 ### Метод on(event, func)
@@ -103,8 +147,8 @@ ctx.on('click', function(event){
 Если передан 1 параметр — убирает все обработчики события `event`.
 
 ```js
-// обработчик, добавляющий круги в месте клика
-ctx.on('click', onContextClick)
+ctx.on('click', onContextClick);
+
 function onContextClick(event){
     console.log('Hello, Delta!');
 
@@ -124,6 +168,8 @@ ctx.fire('someCustomEvent', {
     text: 'anytext'
 });
 ```
+
+Позволяет, в том числе, эмулировать браузерные события (`click`, `mousemove` и т.п.), но только установленные через `ctx.on`.
 
 ### Метод getObjectInPoint(x, y)
 ```js
@@ -157,10 +203,10 @@ ctx.on('click', function(event){
 
 *Пояснение:* **координаты контекста** — это такие (декартовы) координаты, в которых левая верхняя точка canvas равна (0, 0) а правая — ширине и высоте canvas. В события мыши / тачей приходят экранные координаты. Чтобы определить, находятся ли они внутри какой-то фигуры на canvas, нужно преобразовать их в координаты контекста.
 
-### Внутренний метод update()
-Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки).
+### Внутренний метод update
+Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки; без всего этого метод `updateNow`).
 
-Обычно контекст обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов. Например:
+Обычно контекст обновляется сам, когда меняются свойства объектов. Но если вы хотите вручную изменять внутренние параметры объектов, он может пригодиться. Например:
 
 ```js
 var rect = ctx.rect(10, 10, 200, 200, 'red');
@@ -170,12 +216,13 @@ ctx.update();
 ```
 
 ## Алиасы событий
+Можно использовать краткую форму для `on` и `fire`:
 ```js
 ctx.click(function(){ console.log(3); });
-// эквивалентно ctx.on('click', function(){ console.log(3); });
+// работает как ctx.on('click', function(){ console.log(3); });
 
 ctx.click();
-// эквивалентно ctx.fire('click');
+// работает как ctx.fire('click');
 ```
 Все возможные алиасы:
  - `click`

@@ -69,14 +69,14 @@ var ctx = Delta.query(&#39;canvas&#39;, 0); // первый canvas на стра
 <p>Текст:</p>
 <pre><code class="lang-js">ctx.text(text, x, y, [font, fill, stroke]);
 </code></pre>
+<p>Произвольный объект со своей функцией рисования:</p>
+<pre><code class="lang-js">ctx.object(data);
+</code></pre>
 <p>Градиент:</p>
 <pre><code class="lang-js">ctx.gradient(type, colors, from, to);
 </code></pre>
 <p>Паттерн (повторяющийся рисунок):</p>
 <pre><code class="lang-js">ctx.pattern(image, repeat);
-</code></pre>
-<p>Произвольный объект со своей функцией рисования:</p>
-<pre><code class="lang-js">ctx.object(data);
 </code></pre>
 <p>Также есть несколько алиасов, которые на самом деле создают path.</p>
 <pre><code class="lang-js">ctx.line(x1, y1, x2, y2, [stroke]);
@@ -84,12 +84,43 @@ ctx.quadratic(x1, y1, x2, y2, hx, hy, [stroke]);
 ctx.bezier(x1, y1, x2, y2, h1x, h1y, h2x, h2y, [stroke]);
 ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
 </code></pre>
+<h2 id="-">Свойства</h2>
+<h3 id="-usecache">Свойство useCache</h3>
+<p>Если установить в <code>true</code>, контекст будет кэшировать градиенты. Прирост производительности от этого кажется сомнительным, так что по умолчанию стоит в <code>false</code>.</p>
+<p><em>Работает только в canvas-рендере.</em></p>
+<h3 id="-elements">Свойство elements</h3>
+<p>Массив всех объектов контекста.</p>
+<pre><code class="lang-js">var ctx = Delta(canvas);
+var circle = ctx.circle(0, 0, 0);
+
+ctx.elements.length; // 1
+ctx.elements[0] === circle; // true
+</code></pre>
+<p>При изменении нужно вызвать метод <code>update</code>.</p>
+<pre><code class="lang-js">ctx.elements.splice(1, 1);
+ctx.update();
+</code></pre>
 <h2 id="-">Методы</h2>
 <p>Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:</p>
 <pre><code class="lang-js">ctx.on(&#39;click&#39;, firstListener)
    .on(&#39;click&#39;, secondListener)
    .rotate(1)
    .translate(10, 10);
+</code></pre>
+<h3 id="-each-func-">Метод each(func)</h3>
+<p>Вызывает <code>func</code> в цикле для каждого объекта контекста. В <code>this</code> передаётся контекст.</p>
+<pre><code class="lang-js">ctx.each(function(element){
+    element.remove();
+});
+</code></pre>
+<p>Удаление объектов из <code>ctx.elements</code> не мешает исполнению цикла.</p>
+<h3 id="-push-object-">Метод push(object)</h3>
+<p>Позволяет добавить объект в <code>ctx.elements</code> (и список перерисовки контекста).</p>
+<pre><code class="lang-js">var rect = Delta.rect(200, 200, 10, 10, &#39;black&#39;);
+ctx.push(rect);
+
+// работает как
+ctx.rect(200, 200, 10, 10, &#39;black&#39;);
 </code></pre>
 <h3 id="-on-event-func-">Метод on(event, func)</h3>
 <p>Добавляет обработчик события на canvas. Передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:</p>
@@ -118,8 +149,8 @@ ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
 <h3 id="-off-event-func-">Метод off(event, [func])</h3>
 <p>Если передано 2 параметра, убирает <code>func</code> как обработчик события <code>event</code>.</p>
 <p>Если передан 1 параметр — убирает все обработчики события <code>event</code>.</p>
-<pre><code class="lang-js">// обработчик, добавляющий круги в месте клика
-ctx.on(&#39;click&#39;, onContextClick)
+<pre><code class="lang-js">ctx.on(&#39;click&#39;, onContextClick);
+
 function onContextClick(event){
     console.log(&#39;Hello, Delta!&#39;);
 
@@ -137,6 +168,7 @@ ctx.fire(&#39;someCustomEvent&#39;, {
     text: &#39;anytext&#39;
 });
 </code></pre>
+<p>Позволяет, в том числе, эмулировать браузерные события (<code>click</code>, <code>mousemove</code> и т.п.), но только установленные через <code>ctx.on</code>.</p>
 <h3 id="-getobjectinpoint-x-y-">Метод getObjectInPoint(x, y)</h3>
 <pre><code class="lang-js">ctx.getObjectInPoint(10, 10);
 </code></pre>
@@ -160,20 +192,21 @@ ctx.fire(&#39;someCustomEvent&#39;, {
 });
 </code></pre>
 <p><em>Пояснение:</em> <strong>координаты контекста</strong> — это такие (декартовы) координаты, в которых левая верхняя точка canvas равна (0, 0) а правая — ширине и высоте canvas. В события мыши / тачей приходят экранные координаты. Чтобы определить, находятся ли они внутри какой-то фигуры на canvas, нужно преобразовать их в координаты контекста.</p>
-<h3 id="-update-">Внутренний метод update()</h3>
-<p>Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки).</p>
-<p>Обычно контекст обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов. Например:</p>
+<h3 id="-update">Внутренний метод update</h3>
+<p>Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки; без всего этого метод <code>updateNow</code>).</p>
+<p>Обычно контекст обновляется сам, когда меняются свойства объектов. Но если вы хотите вручную изменять внутренние параметры объектов, он может пригодиться. Например:</p>
 <pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, &#39;red&#39;);
 // если вызвать rect.attr(&#39;fill&#39;, &#39;blue&#39;), холст обновится сам
 rect.style.fillStyle = &#39;blue&#39;;
 ctx.update();
 </code></pre>
 <h2 id="-">Алиасы событий</h2>
+<p>Можно использовать краткую форму для <code>on</code> и <code>fire</code>:</p>
 <pre><code class="lang-js">ctx.click(function(){ console.log(3); });
-// эквивалентно ctx.on(&#39;click&#39;, function(){ console.log(3); });
+// работает как ctx.on(&#39;click&#39;, function(){ console.log(3); });
 
 ctx.click();
-// эквивалентно ctx.fire(&#39;click&#39;);
+// работает как ctx.fire(&#39;click&#39;);
 </code></pre>
 <p>Все возможные алиасы:</p>
 <ul>

@@ -18,6 +18,10 @@ a:hover {
 	transition: 0.3s;
 }
 
+hr {
+	margin: 20px 0;
+}
+
 content h1:first-child,
 content h2:first-child,
 content h3:first-child,

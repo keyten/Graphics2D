@@ -37,7 +37,7 @@ module.exports = function(grunt) {
 				extension = url.pop();
 
 			url = url.join('/').split('/').slice(1);
-			url = url.map(part => part.toLowerCase());
+			url = url.map(part => part.toLowerCase().split(' ').join('_'));
 
 			if(ignoreNames.indexOf(url[url.length-1]) > -1){
 				return;
