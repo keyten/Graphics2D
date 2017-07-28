@@ -97,7 +97,7 @@ function processHTML(content, template, url, page, config){
 	}
 	else {
 		// find the first header
-		var start = content.search(/h\d/) + 3,
+		var start = content.search(/h\d/) + 3, // <h\d>?
 			end = content.search(/\/h\d/) - 1;
 		if(start != 2){
 			title = content.substring(start, end);

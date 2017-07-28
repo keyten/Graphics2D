@@ -107,7 +107,7 @@ header a {
 }
 
 header h1 {
-	font-family: Merriweather;
+	font-family: Georgia, Merriweather;
 	font-size: 25px;
 	color: rgba(0, 0, 0, 0.2);
 	line-height: 60px;
@@ -115,6 +115,7 @@ header h1 {
 
 header h1 .delta {
 	font-size: 100px;
+	font-weight: bold; /* font: Δ - Copperplate / Georgia / PT Serif Caption / Lucida Grande; elta.js - Futura / PT Serif Caption */;
 }
 
 header .menu {
