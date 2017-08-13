@@ -95,6 +95,8 @@ Path = new Class(Drawable, {
 
 	// Curves addition
 	moveTo: function(x, y){
+		// todo: optimize!
+		// return this.attrs.d.push(Delta.curve('moveBy', [x, y], this)); - but it is not beautiful :p
 		return this.push(['moveTo', x, y]);
 	},
 
@@ -119,7 +121,7 @@ Path = new Class(Drawable, {
 	},
 
 	closePath : function(){
-		return this.push(closePath);
+		return this.push(['closePath']);
 	},
 
 
@@ -134,9 +136,11 @@ Path = new Class(Drawable, {
 		for(var i = 0; i < this.attrs.d.length; i++){
 			currentBounds = this.attrs.d[i].bounds(currentPoint);
 			currentPoint = this.attrs.d[i].endAt() || currentPoint;
+
 			if(!currentBounds){
 				continue;
 			}
+
 			minX = Math.min(minX, currentBounds[0], currentBounds[2]);
 			maxX = Math.max(maxX, currentBounds[0], currentBounds[2]);
 			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
@@ -162,10 +166,10 @@ Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
 	}
-
+/*
 	if(data + '' === data){
 		return Path.parseSVG(data, path, firstIsNotMove);
-	}
+	} */
 
 	if(data instanceof Curve){
 		data.path = path;
@@ -179,7 +183,6 @@ Path.parse = function(data, path, firstIsNotMove){
 	var curves = [];
 	if(Array.isArray(data)){
 		for(var i = 0; i < data.length; i++){
-
 			if(data[i] instanceof Curve){
 				curves.push(data[i]);
 				data[i].path = path;
@@ -199,9 +202,9 @@ Path.parse = function(data, path, firstIsNotMove){
 	return curves;
 };
 
-Path.parseSVG = function(data, path, firstIsNotMove){
+/* Path.parseSVG = function(data, path, firstIsNotMove){
 	return [];
-};
+}; */
 
 Delta.path = function(){
 	return new Path(arguments);

@@ -88,6 +88,7 @@ Delta.contexts = {
 
 // {{include Path.js}}
 // {{include Path.Math.js}}
+// {{include Path.SVG.js}}
 
 // {{include Image.js}}
 

@@ -32,35 +32,61 @@ Delta.Math.Line = {
 		);
 	},
 
-	// todo: почитать Кормена про этот алгоритм
-	intersection: function(line1start, line1end, line2start, line2end){
+	intersections: function(line1start, line1end, line2start, line2end){
 		// what if line1start == line1end or line2start == line2end ?
 		// P1x + (P2x - P1x)t = Q1x + (Q2x - Q1x)v
 		// P1y + (P2y - P1y)t = Q1y + (Q2y - Q1y)v
 
 		// (P2x - P1x)t + (Q1x - Q2x)v = Q1x - P1x
 		// (P2y - P1y)t + (Q1y - Q2y)v = Q1y - P1y
-
+/*
 		var det = (line1end[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line1end[1] - line1start[0]) * (line2start[0] - line2end[0]);
 		if(Math.abs(det) < Delta.Math.EPSILON_intersection){
+			return [];
 			if(line1end[0] < line2start[0] || line1start[0] > line2end[0]){
-				return null;
+				return [];
 			}
 
 			// note: lines can intersect in 2 points ([-5,-5], [5, 5] and [-4, -4], [4, 4])
 			// and what if they are same?
-			;
+			var points = [];
+			if(line1end[0] < line2start[0]){
+				points.push(line1end);
+				points.push(line2start);
+			}
+
+			if(line2end[0] > line1start[0]){
+				points.push(line2end);
+				points.push(line1start);
+			}
+			return points;
 		} else {
 			var det1 = (line2start[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line2start[1] - line1start[1]) * (line2start[0] - line2end[0]),
-				t = det1 / det;
-			// det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]);
-			// v = det2 / det;
-			if(t >= 0 && t <= 1){
-				return Delta.Math.Line.pointAt(line1start, line1end, t);
+				t = det1 / det,
+				det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]),
+				v = det2 / det;
+			console.log(t, v);
+			if(t >= 0 && t <= 1 && v >= 0 && v <= 1){
+				return [Delta.Math.Line.pointAt(line1start, line1end, t)];
 			} else {
-				return null;
+				return [];
 			}
+		} */
+		//x1 = line1start[0]
+		//y1 = line1start[1]
+		//x2 = line1end[0]
+		//y2 = line1end[0]
+		//x3 = line2start[0]
+		//y3 = line2start[1]
+		//x4 = line2end[0]
+		//y4 = line2end[1]
+		var nx = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[0]-line2end[0])-(line1start[0]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
+			ny = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
+			d = (line1start[0]-line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]-line2end[0]);
+		if(d === 0){
+			return [];
 		}
+		return [[nx / d | 0, ny / d | 0]];
 	}
 };
 

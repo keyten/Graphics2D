@@ -4,10 +4,12 @@ module.exports = function(grunt){
 			source: 'Core/core.js',
 			dest: 'graphics2d.js'
 		},
+
 		more = {
 			source: 'More/more.js',
 			dest: 'graphics2d.more.js'
 		},
+
 		package = grunt.file.readJSON('package.json');
 
 	grunt.initConfig({

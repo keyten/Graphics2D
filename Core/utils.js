@@ -10,12 +10,11 @@ function Class(parent, properties){
 	};
 
 	if(parent){
-
 		if(properties.liftInits){
 			// go to the parent
 			init = function(){
 				if(init.prototype.__initialize__){
-					return init.prototype.__initialize__.apply(this,arguments);
+					return init.prototype.__initialize__.apply(this, arguments);
 				}
 
 				var inits = [],
@@ -33,7 +32,7 @@ function Class(parent, properties){
 				}
 
 				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
-					return init.prototype.initialize.apply(this,arguments);
+					return init.prototype.initialize.apply(this, arguments);
 				}
 			};
 		}

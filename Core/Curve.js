@@ -3,8 +3,11 @@ Curve = new Class({
 		this.method = method;
 		this.path = path;
 		this.attrs = {};
-		this.attrHooks = Curve.canvasFunctions[method].attrHooks;
-		this.funcAttrs = funcAttrs;
+		if(Curve.canvasFunctions[method]){
+			this.attrHooks = Curve.canvasFunctions[method].attrHooks;
+		}
+		this.funcAttrs = funcAttrs; // (_funcAttrs *) ! ... ? - but in modules? protected, not private
+		// add attrHook 'arguments' ?
 	},
 
 	update: function(){
@@ -110,15 +113,6 @@ Curve.canvasFunctions = {
 	}
 };
 
-Delta.curves = {
-	moveTo: Curve,
-	lineTo: Curve,
-	quadraticCurveTo: Curve,
-	bezierCurveTo: Curve,
-	arc: Curve,
-	arcTo: Curve
-};
-
 function makeAttrHooks(argList){
 	var attrHooks = {};
 	argList.forEach(function(arg, i){
@@ -135,13 +129,14 @@ function makeAttrHooks(argList){
 	return attrHooks;
 }
 
+// todo: move to path?
 Curve.fromArray = function(array, path){
 	if(array === true){
 		return closePath;
 	}
 
 	if(array[0] in Delta.curves){
-		return new Delta.curves[array[0]](array[0], array.slice(1), path);
+		return Delta.curve(array[0], array.slice(1), path);
 	}
 
 	return new Curve({
@@ -151,4 +146,17 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
+
 Delta.Curve = Curve;
+
+Delta.curve = function(method, attrs, path){
+	return new Delta.curves[method](method, attrs, path);
+};

@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 20.07.2017
+ *  Last edit: 13.08.2017
  *  License: MIT / LGPL
  */
 
@@ -19,7 +19,6 @@ var Delta = {},
 
 // Local variables
 	document = window.document,
-	emptyFunc = function(){},
 	toString = Object.prototype.toString,
 	slice = Array.prototype.slice,
 	has = Function.prototype.call.bind(Object.prototype.hasOwnProperty),
@@ -1871,8 +1870,11 @@ Curve = new Class({
 		this.method = method;
 		this.path = path;
 		this.attrs = {};
-		this.attrHooks = Curve.canvasFunctions[method].attrHooks;
-		this.funcAttrs = funcAttrs;
+		if(Curve.canvasFunctions[method]){
+			this.attrHooks = Curve.canvasFunctions[method].attrHooks;
+		}
+		this.funcAttrs = funcAttrs; // (_funcAttrs *) ! ... ? - but in modules? protected, not private
+		// add attrHook 'arguments' ?
 	},
 
 	update: function(){
@@ -1978,15 +1980,6 @@ Curve.canvasFunctions = {
 	}
 };
 
-Delta.curves = {
-	moveTo: Curve,
-	lineTo: Curve,
-	quadraticCurveTo: Curve,
-	bezierCurveTo: Curve,
-	arc: Curve,
-	arcTo: Curve
-};
-
 function makeAttrHooks(argList){
 	var attrHooks = {};
 	argList.forEach(function(arg, i){
@@ -2003,13 +1996,14 @@ function makeAttrHooks(argList){
 	return attrHooks;
 }
 
+// todo: move to path?
 Curve.fromArray = function(array, path){
 	if(array === true){
 		return closePath;
 	}
 
 	if(array[0] in Delta.curves){
-		return new Delta.curves[array[0]](array[0], array.slice(1), path);
+		return Delta.curve(array[0], array.slice(1), path);
 	}
 
 	return new Curve({
@@ -2019,7 +2013,20 @@ Curve.fromArray = function(array, path){
 	}[array.length], array, path);
 };
 
+Delta.curves = {
+	moveTo: Curve,
+	lineTo: Curve,
+	quadraticCurveTo: Curve,
+	bezierCurveTo: Curve,
+	arc: Curve,
+	arcTo: Curve
+};
+
 Delta.Curve = Curve;
+
+Delta.curve = function(method, attrs, path){
+	return new Delta.curves[method](method, attrs, path);
+};
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
 
@@ -2222,35 +2229,61 @@ Delta.Math.Line = {
 		);
 	},
 
-	// todo: почитать Кормена про этот алгоритм
-	intersection: function(line1start, line1end, line2start, line2end){
+	intersections: function(line1start, line1end, line2start, line2end){
 		// what if line1start == line1end or line2start == line2end ?
 		// P1x + (P2x - P1x)t = Q1x + (Q2x - Q1x)v
 		// P1y + (P2y - P1y)t = Q1y + (Q2y - Q1y)v
 
 		// (P2x - P1x)t + (Q1x - Q2x)v = Q1x - P1x
 		// (P2y - P1y)t + (Q1y - Q2y)v = Q1y - P1y
-
+/*
 		var det = (line1end[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line1end[1] - line1start[0]) * (line2start[0] - line2end[0]);
 		if(Math.abs(det) < Delta.Math.EPSILON_intersection){
+			return [];
 			if(line1end[0] < line2start[0] || line1start[0] > line2end[0]){
-				return null;
+				return [];
 			}
 
 			// note: lines can intersect in 2 points ([-5,-5], [5, 5] and [-4, -4], [4, 4])
 			// and what if they are same?
-			;
+			var points = [];
+			if(line1end[0] < line2start[0]){
+				points.push(line1end);
+				points.push(line2start);
+			}
+
+			if(line2end[0] > line1start[0]){
+				points.push(line2end);
+				points.push(line1start);
+			}
+			return points;
 		} else {
 			var det1 = (line2start[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line2start[1] - line1start[1]) * (line2start[0] - line2end[0]),
-				t = det1 / det;
-			// det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]);
-			// v = det2 / det;
-			if(t >= 0 && t <= 1){
-				return Delta.Math.Line.pointAt(line1start, line1end, t);
+				t = det1 / det,
+				det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]),
+				v = det2 / det;
+			console.log(t, v);
+			if(t >= 0 && t <= 1 && v >= 0 && v <= 1){
+				return [Delta.Math.Line.pointAt(line1start, line1end, t)];
 			} else {
-				return null;
+				return [];
 			}
+		} */
+		//x1 = line1start[0]
+		//y1 = line1start[1]
+		//x2 = line1end[0]
+		//y2 = line1end[0]
+		//x3 = line2start[0]
+		//y3 = line2start[1]
+		//x4 = line2end[0]
+		//y4 = line2end[1]
+		var nx = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[0]-line2end[0])-(line1start[0]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
+			ny = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
+			d = (line1start[0]-line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]-line2end[0]);
+		if(d === 0){
+			return [];
 		}
+		return [[nx / d | 0, ny / d | 0]];
 	}
 };
 
@@ -2570,6 +2603,8 @@ Path = new Class(Drawable, {
 
 	// Curves addition
 	moveTo: function(x, y){
+		// todo: optimize!
+		// return this.attrs.d.push(Delta.curve('moveBy', [x, y], this)); - but it is not beautiful :p
 		return this.push(['moveTo', x, y]);
 	},
 
@@ -2594,7 +2629,7 @@ Path = new Class(Drawable, {
 	},
 
 	closePath : function(){
-		return this.push(closePath);
+		return this.push(['closePath']);
 	},
 
 
@@ -2609,9 +2644,11 @@ Path = new Class(Drawable, {
 		for(var i = 0; i < this.attrs.d.length; i++){
 			currentBounds = this.attrs.d[i].bounds(currentPoint);
 			currentPoint = this.attrs.d[i].endAt() || currentPoint;
+
 			if(!currentBounds){
 				continue;
 			}
+
 			minX = Math.min(minX, currentBounds[0], currentBounds[2]);
 			maxX = Math.max(maxX, currentBounds[0], currentBounds[2]);
 			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
@@ -2637,10 +2674,10 @@ Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
 	}
-
+/*
 	if(data + '' === data){
 		return Path.parseSVG(data, path, firstIsNotMove);
-	}
+	} */
 
 	if(data instanceof Curve){
 		data.path = path;
@@ -2654,7 +2691,6 @@ Path.parse = function(data, path, firstIsNotMove){
 	var curves = [];
 	if(Array.isArray(data)){
 		for(var i = 0; i < data.length; i++){
-
 			if(data[i] instanceof Curve){
 				curves.push(data[i]);
 				data[i].path = path;
@@ -2674,9 +2710,9 @@ Path.parse = function(data, path, firstIsNotMove){
 	return curves;
 };
 
-Path.parseSVG = function(data, path, firstIsNotMove){
+/* Path.parseSVG = function(data, path, firstIsNotMove){
 	return [];
-};
+}; */
 
 Delta.path = function(){
 	return new Path(arguments);
@@ -2784,6 +2820,75 @@ extend(Path.prototype, {
     }
 
 });
+// CurveUtils
+extend(Curve.prototype, {
+	before: function(){
+		if(!this.path){
+			return null;
+		}
+
+		var d = this.path.attr('d');
+		var index = d.indexOf(this);
+
+		if(index < 1){
+			return null;
+		}
+		return d[index - 1];
+	}
+});
+
+// SVG Curves
+Delta.curves['moveBy'] = new Class(Curve, {
+	process: function(ctx){
+		var lastPoint = this.before().endAt();
+		ctx.moveTo(lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]);
+	},
+
+	endAt: function(){
+		var lastPoint = this.before().endAt();
+		return [lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]];
+	}
+});
+
+Delta.curves['lineBy'] = new Class(Curve, {
+	process: function(ctx){
+		var lastPoint = this.before().endAt();
+		ctx.lineTo(lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]);
+	},
+
+	endAt: function(){
+		var lastPoint = this.before().endAt();
+		return [lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]];
+	}
+});
+
+Delta.curves['quadraticCurveBy'] = new Class(Curve, {
+	process: function(ctx){
+		var lastPoint = this.before().endAt();
+		ctx.quadraticCurveTo(
+			lastPoint[0] + this.funcAttrs[0],
+			lastPoint[1] + this.funcAttrs[1],
+			lastPoint[0] + this.funcAttrs[2],
+			lastPoint[1] + this.funcAttrs[3],
+		);
+	},
+
+	endAt: function(){
+		var lastPoint = this.before().endAt();
+		return [
+			lastPoint[0] + this.funcAttrs[0],
+			lastPoint[1] + this.funcAttrs[1],
+			lastPoint[0] + this.funcAttrs[2],
+			lastPoint[1] + this.funcAttrs[3],
+		];
+	}
+});
+
+extend(Path.prototype, {
+	moveBy: function(x, y){
+		return this.attrs.d.push(Delta.curve('moveBy', [x, y], this));
+	}
+})
 
 Picture = new Class(Drawable, {
 
@@ -3481,12 +3586,11 @@ function Class(parent, properties){
 	};
 
 	if(parent){
-
 		if(properties.liftInits){
 			// go to the parent
 			init = function(){
 				if(init.prototype.__initialize__){
-					return init.prototype.__initialize__.apply(this,arguments);
+					return init.prototype.__initialize__.apply(this, arguments);
 				}
 
 				var inits = [],
@@ -3504,7 +3608,7 @@ function Class(parent, properties){
 				}
 
 				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
-					return init.prototype.initialize.apply(this,arguments);
+					return init.prototype.initialize.apply(this, arguments);
 				}
 			};
 		}
@@ -4510,7 +4614,201 @@ Drawable.prototype.physTick = function(){
 	}
 	return options.velocity[0] !== 0 || options.velocity[1] !== 0;
 };
+/* Interface:
+ - rect.editor('transform');
+ - rect.editor('transform', command); // <- command = enable / disable / rotate / freeze / destroy / etc
+ - rect.editor('transform', properties); // sets attrs
+ */
+extend(Drawable.prototype, {
+	editor: function(kind, value){
+		if(!value){
+			value = 'enable';
+		}
 
+		if(!Delta.editors[kind]){
+			throw 'There\'s no ' + kind + ' editor';
+		}
+
+		if(value + '' === value){
+			return Delta.editors[kind][value](this) || this;
+		}
+	}
+});
+
+Delta.editors = {};
+
+// draggable
+Delta.editors.draggable = {
+	enable: function(object){
+		var coords;
+
+		object.on('mousedown', function(e){
+			var bounds = this.bounds();
+			coords = [
+				e.contextX - bounds.x,
+				e.contextY - bounds.y
+			];
+		});
+
+		window.addEventListener('mousemove', function(e){
+			if(!coords){
+				return;
+			}
+
+			coords = [0, 0];
+			var ctxCoords = object.context.contextCoords(e.clientX, e.clientY);
+			var bounds = object.bounds();
+			object.transform(null);
+			object.translate(ctxCoords[0] + coords[0] - bounds.x, ctxCoords[1] + coords[1] - bounds.y);
+		});
+
+		window.addEventListener('mouseup', function(){
+			coords = null;
+		});
+	},
+
+	disable: function(object){
+		;
+	}
+};
+
+Delta.editors.__commonControls = {
+	style: {
+		radius: 5,
+		color: '#0af',
+		opacity: 0.3
+	},
+
+	point: function(x, y){
+		return ctx.circle({
+			cx: x,
+			cy: y,
+			radius: this.style.radius,
+			fill: this.style.color,
+			stroke: this.style.stroke,
+			opacity: this.style.opacity
+		});
+	},
+
+	border: function(x, y, width, height){
+		return ctx.rect({
+			x: x,
+			y: y,
+			width: width,
+			height: height,
+			stroke: this.style.color,
+			opacity: this.style.opacity
+		});
+	}
+};
+
+Delta.editors.transform = {
+	enable: function(object){
+		var bounds = object.bounds();
+		if(!object._editorTransform){
+			var controls = this.__controls;
+			var lt, lb, rt, rb, border;
+
+			object._editorTransform = {
+				border: border = controls.border(bounds.x, bounds.y, bounds.width, bounds.height),
+				lt: lt = controls.point(bounds.x1, bounds.y1),
+				lb: lb = controls.point(bounds.x1, bounds.y2),
+				rt: rt = controls.point(bounds.x2, bounds.y1),
+				rb: rb = controls.point(bounds.x2, bounds.y2)
+			};
+
+			var ltDown, lbDown, rtDown, rbDown;
+
+			window.addEventListener('mouseup', function(){
+				ltDown = lbDown = rtDown = rbDown = null;
+			});
+
+			window.addEventListener('mousemove', function(e){
+				var coords = object.context.contextCoords(e.clientX, e.clientY);
+				if(ltDown){
+					lt.attr({
+						cx: coords[0],
+						cy: coords[1]
+					});
+
+					lb.attr('cx', coords[0]);
+					rt.attr('cy', coords[1]);
+
+					border.attr({
+						x1: coords[0],
+						y1: coords[1]
+					});
+
+					object.transform(null);
+					// attr scale?
+					object.scale(
+						border.attr('width') / ltDown.width,
+						border.attr('height') / ltDown.height,
+						'rb'
+					);
+				} else if(lbDown){
+					lb.attr({
+						cx: coords[0],
+						cy: coords[1]
+					});
+
+					lt.attr('cx', coords[0]);
+					rb.attr('cy', coords[1]);
+
+					border.attr({
+						x1: coords[0],
+						y2: coords[1]
+					});
+
+					object.transform(null);
+					// attr scale?
+					object.scale(
+						border.attr('width') / lbDown.width,
+						border.attr('height') / lbDown.height,
+						'rt'
+					);
+				} else if(rtDown){
+					;
+				} else if(rbDown){
+					;
+				}
+			});
+
+			// todo: add and use editor.draggable
+			lt.on('mousedown', function(){
+				ltDown = object.bounds();
+			});
+			lb.on('mousedown', function(){
+				lbDown = object.bounds();
+			});
+			rt.on('mousedown', function(){
+				rtDown = object.bounds();
+			});
+			rb.on('mousedown', function(){
+				rbDown = object.bounds();
+			});
+
+		} else {
+			object._editorTransform.border.attr('visible', true);
+			object._editorTransform.lt.attr('visible', true);
+			object._editorTransform.lb.attr('visible', true);
+			object._editorTransform.rt.attr('visible', true);
+			object._editorTransform.rb.attr('visible', true);
+			// fix bounds
+			// the object could change
+		}
+	},
+
+	disable: function(object){
+		;
+	},
+
+	attr: function(name, value){
+		// for rect.editor('transform', properties);
+	},
+
+	__controls: Delta.editors.__commonControls
+};
 
 Delta.version = "1.9.0";
 
