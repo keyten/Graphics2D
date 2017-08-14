@@ -216,7 +216,7 @@ rect.fire(&#39;someCustomEvent&#39;, {
 });
 </code></pre>
 <h3 id="-todataurl-options-bounds-">Метод toDataURL([options, [bounds]])</h3>
-<p>Рисует объект и возвращает картинку в формате Data:URL.</p>
+<p>Рисует объект на канвасе в памяти и возвращает картинку в формате Data:URL.</p>
 <pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, &#39;blue&#39;);
 
 var image = rect.toDataURL();
@@ -234,9 +234,38 @@ rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
 <p>Вторым аргументом можно передать произвольный boundbox для картинки.</p>
 <h3 id="-toimagedata-bounds-">Метод toImageData([bounds])</h3>
 <p>Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.</p>
+<h3 id="-serialize-quickcalls-">Метод serialize([quickCalls])</h3>
+<p>Возвращает объект как JSON.</p>
+<pre><code class="lang-js">ctx.rect(10, 10, 200, 200, &#39;red&#39;).serialize(); // -&gt; {}
+</code></pre>
+<p>Если параметр <code>quickCalls = true</code>, сохраняет также обработчики событий, которые добавлены с помощью быстрых вызовов.</p>
+<pre><code class="lang-js">rect.mouseover(&#39;attr&#39;, &#39;fill&#39;, &#39;red&#39;).
+    .mouseout(&#39;attr&#39;, &#39;fill&#39;, &#39;blue&#39;);
+
+rect.serialize();
+</code></pre>
+<p>// если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
+// при добавлении quickCall через on нужно просто где-нибудь дописывать там &quot;listener.serializeString = &#39;...&#39;;&quot;</p>
 <h2 id="-">Параметры</h2>
 <p>Меняются методом <code>attr</code>.</p>
+<h3 id="z">z</h3>
+<p>Поддерживаются -1 / +1 мб?.. Но зачем?
+Лучше полную поддержку стека объектов.</p>
 <h3 id="fill">fill</h3>
+<p>fillRule мб в плагинах для path.</p>
+<h3 id="stroke">stroke</h3>
+<h3 id="shadow">shadow</h3>
+<h3 id="opacity">opacity</h3>
+<h3 id="composite">composite</h3>
+<h3 id="clip">clip</h3>
+<h3 id="visible">visible</h3>
+<h3 id="interaction">interaction</h3>
+<h3 id="cursor">cursor</h3>
+<h3 id="translation">translation</h3>
+<h3 id="rotation-angle-">rotation / angle?</h3>
+<h3 id="skew">skew</h3>
+<h3 id="scale">scale</h3>
+<h3 id="matrix">matrix</h3>
 <h2 id="-">Алиасы событий</h2>
 <p>Можно использовать краткую форму для <code>on</code> и <code>fire</code>:</p>
 <pre><code class="lang-js">ctx.click(function(){ console.log(3); });

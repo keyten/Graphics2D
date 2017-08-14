@@ -214,7 +214,7 @@ rect.fire('someCustomEvent', {
 ```
 
 ### Метод toDataURL([options, [bounds]])
-Рисует объект и возвращает картинку в формате Data:URL.
+Рисует объект на канвасе в памяти и возвращает картинку в формате Data:URL.
 
 ```js
 var rect = ctx.rect(10, 10, 200, 200, 'blue');
@@ -239,10 +239,51 @@ rect.toDataURL('image/jpeg'); // можно передать mimeType
 ### Метод toImageData([bounds])
 Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.
 
+### Метод rasterize(deleteOriginal = true)
+Добавляет вместо объекта картинку из toDataURL()
+
+### Метод serialize([quickCalls])
+Возвращает объект как JSON.
+```js
+ctx.rect(10, 10, 200, 200, 'red').serialize(); // -> {}
+```
+
+Если параметр `quickCalls = true`, сохраняет также обработчики событий, которые добавлены с помощью быстрых вызовов.
+```js
+rect.mouseover('attr', 'fill', 'red').
+    .mouseout('attr', 'fill', 'blue');
+
+rect.serialize();
+```
+
+// если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
+// при добавлении quickCall через on нужно просто где-нибудь дописывать там "listener.serializeString = '...';"
+
 ## Параметры
 Меняются методом `attr`.
 
+### z
+Поддерживаются -1 / +1 мб?.. Но зачем?
+Лучше полную поддержку стека объектов.
 ### fill
+fillRule мб в плагинах для path. nonzero / evenodd
+
+### stroke
+добавить miterLimit
+мб '10px ml5px'
+### shadow
+### opacity
+### composite
+### clip
+### visible
+### interaction
+### cursor
+
+### translation
+### rotation / angle?
+### skew
+### scale
+### matrix
 
 ## Алиасы событий
 Можно использовать краткую форму для `on` и `fire`:

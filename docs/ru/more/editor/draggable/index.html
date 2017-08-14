@@ -50,24 +50,45 @@
 </style>
 
 	<content>
-		<h1 id="-delta-drawable">Наследование Delta.Drawable</h1>
-<p>Метод контекста <code>ctx.object</code> позволяет создать объект с произвольной функцией рисования и другими параметрами, унаследовав его при этом от Delta.Drawable. Это более низкоуровневый способ рисовать.</p>
-<p>Чтобы научить объект рисоваться, необходимо определить функцию <code>draw</code>:</p>
-<pre><code class="lang-js">ctx.object({
-    draw: function(ctx){
-        ctx.beginPath();
-        ctx.moveTo(...);
-
-        ctx.fillStyle = &#39;red&#39;; // в разделе attrHooks модифицировать до произвольного цвета в attrs
-        ctx.fill();
-    }
-});
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">rect.editor(&#39;draggable&#39;);
 </code></pre>
-<p>О чём рассказать:</p>
+<h2 id="-">Команды:</h2>
+<pre><code class="lang-js">rect.editor(&#39;draggable&#39;, &#39;disable&#39;);
+rect.editor(&#39;draggable&#39;, &#39;enable&#39;);
+rect.editor(&#39;draggable&#39;, &#39;destroy&#39;); // note: destroy also removes all draggable parameters
+
+rect.editor(&#39;draggable&#39;, {
+    // default values:
+    axis: null / &#39;x&#39; / &#39;y&#39;, // движение только по одной координате
+    inBounds: boundsObject / drawable, // движение в пределах прямоугольника
+    cursor: &#39;crosshair&#39;, // just a css value
+    cursorAt: &#39;lt&#39; (any corner value) / { bottom: 0 }, &lt;- todo: сделать такое в corner (bottom обнуляется, а left остаётся)
+
+    moveWith: drawable / array, // если назначить этот параметр, то все объекты в нём будут перемещаться на столько же, на сколько переместился и оригинальный
+    delay: 100, // Time in milliseconds after mousedown until dragging should start
+    distance: number (теорема Пифагора) / array with coords, // Distance in pixels after mousedown the mouse must move before dragging should start
+    grid: number / array, // Snaps the dragging helper to a grid, every x and y pixels
+    helper: null / &#39;clone&#39; / drawable, // Allows for a helper element to be used for dragging display.
+    helperOpacity: 0.5, // does not work with helper = null,
+
+    snap: true / drawable / [drawables], // note: snap is impossible with grid enable
+    snapMode: &#39;both&#39; / &#39;inner&#39; / &#39;outer&#39;, // how about do that for each element?
+    snapTolerance: 20,
+    stack: [drawables], // несколько объектов, которые меняют z-index, становясь друг над другом при драге
+    stackReturnZ: false, // возвращать ли прежний z при dragend объекту в стеке
+    zIndex: null // z-index for helper being dragged (можно даже &#39;top&#39;, как в обычном Drawable::attr(&#39;z&#39;)) — несовместимо со stack
+});
+
+rect.editor(&#39;draggable&#39;, &#39;revert&#39;, [duration, easing, callback, etc]); // возвращает элемент туда, где он был до последнего драга
+// например:
+rect.on(&#39;dragend&#39;, &#39;editor&#39;, &#39;draggable&#39;, &#39;revert&#39;);
+</code></pre>
+<p>Sends events:</p>
 <ul>
-<li>attrHooks</li>
-<li>eventHooks</li>
-<li>isPointIn и обработка событий мыши</li>
+<li>dragstart (mousedown on control) &lt;- in event obj { objectX, objectY, helper }</li>
+<li>dragend</li>
+<li>drag</li>
 </ul>
 
 	</content>

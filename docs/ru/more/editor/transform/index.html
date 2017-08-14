@@ -50,24 +50,37 @@
 </style>
 
 	<content>
-		<h1 id="-delta-drawable">Наследование Delta.Drawable</h1>
-<p>Метод контекста <code>ctx.object</code> позволяет создать объект с произвольной функцией рисования и другими параметрами, унаследовав его при этом от Delta.Drawable. Это более низкоуровневый способ рисовать.</p>
-<p>Чтобы научить объект рисоваться, необходимо определить функцию <code>draw</code>:</p>
-<pre><code class="lang-js">ctx.object({
-    draw: function(ctx){
-        ctx.beginPath();
-        ctx.moveTo(...);
-
-        ctx.fillStyle = &#39;red&#39;; // в разделе attrHooks модифицировать до произвольного цвета в attrs
-        ctx.fill();
-    }
-});
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">rect.editor(&#39;transform&#39;);
 </code></pre>
-<p>О чём рассказать:</p>
+<h2 id="-">Команды:</h2>
+<pre><code class="lang-js">rect.editor(&#39;transform&#39;, &#39;disable&#39;);
+rect.editor(&#39;transform&#39;, &#39;enable&#39;);
+rect.editor(&#39;transform&#39;, &#39;destroy&#39;); // note: destroy also removes all draggable parameters
+
+rect.editor(&#39;transform&#39;, {
+    // default values:
+    freeze: false, // selected but does not interact
+
+    rotate: true,
+    translate: true,
+    scale: true,
+    skew: false,
+    minScale, minRotate, etc
+
+    showPivot: false, // a draggable point with pivot, like in photoshop
+    saveProportions: false,
+    // how about alt, shift?
+    // maybe in future
+});
+
+rect.editor(&#39;transform&#39;, &#39;getLayout&#39;); // -&gt; { border: controlObj, lt: ..., ... }
+</code></pre>
+<p>Sends events:</p>
 <ul>
-<li>attrHooks</li>
-<li>eventHooks</li>
-<li>isPointIn и обработка событий мыши</li>
+<li>transformstart (mousedown on control) { type: &#39;translate&#39;, control: &#39;object&#39; / &#39;lt&#39;, pivot: null / &#39;lt&#39; / [array with coords] }</li>
+<li>transformend</li>
+<li>transform</li>
 </ul>
 
 	</content>
