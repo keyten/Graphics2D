@@ -53,20 +53,20 @@
 		<h1 id="image-composite">Image.Composite</h1>
 <p>Позволяет назначать произвольный blend-mode для картинки.</p>
 <h3 id="-">Использование</h3>
-<pre><code class="lang-js">image.composite(function(r1,g1,b1, r2,g2,b2){
+<pre><code class="lang-js">image.composite(function(r1, g1, b1, r2, g2, b2){
     return [Math.min(r1 + r2, 255), Math.min(g1 + g2, 255), Math.min(b1 + b2, 255)];
 });
 </code></pre>
 <h3 id="built-in-composites">Built-in composites</h3>
 <p>Можно добавить blend-mode в список, чтобы использовать несколько раз:</p>
-<pre><code class="lang-js">Graphics2D.composites[&#39;multiply&#39;] = function(r1,g1,b1, r2,g2,b2){
+<pre><code class="lang-js">Delta.composites[&#39;multiply&#39;] = function(r1, g1, b1, r2, g2, b2){
     return [Math.min(r1 * r2, 255), Math.min(g1 * g2, 255), Math.min(b1 * b2, 255)];
 };
 </code></pre>
 <p>И затем использовать:</p>
 <pre><code class="lang-js">image.composite(&#39;multiply&#39;);
 </code></pre>
-<p>Если устанавливаемого таким образом blend-mode не окажется в <code>Graphics2D.composites</code>, то будет применён стандартный браузерный blend-mode (с помощью <code>globalCompositeOperation</code>) с тем же именем.</p>
+<p>Если устанавливаемого таким образом blend-mode не окажется в <code>Delta.composites</code>, то будет применён стандартный браузерный blend-mode (с помощью <code>globalCompositeOperation</code>) с тем же именем.</p>
 
 	</content>
 

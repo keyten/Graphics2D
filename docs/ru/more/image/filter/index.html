@@ -60,7 +60,7 @@
 </code></pre>
 <h3 id="built-in-">Built-in фильтры</h3>
 <p>Можно добавить фильтр однажды, чтобы использовать несколько раз.</p>
-<pre><code class="lang-js">Graphics2D.filters[&#39;grayscale&#39;] = function(r, g, b, a){
+<pre><code class="lang-js">Delta.filters[&#39;grayscale&#39;] = function(r, g, b, a){
     var average = (r + g + b) / 3;
     return [average, average, average, a];
 };
@@ -77,18 +77,30 @@
 image.filter(lighten, { value: 10 });
 </code></pre>
 <p>Или же:</p>
-<pre><code class="lang-js">Graphics2D.filters[&#39;lighten&#39;] = function(r, g, b, a, params){
+<pre><code class="lang-js">Delta.filters[&#39;lighten&#39;] = function(r, g, b, a, params){
     return [r + params.value, g + params.value, b + params.value, a];
 };
 
 image.filter(&#39;lighten&#39;, { value: 10 });
 </code></pre>
+<p>Получить все фильтры:</p>
+<pre><code class="lang-js">image.filter(); // -&gt; []
+</code></pre>
+<p>Убрать все фильтры:</p>
+<pre><code class="lang-js">image.filter(null);
+</code></pre>
+<p>Отключить / включить все фильтры:</p>
+<pre><code class="lang-js">image.filter(&#39;disable&#39; / &#39;enable&#39;);
+
+// работа со стеком фильтров:
+image.filter(&#39;splice&#39;, 1, 3, 5);
+// обычные функции массивов (проверяются, если соотв. фильтра нет), после которых вызывается update
+</code></pre>
 <h3 id="-">Оптимизация</h3>
 <ul>
-<li>Если изображение выходит за границы canvas, будет обработана только видимая часть.</li>
-<li>Применение фильтра <em>заменяет</em> изображение. Таким образом, при следующей отрисовке фильтр не будет пересчитываться заново, вместо этого изображение будет заново отрисовано с уже применённым фильтром.</li>
+<li>Если изображение выходит за границы canvas, будет обработана только видимая часть. /но нужно разрешить фильтрам отключать эту функцию, gaussian blur, например/
+— Фильтр кэшируется как imageData. При добавлении фильтра в него отправляется уже закэшированная imageData и перезаписывается результатом. Можно включить кэширование всего стека.</li>
 </ul>
-<p>В планах стек фильтров, но там кэширование тоже будет.</p>
 
 	</content>
 

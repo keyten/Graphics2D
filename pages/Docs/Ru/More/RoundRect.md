@@ -5,6 +5,8 @@ Graphics2D.RoundRect
 
 ### Создание
 ```js
+ctx.roundrect(x, y, w, h, rx, ry, fill, stroke);
+ctx.roundrect(x, y, w, h, rlt, rrt, rrb, rlb, fill, stroke);
 ctx.roundrect({
   x: 10,
   y: 10,
@@ -15,6 +17,8 @@ ctx.roundrect({
   rx: 10,
   ry: 10,
 });
+
+Delta.roundrect;
 ```
 
 ### Методы
@@ -30,3 +34,5 @@ rect.rx(10);
 ```
 
 *Примечание: rx и ry можно анимировать.*
+
+*Примечание: roundrect со скругленными на 100% углами — не то же, что и эллипс. */

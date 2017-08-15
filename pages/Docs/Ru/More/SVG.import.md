@@ -1,0 +1,8 @@
+## Добавляет импорт SVG
+
+```js
+ctx.fromSVG(string or blob or XML, {
+    quickCalls: true, // нужно при экспорте как-то зашивать в комментарии, что там с быстрыми вызовами
+    filters: true
+});
+```

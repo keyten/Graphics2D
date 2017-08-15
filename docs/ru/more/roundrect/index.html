@@ -53,7 +53,9 @@
 		<h1 id="graphics2d-roundrect">Graphics2D.RoundRect</h1>
 <p>Прямоугольник со скруглёнными углами. Создаётся точно также, как и обычный, но при передаче параметров объектом, можно передать радиус углов (по x и по y).</p>
 <h3 id="-">Создание</h3>
-<pre><code class="lang-js">ctx.roundrect({
+<pre><code class="lang-js">ctx.roundrect(x, y, w, h, rx, ry, fill, stroke);
+ctx.roundrect(x, y, w, h, rlt, rrt, rrb, rlb, fill, stroke);
+ctx.roundrect({
   x: 10,
   y: 10,
   width: 200,
@@ -63,6 +65,8 @@
   rx: 10,
   ry: 10,
 });
+
+Delta.roundrect;
 </code></pre>
 <h3 id="-">Методы</h3>
 <h4 id="x-y-width-height">x, y, width, height</h4>
@@ -74,6 +78,7 @@
 rect.rx(10);
 </code></pre>
 <p><em>Примечание: rx и ry можно анимировать.</em></p>
+<p><em>Примечание: roundrect со скругленными на 100% углами — не то же, что и эллипс. </em>/</p>
 
 	</content>
 

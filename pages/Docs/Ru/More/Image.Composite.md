@@ -5,7 +5,7 @@ Image.Composite
 
 ### Использование
 ```js
-image.composite(function(r1,g1,b1, r2,g2,b2){
+image.composite(function(r1, g1, b1, r2, g2, b2){
     return [Math.min(r1 + r2, 255), Math.min(g1 + g2, 255), Math.min(b1 + b2, 255)];
 });
 ```
@@ -13,7 +13,7 @@ image.composite(function(r1,g1,b1, r2,g2,b2){
 ### Built-in composites
 Можно добавить blend-mode в список, чтобы использовать несколько раз:
 ```js
-Graphics2D.composites['multiply'] = function(r1,g1,b1, r2,g2,b2){
+Delta.composites['multiply'] = function(r1, g1, b1, r2, g2, b2){
     return [Math.min(r1 * r2, 255), Math.min(g1 * g2, 255), Math.min(b1 * b2, 255)];
 };
 ```
@@ -21,4 +21,4 @@ Graphics2D.composites['multiply'] = function(r1,g1,b1, r2,g2,b2){
 ```js
 image.composite('multiply');
 ```
-Если устанавливаемого таким образом blend-mode не окажется в `Graphics2D.composites`, то будет применён стандартный браузерный blend-mode (с помощью `globalCompositeOperation`) с тем же именем.
+Если устанавливаемого таким образом blend-mode не окажется в `Delta.composites`, то будет применён стандартный браузерный blend-mode (с помощью `globalCompositeOperation`) с тем же именем.

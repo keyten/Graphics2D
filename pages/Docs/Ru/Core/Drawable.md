@@ -253,7 +253,7 @@ ctx.rect(10, 10, 200, 200, 'red').serialize(); // -> {}
 rect.mouseover('attr', 'fill', 'red').
     .mouseout('attr', 'fill', 'blue');
 
-rect.serialize();
+rect.serialize(); // -> {}
 ```
 
 // если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
@@ -265,21 +265,106 @@ rect.serialize();
 ### z
 Поддерживаются -1 / +1 мб?.. Но зачем?
 Лучше полную поддержку стека объектов.
+
 ### fill
 fillRule мб в плагинах для path. nonzero / evenodd
 
 ### stroke
-добавить miterLimit
-мб '10px ml5px'
+Поддерживается css-like запись:
+```js
+rect.attr('stroke', '10px blue round');
+```
+
+А также можно передать параметры объектом:
+```js
+rect.attr('stroke', {
+    color: 'black'
+}]);
+```
+
+*Примечание: * уже установленные свойства не обнуляются при записи других свойств.
+```js
+rect.attr('stroke', 'blue');
+rect.attr('stroke', '5px');
+// работает как
+rect.attr('stroke', 'blue 5px');
+```
+
+Возможные параметры:
+- Ширина (`width`) — `2px`, `0.5em`, `8` и т.п.
+- Цвет (`color`) — `#f00`, `green`, `rgb(0,0,0)` и т.п.
+- Тип соединений (`join`) — `miter`, `bevel`, `round`.
+- Тип скруглений (`cap`) — `butt`, `square`, `round`.
+- Пунктир (`dash`) — `[1,2,2]`, `shortdash`, `shortdot`, `shortdashdot`, `shortdashdotdot`, `dot`, `dash`, `longdash`, `dashdot`, `longdashdot`, `longdashdotdot`.
+- Miter limit (`miterLimit`) — `ml2px`, `ml8` и т.п.
+
+Также в css-like записи можно передать прозрачность (десятичная дробь меньше 1), в этом случае цвет переведётся в RGB. Пример:
+```js
+rect.attr('stroke', '5px green .5');
+// эквивалентно записи
+rect.attr('stroke', '5px rgba(0, 128, 0, 0.5)');
+```
+
+В не-css записи можно передать в color градиент или паттерн:
+```js
+// тут пример
+```
+
+Можно сбросить все параметры и убрать обводку вовсе, приравняв к null:
+```js
+rect.attr('stroke', null);
+```
+
 ### shadow
+Тень. Можно передать объект с параметрами:
+```js
+shape.attr('shadow', {
+    x: 0,
+    y: 5,
+    blur: 5,
+    color: 'black',
+    opacity: 0.5
+});
+```
+
+Можно передавать в CSS-форме (`x y blur color`):
+```js
+shape.attr('shadow', '0 2px 2px red');
+```
+
+Можно сбросить, приравняв к null:
+```js
+rect.attr('shadow', null);
+```
+
 ### opacity
+Прозрачность (число от 0 до 1).
+
 ### composite
+Функция наложения объектов друг на друга. Варианты: `source-over`, `source-atop`, `source-in`, `source-out`, `destination-over`, `destination-atop`, `destination-in`, `destination-out`, `lighter`, `darker`, `copy`, `xor`.
+
+Некоторые браузеры поддерживают немного больше: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity`.
+
+Стандарт: http://dev.w3.org/fxtf/compositing-1
+
+MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing
+
+
 ### clip
 ### visible
+Если установить в `false`, объект перестанет отрисовываться.
+
 ### interaction
+Если установить в `false`, объект перестанет реагировать на события мыши.
+
 ### cursor
+Курсор на объекте. Любые значения css-свойства `cursor`.
+
+Чтобы отключить, установить в `null`.
 
 ### translation
+http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html для размышлений
+
 ### rotation / angle?
 ### skew
 ### scale
@@ -381,14 +466,6 @@ rect.stroke({
 rect.stroke('7pt'); // изменит только толщину, не тронув цвет и всё остальное
 ```
 
-Возможные параметры:
-- `width` / ширина -- `2px`, `0.5em`, `8` и т.п.
-- `color` / цвет -- `#f00`, `green`, `rgb(0,0,0)` и т.п.
-- `join`  / тип соединений -- `miter`, `bevel`, `round`.
-- `cap`   / тип скруглений -- `butt`, `square`, `round`.
-- `dash`  / пунктир -- `[1,2,2]`, `shortdash`, `shortdot`, `shortdashdot`, `shortdashdotdot`, `dot`, `dash`, `longdash`, `dashdot`, `longdashdot`, `longdashdotdot`.
-- прозрачность -- `0.5`, `.3` -- всегда только float, указывается только в текстовом варианте, вычисляется сразу же (сделано для удобства -- например, `green 0.5` вместо `rgba(0, 128, 0, 0.5)`).
-
 Можно сбросить все параметры (убрать stroke), передав `null`:
 ```js
 rect.stroke(null);
@@ -398,12 +475,6 @@ rect.stroke(null);
 Прозрачность (число от 0 до 1).
 
 #### composite
-Функция наложения объектов друг на друга. Варианты: `source-over`, `source-atop`, `source-in`, `source-out`, `destination-over`, `destination-atop`, `destination-in`, `destination-out`, `lighter`, `darker`, `copy`, `xor`.
-
-Некоторые браузеры поддерживают немного больше: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity`.
-
-Стандарт: http://dev.w3.org/fxtf/compositing-1
-MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing
 
 #### hide, show
 Делают объект видимым / невидимым. Без анимации, просто отключают его отрисовку.
@@ -520,28 +591,6 @@ ctx.push( rect ); // возвращает объект в контекст
 ```
 
 #### shadow
-Тень. Можно передать объект с параметрами:
-```js
-shape.shadow({
-    x: 0,
-    y: 5,
-    blur: 5,
-    color: 'black',
-    opacity: 0.5
-});
-```
-
-Можно передавать в CSS-форме (`x y blur color`):
-```js
-shape.shadow('0 2px 2px red');
-```
-
-Изменять и получать параметры по отдельности (числовые параметры возвращаются в пикселях):
-```js
-shape.shadow('blur'); // -> 2
-shape.shadow('blur', 5);
-```
-
 ### События
 Функции:
  - `on(event, func)`

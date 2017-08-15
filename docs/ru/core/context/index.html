@@ -105,6 +105,8 @@ ctx.elements[0] === circle; // true
 <pre><code class="lang-js">ctx.elements.splice(1, 1);
 ctx.update();
 </code></pre>
+<h3 id="-canvas">Свойство canvas</h3>
+<h3 id="-context">Свойство context</h3>
 <h2 id="-">Методы</h2>
 <p>Все методы возвращают сам контекст, если не требуется иного. Это позволяет создавать цепочки вызовов:</p>
 <pre><code class="lang-js">ctx.on(&#39;click&#39;, firstListener)
@@ -197,6 +199,8 @@ ctx.fire(&#39;someCustomEvent&#39;, {
 });
 </code></pre>
 <p><em>Пояснение:</em> <strong>координаты контекста</strong> — это такие (декартовы) координаты, в которых левая верхняя точка canvas равна (0, 0) а правая — ширине и высоте canvas. В события мыши и тач-события приходят экранные координаты (<code>clientX</code>, <code>clientY</code>). Чтобы определить, находятся ли они внутри какой-то фигуры на canvas, нужно преобразовать их в координаты контекста. Для установленных через <code>ctx.on</code> обработчиков это делается автоматически.</p>
+<h3 id="-serialize-quickcalls-">Метод serialize([quickCalls])</h3>
+<h3 id="-deserialize-quickcalls-">Метод deserialize([quickCalls])</h3>
 <h3 id="-update">Внутренний метод update</h3>
 <p>Принудительно перерисовывает контекст (в requestAnimationFrame, игнорирует повторные вызовы до отрисовки; без всего этого метод <code>updateNow</code>).</p>
 <p>Обычно контекст обновляется сам, когда меняются свойства объектов. Но если вы хотите вручную изменять внутренние параметры объектов, он может пригодиться. Например:</p>

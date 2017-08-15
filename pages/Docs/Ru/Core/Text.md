@@ -1,0 +1,3 @@
+```js
+text.measure(); // -> width
+```

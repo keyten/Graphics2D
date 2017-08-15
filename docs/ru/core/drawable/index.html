@@ -234,6 +234,8 @@ rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
 <p>Вторым аргументом можно передать произвольный boundbox для картинки.</p>
 <h3 id="-toimagedata-bounds-">Метод toImageData([bounds])</h3>
 <p>Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.</p>
+<h3 id="-rasterize-deleteoriginal-true-">Метод rasterize(deleteOriginal = true)</h3>
+<p>Добавляет вместо объекта картинку из toDataURL()</p>
 <h3 id="-serialize-quickcalls-">Метод serialize([quickCalls])</h3>
 <p>Возвращает объект как JSON.</p>
 <pre><code class="lang-js">ctx.rect(10, 10, 200, 200, &#39;red&#39;).serialize(); // -&gt; {}
@@ -242,7 +244,7 @@ rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
 <pre><code class="lang-js">rect.mouseover(&#39;attr&#39;, &#39;fill&#39;, &#39;red&#39;).
     .mouseout(&#39;attr&#39;, &#39;fill&#39;, &#39;blue&#39;);
 
-rect.serialize();
+rect.serialize(); // -&gt; {}
 </code></pre>
 <p>// если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
 // при добавлении quickCall через on нужно просто где-нибудь дописывать там &quot;listener.serializeString = &#39;...&#39;;&quot;</p>
@@ -252,16 +254,75 @@ rect.serialize();
 <p>Поддерживаются -1 / +1 мб?.. Но зачем?
 Лучше полную поддержку стека объектов.</p>
 <h3 id="fill">fill</h3>
-<p>fillRule мб в плагинах для path.</p>
+<p>fillRule мб в плагинах для path. nonzero / evenodd</p>
 <h3 id="stroke">stroke</h3>
+<p>Поддерживается css-like запись:</p>
+<pre><code class="lang-js">rect.attr(&#39;stroke&#39;, &#39;10px blue round&#39;);
+</code></pre>
+<p>А также можно передать параметры объектом:</p>
+<pre><code class="lang-js">rect.attr(&#39;stroke&#39;, {
+    color: &#39;black&#39;
+}]);
+</code></pre>
+<p><em>Примечание: </em> уже установленные свойства не обнуляются при записи других свойств.</p>
+<pre><code class="lang-js">rect.attr(&#39;stroke&#39;, &#39;blue&#39;);
+rect.attr(&#39;stroke&#39;, &#39;5px&#39;);
+// работает как
+rect.attr(&#39;stroke&#39;, &#39;blue 5px&#39;);
+</code></pre>
+<p>Возможные параметры:</p>
+<ul>
+<li>Ширина (<code>width</code>) — <code>2px</code>, <code>0.5em</code>, <code>8</code> и т.п.</li>
+<li>Цвет (<code>color</code>) — <code>#f00</code>, <code>green</code>, <code>rgb(0,0,0)</code> и т.п.</li>
+<li>Тип соединений (<code>join</code>) — <code>miter</code>, <code>bevel</code>, <code>round</code>.</li>
+<li>Тип скруглений (<code>cap</code>) — <code>butt</code>, <code>square</code>, <code>round</code>.</li>
+<li>Пунктир (<code>dash</code>) — <code>[1,2,2]</code>, <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.</li>
+<li>Miter limit (<code>miterLimit</code>) — <code>ml2px</code>, <code>ml8</code> и т.п.</li>
+</ul>
+<p>Также в css-like записи можно передать прозрачность (десятичная дробь меньше 1), в этом случае цвет переведётся в RGB. Пример:</p>
+<pre><code class="lang-js">rect.attr(&#39;stroke&#39;, &#39;5px green .5&#39;);
+// эквивалентно записи
+rect.attr(&#39;stroke&#39;, &#39;5px rgba(0, 128, 0, 0.5)&#39;);
+</code></pre>
+<p>В не-css записи можно передать в color градиент или паттерн:</p>
+<pre><code class="lang-js">// тут пример
+</code></pre>
+<p>Можно сбросить все параметры и убрать обводку вовсе, приравняв к null:</p>
+<pre><code class="lang-js">rect.attr(&#39;stroke&#39;, null);
+</code></pre>
 <h3 id="shadow">shadow</h3>
+<p>Тень. Можно передать объект с параметрами:</p>
+<pre><code class="lang-js">shape.attr(&#39;shadow&#39;, {
+    x: 0,
+    y: 5,
+    blur: 5,
+    color: &#39;black&#39;,
+    opacity: 0.5
+});
+</code></pre>
+<p>Можно передавать в CSS-форме (<code>x y blur color</code>):</p>
+<pre><code class="lang-js">shape.attr(&#39;shadow&#39;, &#39;0 2px 2px red&#39;);
+</code></pre>
+<p>Можно сбросить, приравняв к null:</p>
+<pre><code class="lang-js">rect.attr(&#39;shadow&#39;, null);
+</code></pre>
 <h3 id="opacity">opacity</h3>
+<p>Прозрачность (число от 0 до 1).</p>
 <h3 id="composite">composite</h3>
+<p>Функция наложения объектов друг на друга. Варианты: <code>source-over</code>, <code>source-atop</code>, <code>source-in</code>, <code>source-out</code>, <code>destination-over</code>, <code>destination-atop</code>, <code>destination-in</code>, <code>destination-out</code>, <code>lighter</code>, <code>darker</code>, <code>copy</code>, <code>xor</code>.</p>
+<p>Некоторые браузеры поддерживают немного больше: <code>normal</code>, <code>multiply</code>, <code>screen</code>, <code>overlay</code>, <code>darken</code>, <code>lighten</code>, <code>color-dodge</code>, <code>color-burn</code>, <code>hard-light</code>, <code>soft-light</code>, <code>difference</code>, <code>exclusion</code>, <code>hue</code>, <code>saturation</code>, <code>color</code>, <code>luminosity</code>.</p>
+<p>Стандарт: <a href="http://dev.w3.org/fxtf/compositing-1">http://dev.w3.org/fxtf/compositing-1</a></p>
+<p>MDN: <a href="http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing">http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing</a></p>
 <h3 id="clip">clip</h3>
 <h3 id="visible">visible</h3>
+<p>Если установить в <code>false</code>, объект перестанет отрисовываться.</p>
 <h3 id="interaction">interaction</h3>
+<p>Если установить в <code>false</code>, объект перестанет реагировать на события мыши.</p>
 <h3 id="cursor">cursor</h3>
+<p>Курсор на объекте. Любые значения css-свойства <code>cursor</code>.</p>
+<p>Чтобы отключить, установить в <code>null</code>.</p>
 <h3 id="translation">translation</h3>
+<p><a href="http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html">http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html</a> для размышлений</p>
 <h3 id="rotation-angle-">rotation / angle?</h3>
 <h3 id="skew">skew</h3>
 <h3 id="scale">scale</h3>
@@ -350,25 +411,12 @@ rect.stroke({
 <p>При этом изменяются только указанные параметры:</p>
 <pre><code class="lang-js">rect.stroke(&#39;7pt&#39;); // изменит только толщину, не тронув цвет и всё остальное
 </code></pre>
-<p>Возможные параметры:</p>
-<ul>
-<li><code>width</code> / ширина -- <code>2px</code>, <code>0.5em</code>, <code>8</code> и т.п.</li>
-<li><code>color</code> / цвет -- <code>#f00</code>, <code>green</code>, <code>rgb(0,0,0)</code> и т.п.</li>
-<li><code>join</code>  / тип соединений -- <code>miter</code>, <code>bevel</code>, <code>round</code>.</li>
-<li><code>cap</code>   / тип скруглений -- <code>butt</code>, <code>square</code>, <code>round</code>.</li>
-<li><code>dash</code>  / пунктир -- <code>[1,2,2]</code>, <code>shortdash</code>, <code>shortdot</code>, <code>shortdashdot</code>, <code>shortdashdotdot</code>, <code>dot</code>, <code>dash</code>, <code>longdash</code>, <code>dashdot</code>, <code>longdashdot</code>, <code>longdashdotdot</code>.</li>
-<li>прозрачность -- <code>0.5</code>, <code>.3</code> -- всегда только float, указывается только в текстовом варианте, вычисляется сразу же (сделано для удобства -- например, <code>green 0.5</code> вместо <code>rgba(0, 128, 0, 0.5)</code>).</li>
-</ul>
 <p>Можно сбросить все параметры (убрать stroke), передав <code>null</code>:</p>
 <pre><code class="lang-js">rect.stroke(null);
 </code></pre>
 <h4 id="opacity">opacity</h4>
 <p>Прозрачность (число от 0 до 1).</p>
 <h4 id="composite">composite</h4>
-<p>Функция наложения объектов друг на друга. Варианты: <code>source-over</code>, <code>source-atop</code>, <code>source-in</code>, <code>source-out</code>, <code>destination-over</code>, <code>destination-atop</code>, <code>destination-in</code>, <code>destination-out</code>, <code>lighter</code>, <code>darker</code>, <code>copy</code>, <code>xor</code>.</p>
-<p>Некоторые браузеры поддерживают немного больше: <code>normal</code>, <code>multiply</code>, <code>screen</code>, <code>overlay</code>, <code>darken</code>, <code>lighten</code>, <code>color-dodge</code>, <code>color-burn</code>, <code>hard-light</code>, <code>soft-light</code>, <code>difference</code>, <code>exclusion</code>, <code>hue</code>, <code>saturation</code>, <code>color</code>, <code>luminosity</code>.</p>
-<p>Стандарт: <a href="http://dev.w3.org/fxtf/compositing-1">http://dev.w3.org/fxtf/compositing-1</a>
-MDN: <a href="http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing">http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing</a></p>
 <h4 id="hide-show">hide, show</h4>
 <p>Делают объект видимым / невидимым. Без анимации, просто отключают его отрисовку.</p>
 <p>Ожидается, что невидимый объект не будет реагировать на события, поэтому <code>hide</code> / <code>show</code> также включают / отключают обработку событий мыши. Если требуется другое поведение, нужно использовать функцию <code>mouse</code> после этого.</p>
@@ -455,22 +503,6 @@ rect.x(); // -&gt; 100
 ctx.push( rect ); // возвращает объект в контекст
 </code></pre>
 <h4 id="shadow">shadow</h4>
-<p>Тень. Можно передать объект с параметрами:</p>
-<pre><code class="lang-js">shape.shadow({
-    x: 0,
-    y: 5,
-    blur: 5,
-    color: &#39;black&#39;,
-    opacity: 0.5
-});
-</code></pre>
-<p>Можно передавать в CSS-форме (<code>x y blur color</code>):</p>
-<pre><code class="lang-js">shape.shadow(&#39;0 2px 2px red&#39;);
-</code></pre>
-<p>Изменять и получать параметры по отдельности (числовые параметры возвращаются в пикселях):</p>
-<pre><code class="lang-js">shape.shadow(&#39;blur&#39;); // -&gt; 2
-shape.shadow(&#39;blur&#39;, 5);
-</code></pre>
 <h3 id="-">События</h3>
 <p>Функции:</p>
 <ul>

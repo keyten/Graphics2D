@@ -3,6 +3,8 @@ var marked = require('marked');
 var isLog = true;
 var scripts = require('./template/scripts');
 
+// todo: https://github.com/typograf/typograf
+
 // Keyten's handlebars additions
 Handlebars.registerHelper('equals', function(a, b, c){
 	if(a == b){
