@@ -349,7 +349,6 @@ rect.attr('shadow', null);
 
 MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing
 
-
 ### clip
 ### visible
 Если установить в `false`, объект перестанет отрисовываться.
@@ -361,6 +360,13 @@ MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Composi
 Курсор на объекте. Любые значения css-свойства `cursor`.
 
 Чтобы отключить, установить в `null`.
+
+### transformMode
+strict для attrs + rotatePivot, scalePivot, etc
+
+и free для функций
+
+https://habrahabr.ru/post/278597/
 
 ### translation
 http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html для размышлений

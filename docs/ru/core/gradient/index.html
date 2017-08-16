@@ -50,53 +50,34 @@
 </style>
 
 	<content>
-		<h1 id="graphics2d-gradient">Graphics2D.Gradient</h1>
-<p><code>Graphics2D.Gradient</code> - градиент.</p>
-<p>Градиенты бывают линейные (<code>linear</code>) и радиальные (<code>radial</code>).</p>
-<p>У линейных есть 2 точки - начало и конец.</p>
-<p>У радиальных - эти точки ещё и имеют радиус. Кроме того, можно регулировать другими параметрами - <code>center</code> (центр), <code>hilite</code> (смещение, блик), <code>radius</code> (конечный радиус), <code>startRadius</code> (начальный радиус), <code>destination</code> (вместо радиуса - точка, до которой распространяется градиент).</p>
-<pre><code class="lang-js">var g = ctx.gradient(&#39;linear&#39;, [&#39;green&#39;, &#39;blue&#39;], &#39;top&#39;, &#39;bottom&#39;);
-var j = ctx.gradient(&#39;radial&#39;, { &quot;0&quot;: &#39;blue&#39;, &quot;0.5&quot;: &#39;red&#39; }, [100,100,0], [100,100,100]);
-var l = ctx.gradient({
-  type: &#39;radial&#39;,
-  colors: [&#39;red&#39;, &#39;orange&#39;, &#39;yellow&#39;, &#39;green&#39;, &#39;cyan&#39;, &#39;blue&#39;, &#39;purple&#39;],
-  center: &#39;center&#39;,
-  startRadius: 10,
-  radius: 100
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">ctx.gradient(colors, from, to);
+// на самом деле для разных видов градиентов может быть разное количество аргументов, там сначала arguments отдаётся на растерзание типу градиента, и лишь потом вытаскивается context
+ctx.gradient(type, colors, from, to);
+
+ctx.gradient({
+  type, colors, [from, to / center, radius, etc]
 });
 
-ctx.rect(0, 0, 10, 10, g);
+Delta.gradient(...);
 </code></pre>
-<p>Кроме того, мы можем создать инлайновый градиент.</p>
-<pre><code class="lang-js">ctx.rect(0, 0, 10, 10, {
-  colors: [&#39;red&#39;, &#39;transparent&#39;],
-  from: &#39;top&#39;,
-  to: &#39;bottom&#39;,
-  type: &#39;linear&#39;
+<h2 id="-">Параметры</h2>
+<ul>
+<li><code>colors</code></li>
+<li><code>from</code>, <code>to</code></li>
+<li>для радиальных: <code>center</code>, <code>radius</code> (по умолч. <code>auto</code> - наименьший из длин в bounds()), <code>startRadius</code> (по умолч. 0), <code>highlight</code> ([0, 0] - смещение from от center)</li>
+</ul>
+<h2 id="-">Методы</h2>
+<ul>
+<li><code>clone()</code>.</li>
+<li><code>colors(t, [value])</code>.</li>
+</ul>
+<h2 id="-">Инлайновые градиенты</h2>
+<pre><code class="lang-js">ctx.rect(10, 10, 200, 200, {
+    colors, etc
 });
 </code></pre>
-<h3 id="-">Методы</h3>
-<h4 id="colormix-index-">colorMix(index)</h4>
-<p>Высчитывает средний цвет (возвращает массив).</p>
-<pre><code class="lang-js">ctx.gradient(&#39;linear&#39;, [&#39;white&#39;, &#39;black&#39;], &#39;top&#39;, &#39;bottom&#39;)
-    .colorMix(0.5); // -&gt; [128, 128, 128, 1]
-</code></pre>
-<h4 id="color-index-value-">color(index, [value])</h4>
-<p>Возвращает / устанавливает цвет.</p>
-<pre><code class="lang-js">grad.color(0); // -&gt; &quot;red&quot;
-grad.color(0, &#39;green&#39;);
-</code></pre>
-<h4 id="colors-value-">colors([value])</h4>
-<p>Все цвета (возвращает в виде хэша <code>{индекс:цвет}</code>).</p>
-<pre><code class="lang-js">grad.colors(); // -&gt; {0:&#39;red&#39;, 0.5:&#39;green&#39;, 1:&#39;blue&#39;}
-grad.colors([&#39;red&#39;, &#39;blue&#39;]);
-</code></pre>
-<h4 id="from-to">from / to</h4>
-<p>Возвращает / устанавливает. Работают все точки, как и у трансформаций (<code>left top</code>, <code>top</code>, <code>tl</code>, <code>[0,0]</code>, <code>{x:10, y:10}</code>).</p>
-<p>С радиальными градиентами юзать массивы из 3 значений.</p>
-<h4 id="startradius-value-radius-value-">startRadius([value]) / radius([value])</h4>
-<h4 id="center-x-y-hilite-x-y-destination-x-y-">center([x, y]) / hilite([x, y]) / destination([x, y])</h4>
-<p>Возвращают / устанавливают. Для <code>center</code> / <code>hilite</code> / <code>destination</code> можно передать 2 координаты, либо массив из 2 координат.</p>
+<p>/*</p>
 <h3 id="-">Отдельный момент</h3>
 <p>Изменение градиента обновляет все залитые им фигуры. Например:</p>
 <pre><code class="lang-js">var grad = ctx.gradient(&#39;linear&#39;, [&#39;red&#39;, &#39;blue&#39;], &#39;top&#39;, &#39;bottom&#39;);
@@ -106,7 +87,8 @@ grad.color(0.5, &#39;yellow&#39;); // rect обновится с новым гр
 <p>А также можно сделать так:</p>
 <pre><code class="lang-js">rect.fill().color(0); // -&gt; ...
 </code></pre>
-<p>Стоит быть осторожным, если вы заливаете одним градиентом несколько объектов сразу.</p>
+<p>Стоит быть осторожным, если вы заливаете одним градиентом несколько объектов сразу.
+*/</p>
 
 	</content>
 

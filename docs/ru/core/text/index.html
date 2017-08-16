@@ -50,8 +50,32 @@
 </style>
 
 	<content>
-		<pre><code class="lang-js">text.measure(); // -&gt; width
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">ctx.text(string, x, y, [font, fill, stroke]);
+
+ctx.text({
+    string, x, y, font, fill, stroke, align, baseline, breaklines, lineHeight
+});
+
+Delta.text(...);
 </code></pre>
+<h2 id="-">Параметры</h2>
+<ul>
+<li><code>string</code></li>
+<li><code>x</code></li>
+<li><code>y</code></li>
+<li><code>font</code></li>
+<li><code>align</code></li>
+<li><code>baseline</code></li>
+<li><code>breaklines</code></li>
+<li><code>lineHeight</code></li>
+<li><code>maxStringWidth</code> - при breaklines = false</li>
+<li><code>blockWidth</code> - при условии breaklines = true. По умолчанию Infinity.</li>
+</ul>
+<h2 id="-">Методы</h2>
+<ul>
+<li><code>measure()</code> — возвращает длину строки</li>
+</ul>
 
 	</content>
 

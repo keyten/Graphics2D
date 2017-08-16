@@ -50,7 +50,22 @@
 </style>
 
 	<content>
-		
+		<h3 id="-">Анимация</h3>
+<pre><code class="lang-js">// clones gradient, animates the clone and in the end sets gradient = target
+element.animate(&#39;gradient&#39;, {
+    ...params
+})
+
+gradient.animateTo(...params);
+</code></pre>
+<p>Params:
+ — gradient — градиент, к которому идёт переход</p>
+<ul>
+<li>addColorPoints (true) — добавлять несуществующие цвета между градиентами (например, градиент 0, 1 -&gt; 0, 0.5, 1 - в первый )</li>
+<li>mapStops — переместить цвета (например, 0 red, 1 blue -&gt; 0 red, 0.5 blue =&gt; mapStops = { 1: 0.5 })</li>
+</ul>
+<p>Обязательно либо gradient, либо mapStops</p>
+
 	</content>
 
 	<footer>

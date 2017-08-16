@@ -50,30 +50,23 @@
 </style>
 
 	<content>
-		<h1 id="graphics2d-pattern">Graphics2D.Pattern</h1>
-<p><code>Graphics2D.Pattern</code> - текстура (тоже самое, что и изображение, но умеет повторяться + можно ей залить фигуру).</p>
-<p>Тоже умеет быть инлайновой.</p>
-<pre><code class="lang-js">// второй параметр - повторяться ли (true, false, &#39;x&#39;, &#39;y&#39;). По умолч. - true
-var pat = ctx.pattern(&#39;./img.png&#39;);
-var pt2 = ctx.pattern(&#39;#image&#39;, &#39;x&#39;);
-var i = new Image;
-i.src = &#39;../img.jpg&#39;;
-var pt3 = ctx.pattern({
-  image: i,
-  repeat: false
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">ctx.pattern(image, [offsetX, offsetY, repeat]);
+
+ctx.pattern({
+    image, offsetX, offsetY, repeat
 });
 
-ctx.rect(0, 0, 1, 1, &#39;./img.jpg&#39;);
-// ссылка должна начинаться с &#39;http://&#39; или с &#39;.&#39;
-ctx.rect(1, 1, 1, 1, {
-  image: &#39;./png.jpg.gif&#39;,
-  repeat: &#39;y&#39;
-});
+Delta.pattern(...);
 </code></pre>
-<h3 id="-">Методы</h3>
-<h4 id="repeat-value-">repeat([value])</h4>
-<p>Возвращает / устанавливает. Допустимые варианты: <code>true</code>, <code>false</code>, <code>&#39;x&#39;</code>, <code>&#39;y&#39;</code>.</p>
-<p>Изменение параметра обновляет все залитые текстурой фигуры.</p>
+<h2 id="-">Параметры</h2>
+<ul>
+<li><code>offsetX</code></li>
+<li><code>offsetY</code></li>
+<li><code>width</code></li>
+<li><code>height</code></li>
+<li><code>repeat</code> = true / false / &#39;x&#39; / &#39;y&#39;</li>
+</ul>
 
 	</content>
 

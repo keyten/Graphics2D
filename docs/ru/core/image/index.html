@@ -50,37 +50,32 @@
 </style>
 
 	<content>
-		<h1 id="graphics2d-image">Graphics2D.Image</h1>
-<p><code>Graphics2D.Image</code> - изображение.</p>
-<h3 id="-">Создание</h3>
-<pre><code class="lang-js">// image, x, y, [width], [height]
-ctx.image(&#39;./image.jpg&#39;, 10, 10);
+		<h2 id="-">Инициализация</h2>
+<pre><code class="lang-js">ctx.image(image, x, y, [width, height, crop]);
 
-// document.getElementById(&#39;img&#39;)
-ctx.image(&#39;#img&#39;, 10, 10, 200, 200);
-
-var i = new Image;
-i.src = &#39;abc&#39;;
-ctx.image({
-  image:i,
-  x:10,
-  y:10,
-  width: &#39;auto&#39;, // сохраняются пропорции
-  height:200,
-  crop: [0,0,50,50] // обрезка в координатах картинки
+ctx.text({
+    image, x, y, width, height, crop, smooth
 });
+
+Delta.text(...);
 </code></pre>
-<h3 id="-">Методы</h3>
-<h4 id="x-y-width-height">x / y / width / height</h4>
-<h4 id="x1-y1-x2-y2">x1 / y1 / x2 / y2</h4>
-<p>Работают аналогично аналогичным методам <code>Graphics2D.Rect</code>. Только <code>width</code> и <code>height</code> ещё умеют возвращать размеры самой картинки.</p>
-<h4 id="crop">crop</h4>
-<p>Обрезается картинка по прямоугольнику (используются координаты самой картинки).</p>
-<p>Можно передать 4 аргумента; массив; или же ничего не передавать, тогда вернёт массив.</p>
-<pre><code class="lang-js">image.crop(); // -&gt; [0,0,10,10]
-image.crop(10, 10, 200, 200);
-image.crop([10, 10, 200, 200]);
-</code></pre>
+<h2 id="-">Параметры</h2>
+<ul>
+<li><code>image</code></li>
+<li><code>x</code></li>
+<li><code>y</code></li>
+<li><code>width</code></li>
+<li><code>height</code></li>
+<li><code>crop</code></li>
+</ul>
+<p>Значения <code>width</code> / <code>height</code>: по умолчанию &#39;auto&#39;.</p>
+<p>Если оба значения &#39;auto&#39;, у картинки родные размеры.</p>
+<p>Значение &#39;native&#39; — взять родной размер.</p>
+<p>Значение &#39;auto&#39; у одного из свойств с числовым у другого — сохранить пропорции.</p>
+<h2 id="-">Методы</h2>
+<ul>
+<li><code>getRealSize()</code> — возвращает размеры рисунка.</li>
+</ul>
 
 	</content>
 

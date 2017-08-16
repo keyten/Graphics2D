@@ -50,7 +50,34 @@
 </style>
 
 	<content>
-		
+		<h1 id="animation-along">Animation.Along</h1>
+<p>Анимация движения вдоль кривой / пути.</p>
+<p>Использование:</p>
+<pre><code class="lang-js">element.animate(&#39;along&#39;, path_or_curve);
+// или
+element.animate(&#39;along&#39;, options);
+</code></pre>
+<p><em>Примечание:</em> устанавливает <code>transformMode</code> в <code>strict</code> (// это когда через attrs; ещё может быть <code>free</code>).</p>
+<h2 id="-">Параметры</h2>
+<p> -</p>
+<ul>
+<li><code>corner</code> — точка boundbox объекта, которая лежит на кривой во время движения. По умолчанию <code>center</code>.</li>
+<li><code>boundOptions</code> — опции вычисления boundbox объекта (аргумент функции <code>Drawable.prototype.bounds</code>).</li>
+<li><code>offset</code> — отступ от corner (массив с 2 координатами). // по-хорошему, это должна быть возможность внутри corner, нет?</li>
+<li><code>dynamic</code> — нужно поставить в <code>true</code>, если кривая может меняться во время движения.
+— <code>rotate</code> — <code>true</code>, чтобы объект поворачивался вдоль траектории, либо число (постоянный поворот объекта во время движения).
+— <code>rotateAdd</code> — градусы, прибавляющиеся к повороту.</li>
+</ul>
+<h2 id="-">Примеры</h2>
+<p>// сайт должен распарсить этот раздел и нарисовать живые примеры
+Движение по кривой Безье нарисованного на canvas пути:</p>
+<pre><code class="lang-js">var rect = ctx.rect(0, 0, 20, 20, &#39;red&#39;);
+var path ...
+</code></pre>
+<p>Движение по кривой Безье, существующей только в памяти:</p>
+<p>Движение по пути, нарисованному на canvas:</p>
+<p>Движение по пути, нарисованному в памяти:</p>
+
 	</content>
 
 	<footer>
