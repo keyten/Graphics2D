@@ -243,8 +243,8 @@ Text = new Class(Drawable, {
 		x = point[0];
 		y = point[1];
 
-		var bounds = this.bounds();
-		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+		var bounds = this.bounds(false);
+		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
 	},
 
 	measure: function(){

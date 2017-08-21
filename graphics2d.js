@@ -799,13 +799,19 @@ Drawable = new Class({
 
 	// Attributes
 	attr: function(name, value){
-		if(name + '' !== name){
+		if(Array.isArray(name)){
+			return name.map(function(name){
+				return this.attr(name);
+			}, this);
+		} else if(name + '' !== name){
 			Object.keys(name).forEach(function(key){
 				this.attr(key, name[key]);
 			}, this);
 			return this;
 		}
 
+		// todo: arguments.length === 1 *
+		// because value can be undefined!
 		if(value === undefined){
 			// todo: check the fastest check of property
 			// ...[name] or name in or hasOwnProperty
@@ -3370,8 +3376,8 @@ Text = new Class(Drawable, {
 		x = point[0];
 		y = point[1];
 
-		var bounds = this.bounds();
-		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+		var bounds = this.bounds(false);
+		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
 	},
 
 	measure: function(){
