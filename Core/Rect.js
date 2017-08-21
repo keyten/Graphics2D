@@ -86,6 +86,7 @@ Rect = new Class(Drawable, {
 		}
 	}),
 
+	// For history:
 	// this variation is faster
 	// very very faster!
 	// if you change an attrs of 100 000 elements
@@ -99,22 +100,27 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
-	shapeBounds : function(){
-		return [this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height];
+	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawRect(
 				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 				ctx, this.styles, this.matrix, this
 			);
 		}
-	},
-
-	// should apply the inverse of this.matrix to the point (x, y)
-	isPointIn : function(x, y){
-		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},
 
 	processPath : function(ctx){

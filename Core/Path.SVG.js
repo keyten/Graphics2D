@@ -47,7 +47,7 @@ Delta.curves['quadraticCurveBy'] = new Class(Curve, {
 			lastPoint[0] + this.funcAttrs[0],
 			lastPoint[1] + this.funcAttrs[1],
 			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3],
+			lastPoint[1] + this.funcAttrs[3]
 		);
 	},
 
@@ -57,7 +57,7 @@ Delta.curves['quadraticCurveBy'] = new Class(Curve, {
 			lastPoint[0] + this.funcAttrs[0],
 			lastPoint[1] + this.funcAttrs[1],
 			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3],
+			lastPoint[1] + this.funcAttrs[3]
 		];
 	}
 });

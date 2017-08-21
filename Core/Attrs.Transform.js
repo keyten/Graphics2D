@@ -18,6 +18,9 @@ Drawable.prototype._genMatrix = function(){
 	}.bind(this));
 };
 
+		// одноименные функции, если им передать bounds, добавят соответствующий translate, и всё
+		// ...или же они просто меняют matrix?
+
 Drawable.prototype.attrHooks.translate = {
 	get: function(){
 		return this.matrix ? this.matrix.slice(4) : [0, 0];

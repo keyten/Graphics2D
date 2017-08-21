@@ -75,6 +75,8 @@ Context.prototype = {
 			this.renderer.postDraw(this.context);
 		}
 
+		// element.update = element.updateFunction; - ну или как-то так
+
 		return element;
 	},
 

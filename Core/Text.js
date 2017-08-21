@@ -185,7 +185,7 @@ Text = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			if(!this.attrs.breakLines){
 				this.context.renderer.drawTextLines(
 					[[{
@@ -215,6 +215,20 @@ Text = new Class(Drawable, {
 			}
 		}
 	},
+
+	/* 	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			transform, around
+		]);
+	}, */
 
 	isPointIn : function(x, y){
 		var bounds = this.shapeBounds();

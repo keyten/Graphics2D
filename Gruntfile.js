@@ -61,6 +61,63 @@ module.exports = function(grunt){
 			return grunt.file.read(folder + '/' + c);
 		});
 
+		// macro processing
+//		var macroRegGlobal = /\/?\/?\s*\{\{macro\s([a-zA-Z]+)\((([a-zA-Z]+,?\s*)*)\):\s*/g,
+//			macroReg = /\/?\/?\s*\{\{macro\s([a-zA-Z]+)\((([a-zA-Z]+,?\s*)*)\):\s*/,
+/*
+			macroses = (code.match(macroRegGlobal) || []).map(function(macros){
+				var match = macros.match(macroReg);
+				var name = match[1];
+				var args = match[2].replace(/\s/g, '').split(',');
+
+				var startMacroIndex = code.indexOf(macros);
+				var macroLength;
+
+				var body = code.slice(startMacroIndex + macros.length);
+				macroLength = body.indexOf('}}');
+				body = body.slice(0, macroLength);
+
+				code = code.slice(0, startMacroIndex) + code.slice(startMacroIndex + macros.length + macroLength + 2);
+
+				return {
+					name: name, body: body, args: args
+				};
+			});
+
+		macroses.forEach(function(macro){
+			var times = 1;
+			var index;
+			var startIndex = index = code.indexOf(macro.name) + macro.name.length;
+			var bracesCount = 1;
+			var args = [''];
+			while(true){
+				index++;
+
+				if(code[index] === '('){
+					bracesCount++;
+				} else if(code[index] === ')'){
+					bracesCount--;
+				} else if(code[index] === ','){
+					args.push('');
+				}
+
+				if(code[index] !== ' ' && code[index] !== ','){
+					args[args.length - 1] += code[index]
+				}
+
+				if(bracesCount === 0 || times++ > 1000){
+					break;
+				}
+			}
+			args[args.length-1] = args[args.length-1].slice(0, args[args.length-1].length-1);
+
+			var body = macro.body;
+			macro.args.forEach(function(argname, i){
+			 body = body.split(argname).join(args[i])
+			});
+			code = code.slice(0, startIndex - macro.name.length) + body + code.slice(index + 1);
+		}); */
+
 		grunt.file.write(dest, code);
 	}
 

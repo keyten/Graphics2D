@@ -124,8 +124,11 @@ Path = new Class(Drawable, {
 		return this.push(['closePath']);
 	},
 
+	isPointIn : function(x, y){
+		;
+	},
 
-	shapeBounds: function(){
+	bounds: function(transform, around){
 		var minX =  Infinity,
 			minY =  Infinity,
 			maxX = -Infinity,
@@ -146,11 +149,15 @@ Path = new Class(Drawable, {
 			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
 			maxY = Math.max(maxY, currentBounds[1], currentBounds[3]);
 		}
-		return [minX, minY, maxX - minX, maxY - minY];
+
+		return this.super('bounds', [
+			[minX, minY, maxX - minX, maxY - minY],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawPath(
 				this.attrs.d,
 				ctx, this.styles, this.matrix, this

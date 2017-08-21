@@ -10,7 +10,7 @@ function Class(parent, properties){
 	};
 
 	if(parent){
-		if(properties.liftInits){
+		/* if(properties.liftInits){
 			// go to the parent
 			init = function(){
 				if(init.prototype.__initialize__){
@@ -35,7 +35,7 @@ function Class(parent, properties){
 					return init.prototype.initialize.apply(this, arguments);
 				}
 			};
-		}
+		} */
 
 		// prototype inheriting
 		var sklass = function(){};
@@ -103,6 +103,7 @@ function wrap(args){
 }
 
 // typeofs
+
 /*
 use common typeofs
 String: something + '' === something
@@ -371,8 +372,9 @@ Delta.clone = function(object){
 	return result;
 };
 
-
+// Matrices
 // renamed from Delta.multiply
+// rename to Delta.transformMatrix?
 Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
@@ -381,6 +383,30 @@ Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 		m1[1] * m2[2] + m1[3] * m2[3],
 		m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
 		m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+	];
+};
+
+Delta.transformPoint = function(matrix, point){
+	return [
+		matrix[0] * point[0] + matrix[2] * point[1] + matrix[4],
+		matrix[1] * point[0] + matrix[3] * point[1] + matrix[5]
+	];
+};
+
+Delta.inverseTransform = function(matrix){
+	var det = matrix[0] * matrix[3] - matrix[2] * matrix[1];
+
+	if(det === 0){
+		return null;
+	}
+
+	return [
+		matrix[3] / det,
+		-matrix[1] / det,
+		-matrix[2] / det,
+		matrix[0] / det,
+		-(matrix[3] * matrix[4] - matrix[2] * matrix[5]) / det,
+		(matrix[1] * matrix[4] - matrix[0] * matrix[5]) / det
 	];
 };
 
@@ -467,7 +493,7 @@ function distance(value, dontsnap){
 	}
 
 	if(+value === value){
-		if( Delta.unit !== 'px'){
+		if(Delta.unit !== 'px'){
 			return Delta.distance( value + '' + Delta.unit );
 		}
 
@@ -484,7 +510,7 @@ function distance(value, dontsnap){
 			Delta.units = defaultUnits;
 		} else {
 			var div = document.createElement('div');
-			document.body.appendChild(div); // FF don't need this :)
+			document.body.appendChild(div); // FF doesn't need this :)
 			Delta.units = {};
 			units.forEach(function(unit){
 				div.style.width = '1' + unit;

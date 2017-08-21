@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 13.08.2017
+ *  Last edit: 21.08.2017
  *  License: MIT / LGPL
  */
 
@@ -375,6 +375,8 @@ Context.prototype = {
 			this.renderer.postDraw(this.context);
 		}
 
+		// element.update = element.updateFunction; - ну или как-то так
+
 		return element;
 	},
 
@@ -731,29 +733,16 @@ Drawable = new Class({
 		this.listeners = {};
 		this.styles = {};
 		this.attrs = {
-			interaction: true
+			interaction: true,
+			visible: true
 		};
 	},
-
-	_visible: true,
 
 	update: function(){
 		if(this.context){
 			this.context.update();
 		}
 		return this;
-	},
-
-	z : function(z){
-		if(z === undefined){
-			return this.context.elements.indexOf(this);
-		}
-		if(z === 'top'){
-			z = this.context.elements.length;
-		}
-		this.context.elements.splice(this.context.elements.indexOf(this), 1);
-		this.context.elements.splice(z, 0, this);
-		return this.update();
 	},
 
 	clone : function(attrs, styles, events){
@@ -794,16 +783,6 @@ Drawable = new Class({
 		return this;
 	},
 
-	hide: function(){
-		this._visible = false;
-		return this.update();
-	},
-
-	show: function(){
-		this._visible = true;
-		return this.update();
-	},
-
 	// Attributes
 	attr: function(name, value){
 		if(name + '' !== name){
@@ -835,6 +814,28 @@ Drawable = new Class({
 	},
 
 	attrHooks: DrawableAttrHooks.prototype = {
+		z: {
+			get: function(){
+				return this.context.elements.indexOf(this);
+			},
+			set: function(value){
+				var elements = this.context.elements;
+				if(value === 'top'){
+					value = elements.length;
+				}
+
+				elements.splice(this.context.elements.indexOf(this), 1);
+				elements.splice(value, 0, this);
+				this.update();
+			}
+		},
+
+		visible: {
+			set: function(){
+				this.update();
+			}
+		},
+
 		fill: {
 			get: function(){
 				return this.styles.fillStyle;
@@ -886,10 +887,25 @@ Drawable = new Class({
 				this.attrs.clip = value;
 				this.update();
 			}
+		},
+
+		cursor: {
+			set: function(value){
+				// this._setCursorListener();
+				// this._teardownCursorListener();
+			}
 		}
 	},
 
+	// todo: move to Drawable.processArgumentsObject
 	processObject: function(object, arglist){
+		// todo: has must be a macros
+		// здесь везде вообще заменить на object.opacity !== undefined
+
+		// нужно заменить эту функцию на прямой маппинг в attrs (в функции set)
+		// а функция update должна ставиться после первого рисования
+		// а по умолчанию быть пустой
+
 		if(has(object, 'opacity')){
 			this.styles.globalAlpha = object.opacity;
 		}
@@ -900,97 +916,66 @@ Drawable = new Class({
 			object.clip.context = this.context;
 			this.attrs.clip = object.clip;
 		}
+		if(has(object, 'visible')){
+			object.attrs.visible = object.visible;
+		}
+		if(has(object, 'interaction')){
+			object.attrs.interaction = object.interaction;
+		}
+		// todo: add other attrs
+		// и обработчики событий
 
 		return arglist.map(function(name){
 			return object[name];
 		});
 	},
 
-	// Bounds
-	bounds : function(options){
-		// хорошо бы кэшировать shapeBounds
-		if(!this.shapeBounds){
-			throw 'The object doesn\'t have shapeBounds method.';
+	isPointIn : function(x, y){
+		// if(this.attrs.interactionParameters.transform)
+		if(this.matrix){
+			var inverse = Delta.inverseTransform(this.matrix);
+			return Delta.transformPoint(inverse, [x, y]);
 		}
+		return [x, y];
+	},
 
-		options = extend({
-			transform: 'normalized',
-			around: 'fill'
-		}, options);
-
-		var b = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
-
-		// around
-		if(options.around !== 'fill' && this.styles.strokeStyle){
+	// Bounds
+	bounds: function(rect, transform, around){
+		// maybe add processClip?
+		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
-			if(options.around === 'exclude'){
+			if(around === 'strokeExclude'){
 				weight = -weight;
 			}
-			b[0] -= weight;
-			b[1] -= weight;
-			b[2] += weight * 2;
-			b[3] += weight * 2;
+			rect[0] -= weight;
+			rect[1] -= weight;
+			rect[2] += weight * 2;
+			rect[3] += weight * 2;
 		}
 
-		var lt = [b[0], b[1]],
-			rt = [b[0] + b[2], b[1]],
-			lb = [b[0], b[1] + b[3]],
-			rb = [rt[0], lb[1]];
+		if(transform !== false && this.matrix){
+			var tight = [
+				// left top
+				Delta.transformPoint(this.matrix, [rect[0], rect[1]]),
+				// right top
+				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1]]),
+				// left bottom
+				Delta.transformPoint(this.matrix, [rect[0], rect[1] + rect[3]]),
+				// right bottom
+				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1] + rect[3]])
+			];
 
-		// transform
-		if(options.transform !== 'ignore'){
-			var matrix = this.matrix;
-
-			if(matrix){
-				lt[0] = [
-					lt[0] * matrix[0] + lt[1] * matrix[2] + matrix[4],
-					lt[1] =
-						lt[0] * matrix[1] + lt[1] * matrix[3] + matrix[5]
-				][0];
-
-				rt[0] = [
-					rt[0] * matrix[0] + rt[1] * matrix[2] + matrix[4],
-					rt[1] =
-						rt[0] * matrix[1] + rt[1] * matrix[3] + matrix[5]
-				][0];
-
-				lb[0] = [
-					lb[0] * matrix[0] + lb[1] * matrix[2] + matrix[4],
-					lb[1] =
-						lb[0] * matrix[1] + lb[1] * matrix[3] + matrix[5]
-				][0];
-
-				rb[0] = [
-					rb[0] * matrix[0] + rb[1] * matrix[2] + matrix[4],
-					rb[1] =
-						rb[0] * matrix[1] + rb[1] * matrix[3] + matrix[5]
-				][0];
+			if(transform === 'tight'){
+				return tight;
 			}
 
-			if(options.transform === 'transformed'){
-				return {
-					lt: lt,
-					rt: rt,
-					lb: lb,
-					rb: rb
-				};
-			}
-
-			var minX = Math.min(lt[0], lb[0], rt[0], rb[0]),
-				minY = Math.min(lt[1], lb[1], rt[1], rb[1]);
-
-			return new Bounds(
-				minX,
-				minY,
-				Math.max(lt[0], lb[0], rt[0], rb[0]) - minX,
-				Math.max(lt[1], lb[1], rt[1], rb[1]) - minY
-			);
+			rect[0] = Math.min(tight[0][0], tight[1][0], tight[2][0], tight[3][0]);
+			rect[1] = Math.min(tight[0][1], tight[1][1], tight[2][1], tight[3][1]);
+			rect[2] = Math.max(tight[0][0], tight[1][0], tight[2][0], tight[3][0]) - rect[0];
+			rect[3] = Math.max(tight[0][1], tight[1][1], tight[2][1], tight[3][1]) - rect[1];
 		}
 
-		// options.transform - 3 possible values (transformed boundbox, normalized boundbox (maximize transformed vertices), ignore transforms)
-		// options.around = 'fill' or 'stroke' or 'exclude' (stroke)
-		// maybe, options.processClip = true or false
-		return new Bounds(b[0], b[1], b[2], b[3]);
+		return new Bounds(rect[0], rect[1], rect[2], rect[3]);
 	},
 
 	corner : function(corner, options){
@@ -1097,6 +1082,8 @@ Drawable = new Class({
 		if(y === undefined){
 			y = x;
 		}
+		x = x / 180 * Math.PI;
+		y = y / 180 * Math.PI;
 		return this.transform(
 			1, Math.tan(y),
 			Math.tan(x), 1,
@@ -1131,6 +1118,10 @@ Drawable = new Class({
 		// там подключается renderer, что не прокатит для объектов чисто в памяти ( Graphics2D.rect(x,y,w,h) )
 		this.draw(context);
 		return canvas.toDataURL(type.type || type, type.quality || 1);
+	},
+
+	toBlob: function(type, quality, bounds, callback){
+		;
 	},
 
 	toImageData: function(bounds){
@@ -1391,6 +1382,9 @@ Drawable.prototype._genMatrix = function(){
 		}
 	}.bind(this));
 };
+
+		// одноименные функции, если им передать bounds, добавят соответствующий translate, и всё
+		// ...или же они просто меняют matrix?
 
 Drawable.prototype.attrHooks.translate = {
 	get: function(){
@@ -1738,6 +1732,7 @@ Rect = new Class(Drawable, {
 		}
 	}),
 
+	// For history:
 	// this variation is faster
 	// very very faster!
 	// if you change an attrs of 100 000 elements
@@ -1751,22 +1746,27 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
-	shapeBounds : function(){
-		return [this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height];
+	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawRect(
 				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 				ctx, this.styles, this.matrix, this
 			);
 		}
-	},
-
-	// should apply the inverse of this.matrix to the point (x, y)
-	isPointIn : function(x, y){
-		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},
 
 	processPath : function(ctx){
@@ -1828,21 +1828,27 @@ Circle = new Class(Drawable, {
 		}
 	}),
 
-	shapeBounds : function(){
-		return [this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2];
+	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawCircle(
 				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
 				ctx, this.styles, this.matrix, this
 			);
 		}
-	},
-
-	isPointIn : function(x, y){
-		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	},
 
 	processPath: function(ctx){
@@ -2632,8 +2638,11 @@ Path = new Class(Drawable, {
 		return this.push(['closePath']);
 	},
 
+	isPointIn : function(x, y){
+		;
+	},
 
-	shapeBounds: function(){
+	bounds: function(transform, around){
 		var minX =  Infinity,
 			minY =  Infinity,
 			maxX = -Infinity,
@@ -2654,11 +2663,15 @@ Path = new Class(Drawable, {
 			minY = Math.min(minY, currentBounds[1], currentBounds[3]);
 			maxY = Math.max(maxY, currentBounds[1], currentBounds[3]);
 		}
-		return [minX, minY, maxX - minX, maxY - minY];
+
+		return this.super('bounds', [
+			[minX, minY, maxX - minX, maxY - minY],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawPath(
 				this.attrs.d,
 				ctx, this.styles, this.matrix, this
@@ -2869,7 +2882,7 @@ Delta.curves['quadraticCurveBy'] = new Class(Curve, {
 			lastPoint[0] + this.funcAttrs[0],
 			lastPoint[1] + this.funcAttrs[1],
 			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3],
+			lastPoint[1] + this.funcAttrs[3]
 		);
 	},
 
@@ -2879,7 +2892,7 @@ Delta.curves['quadraticCurveBy'] = new Class(Curve, {
 			lastPoint[0] + this.funcAttrs[0],
 			lastPoint[1] + this.funcAttrs[1],
 			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3],
+			lastPoint[1] + this.funcAttrs[3]
 		];
 	}
 });
@@ -2990,6 +3003,20 @@ Picture = new Class(Drawable, {
 		return [w, h];
 	},
 
+	/* isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			transform, around
+		]);
+	}, */
+
 	shapeBounds : function(){
 		var size = this._realSize();
 		return [this.attrs.x, this.attrs.y, size[0], size[1]];
@@ -3001,7 +3028,7 @@ Picture = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this._visible && this.attrs.image.complete){
+		if(this.attrs.visible && this.attrs.image.complete){
 			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
 
 			if(this.attrs.width || this.attrs.height){
@@ -3252,7 +3279,7 @@ Text = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			if(!this.attrs.breakLines){
 				this.context.renderer.drawTextLines(
 					[[{
@@ -3282,6 +3309,20 @@ Text = new Class(Drawable, {
 			}
 		}
 	},
+
+	/* 	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			transform, around
+		]);
+	}, */
 
 	isPointIn : function(x, y){
 		var bounds = this.shapeBounds();
@@ -3586,7 +3627,7 @@ function Class(parent, properties){
 	};
 
 	if(parent){
-		if(properties.liftInits){
+		/* if(properties.liftInits){
 			// go to the parent
 			init = function(){
 				if(init.prototype.__initialize__){
@@ -3611,7 +3652,7 @@ function Class(parent, properties){
 					return init.prototype.initialize.apply(this, arguments);
 				}
 			};
-		}
+		} */
 
 		// prototype inheriting
 		var sklass = function(){};
@@ -3679,6 +3720,7 @@ function wrap(args){
 }
 
 // typeofs
+
 /*
 use common typeofs
 String: something + '' === something
@@ -3947,8 +3989,9 @@ Delta.clone = function(object){
 	return result;
 };
 
-
+// Matrices
 // renamed from Delta.multiply
+// rename to Delta.transformMatrix?
 Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
@@ -3957,6 +4000,30 @@ Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 		m1[1] * m2[2] + m1[3] * m2[3],
 		m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
 		m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+	];
+};
+
+Delta.transformPoint = function(matrix, point){
+	return [
+		matrix[0] * point[0] + matrix[2] * point[1] + matrix[4],
+		matrix[1] * point[0] + matrix[3] * point[1] + matrix[5]
+	];
+};
+
+Delta.inverseTransform = function(matrix){
+	var det = matrix[0] * matrix[3] - matrix[2] * matrix[1];
+
+	if(det === 0){
+		return null;
+	}
+
+	return [
+		matrix[3] / det,
+		-matrix[1] / det,
+		-matrix[2] / det,
+		matrix[0] / det,
+		-(matrix[3] * matrix[4] - matrix[2] * matrix[5]) / det,
+		(matrix[1] * matrix[4] - matrix[0] * matrix[5]) / det
 	];
 };
 
@@ -4043,7 +4110,7 @@ function distance(value, dontsnap){
 	}
 
 	if(+value === value){
-		if( Delta.unit !== 'px'){
+		if(Delta.unit !== 'px'){
 			return Delta.distance( value + '' + Delta.unit );
 		}
 
@@ -4060,7 +4127,7 @@ function distance(value, dontsnap){
 			Delta.units = defaultUnits;
 		} else {
 			var div = document.createElement('div');
-			document.body.appendChild(div); // FF don't need this :)
+			document.body.appendChild(div); // FF doesn't need this :)
 			Delta.units = {};
 			units.forEach(function(unit){
 				div.style.width = '1' + unit;
@@ -4525,102 +4592,13 @@ Path.prototype.drawGL = function(gl){
 
 
 
-var defaultOptions = {
-	gravity: [0, 1]
-};
-
-Context.prototype.phys = function(options){
-	options = Delta.extend(Delta.extend({}, defaultOptions), options);
-
-	// move to attrs?
-	if(!this._physParameters){
-		this._physParameters = {};
-		this._physActiveObjects = [];
-	}
-
-	Delta.extend(this._physParameters, options);
-
-	return this;
-};
-
-// у объекта должна быть физ. форма (например, позволить полигону работать в физике как кругу)
-// позволить склеивать объекты разной массы
-Drawable.prototype.phys = function(options){
-	var ctx = this.context;
-	if(!ctx._physActiveObjects){
-		ctx.phys();
-	}
-
-	// move to attrs?
-	if(!this._physParameters){
-		this._physParameters = {
-			velocity: [0, 0],
-			acceleration: [0, 0],
-			mass: 1
-		};
-	}
-	if(options){
-		Delta.extend(this._physParameters, options);
-	}
-
-	if(ctx._physActiveObjects.indexOf(this) === -1){
-		ctx._physActiveObjects.push(this);
-	}
-
-	ctx.physUpdate();
-
-	return this;
-};
-
-Context.prototype.physUpdate = function(){
-	if(this._willPhysUpdate){
-		return;
-	}
-
-	if(!this.physTickBound){
-		this.physTickBound = this.physTick.bind(this);
-	}
-
-	requestAnimationFrame(this.physTickBound);
-};
-
-Context.prototype.physTick = function(){
-	var list = this._physActiveObjects;
-	list.slice().forEach(function(element, i){
-		if(!element.physTick()){
-			list.splice(i, 1);
-		}
-	});
-
-	if(list.length){
-		requestAnimationFrame(this.physTickBound);
-	} else {
-		this._willPhysUpdate = false;
-	}
-};
-
-Drawable.prototype.physTick = function(){
-	var ctxOptions = this.context._physParameters;
-	var options = this._physParameters;
-	if(options.velocity[0] !== 0 || options.velocity[1] !== 0){
-		this.translate(options.velocity[0], options.velocity[1]);
-	}
-	options.velocity[0] += options.acceleration[0];
-	options.velocity[1] += options.acceleration[1];
-	// gravity
-	if(!options.ignoreGravity){
-		options.velocity[0] += ctxOptions.gravity[0] * options.mass;
-		options.velocity[1] += ctxOptions.gravity[1] * options.mass;
-	}
-	return options.velocity[0] !== 0 || options.velocity[1] !== 0;
-};
 /* Interface:
  - rect.editor('transform');
  - rect.editor('transform', command); // <- command = enable / disable / rotate / freeze / destroy / etc
  - rect.editor('transform', properties); // sets attrs
  */
 extend(Drawable.prototype, {
-	editor: function(kind, value){
+	editor: function(kind, value, params){
 		if(!value){
 			value = 'enable';
 		}
@@ -4630,7 +4608,7 @@ extend(Drawable.prototype, {
 		}
 
 		if(value + '' === value){
-			return Delta.editors[kind][value](this) || this;
+			return Delta.editors[kind][value](this, params) || this;
 		}
 	}
 });
@@ -4639,15 +4617,39 @@ Delta.editors = {};
 
 // draggable
 Delta.editors.draggable = {
+	defaultProps: {
+		axis: 'both',
+		inBounds: null,
+		cursor: null,
+		cursorAt: null,
+		moveWith: [],
+		delay: 100,
+		distance: 5,
+		grid: null,
+		helper: null,
+		helperOpacity: null,
+		snap: false,
+		snapMode: 'both',
+		snapTolerance: 20,
+		stack: [],
+		stackReturnZ: false,
+		zIndex: null
+	},
+
 	enable: function(object){
+		var bounds;
 		var coords;
 
 		object.on('mousedown', function(e){
-			var bounds = this.bounds();
+			bounds = this.bounds();
 			coords = [
 				e.contextX - bounds.x,
 				e.contextY - bounds.y
 			];
+		});
+
+		window.addEventListener('mouseup', function(){
+			bounds = coords = null;
 		});
 
 		window.addEventListener('mousemove', function(e){
@@ -4655,19 +4657,19 @@ Delta.editors.draggable = {
 				return;
 			}
 
-			coords = [0, 0];
-			var ctxCoords = object.context.contextCoords(e.clientX, e.clientY);
-			var bounds = object.bounds();
-			object.transform(null);
-			object.translate(ctxCoords[0] + coords[0] - bounds.x, ctxCoords[1] + coords[1] - bounds.y);
-		});
-
-		window.addEventListener('mouseup', function(){
-			coords = null;
+			var contextCoords = object.context.contextCoords(e.clientX, e.clientY);
+			object.attr('translate', [
+				contextCoords[0] - bounds.x,
+				contextCoords[1] - bounds.y
+			]);
 		});
 	},
 
 	disable: function(object){
+		;
+	},
+
+	destroy: function(object){
 		;
 	}
 };
@@ -4808,6 +4810,16 @@ Delta.editors.transform = {
 	},
 
 	__controls: Delta.editors.__commonControls
+};
+
+Context.prototype.toSVG = function(format, quickCalls){
+
+	;
+
+};
+
+Rect.prototype.toSVG = function(quickCalls){
+	return '';
 };
 
 Delta.version = "1.9.0";

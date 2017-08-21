@@ -37,21 +37,27 @@ Circle = new Class(Drawable, {
 		}
 	}),
 
-	shapeBounds : function(){
-		return [this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2];
+	isPointIn : function(x, y){
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
+	},
+
+	bounds: function(transform, around){
+		return this.super('bounds', [
+			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
+			transform, around
+		]);
 	},
 
 	draw : function(ctx){
-		if(this._visible){
+		if(this.attrs.visible){
 			this.context.renderer.drawCircle(
 				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
 				ctx, this.styles, this.matrix, this
 			);
 		}
-	},
-
-	isPointIn : function(x, y){
-		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	},
 
 	processPath: function(ctx){

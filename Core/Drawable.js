@@ -19,29 +19,16 @@ Drawable = new Class({
 		this.listeners = {};
 		this.styles = {};
 		this.attrs = {
-			interaction: true
+			interaction: true,
+			visible: true
 		};
 	},
-
-	_visible: true,
 
 	update: function(){
 		if(this.context){
 			this.context.update();
 		}
 		return this;
-	},
-
-	z : function(z){
-		if(z === undefined){
-			return this.context.elements.indexOf(this);
-		}
-		if(z === 'top'){
-			z = this.context.elements.length;
-		}
-		this.context.elements.splice(this.context.elements.indexOf(this), 1);
-		this.context.elements.splice(z, 0, this);
-		return this.update();
 	},
 
 	clone : function(attrs, styles, events){
@@ -82,16 +69,6 @@ Drawable = new Class({
 		return this;
 	},
 
-	hide: function(){
-		this._visible = false;
-		return this.update();
-	},
-
-	show: function(){
-		this._visible = true;
-		return this.update();
-	},
-
 	// Attributes
 	attr: function(name, value){
 		if(name + '' !== name){
@@ -123,6 +100,28 @@ Drawable = new Class({
 	},
 
 	attrHooks: DrawableAttrHooks.prototype = {
+		z: {
+			get: function(){
+				return this.context.elements.indexOf(this);
+			},
+			set: function(value){
+				var elements = this.context.elements;
+				if(value === 'top'){
+					value = elements.length;
+				}
+
+				elements.splice(this.context.elements.indexOf(this), 1);
+				elements.splice(value, 0, this);
+				this.update();
+			}
+		},
+
+		visible: {
+			set: function(){
+				this.update();
+			}
+		},
+
 		fill: {
 			get: function(){
 				return this.styles.fillStyle;
@@ -174,10 +173,25 @@ Drawable = new Class({
 				this.attrs.clip = value;
 				this.update();
 			}
+		},
+
+		cursor: {
+			set: function(value){
+				// this._setCursorListener();
+				// this._teardownCursorListener();
+			}
 		}
 	},
 
+	// todo: move to Drawable.processArgumentsObject
 	processObject: function(object, arglist){
+		// todo: has must be a macros
+		// здесь везде вообще заменить на object.opacity !== undefined
+
+		// нужно заменить эту функцию на прямой маппинг в attrs (в функции set)
+		// а функция update должна ставиться после первого рисования
+		// а по умолчанию быть пустой
+
 		if(has(object, 'opacity')){
 			this.styles.globalAlpha = object.opacity;
 		}
@@ -188,97 +202,66 @@ Drawable = new Class({
 			object.clip.context = this.context;
 			this.attrs.clip = object.clip;
 		}
+		if(has(object, 'visible')){
+			object.attrs.visible = object.visible;
+		}
+		if(has(object, 'interaction')){
+			object.attrs.interaction = object.interaction;
+		}
+		// todo: add other attrs
+		// и обработчики событий
 
 		return arglist.map(function(name){
 			return object[name];
 		});
 	},
 
-	// Bounds
-	bounds : function(options){
-		// хорошо бы кэшировать shapeBounds
-		if(!this.shapeBounds){
-			throw 'The object doesn\'t have shapeBounds method.';
+	isPointIn : function(x, y){
+		// if(this.attrs.interactionParameters.transform)
+		if(this.matrix){
+			var inverse = Delta.inverseTransform(this.matrix);
+			return Delta.transformPoint(inverse, [x, y]);
 		}
+		return [x, y];
+	},
 
-		options = extend({
-			transform: 'normalized',
-			around: 'fill'
-		}, options);
-
-		var b = Array.isArray(this.shapeBounds) ? this.shapeBounds : this.shapeBounds();
-
-		// around
-		if(options.around !== 'fill' && this.styles.strokeStyle){
+	// Bounds
+	bounds: function(rect, transform, around){
+		// maybe add processClip?
+		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
-			if(options.around === 'exclude'){
+			if(around === 'strokeExclude'){
 				weight = -weight;
 			}
-			b[0] -= weight;
-			b[1] -= weight;
-			b[2] += weight * 2;
-			b[3] += weight * 2;
+			rect[0] -= weight;
+			rect[1] -= weight;
+			rect[2] += weight * 2;
+			rect[3] += weight * 2;
 		}
 
-		var lt = [b[0], b[1]],
-			rt = [b[0] + b[2], b[1]],
-			lb = [b[0], b[1] + b[3]],
-			rb = [rt[0], lb[1]];
+		if(transform !== false && this.matrix){
+			var tight = [
+				// left top
+				Delta.transformPoint(this.matrix, [rect[0], rect[1]]),
+				// right top
+				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1]]),
+				// left bottom
+				Delta.transformPoint(this.matrix, [rect[0], rect[1] + rect[3]]),
+				// right bottom
+				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1] + rect[3]])
+			];
 
-		// transform
-		if(options.transform !== 'ignore'){
-			var matrix = this.matrix;
-
-			if(matrix){
-				lt[0] = [
-					lt[0] * matrix[0] + lt[1] * matrix[2] + matrix[4],
-					lt[1] =
-						lt[0] * matrix[1] + lt[1] * matrix[3] + matrix[5]
-				][0];
-
-				rt[0] = [
-					rt[0] * matrix[0] + rt[1] * matrix[2] + matrix[4],
-					rt[1] =
-						rt[0] * matrix[1] + rt[1] * matrix[3] + matrix[5]
-				][0];
-
-				lb[0] = [
-					lb[0] * matrix[0] + lb[1] * matrix[2] + matrix[4],
-					lb[1] =
-						lb[0] * matrix[1] + lb[1] * matrix[3] + matrix[5]
-				][0];
-
-				rb[0] = [
-					rb[0] * matrix[0] + rb[1] * matrix[2] + matrix[4],
-					rb[1] =
-						rb[0] * matrix[1] + rb[1] * matrix[3] + matrix[5]
-				][0];
+			if(transform === 'tight'){
+				return tight;
 			}
 
-			if(options.transform === 'transformed'){
-				return {
-					lt: lt,
-					rt: rt,
-					lb: lb,
-					rb: rb
-				};
-			}
-
-			var minX = Math.min(lt[0], lb[0], rt[0], rb[0]),
-				minY = Math.min(lt[1], lb[1], rt[1], rb[1]);
-
-			return new Bounds(
-				minX,
-				minY,
-				Math.max(lt[0], lb[0], rt[0], rb[0]) - minX,
-				Math.max(lt[1], lb[1], rt[1], rb[1]) - minY
-			);
+			rect[0] = Math.min(tight[0][0], tight[1][0], tight[2][0], tight[3][0]);
+			rect[1] = Math.min(tight[0][1], tight[1][1], tight[2][1], tight[3][1]);
+			rect[2] = Math.max(tight[0][0], tight[1][0], tight[2][0], tight[3][0]) - rect[0];
+			rect[3] = Math.max(tight[0][1], tight[1][1], tight[2][1], tight[3][1]) - rect[1];
 		}
 
-		// options.transform - 3 possible values (transformed boundbox, normalized boundbox (maximize transformed vertices), ignore transforms)
-		// options.around = 'fill' or 'stroke' or 'exclude' (stroke)
-		// maybe, options.processClip = true or false
-		return new Bounds(b[0], b[1], b[2], b[3]);
+		return new Bounds(rect[0], rect[1], rect[2], rect[3]);
 	},
 
 	corner : function(corner, options){
@@ -385,6 +368,8 @@ Drawable = new Class({
 		if(y === undefined){
 			y = x;
 		}
+		x = x / 180 * Math.PI;
+		y = y / 180 * Math.PI;
 		return this.transform(
 			1, Math.tan(y),
 			Math.tan(x), 1,
@@ -419,6 +404,10 @@ Drawable = new Class({
 		// там подключается renderer, что не прокатит для объектов чисто в памяти ( Graphics2D.rect(x,y,w,h) )
 		this.draw(context);
 		return canvas.toDataURL(type.type || type, type.quality || 1);
+	},
+
+	toBlob: function(type, quality, bounds, callback){
+		;
 	},
 
 	toImageData: function(bounds){

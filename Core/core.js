@@ -107,8 +107,10 @@ Delta.contexts = {
 // {{include Rect.WebGL.js}}
 // {{include Path.WebGL.js}}
 
-// {{include Phys.js}}
+// {{include Editor.Draggable.js}}
 // {{include Editor.Transform.js}}
+
+// {{include SVGExport.js}}
 
 Delta.version = "{{version}}";
 
