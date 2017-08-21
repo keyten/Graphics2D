@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 21.08.2017
+ *  Last edit: 22.08.2017
  *  License: MIT / LGPL
  */
 
@@ -173,6 +173,20 @@ Delta.renderers['2d'] = {
 			};
 		}
 		params[0].forEach(func);
+		ctx.restore();
+	},
+
+	// params = [text, x, y]
+	drawText: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		if(style.fillStyle && !style.strokeStyle){
+			ctx.fillText(params[0], params[1], params[2], params[3]);
+		} else if(style.fillStyle){
+			ctx.fillText(params[0], params[1], params[2]);
+			ctx.strokeText(params[0], params[1], params[2]);
+		} else {
+			ctx.strokeText(params[0], params[1], params[2]);
+		}
 		ctx.restore();
 	},
 
@@ -2915,12 +2929,8 @@ Picture = new Class(Drawable, {
 		this.attrs.image = Picture.parse(args[0]);
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
-		if(args[3]){
-			this.attrs.width = args[3];
-		}
-		if(args[4]){
-			this.attrs.height = args[4];
-		}
+		this.attrs.width = args[3] === undefined ? 'auto' : args[3];
+		this.attrs.height = args[4] === undefined ? 'auto' : args[4];
 		if(args[5]){
 			this.attrs.crop = args[5];
 		}
@@ -2936,36 +2946,58 @@ Picture = new Class(Drawable, {
 	},
 
 	attrHooks: new DrawableAttrHooks({
+		image: {
+			set: function(value){
+				value = Picture.parse(value);
+
+				if(value.complete){
+					this.update();
+				}
+
+				value.addEventListener('load', function(event){
+					this.update();
+					this.fire('load', event);
+				}.bind(this));
+
+				return value;
+			}
+		},
+
 		x: {
 			set: function(value){
 				this.attrs.x = value;
 				this.update();
 			}
 		},
+
 		y: {
 			set: function(value){
 				this.attrs.y = value;
 				this.update();
 			}
 		},
+
 		width: {
 			set: function(value){
 				this.attrs.width = value;
 				this.update();
 			}
 		},
+
 		height: {
 			set: function(value){
 				this.attrs.height = value;
 				this.update();
 			}
 		},
+
 		crop: {
 			set: function(value){
 				this.attrs.crop = value;
 				this.update();
 			}
 		},
+
 		smooth: {
 			get: function(){
 				return this.styles[smoothPrefix(this.context.context)] || this.context.context[smoothPrefix(this.context.context)];
@@ -2979,51 +3011,53 @@ Picture = new Class(Drawable, {
 
 	remove: function(){
 		this.super('remove');
+		// todo:
+		// what if user want to push the image again?
+		// should be able to restore the link to blob
+		// the blob is still saved in the image.blob, just needs to call domurl.createObjectURL again
 		if(this.attrs.image.blob){
 			domurl.revokeObjectURL(this.attrs.image.blob);
 		}
 	},
 
-	_realSize: function(){
+	getRealSize: function(){
 		var w = this.attrs.width,
 			h = this.attrs.height;
 
+		// they both are auto by default because saving proportions is by default true
+		if(w === 'auto' && h === 'auto'){
+			w = h = 'native';
+		}
+
 		if(w === 'auto'){
 			w = this.attrs.image.width * (h / this.attrs.image.height);
-		} else if(w === 'native' || w == null){
+		} else if(w === 'native'){
 			w = this.attrs.image.width;
 		}
 
 		if(h === 'auto'){
 			h = this.attrs.image.height * (w / this.attrs.image.width);
-		} else if(h === 'native' || h == null){
+		} else if(h === 'native'){
 			h = this.attrs.image.height;
 		}
 
 		return [w, h];
 	},
 
-	/* isPointIn : function(x, y){
-		var point = this.super('isPointIn', [x, y]);
-		x = point[0];
-		y = point[1];
-		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
-	},
-
 	bounds: function(transform, around){
+		var size = this.getRealSize();
 		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
+			[this.attrs.x, this.attrs.y, size[0], size[1]],
 			transform, around
 		]);
-	}, */
-
-	shapeBounds : function(){
-		var size = this._realSize();
-		return [this.attrs.x, this.attrs.y, size[0], size[1]];
 	},
 
 	isPointIn : function(x, y){
-		var size = this._realSize();
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+
+		var size = this.getRealSize();
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + size[0] && y < this.attrs.y + size[1];
 	},
 
@@ -3032,7 +3066,7 @@ Picture = new Class(Drawable, {
 			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
 
 			if(this.attrs.width || this.attrs.height){
-				var size = this._realSize();
+				var size = this.getRealSize();
 				params.push(size[0]);
 				params.push(size[1]);
 
@@ -3086,11 +3120,12 @@ Picture.parse = function(image){
 };
 
 Delta.image = function(){
-	var image = new Picture(arguments);
-	return image;
+	return new Picture(arguments);
 };
 
 Delta.Image = Picture;
+
+var defaultBaseline = 'top';
 
 Text = new Class(Drawable, {
 
@@ -3098,52 +3133,111 @@ Text = new Class(Drawable, {
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
+			if(args[0].align){
+				this.attrs.align = args[0].align;
+				this.styles.textAlign = args[0].align;
+			}
+
+			if(args[0].baseline){
+				this.attrs.baseline = args[0].baseline;
+			} else {
+				this.attrs.baseline = defaultBaseline;
+			}
+
+			if(args[0].breaklines !== undefined){
+				this.attrs.breaklines = args[0].breaklines;
+			} else {
+				this.attrs.breaklines = true;
+			}
+
+			if(args[0].lineHeight !== undefined){
+				this.attrs.lineHeight = args[0].lineHeight;
+			} else {
+				this.attrs.lineHeight = 'auto';
+			}
+
+			if(args[0].maxStringWidth !== undefined){
+				this.attrs.maxStringWidth = args[0].maxStringWidth;
+			} else {
+				this.attrs.maxStringWidth = Infinity;
+			}
+
+			if(args[0].blockWidth !== undefined){
+				this.attrs.blockWidth = args[0].blockWidth;
+			} else {
+				this.attrs.blockWidth = Infinity;
+			}
+
+			if(args[0].boundsMode){
+				this.attrs.boundsMode = args[0].boundsMode;
+			} else {
+				this.attrs.boundsMode = 'inline';
+			}
+
+			if(args[0].text){
+				args[0].string = args[0].text;
+			}
+
+			// change to: this.attrs.boundsMode = args[0].boundsMode || 'inline';
+			// and so on
+
 			args = this.processObject(args[0], Text.args);
+		} else {
+			this.attrs.baseline = defaultBaseline;
+			this.attrs.breaklines = true;
+			this.attrs.lineHeight = 'auto';
+			this.attrs.maxStringWidth = Infinity; // in the draw: if this.attrs.maxStringWidth < Infinity then ...
+			this.attrs.blockWidth = Infinity;
+			this.attrs.boundsMode = 'inline';
 		}
 
-		this.attrs.text = args[0] + '';
-		this.attrs.font = Text.parseFont(args[1] || Text.font);
+		this.styles.textBaseline = this.attrs.baseline;
+
+		this.attrs.string = args[0] + '';
+		this.attrs.x = args[1];
+		this.attrs.y = args[2];
+		this.attrs.font = Text.parseFont(args[3] || Text.font);
 		this.styles.font = Text.genFont(this.attrs.font);
-		this.attrs.x = args[2];
-		this.attrs.y = args[3];
 		if(args[4]){
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
-			this.attrs.stroke = args[5];
+			this.styles.stroke = args[5];
 			Drawable.processStroke(args[5], this.styles);
 		}
 
-		this.attrs.breakLines = true;
-		this.styles.textBaseline = 'top';
 	},
 
 	attrHooks: new DrawableAttrHooks({
-		text: {
+		string: {
 			set: function(value){
 				this.lines = null;
 				this.update();
 				return value + '';
 			}
 		},
+
 		x: {
 			set: function(value){
 				this.update();
 			}
 		},
+
 		y: {
 			set: function(value){
 				this.update();
 			}
 		},
+
 		font: {
 			set: function(value){
 				extend(this.attrs.font, Text.parseFont(value));
 				this.styles.font = Text.genFont(this.attrs.font);
 				this.update();
-				return this.attrs.font;
+				return null;
 			}
 		},
+
 		align: {
 			get: function(){
 				return this.styles.textAlign || 'left';
@@ -3154,6 +3248,7 @@ Text = new Class(Drawable, {
 				return null;
 			}
 		},
+
 		baseline: {
 			get: function(){
 				return this.styles.textBaseline;
@@ -3164,18 +3259,27 @@ Text = new Class(Drawable, {
 				return null;
 			}
 		},
-		breakLines: {
+
+		breaklines: {
 			set: function(){
 				this.update();
 			}
 		},
-		width: {
+
+		lineHeight: {
 			set: function(){
 				this.lines = null;
 				this.update();
 			}
 		},
-		lineHeight: {
+
+		maxStringWidth: {
+			set: function(){
+				this.update();
+			}
+		},
+
+		blockWidth: {
 			set: function(){
 				this.lines = null;
 				this.update();
@@ -3186,11 +3290,11 @@ Text = new Class(Drawable, {
 	lines: null,
 
 	processLines: function(ctx){
-		var text = this.attrs.text,
+		var text = this.attrs.string,
 			lines = this.lines = [],
 
-			height = this.attrs.lineHeight || this.attrs.font.size,
-			maxWidth = this.attrs.width || Infinity,
+			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight,
+			maxWidth = this.attrs.blockWidth,
 			x = maxWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0),
 
 			rend = this.context.renderer;
@@ -3230,64 +3334,15 @@ Text = new Class(Drawable, {
 		return this;
 	},
 
-	shapeBounds : function(){
-		var align = this.styles.textAlign || 'left',
-			baseline = this.styles.textBaseline,
-
-			width = this.attrs.width,
-			height = this.attrs.lineHeight || this.attrs.font.size,
-
-			x = this.attrs.x,
-			y = this.attrs.y;
-
-		if(baseline === 'middle'){
-			y -= this.attrs.font.size / 2;
-		} else if(baseline === 'bottom' || baseline === 'ideographic'){
-			y -= this.attrs.font.size;
-		} else if(baseline === 'alphabetic'){
-			y -= this.attrs.font.size * 0.8;
-		}
-
-		if(!this.attrs.breakLines){
-			this.context.renderer.preMeasure(this.styles.font);
-			width = this.context.renderer.measure(this.attrs.text);
-			this.context.renderer.postMeasure();
-
-			x -= width * ({
-				left: 0,
-				right: 1,
-				center: 0.5
-			})[align || 'left'];
-
-			return [x, y, width, this.attrs.font.size * 1.15];
-		} else {
-			if(!this.lines){
-				this.processLines();
-			}
-
-			if(!width){
-				width = 0;
-				this.context.renderer.preMeasure(this.styles.font);
-				this.lines.forEach(function(line){
-					width = Math.max(width, this.context.renderer.measure(line.text));
-				}, this);
-				this.context.renderer.postMeasure();
-			}
-
-			return [x, y, width, height * this.lines.length];
-		}
-	},
-
 	draw : function(ctx){
 		if(this.attrs.visible){
-			if(!this.attrs.breakLines){
-				this.context.renderer.drawTextLines(
-					[[{
-						text: this.attrs.text,
-						y: 0
-					}], this.attrs.x, this.attrs.y],
-					ctx, this.styles, this.matrix, this
-				);
+			if(!this.attrs.breaklines){
+				this.context.renderer.drawText([
+					this.attrs.string,
+					this.attrs.x,
+					this.attrs.y,
+					this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined
+				], ctx, this.styles, this.matrix, this);
 			} else {
 				if(!this.lines){
 					this.processLines(ctx);
@@ -3310,29 +3365,92 @@ Text = new Class(Drawable, {
 		}
 	},
 
-	/* 	isPointIn : function(x, y){
+	isPointIn : function(x, y){
 		var point = this.super('isPointIn', [x, y]);
 		x = point[0];
 		y = point[1];
-		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+
+		var bounds = this.bounds();
+		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+	},
+
+	measure: function(){
+		var width;
+		if(this.attrs.breaklines){
+			if(!this.lines){
+				this.processLines(this.context.context);
+			}
+
+			this.context.renderer.preMeasure(this.styles.font);
+			width = this.lines.reduce(function(prev, cur){
+				cur = this.context.renderer.measure(cur.text);
+				if(prev < cur){
+					return cur;
+				}
+				return prev;
+			}.bind(this), 0);
+			this.context.renderer.postMeasure();
+		} else {
+			this.context.renderer.preMeasure(this.styles.font);
+			width = this.context.renderer.measure(this.attrs.string);
+			this.context.renderer.postMeasure();
+		}
+		return width;
 	},
 
 	bounds: function(transform, around){
-		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
-			transform, around
-		]);
-	}, */
+		var bounds,
+			blockX = this.attrs.x,
+			blockY = this.attrs.y,
+			width,
+			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight;
 
-	isPointIn : function(x, y){
-		var bounds = this.shapeBounds();
-		return x > bounds[0] && y > bounds[1] && x < bounds[0] + bounds[2] && y < bounds[1] + bounds[3];
+		// text processing
+		if(this.attrs.breaklines){
+			width = this.attrs.blockWidth;
+
+			if(this.attrs.boundsMode === 'inline' || !isFinite(width)){
+				width = this.measure();
+			}
+
+			if(!this.lines){
+				this.processLines();
+			}
+			height *= this.lines.length;
+		} else {
+			width = this.measure();
+			if(this.attrs.maxStringWidth < width){
+				width = this.attrs.maxStringWidth;
+			}
+		}
+
+		// modifiers
+		var baseline = this.styles.textBaseline,
+			align = this.styles.textAlign;
+
+		if(baseline === 'middle'){
+			blockY -= this.attrs.font.size / 2;
+		} else if(baseline === 'bottom' || baseline === 'ideographic'){
+			blockY -= this.attrs.font.size;
+		} else if(baseline === 'alphabetic'){
+			blockY -= this.attrs.font.size * 0.8;
+		}
+
+		if(align === 'center'){
+			blockX -= width / 2;
+		} else if(align === 'right'){
+			blockX -= width;
+		}
+
+		return this.super('bounds', [
+			[blockX, blockY, width, height], transform, around
+		]);
 	}
 
 });
 
 Text.font = '10px sans-serif';
-Text.args = ['text', 'font', 'x', 'y', 'fill', 'stroke'];
+Text.args = ['string', 'x', 'y', 'font', 'fill', 'stroke'];
 
 // 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
 Text.parseFont = function(font){

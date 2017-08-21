@@ -114,6 +114,20 @@ Delta.renderers['2d'] = {
 		ctx.restore();
 	},
 
+	// params = [text, x, y]
+	drawText: function(params, ctx, style, matrix, object){
+		this.pre(ctx, style, matrix, object);
+		if(style.fillStyle && !style.strokeStyle){
+			ctx.fillText(params[0], params[1], params[2], params[3]);
+		} else if(style.fillStyle){
+			ctx.fillText(params[0], params[1], params[2]);
+			ctx.strokeText(params[0], params[1], params[2]);
+		} else {
+			ctx.strokeText(params[0], params[1], params[2]);
+		}
+		ctx.restore();
+	},
+
 	makeGradient: function(delta, type, from, to, colors){
 		var hash;
 		if(delta.useCache){
