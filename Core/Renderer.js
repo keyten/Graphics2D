@@ -50,8 +50,11 @@ Delta.renderers['2d'] = {
 	// params is an array of curves
 	drawPath: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
+		if(params[1] || params[2]){
+			ctx.translate(params[1] || 0, params[2] || 0);
+		}
 		ctx.beginPath();
-		params.forEach(function(curve){
+		params[0].forEach(function(curve){
 			curve.process(ctx);
 		});
 		this.post(ctx, style);

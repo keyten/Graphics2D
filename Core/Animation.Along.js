@@ -8,7 +8,7 @@ Drawable.prototype.attrHooks.along = {
 			curve = data;
 			data = {};
 		}
-		var corner = data.corner || 'center'
+		var corner = data.corner || 'center';
 
 		corner = this.corner(corner, data.cornerOptions || {
 			transform: 'ignore'

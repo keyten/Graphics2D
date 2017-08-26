@@ -47,7 +47,7 @@ Delta.editors.draggable = {
 		var coords;
 
 		object.on('mousedown', function(e){
-			bounds = this.bounds();
+			bounds = this.bounds(false);
 			coords = [
 				e.contextX - bounds.x,
 				e.contextY - bounds.y
@@ -68,6 +68,10 @@ Delta.editors.draggable = {
 				contextCoords[0] - bounds.x,
 				contextCoords[1] - bounds.y
 			]);
+			object.fire('drag', {
+				contextX: contextCoords[0],
+				contextY: contextCoords[1]
+			})
 		});
 	},
 

@@ -82,6 +82,7 @@ Delta.contexts = {
 // {{include Curve.js}}
 // {{include Curve.Math.js}}
 // {{include Curve.Catmull.js}}
+// {{include CurveHermite.js}}
 // {{include Math.Line.js}}
 // {{include Math.Quadratic.js}}
 // {{include Math.Bezier.js}}
@@ -111,6 +112,8 @@ Delta.contexts = {
 // {{include Editor.Transform.js}}
 
 // {{include SVGExport.js}}
+
+// {{include CurveGradient.js}}
 
 Delta.version = "{{version}}";
 

@@ -139,7 +139,7 @@ function isPatternLike(value){
 			) );
 }
 
-Delta.Class = Class;
+Delta.class = Class;
 Delta.Bounds = Bounds;
 Delta.extend = extend;
 Delta.argument = argument;

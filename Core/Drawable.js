@@ -82,9 +82,7 @@ Drawable = new Class({
 			return this;
 		}
 
-		// todo: arguments.length === 1 *
-		// because value can be undefined!
-		if(value === undefined){
+		if(arguments.length === 1){
 			// todo: check the fastest check of property
 			// ...[name] or name in or hasOwnProperty
 			if(this.attrHooks[name] && this.attrHooks[name].get){

@@ -1,13 +1,51 @@
+function CurveAttrHooks(attrs){
+	extend(this, attrs); // todo: deepExtend neccessary?
+}
+
 Curve = new Class({
 	initialize: function(method, funcAttrs, path){
 		this.method = method;
 		this.path = path;
 		this.attrs = {};
+		this.attrs.args = funcAttrs;
 		if(Curve.canvasFunctions[method]){
 			this.attrHooks = Curve.canvasFunctions[method].attrHooks;
 		}
-		this.funcAttrs = funcAttrs; // (_funcAttrs *) ! ... ? - but in modules? protected, not private
-		// add attrHook 'arguments' ?
+	},
+
+	attrHooks: CurveAttrHooks.prototype = {
+		args: {
+			set: function(){
+				this.update();
+			}
+		}
+	},
+
+	attr: Drawable.prototype.attr,
+
+	bounds: function(prevEnd){
+		if(!Curve.canvasFunctions[this.method].bounds){
+			return null;
+		}
+		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.attrs.args);
+	},
+
+	clone: function(){
+		var clone = Delta.curve(this.method, this.attrs.args);
+		extend(clone.attrs, this.attrs); // todo: deepExtend
+		return clone;
+	},
+
+	startAt: function(){
+		var index = this.path.attrs.d.indexOf(this);
+		return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
+	},
+
+	endAt: function(){
+		if(!Curve.canvasFunctions[this.method].endAt){
+			return null;
+		}
+		return Curve.canvasFunctions[this.method].endAt(this.attrs.args);
 	},
 
 	update: function(){
@@ -18,24 +56,7 @@ Curve = new Class({
 	},
 
 	process: function(ctx){
-		ctx[this.method].apply(ctx, this.funcAttrs);
-	},
-
-	// Parameters
-	attr: Drawable.prototype.attr,
-
-	bounds: function(prevEnd){
-		if(!Curve.canvasFunctions[this.method].bounds){
-			return null;
-		}
-		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.funcAttrs);
-	},
-
-	endAt: function(){
-		if(!Curve.canvasFunctions[this.method].endAt){
-			return null;
-		}
-		return Curve.canvasFunctions[this.method].endAt(this.funcAttrs);
+		ctx[this.method].apply(ctx, this.attrs.args);
 	}
 });
 
@@ -114,14 +135,14 @@ Curve.canvasFunctions = {
 };
 
 function makeAttrHooks(argList){
-	var attrHooks = {};
+	var attrHooks = new CurveAttrHooks({});
 	argList.forEach(function(arg, i){
 		attrHooks[arg] = {
 			get: function(){
-				return this.funcAttrs[i];
+				return this.attrs.args[i];
 			},
 			set: function(value){
-				this.funcAttrs[i] = value;
+				this.attrs.args[i] = value;
 				this.update();
 			}
 		};

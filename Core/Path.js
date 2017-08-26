@@ -8,12 +8,25 @@ Path = new Class(Drawable, {
 		}
 
 		this.attrs.d = Path.parse(args[0], this);
-		if(args[1]){
-			this.styles.fillStyle = args[1];
+
+		// parseInt is neccessary bcs isNaN('30px') -> true
+		if(isNaN(parseInt(args[1]))){
+			args[3] = args[1];
+			args[4] = args[2];
+			args[1] = args[2] = null;
 		}
-		if(args[2]){
-			this.attrs.stroke = args[2];
-			Drawable.processStroke(args[2], this.styles);
+
+		if(args[1] || args[2]){
+			this.attrs.x = args[1] || 0;
+			this.attrs.y = args[2] || 0;
+		}
+
+		if(args[3]){
+			this.styles.fillStyle = args[3];
+		}
+		if(args[4]){
+			this.attrs.stroke = args[4];
+			Drawable.processStroke(args[4], this.styles);
 		}
 	},
 
@@ -22,6 +35,18 @@ Path = new Class(Drawable, {
 			set: function(value){
 				this.update();
 				return value;
+			}
+		},
+
+		x: {
+			set: function(value){
+				this.update();
+			}
+		},
+
+		y: {
+			set: function(value){
+				this.update();
 			}
 		}
 	}),
@@ -71,26 +96,22 @@ Path = new Class(Drawable, {
 	},
 
 	// Array species
-	push: function(curve){
-		this.attrs.d = this.attrs.d.concat(Path.parse(curve, this, this.attrs.d.length !== 0));
+	push: function(method, attrs){
+		if(attrs){
+			this.attrs.d.push(Delta.curve(method, attrs, this));
+		} else {
+			this.attrs.d = this.attrs.d.concat(Path.parse(method, this, this.attrs.d.length !== 0));
+		}
 		return this.update();
 	},
 
-	forEach: function(){
+	each: function(){
 		this.attrs.d.forEach.apply(this.attrs.d, arguments);
 		return this;
 	},
 
 	map: function(){
 		return this.attrs.d.map.apply(this.attrs.d, arguments);
-	},
-
-	reduce: function(){
-		return this.attrs.d.reduce.apply(this.attrs.d, arguments);
-	},
-
-	index: function(curve){
-		return this.attrs.d.indexOf(curve);
 	},
 
 	// Curves addition
@@ -159,7 +180,7 @@ Path = new Class(Drawable, {
 	draw : function(ctx){
 		if(this.attrs.visible){
 			this.context.renderer.drawPath(
-				this.attrs.d,
+				[this.attrs.d, this.attrs.x, this.attrs.y],
 				ctx, this.styles, this.matrix, this
 			);
 		}
@@ -167,7 +188,7 @@ Path = new Class(Drawable, {
 
 } );
 
-Path.args = ['d', 'fill', 'stroke'];
+Path.args = ['d', 'offsetX', 'offsetY', 'fill', 'stroke'];
 
 Path.parse = function(data, path, firstIsNotMove){
 	if(!data){

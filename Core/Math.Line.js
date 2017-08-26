@@ -1,4 +1,4 @@
-Delta.Math.EPSILON_intersection = Number.EPSILON;
+/*Delta.Math.EPSILON_intersection = Number.EPSILON;
 
 Delta.Math.Line = {
 	pointAt: function(start, end, t){
@@ -80,7 +80,7 @@ Delta.Math.Line = {
 		//y3 = line2start[1]
 		//x4 = line2end[0]
 		//y4 = line2end[1]
-		var nx = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[0]-line2end[0])-(line1start[0]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
+/*		var nx = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[0]-line2end[0])-(line1start[0]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
 			ny = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
 			d = (line1start[0]-line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]-line2end[0]);
 		if(d === 0){
@@ -122,3 +122,4 @@ Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
 		]
 	};
 };
+ */
