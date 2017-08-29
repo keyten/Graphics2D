@@ -67,6 +67,15 @@ Path = new Class(Drawable, {
 		return this.update();
 	},
 
+	curves: function(value){
+		if(value === undefined){
+			return this.attrs.d;
+		}
+
+		this.attrs.d = Path.parse(value, this, true);
+		return this.update();
+	},
+
 	before: function(index, value, turnMoveToLine){
 		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
 		if(index === 0 && turnToLine !== false){

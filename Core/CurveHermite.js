@@ -114,4 +114,17 @@ var CurveHermite = new Class(Curve, {
 	}
 });
 
+// todo: hermite for a custom grid
+// https://ru.wikipedia.org/wiki/Сплайн_Эрмита
+// Delta.Path.hermiteGrid(points)
+// возвращает то что можно запихнуть в path.push(...)
+
+// Cardinal spline
+// Ti = a * ( Pi+1 - Pi-1 )
+// CatmullRom spline
+// Ti = 0.5 * ( P i+1 - Pi-1 )
+
+// Kochanek–Bartels spline:
+// https://en.wikipedia.org/wiki/Kochanek–Bartels_spline
+
 Delta.curves['hermiteTo'] = CurveHermite;

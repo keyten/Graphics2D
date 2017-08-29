@@ -1,7 +1,7 @@
 /*  Graphics2D More 1.9.0
  * 
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 22.08.2017
+ *  Last edit: 26.08.2017
  *  License: MIT / LGPL
  */
 

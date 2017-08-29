@@ -2253,22 +2253,12 @@ Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
 var CurveCatmull = new Class(Curve, {
 	initialize: function(method, attrs, path){
 		this.super('initialize', arguments);
-		// h1x, h1y, h2x, h2y, x, y, [detail]
+		if(!attrs[6]){
+			this.attrs.args[6] = 1;
+		}
 	},
 
 	attrHooks: new CurveAttrHooks({
-		x: {
-			set: function(value){
-				this.attrs.args[4] = value;
-				this.update();
-			}
-		},
-		y: {
-			set: function(value){
-				this.attrs.args[5] = value;
-				this.update();
-			}
-		},
 		h1x: {
 			set: function(value){
 				this.attrs.args[0] = value;
@@ -2290,6 +2280,24 @@ var CurveCatmull = new Class(Curve, {
 		h2y: {
 			set: function(value){
 				this.attrs.args[3] = value;
+				this.update();
+			}
+		},
+		x: {
+			set: function(value){
+				this.attrs.args[4] = value;
+				this.update();
+			}
+		},
+		y: {
+			set: function(value){
+				this.attrs.args[5] = value;
+				this.update();
+			}
+		},
+		tension: {
+			set: function(value){
+				this.attrs.args[6] = value;
 				this.update();
 			}
 		}
@@ -2366,13 +2374,12 @@ var CurveCatmull = new Class(Curve, {
 			x2 = args[4],
 			y2 = args[5];
 
-		var bezier = catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2);
-		ctx.bezierCurveTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+		var bezier = catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, args[6]);
+		ctx.bezierCurveTo(bezier[2], bezier[3], bezier[4], bezier[5], bezier[6], bezier[7]);
 	}
 });
 
-function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
-	var tau = 1;
+function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, tension){
 	var catmull = [
 		h1x, h1y, // 0, 1
 		x1, y1, // 2, 3
@@ -2382,14 +2389,45 @@ function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
 
 	var bezier = [
 		catmull[2], catmull[3],
-		catmull[2] + (catmull[4] - catmull[0]) / (6 * tau),
-		catmull[3] + (catmull[5] - catmull[1]) / (6 * tau),
-		catmull[4] + (catmull[6] - catmull[2]) / (6 * tau),
-		catmull[5] + (catmull[7] - catmull[3]) / (6 * tau),
+		catmull[2] + (catmull[4] - catmull[0]) / (6 * tension),
+		catmull[3] + (catmull[5] - catmull[1]) / (6 * tension),
+		catmull[4] - (catmull[6] - catmull[2]) / (6 * tension),
+		catmull[5] - (catmull[7] - catmull[3]) / (6 * tension),
 		catmull[4], catmull[5]
 	];
 
-	return bezier.slice(2);
+	return bezier;
+}
+
+// catmull rom is a special case of hermite spline
+function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
+	// возвращает то что можно запихнуть в path.push(...)
+	return {
+		h0: [x1, y1], // start point
+		h1: [x2, y2], // end point
+		h2: [(x2 - h1x) / 2, (y2 - h1y) / 2], // derivative at start point
+		h3: [(h2x - x1) / 2, (h2y - y1) / 2] // derivative at end point
+	};
+}
+
+// надо научить быть closed (нужно чтобы первая и последняя точка равнялись)
+Delta.Curve.catmullSpline = function(points, closed, tension){
+	return points.map(function(point, i){
+		if(i === 0){
+			return point;
+		}
+
+		var prev = points[i - 2] || points[i - 1];
+		var next = points[i + 1] || point;
+
+		return [
+			'catmullTo',
+			prev[0], prev[1],
+			next[0], next[1],
+			point[0], point[1],
+			tension
+		];
+	});
 }
 
 Delta.curves['catmullTo'] = CurveCatmull;
@@ -2508,6 +2546,19 @@ var CurveHermite = new Class(Curve, {
 		});
 	}
 });
+
+// todo: hermite for a custom grid
+// https://ru.wikipedia.org/wiki/Сплайн_Эрмита
+// Delta.Path.hermiteGrid(points)
+// возвращает то что можно запихнуть в path.push(...)
+
+// Cardinal spline
+// Ti = a * ( Pi+1 - Pi-1 )
+// CatmullRom spline
+// Ti = 0.5 * ( P i+1 - Pi-1 )
+
+// Kochanek–Bartels spline:
+// https://en.wikipedia.org/wiki/Kochanek–Bartels_spline
 
 Delta.curves['hermiteTo'] = CurveHermite;
 /*Delta.Math.EPSILON_intersection = Number.EPSILON;
@@ -2887,6 +2938,15 @@ Path = new Class(Drawable, {
 		value = Path.parse(value, this, index !== 0);
 		// todo: when removing curve unbind it from path
 		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
+		return this.update();
+	},
+
+	curves: function(value){
+		if(value === undefined){
+			return this.attrs.d;
+		}
+
+		this.attrs.d = Path.parse(value, this, true);
 		return this.update();
 	},
 
