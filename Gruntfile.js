@@ -4,14 +4,10 @@ module.exports = function (grunt) {
 	var core = {
 		source: 'Core/core.js',
 		dest: ['graphics2d.js', 'src/static/graphics2d.js'],
-	},
-
-		more = {
-			source: 'More/more.js',
-			dest: 'graphics2d.more.js'
-		},
-
-		package = grunt.file.readJSON('package.json');
+	}, more = {
+		source: 'More/more.js',
+		dest: 'graphics2d.more.js'
+	}, package = grunt.file.readJSON('package.json');
 
 	grunt.initConfig({
 		uglify: {
@@ -38,13 +34,6 @@ module.exports = function (grunt) {
 			more: {
 				files: 'More/*.js',
 				tasks: 'more',
-			},
-			express: {
-				files: ['**/*.*'],
-				tasks: ['express:dev'],
-				options: {
-					spawn: false,
-				}
 			}
 		},
 
@@ -156,11 +145,12 @@ module.exports = function (grunt) {
 	}
 
 	grunt.registerTask('core', function () {
-		compile(core.source, core.dest);
+		compile(core.source, core.dest[0]);
 	});
 	grunt.registerTask('more', function () {
 		compile(more.source, more.dest);
 	});
+
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-contrib-jshint');
