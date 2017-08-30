@@ -84,6 +84,7 @@ Delta.contexts = {
 // {{include Curve.Catmull.js}}
 // {{include CurveHermite.js}}
 // {{include CurveGeneralBezier.js}}
+// {{include CurveLagrange.js}}
 
 // {{include Math.Line.js}}
 // {{include Math.Quadratic.js}}

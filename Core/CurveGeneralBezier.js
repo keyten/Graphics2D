@@ -69,6 +69,8 @@ var GeneralBezier = new Class(Curve, {
 
 		for(var i = 1; i <= detail; i++){
 			ctx.lineTo(
+				// сейчас два вызова bezier -> два цикла
+				// оптимизировать в один
 				bezier(x, i / detail),
 				bezier(y, i / detail)
 			);
