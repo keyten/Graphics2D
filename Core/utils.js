@@ -86,6 +86,10 @@ function Bounds(x, y, w, h){
 	this.cy = y + h / 2;
 }
 
+Delta.bounds = function(x, y, width, height){
+	return new Bounds(x, y, width, height);
+};
+
 // utils
 function argument(index){
 	return function(value){

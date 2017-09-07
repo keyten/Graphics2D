@@ -154,8 +154,23 @@ Path = new Class(Drawable, {
 		return this.push(['closePath']);
 	},
 
+	// работает немного плохо с translate и draggable
 	isPointIn : function(x, y){
-		;
+		var point = this.super('isPointIn', [x, y]);
+		x = point[0];
+		y = point[1];
+
+		var ctx = this.context.context;
+		this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+		if(this.attrs.x || this.attrs.y){
+			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
+		}
+		this.attrs.d.forEach(function(curve){
+			curve.process(ctx);
+		});
+		var result = ctx.isPointInPath(x, y);
+		ctx.restore();
+		return result;
 	},
 
 	bounds: function(transform, around){

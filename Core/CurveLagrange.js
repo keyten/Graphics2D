@@ -14,6 +14,7 @@ var CurveLagrange = new Class(Curve, {
 			}
 		},
 
+		// t for x / y can be divided but iam not sure its neccessary
 		t: {
 			get: function(){
 				if(!this.attrs.t){

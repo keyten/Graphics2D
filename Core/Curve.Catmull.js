@@ -2,7 +2,7 @@ var CurveCatmull = new Class(Curve, {
 	initialize: function(method, attrs, path){
 		this.super('initialize', arguments);
 		if(!attrs[6]){
-			this.attrs.args[6] = 1;
+			this.attrs.args[6] = 0.5;
 		}
 	},
 
@@ -70,14 +70,14 @@ var CurveCatmull = new Class(Curve, {
 			y2 = args[5];
 
 		return [
-			0.5 * ((-h1x + 3*x1 - 3*x2 + h2x)*t*t*t
-				+ (2*h1x - 5*x1 + 4*x2 - h2x)*t*t
-				+ (-x1 + x2)*t
-				+ 2*x1),
-			0.5 * ((-h1y + 3*y1 - 3*y2 + h2y)*t*t*t
-				+ (2*h1y - 5*y1 + 4*y2 - h2y)*t*t
-				+ (-y1 + y2)*t
-				+ 2*y1)
+			0.5 * ((-h1x + 3 * x1 - 3 * x2 + h2x)*t*t*t
+				+ (2 * h1x - 5 * x1 + 4 * x2 - h2x)*t*t
+				+ (-x1 + x2) * t
+				+ 2 * x1),
+			0.5 * ((-h1y + 3 * y1 - 3 * y2 + h2y)*t*t*t
+				+ (2 * h1y - 5 * y1 + 4 * y2 - h2y)*t*t
+				+ (-y1 + y2) * t
+				+ 2 * y1)
 		];
 	},
 
@@ -101,7 +101,7 @@ var CurveCatmull = new Class(Curve, {
 			y2 = args[5];
 
 		return Math.atan2(
-			0.5 * (3*t * t * (-h1y + 3 * y1 - 3 * y2 + h2y)
+			0.5 * (3 * t * t * (-h1y + 3 * y1 - 3 * y2 + h2y)
 				+ 2 * t * (2 * h1y - 5 * y1 + 4 * y2 - h2y)
 				+ (-h1y + y2)),
 			0.5 * (3 * t * t * (-h1x + 3 * x1 - 3 * x2 + h2x)

@@ -111,6 +111,7 @@ Delta.contexts = {
 // {{include Rect.WebGL.js}}
 // {{include Path.WebGL.js}}
 
+// {{include Editor.js}}
 // {{include Editor.Draggable.js}}
 // {{include Editor.Transform.js}}
 

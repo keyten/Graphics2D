@@ -268,13 +268,13 @@ Drawable = new Class({
 		return new Bounds(rect[0], rect[1], rect[2], rect[3]);
 	},
 
-	corner : function(corner, options){
+	corner : function(corner, bounds){
 		// todo: remove
 		if(Array.isArray(corner)){
 			return corner;
 		}
 
-		var bounds = this.bounds(options);
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
 			bounds.y + bounds.h * Delta.corners[corner][1]

@@ -106,7 +106,9 @@ extend(Curve.prototype, {
 	},
 
 	// работает весьма плохо, нужно поотлаживать
-	bounds: function(startPoint, detail){
+	// переопределяет внутренний у curve, когда это не нужно
+	// нужно сделать точные у всех родных
+/*	bounds: function(startPoint, detail){
 		if(!startPoint){
 			startPoint = this.startAt();
 		}
@@ -130,7 +132,7 @@ extend(Curve.prototype, {
 		}
 
 		return [minX, minY, maxX, maxY];
-	},
+	}, */
 
 	intersections: function(curve){
 		;
