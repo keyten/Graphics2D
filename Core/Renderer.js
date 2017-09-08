@@ -120,6 +120,8 @@ Delta.renderers['2d'] = {
 	// params = [text, x, y]
 	drawText: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
+		// lolwat
+		// why did i do that
 		if(style.fillStyle && !style.strokeStyle){
 			ctx.fillText(params[0], params[1], params[2], params[3]);
 		} else if(style.fillStyle){

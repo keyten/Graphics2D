@@ -529,7 +529,11 @@ function distance(value, dontsnap){
 	if(unit === ''){
 		return value;
 	}
-	return Math.round(Delta.units[unit] * value);
+
+	if(Delta.snapToPixels === 1){
+		return Math.round(Delta.units[unit] * value);
+	}
+	return Delta.units[unit] * value;
 }
 
 Delta.distance = distance;

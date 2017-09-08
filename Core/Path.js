@@ -11,6 +11,7 @@ Path = new Class(Drawable, {
 
 		// parseInt is neccessary bcs isNaN('30px') -> true
 		if(isNaN(parseInt(args[1]))){
+			// todo: distances (and in attrHooks too)
 			args[3] = args[1];
 			args[4] = args[2];
 			args[1] = args[2] = null;
@@ -125,36 +126,34 @@ Path = new Class(Drawable, {
 
 	// Curves addition
 	moveTo: function(x, y){
-		// todo: optimize!
-		// return this.attrs.d.push(Delta.curve('moveBy', [x, y], this)); - but it is not beautiful :p
-		return this.push(['moveTo', x, y]);
+		return this.push('moveTo', [x, y]);
 	},
 
 	lineTo : function(x, y){
-		return this.push(['lineTo', x, y]);
+		return this.push('lineTo', [x, y]);
 	},
 
 	quadraticCurveTo : function(hx, hy, x, y){
-		return this.push(['quadraticCurveTo', hx, hy, x, y]);
+		return this.push('quadraticCurveTo', [hx, hy, x, y]);
 	},
 
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
-		return this.push(['bezierCurveTo', h1x, h1y, h2x, h2y, x, y]);
+		return this.push('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 	},
 
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
-		return this.push(['arcTo', x1, y1, x2, y2, radius, !!clockwise]);
+		return this.push('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 	},
 
 	arc : function(x, y, radius, start, end, clockwise){
-		return this.push(['arc', x, y, radius, start, end, !!clockwise]);
+		return this.push('arc', [x, y, radius, start, end, !!clockwise]);
 	},
 
 	closePath : function(){
-		return this.push(['closePath']);
+		return this.push('closePath', []);
 	},
 
-	// работает немного плохо с translate и draggable
+	// todo: works a bit bad with translate & draggable
 	isPointIn : function(x, y){
 		var point = this.super('isPointIn', [x, y]);
 		x = point[0];
@@ -203,16 +202,25 @@ Path = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawPath(
-				[this.attrs.d, this.attrs.x, this.attrs.y],
-				ctx, this.styles, this.matrix, this
-			);
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			if(this.attrs.x || this.attrs.y){
+				// todo: will it be affected by previous transformations (the path itself, the canvas)?
+				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
+			}
+
+			ctx.beginPath();
+			this.attrs.d.forEach(function(curve){
+				curve.process(ctx);
+			});
+
+			this.context.renderer.post(ctx, this.styles);
 		}
 	}
 
 } );
 
-Path.args = ['d', 'offsetX', 'offsetY', 'fill', 'stroke'];
+Path.args = ['d', 'x', 'y', 'fill', 'stroke'];
 
 Path.parse = function(data, path, firstIsNotMove){
 	if(!data){

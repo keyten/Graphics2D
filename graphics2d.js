@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 07.09.2017
+ *  Last edit: 08.09.2017
  *  License: MIT / LGPL
  */
 
@@ -182,6 +182,8 @@ Delta.renderers['2d'] = {
 	// params = [text, x, y]
 	drawText: function(params, ctx, style, matrix, object){
 		this.pre(ctx, style, matrix, object);
+		// lolwat
+		// why did i do that
 		if(style.fillStyle && !style.strokeStyle){
 			ctx.fillText(params[0], params[1], params[2], params[3]);
 		} else if(style.fillStyle){
@@ -319,10 +321,13 @@ var Context;
 
 Context = function(canvas){
 	this.canvas    = canvas;
+	this.context   = canvas.getContext('2d');
 	this.elements  = [];
 	this.listeners = {};
+	this._cache = {};
+
+// rudiment
 	this.renderer = Delta.renderers['2d'];
-	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
 };
@@ -387,12 +392,25 @@ Context.prototype = {
 		this.elements.push(element);
 
 		if(element.draw){
-			this.renderer.preDraw(this.context, this);
-			element.draw(this.context);
-			this.renderer.postDraw(this.context);
+			var ctx = this.context;
+			ctx.save();
+			if(this.matrix){
+				ctx.setTransform(
+					this.matrix[0],
+					this.matrix[1],
+					this.matrix[2],
+					this.matrix[3],
+					this.matrix[4],
+					this.matrix[5]
+				);
+			} else {
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+			}
+			element.draw(ctx);
+			ctx.restore();
 		}
 
-		// element.update = element.updateFunction; - ну или как-то так
+		element.update = element.updateFunction;
 
 		return element;
 	},
@@ -408,22 +426,35 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
-		this.renderer.preRedraw(ctx, this);
-		this.elements.forEach(function(object){
-			object.draw(ctx);
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		if(this.matrix){
+			ctx.setTransform(
+				this.matrix[0],
+				this.matrix[1],
+				this.matrix[2],
+				this.matrix[3],
+				this.matrix[4],
+				this.matrix[5]
+			);
+		}
+
+		this.elements.forEach(function(element){
+			element.draw(ctx);
 		});
-		this.renderer.postDraw(ctx);
+
+		ctx.restore();
 		this._willUpdate = false;
 	},
 
-	// todo: rename to objectInPoint
 	getObjectInPoint : function(x, y, mouse){
 		var elements = this.elements,
 			i = elements.length;
 
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
-		// todo: rename to pointerEvents
+		// todo: rename to pointerEvents?
 			if( elements[i].isPointIn && (elements[i].attrs.interaction || !mouse) &&
 				elements[i].isPointIn(x,y) ){
 				return elements[i];
@@ -457,6 +488,7 @@ Context.prototype = {
 		this.listeners[event] = [];
 
 		if(this.eventsHooks.hasOwnProperty(event)){
+			// todo: eventHook.on
 			this.eventsHooks[event].call(this, event);
 		}
 
@@ -508,6 +540,7 @@ Context.prototype = {
 		return this.listeners[event];
 	},
 
+// remove from Context.prototype
 	_processPointParams: function(point, name, event){
 		var coords = this.contextCoords(point.clientX, point.clientY);
 		point.contextX = coords[0];
@@ -757,15 +790,21 @@ Drawable = new Class({
 		};
 	},
 
-	update: function(){
+	// actual update function
+	updateFunction: function(){
 		if(this.context){
 			this.context.update();
 		}
 		return this;
 	},
 
+	// update function for state before being drawn
+	update: function(){
+		return this;
+	},
+
 	clone : function(attrs, styles, events){
-		// todo: test on every obj
+		// todo: test on all objs
 		var clone = new this.constructor([], this.context);
 
 		if(attrs === false){
@@ -826,7 +865,8 @@ Drawable = new Class({
 
 		if(this.attrHooks[name] && this.attrHooks[name].set){
 			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== null){
+			if(result !== null){ // replace to result !== Delta._doNotSetProperty;
+				// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
 				this.attrs[name] = result === undefined ? value : result;
 			}
 		} else {
@@ -907,7 +947,7 @@ Drawable = new Class({
 		clip: {
 			set: function(value){
 				value.context = this.context;
-				this.attrs.clip = value;
+				this.attrs.clip = value; // is it neccessary?
 				this.update();
 			}
 		},
@@ -1028,6 +1068,7 @@ Drawable = new Class({
 		}
 
 		this.context.listener(event);
+		// todo: прокидывать отсюда событие канвасу, а он пусть подсчитывает линки и удаляет обработчики, когда нужно
 		(this.listeners[event] || (this.listeners[event] = [])).push(callback);
 		return this;
 	},
@@ -1276,8 +1317,6 @@ Drawable = new Class({
 	}
 
 });
-
-Drawable.attrHooks = Drawable.prototype.attrHooks;
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
@@ -1559,7 +1598,7 @@ Animation.do = function(){
 };
 
 // Some tick functions
-Drawable.prototype.attrHooks._num = {
+Drawable.prototype.attrHooks['_num'] = {
 	preAnim: function(fx, endValue){
 		fx.startValue = this.attr(fx.prop);
 		fx.delta = endValue - fx.startValue;
@@ -1579,7 +1618,7 @@ Drawable.prototype.attrHooks._num = {
 	}
 };
 
-Drawable.prototype.attrHooks._numAttr = {
+Drawable.prototype.attrHooks['_numAttr'] = {
 	preAnim: Drawable.prototype.attrHooks._num.preAnim,
 
 	anim: function(fx){
@@ -1758,7 +1797,7 @@ Rect = new Class(Drawable, {
 	// For history:
 	// this variation is faster
 	// very very faster!
-	// if you change an attrs of 100 000 elements
+	// if you change attrs of 100 000 elements
 	// then all x-ses will work in ~ 7 ms
 	// all attr-s — in ~ 100 ms
 	/* x: function(val){
@@ -1785,10 +1824,26 @@ Rect = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawRect(
-				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
-				ctx, this.styles, this.matrix, this
-			);
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			if(this.styles.fillStyle){
+				ctx.fillRect(
+					this.attrs.x,
+					this.attrs.y,
+					this.attrs.width,
+					this.attrs.height
+				);
+			}
+			if(this.styles.strokeStyle){
+				ctx.strokeRect(
+					this.attrs.x,
+					this.attrs.y,
+					this.attrs.width,
+					this.attrs.height
+				);
+			}
+
+			ctx.restore();
 		}
 	},
 
@@ -1867,10 +1922,19 @@ Circle = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawCircle(
-				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
-				ctx, this.styles, this.matrix, this
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			ctx.beginPath();
+			ctx.arc(
+				this.attrs.cx,
+				this.attrs.cy,
+				Math.abs(this.attrs.radius),
+				0,
+				Math.PI * 2,
+				true
 			);
+
+			this.context.renderer.post(ctx, this.styles);
 		}
 	},
 
@@ -2069,7 +2133,8 @@ Delta.curves = {
 	quadraticCurveTo: Curve,
 	bezierCurveTo: Curve,
 	arc: Curve,
-	arcTo: Curve
+	arcTo: Curve,
+	closePath: Curve
 };
 
 Delta.Curve = Curve;
@@ -3103,6 +3168,7 @@ Path = new Class(Drawable, {
 
 		// parseInt is neccessary bcs isNaN('30px') -> true
 		if(isNaN(parseInt(args[1]))){
+			// todo: distances (and in attrHooks too)
 			args[3] = args[1];
 			args[4] = args[2];
 			args[1] = args[2] = null;
@@ -3217,36 +3283,34 @@ Path = new Class(Drawable, {
 
 	// Curves addition
 	moveTo: function(x, y){
-		// todo: optimize!
-		// return this.attrs.d.push(Delta.curve('moveBy', [x, y], this)); - but it is not beautiful :p
-		return this.push(['moveTo', x, y]);
+		return this.push('moveTo', [x, y]);
 	},
 
 	lineTo : function(x, y){
-		return this.push(['lineTo', x, y]);
+		return this.push('lineTo', [x, y]);
 	},
 
 	quadraticCurveTo : function(hx, hy, x, y){
-		return this.push(['quadraticCurveTo', hx, hy, x, y]);
+		return this.push('quadraticCurveTo', [hx, hy, x, y]);
 	},
 
 	bezierCurveTo : function(h1x, h1y, h2x, h2y, x, y){
-		return this.push(['bezierCurveTo', h1x, h1y, h2x, h2y, x, y]);
+		return this.push('bezierCurveTo', [h1x, h1y, h2x, h2y, x, y]);
 	},
 
 	arcTo : function(x1, y1, x2, y2, radius, clockwise){
-		return this.push(['arcTo', x1, y1, x2, y2, radius, !!clockwise]);
+		return this.push('arcTo', [x1, y1, x2, y2, radius, !!clockwise]);
 	},
 
 	arc : function(x, y, radius, start, end, clockwise){
-		return this.push(['arc', x, y, radius, start, end, !!clockwise]);
+		return this.push('arc', [x, y, radius, start, end, !!clockwise]);
 	},
 
 	closePath : function(){
-		return this.push(['closePath']);
+		return this.push('closePath', []);
 	},
 
-	// работает немного плохо с translate и draggable
+	// todo: works a bit bad with translate & draggable
 	isPointIn : function(x, y){
 		var point = this.super('isPointIn', [x, y]);
 		x = point[0];
@@ -3295,16 +3359,25 @@ Path = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawPath(
-				[this.attrs.d, this.attrs.x, this.attrs.y],
-				ctx, this.styles, this.matrix, this
-			);
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			if(this.attrs.x || this.attrs.y){
+				// todo: will it be affected by previous transformations (the path itself, the canvas)?
+				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
+			}
+
+			ctx.beginPath();
+			this.attrs.d.forEach(function(curve){
+				curve.process(ctx);
+			});
+
+			this.context.renderer.post(ctx, this.styles);
 		}
 	}
 
 } );
 
-Path.args = ['d', 'offsetX', 'offsetY', 'fill', 'stroke'];
+Path.args = ['d', 'x', 'y', 'fill', 'stroke'];
 
 Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
@@ -3672,24 +3745,44 @@ Picture = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible && this.attrs.image.complete){
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
 			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
+			var width = this.attrs.width,
+				height = this.attrs.height,
+				crop = this.attrs.crop;
 
-			if(this.attrs.width || this.attrs.height){
+			if((this.attrs.width === 'auto' || this.attrs.width === 'native') ||
+				(this.attrs.height === 'auto' || this.attrs.height === 'native')){
 				var size = this.getRealSize();
-				params.push(size[0]);
-				params.push(size[1]);
-
-				if(this.attrs.crop){
-					params = params.concat(this.attrs.crop);
-				}
-			} else if(this.attrs.crop){
-				params = params.concat([
-					this.attrs.image.width,
-					this.attrs.image.height
-				]).concat(this.attrs.crop);
+				width  = size[0];
+				height = size[1];
 			}
 
-			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
+			if(crop){
+				ctx.drawImage(
+					this.attrs.image,
+					crop[0], crop[1],
+					crop[2], crop[3],
+
+					this.attrs.x, this.attrs.y,
+					width, height
+				);
+			} else if(
+				(this.attrs.width === 'auto' || this.attrs.width === 'native') &&
+				(this.attrs.height === 'auto' || this.attrs.height === 'native')) {
+				ctx.drawImage(
+					this.attrs.image,
+					this.attrs.x, this.attrs.y
+				);
+			} else {
+				ctx.drawImage(
+					this.attrs.image,
+					this.attrs.x, this.attrs.y,
+					width, height
+				);
+			}
+			ctx.restore();
 		}
 	}
 
@@ -3697,14 +3790,15 @@ Picture = new Class(Drawable, {
 
 var smoothWithPrefix;
 function smoothPrefix(ctx){
-	if(smoothWithPrefix){
-		return smoothWithPrefix;
-	}
 	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
 		if(name in ctx){
 			smoothWithPrefix = name;
 		}
 	});
+
+	smoothPrefix = function(){
+		return smoothWithPrefix;
+	};
 	return smoothWithPrefix;
 }
 
@@ -3787,6 +3881,7 @@ Text = new Class(Drawable, {
 				args[0].string = args[0].text;
 			}
 
+			// todo
 			// change to: this.attrs.boundsMode = args[0].boundsMode || 'inline';
 			// and so on
 
@@ -3945,32 +4040,42 @@ Text = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
 			if(!this.attrs.breaklines){
-				this.context.renderer.drawText([
-					this.attrs.string,
-					this.attrs.x,
-					this.attrs.y,
-					this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined
-				], ctx, this.styles, this.matrix, this);
+				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
+
+				if(this.styles.fillStyle){
+					ctx.fillText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+				}
+				if(this.styles.strokeStyle){
+					ctx.strokeText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+				}
 			} else {
 				if(!this.lines){
 					this.processLines(ctx);
 				}
 
-				var x = this.attrs.x;
-				if(this.attrs.width){
-					x += this.attrs.width * ({
-						left: 0,
-						center: 0.5,
-						right: 1
-					})[this.styles.textAlign || 'left'];
-				}
+				var x = this.attrs.x,
+					y = this.attrs.y,
+					func;
 
-				this.context.renderer.drawTextLines(
-					[this.lines, x, this.attrs.y],
-					ctx, this.styles, this.matrix, this
-				);
+				if(this.styles.fillStyle && !this.styles.strokeStyle){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+					});
+				} else if(this.styles.fillStyle){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				} else {
+					this.lines.forEach(function(line){
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				}
 			}
+			ctx.restore();
 		}
 	},
 
@@ -4873,7 +4978,11 @@ function distance(value, dontsnap){
 	if(unit === ''){
 		return value;
 	}
-	return Math.round(Delta.units[unit] * value);
+
+	if(Delta.snapToPixels === 1){
+		return Math.round(Delta.units[unit] * value);
+	}
+	return Delta.units[unit] * value;
 }
 
 Delta.distance = distance;
@@ -5602,9 +5711,6 @@ function draggableElemMousedown(e){
 	if(this._draggingOptions.helper){
 		if(this._draggingOptions.helper === 'clone'){
 			this._dragging.helper = this.clone();
-			if(this._draggingOptions.helperAttrs){
-				this._dragging.helper.attr(this._draggingOptions.helperAttrs);
-			}
 		} else {
 			this._dragging.helper = this._draggingOptions.helper.clone();
 			// нужны функции для работы с abstract element place / bounds
@@ -5620,6 +5726,13 @@ function draggableElemMousedown(e){
 				];
 			}
 		}
+
+		if(this._draggingOptions.helperAttrs){
+			this._dragging.helper.attr(this._draggingOptions.helperAttrs);
+		}
+
+		this._dragging.helper['_meta'] = true; // must be at all the meta obs (made by not the user)
+		// todo: make sure it is not spoiled by minimizer
 	}
 
 	this.fire('dragstart', e);

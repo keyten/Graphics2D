@@ -53,10 +53,19 @@ Circle = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawCircle(
-				[this.attrs.cx, this.attrs.cy, Math.abs(this.attrs.radius)],
-				ctx, this.styles, this.matrix, this
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			ctx.beginPath();
+			ctx.arc(
+				this.attrs.cx,
+				this.attrs.cy,
+				Math.abs(this.attrs.radius),
+				0,
+				Math.PI * 2,
+				true
 			);
+
+			this.context.renderer.post(ctx, this.styles);
 		}
 	},
 

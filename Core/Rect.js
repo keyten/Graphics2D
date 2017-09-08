@@ -89,7 +89,7 @@ Rect = new Class(Drawable, {
 	// For history:
 	// this variation is faster
 	// very very faster!
-	// if you change an attrs of 100 000 elements
+	// if you change attrs of 100 000 elements
 	// then all x-ses will work in ~ 7 ms
 	// all attr-s — in ~ 100 ms
 	/* x: function(val){
@@ -116,10 +116,26 @@ Rect = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.drawRect(
-				[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
-				ctx, this.styles, this.matrix, this
-			);
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
+			if(this.styles.fillStyle){
+				ctx.fillRect(
+					this.attrs.x,
+					this.attrs.y,
+					this.attrs.width,
+					this.attrs.height
+				);
+			}
+			if(this.styles.strokeStyle){
+				ctx.strokeRect(
+					this.attrs.x,
+					this.attrs.y,
+					this.attrs.width,
+					this.attrs.height
+				);
+			}
+
+			ctx.restore();
 		}
 	},
 

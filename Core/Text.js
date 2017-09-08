@@ -51,6 +51,7 @@ Text = new Class(Drawable, {
 				args[0].string = args[0].text;
 			}
 
+			// todo
 			// change to: this.attrs.boundsMode = args[0].boundsMode || 'inline';
 			// and so on
 
@@ -209,32 +210,42 @@ Text = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
 			if(!this.attrs.breaklines){
-				this.context.renderer.drawText([
-					this.attrs.string,
-					this.attrs.x,
-					this.attrs.y,
-					this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined
-				], ctx, this.styles, this.matrix, this);
+				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
+
+				if(this.styles.fillStyle){
+					ctx.fillText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+				}
+				if(this.styles.strokeStyle){
+					ctx.strokeText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+				}
 			} else {
 				if(!this.lines){
 					this.processLines(ctx);
 				}
 
-				var x = this.attrs.x;
-				if(this.attrs.width){
-					x += this.attrs.width * ({
-						left: 0,
-						center: 0.5,
-						right: 1
-					})[this.styles.textAlign || 'left'];
-				}
+				var x = this.attrs.x,
+					y = this.attrs.y,
+					func;
 
-				this.context.renderer.drawTextLines(
-					[this.lines, x, this.attrs.y],
-					ctx, this.styles, this.matrix, this
-				);
+				if(this.styles.fillStyle && !this.styles.strokeStyle){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+					});
+				} else if(this.styles.fillStyle){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				} else {
+					this.lines.forEach(function(line){
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				}
 			}
+			ctx.restore();
 		}
 	},
 

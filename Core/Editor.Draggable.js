@@ -254,9 +254,6 @@ function draggableElemMousedown(e){
 	if(this._draggingOptions.helper){
 		if(this._draggingOptions.helper === 'clone'){
 			this._dragging.helper = this.clone();
-			if(this._draggingOptions.helperAttrs){
-				this._dragging.helper.attr(this._draggingOptions.helperAttrs);
-			}
 		} else {
 			this._dragging.helper = this._draggingOptions.helper.clone();
 			// нужны функции для работы с abstract element place / bounds
@@ -272,6 +269,13 @@ function draggableElemMousedown(e){
 				];
 			}
 		}
+
+		if(this._draggingOptions.helperAttrs){
+			this._dragging.helper.attr(this._draggingOptions.helperAttrs);
+		}
+
+		this._dragging.helper['_meta'] = true; // must be at all the meta obs (made by not the user)
+		// todo: make sure it is not spoiled by minimizer
 	}
 
 	this.fire('dragstart', e);

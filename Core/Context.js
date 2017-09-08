@@ -2,10 +2,13 @@ var Context;
 
 Context = function(canvas){
 	this.canvas    = canvas;
+	this.context   = canvas.getContext('2d');
 	this.elements  = [];
 	this.listeners = {};
+	this._cache = {};
+
+// rudiment
 	this.renderer = Delta.renderers['2d'];
-	this.renderer.init(this, canvas);
 
 	this.updateNowBounded = this.updateNow.bind(this);
 };
@@ -70,12 +73,25 @@ Context.prototype = {
 		this.elements.push(element);
 
 		if(element.draw){
-			this.renderer.preDraw(this.context, this);
-			element.draw(this.context);
-			this.renderer.postDraw(this.context);
+			var ctx = this.context;
+			ctx.save();
+			if(this.matrix){
+				ctx.setTransform(
+					this.matrix[0],
+					this.matrix[1],
+					this.matrix[2],
+					this.matrix[3],
+					this.matrix[4],
+					this.matrix[5]
+				);
+			} else {
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+			}
+			element.draw(ctx);
+			ctx.restore();
 		}
 
-		// element.update = element.updateFunction; - ну или как-то так
+		element.update = element.updateFunction;
 
 		return element;
 	},
@@ -91,22 +107,35 @@ Context.prototype = {
 
 	updateNow : function(){
 		var ctx = this.context;
-		this.renderer.preRedraw(ctx, this);
-		this.elements.forEach(function(object){
-			object.draw(ctx);
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		if(this.matrix){
+			ctx.setTransform(
+				this.matrix[0],
+				this.matrix[1],
+				this.matrix[2],
+				this.matrix[3],
+				this.matrix[4],
+				this.matrix[5]
+			);
+		}
+
+		this.elements.forEach(function(element){
+			element.draw(ctx);
 		});
-		this.renderer.postDraw(ctx);
+
+		ctx.restore();
 		this._willUpdate = false;
 	},
 
-	// todo: rename to objectInPoint
 	getObjectInPoint : function(x, y, mouse){
 		var elements = this.elements,
 			i = elements.length;
 
 		while(i--){
 		// mouse=true : ignore elements with interaction = false
-		// todo: rename to pointerEvents
+		// todo: rename to pointerEvents?
 			if( elements[i].isPointIn && (elements[i].attrs.interaction || !mouse) &&
 				elements[i].isPointIn(x,y) ){
 				return elements[i];
@@ -140,6 +169,7 @@ Context.prototype = {
 		this.listeners[event] = [];
 
 		if(this.eventsHooks.hasOwnProperty(event)){
+			// todo: eventHook.on
 			this.eventsHooks[event].call(this, event);
 		}
 
@@ -191,6 +221,7 @@ Context.prototype = {
 		return this.listeners[event];
 	},
 
+// remove from Context.prototype
 	_processPointParams: function(point, name, event){
 		var coords = this.contextCoords(point.clientX, point.clientY);
 		point.contextX = coords[0];

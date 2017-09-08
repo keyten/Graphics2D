@@ -144,24 +144,44 @@ Picture = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible && this.attrs.image.complete){
+			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+
 			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
+			var width = this.attrs.width,
+				height = this.attrs.height,
+				crop = this.attrs.crop;
 
-			if(this.attrs.width || this.attrs.height){
+			if((this.attrs.width === 'auto' || this.attrs.width === 'native') ||
+				(this.attrs.height === 'auto' || this.attrs.height === 'native')){
 				var size = this.getRealSize();
-				params.push(size[0]);
-				params.push(size[1]);
-
-				if(this.attrs.crop){
-					params = params.concat(this.attrs.crop);
-				}
-			} else if(this.attrs.crop){
-				params = params.concat([
-					this.attrs.image.width,
-					this.attrs.image.height
-				]).concat(this.attrs.crop);
+				width  = size[0];
+				height = size[1];
 			}
 
-			this.context.renderer.drawImage(params, ctx, this.styles, this.matrix, this);
+			if(crop){
+				ctx.drawImage(
+					this.attrs.image,
+					crop[0], crop[1],
+					crop[2], crop[3],
+
+					this.attrs.x, this.attrs.y,
+					width, height
+				);
+			} else if(
+				(this.attrs.width === 'auto' || this.attrs.width === 'native') &&
+				(this.attrs.height === 'auto' || this.attrs.height === 'native')) {
+				ctx.drawImage(
+					this.attrs.image,
+					this.attrs.x, this.attrs.y
+				);
+			} else {
+				ctx.drawImage(
+					this.attrs.image,
+					this.attrs.x, this.attrs.y,
+					width, height
+				);
+			}
+			ctx.restore();
 		}
 	}
 
@@ -169,14 +189,15 @@ Picture = new Class(Drawable, {
 
 var smoothWithPrefix;
 function smoothPrefix(ctx){
-	if(smoothWithPrefix){
-		return smoothWithPrefix;
-	}
 	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
 		if(name in ctx){
 			smoothWithPrefix = name;
 		}
 	});
+
+	smoothPrefix = function(){
+		return smoothWithPrefix;
+	};
 	return smoothWithPrefix;
 }
 

@@ -24,15 +24,21 @@ Drawable = new Class({
 		};
 	},
 
-	update: function(){
+	// actual update function
+	updateFunction: function(){
 		if(this.context){
 			this.context.update();
 		}
 		return this;
 	},
 
+	// update function for state before being drawn
+	update: function(){
+		return this;
+	},
+
 	clone : function(attrs, styles, events){
-		// todo: test on every obj
+		// todo: test on all objs
 		var clone = new this.constructor([], this.context);
 
 		if(attrs === false){
@@ -93,7 +99,8 @@ Drawable = new Class({
 
 		if(this.attrHooks[name] && this.attrHooks[name].set){
 			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== null){
+			if(result !== null){ // replace to result !== Delta._doNotSetProperty;
+				// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
 				this.attrs[name] = result === undefined ? value : result;
 			}
 		} else {
@@ -174,7 +181,7 @@ Drawable = new Class({
 		clip: {
 			set: function(value){
 				value.context = this.context;
-				this.attrs.clip = value;
+				this.attrs.clip = value; // is it neccessary?
 				this.update();
 			}
 		},
@@ -295,6 +302,7 @@ Drawable = new Class({
 		}
 
 		this.context.listener(event);
+		// todo: прокидывать отсюда событие канвасу, а он пусть подсчитывает линки и удаляет обработчики, когда нужно
 		(this.listeners[event] || (this.listeners[event] = [])).push(callback);
 		return this;
 	},
@@ -543,8 +551,6 @@ Drawable = new Class({
 	}
 
 });
-
-Drawable.attrHooks = Drawable.prototype.attrHooks;
 
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){

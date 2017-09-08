@@ -173,7 +173,8 @@ Delta.curves = {
 	quadraticCurveTo: Curve,
 	bezierCurveTo: Curve,
 	arc: Curve,
-	arcTo: Curve
+	arcTo: Curve,
+	closePath: Curve
 };
 
 Delta.Curve = Curve;
