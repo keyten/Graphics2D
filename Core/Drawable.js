@@ -40,6 +40,7 @@ Drawable = new Class({
 	clone : function(attrs, styles, events){
 		// todo: test on all objs
 		var clone = new this.constructor([], this.context);
+// todo: необходим deepClone везде
 
 		if(attrs === false){
 			clone.attrs = this.attrs;
@@ -89,8 +90,7 @@ Drawable = new Class({
 		}
 
 		if(arguments.length === 1){
-			// todo: check the fastest check of property
-			// ...[name] or name in or hasOwnProperty
+			// its the fastest way
 			if(this.attrHooks[name] && this.attrHooks[name].get){
 				return this.attrHooks[name].get.call(this);
 			}
@@ -191,7 +191,74 @@ Drawable = new Class({
 				// this._setCursorListener();
 				// this._teardownCursorListener();
 			}
+		},
+
+		transform: {
+			get: function(){
+				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+			},
+			set: function(){
+				this.update();
+			}
+		},
+
+		translate: {
+			get: function(){
+				return this.attrs.translate || [0, 0];
+			},
+			set: function(value){
+				value = parsePoint(value);
+				this.attrs.translate = value;
+				this.genMatrix(); // todo: лениво генерировать при апдейте
+				this.update();
+				return value;
+			}
+		},
+
+		rotate: {
+			get: function(){
+				return this.attrs.rotate || 0;
+			},
+			set: function(value){
+				this.attrs.rotate = value;
+				this.genMatrix();
+				this.update();
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(value){
+				value = parsePoint(value);
+				this.attrs.skew = value;
+				this.genMatrix();
+				this.update();
+				return value;
+			}
+		},
+
+		scale: {
+			get: function(){
+				return this.attrs.scale || [1, 1];
+			},
+			set: function(value){
+				value = parsePoint(value); // неверно на самом деле
+				// тут же не точка
+				this.attrs.scale = value;
+				this.genMatrix();
+				this.update();
+				return value;
+			}
 		}
+
+		// transformOrder, rotatePivot, scalePivot, skewPivot are passive attributes
+		// they do not update anything but influence onto changes of transform attrs
+	},
+
+	genMatrix: function(){
+		;
 	},
 
 	// todo: move to Drawable.processArgumentsObject
@@ -329,6 +396,66 @@ Drawable = new Class({
 		return this;
 	},
 
+	// Drawing (2D Context)
+	preDraw: function(ctx){
+		ctx.save();
+
+		var style = this.styles;
+		// styles
+		// note1: we can cache Object.keys
+		// note2: we should hold gradients / patterns in attrs not in styles
+		Object.keys(style).forEach(function(key){
+			ctx[key] = style[key];
+		});
+
+		if(style.fillStyle && style.fillStyle.toCanvasStyle){
+			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, object)
+		}
+		if(style.strokeStyle && style.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, object);
+		}
+
+		if(style.lineDash){
+			if(ctx.setLineDash){ // webkit
+				// there's also available ctx.lineDashOffset
+				ctx.setLineDash(style.lineDash);
+			} else {
+				ctx.mozDash = style.lineDash;
+			}
+		}
+
+		// clip
+		if(this.attrs.clip){
+			if(this.attrs.clip.matrix){
+				ctx.save();
+				ctx.transform.apply(ctx, this.attrs.clip.matrix);
+				this.attrs.clip.processPath(ctx);
+				ctx.restore();
+			} else {
+				this.attrs.clip.processPath(ctx);
+			}
+			ctx.clip();
+		}
+
+		if(this.matrix){
+			ctx.transform(
+				this.matrix[0], this.matrix[1], this.matrix[2],
+				this.matrix[3], this.matrix[4], this.matrix[5]
+			);
+		}
+	},
+
+	postDraw: function(ctx){
+		var style = this.styles;
+		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(style.strokeStyle){
+			ctx.stroke();
+		}
+		ctx.restore();
+	},
+
 	// Transforms
 	transform: function(a, b, c, d, e, f, pivot){
 		if(a === null){
@@ -397,7 +524,7 @@ Drawable = new Class({
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
 			} else {
-				throw 'Object #' + this.z() + ' can\'t be rasterized: need the bounds.';
+				throw 'Object #' + this.attr('z') + ' can\'t be rasterized: need the bounds.';
 			}
 		}
 

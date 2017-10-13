@@ -143,6 +143,17 @@ function isPatternLike(value){
 			) );
 }
 
+function parsePoint(point){
+	if(+point === point){
+		point = Delta.distance(point);
+		return [point, point];
+	}
+	return [
+		Delta.distance(point[0]),
+		Delta.distance(point[1])
+	];
+}
+
 Delta.class = Class;
 Delta.Bounds = Bounds;
 Delta.extend = extend;
@@ -487,11 +498,12 @@ var defaultUnits = {
 	// in: 90
 };
 
-Delta.snapToPixels = 0;
+Delta.snapToPixels = 1;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
+	// todo: snapToPixels === 1 ? return Math.round(...) : ...
 	if(Delta.snapToPixels && !dontsnap){
 		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}

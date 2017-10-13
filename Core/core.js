@@ -85,6 +85,7 @@ Delta.contexts = {
 // {{include CurveHermite.js}}
 // {{include CurveGeneralBezier.js}}
 // {{include CurveLagrange.js}}
+// {{include CurveRibbon.js}}
 
 // {{include Math.Line.js}}
 // {{include Math.Quadratic.js}}
@@ -118,6 +119,9 @@ Delta.contexts = {
 // {{include SVGExport.js}}
 
 // {{include CurveGradient.js}}
+// {{include EnhancedShadows.js}}
+
+// {{include Intersections.js}}
 
 Delta.version = "{{version}}";
 

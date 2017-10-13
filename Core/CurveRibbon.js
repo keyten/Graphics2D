@@ -4,6 +4,47 @@
  * "Shock <shocksilien@gmail.com>"
  * https://github.com/theshock/libcanvas/blob/master/Source/Plugins/Curves.js
  */
+Delta.drawRibbonCurve = function(ctx, params){
+	var step = params.step || 0.2;
+	var prev = params.point(-step);
+	for(var t = -step; t < 1.02; t += step){
+		var cur = params.point(t);
+		var drawPoints = getDrawPoints(prev, cur, 10, -1);
+		if(t >= step){
+			ctx.lineWidth = 1;
+			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[1].y);
+			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
+			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
+			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
+			ctx.fillStyle = randcolor();
+			ctx.fill();
+			ctx.stroke();
+		}
+		prev = cur;
+		var prevDrawPoints = drawPoints;
+	}
+};
+
+function getDrawPoints(prev, cur, width, inverted){
+	var w = cur.x - prev.x,
+		h = cur.y - prev.y,
+		dist = Math.sqrt(w * w + h * h),
+
+		sin = h / dist,
+		cos = w / dist,
+
+		dx = sin * width,
+		dy = cos * width;
+
+	return [{
+		x: cur.x + dx,
+		y: cur.y + dy * inverted
+	}, {
+		x: cur.x - dx,
+		y: cur.y - dy * inverted
+	}];
+}
+
 
 function abc() {
 

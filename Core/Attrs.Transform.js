@@ -1,5 +1,5 @@
 // todo:
-Drawable.prototype._genMatrix = function(){
+/* Drawable.prototype._genMatrix = function(){
 	this.transform(null);
 	(this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
 		if(!this.attrs[name]){
@@ -68,4 +68,4 @@ Drawable.prototype.attrHooks.scale = {
 		this._genMatrix();
 		this.update();
 	}
-};
+}; */

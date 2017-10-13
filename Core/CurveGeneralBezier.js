@@ -78,6 +78,8 @@ var GeneralBezier = new Class(Curve, {
 	}
 });
 
+// Delta.math.factorial = ...
+
 function factorial(n){
 	if(n <= 1){
 		return 1;

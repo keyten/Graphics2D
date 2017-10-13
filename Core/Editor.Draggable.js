@@ -48,6 +48,10 @@ Drawable.prototype.draggable.init = function(options){
 	// такая чистка мусора
 };
 
+Drawable.prototype.draggable.destroy = function(){};
+Drawable.prototype.draggable.enable = function(){};
+Drawable.prototype.draggable.disable = function(){};
+
 Drawable.prototype.draggable.updateMods = function(){
 	var mods = [];
 

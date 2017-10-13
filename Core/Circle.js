@@ -53,8 +53,7 @@ Circle = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-
+			this.preDraw(ctx);
 			ctx.beginPath();
 			ctx.arc(
 				this.attrs.cx,
@@ -64,8 +63,7 @@ Circle = new Class(Drawable, {
 				Math.PI * 2,
 				true
 			);
-
-			this.context.renderer.post(ctx, this.styles);
+			this.postDraw(ctx);
 		}
 	},
 

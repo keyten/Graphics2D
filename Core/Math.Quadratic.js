@@ -44,7 +44,7 @@ Curve.canvasFunctions.quadraticCurveTo.pointAt = function(curve, t, startPoint){
 
 	var x1 = startPoint[0],
 		y1 = startPoint[1],
-		p = curve.funcAttrs;
+		p = curve.attrs.args;
 
 	return [
 		Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * p[0] + t * t * p[2],
@@ -56,7 +56,7 @@ Curve.canvasFunctions.quadraticCurveTo.splitAt = function(curve, t, startPoint){
 	if(!startPoint){
 		startPoint = curve.startAt();
 	}
-	var p = curve.funcAttrs;
+	var p = curve.attrs.args;
 	var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
 	return {
 		start: [

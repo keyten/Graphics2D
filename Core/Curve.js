@@ -13,6 +13,7 @@ Curve = new Class({
 		}
 	},
 
+	// General Curve methods
 	attrHooks: CurveAttrHooks.prototype = {
 		args: {
 			set: function(){
@@ -22,13 +23,6 @@ Curve = new Class({
 	},
 
 	attr: Drawable.prototype.attr,
-
-	bounds: function(prevEnd){
-		if(!Curve.canvasFunctions[this.method].bounds){
-			return null;
-		}
-		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.attrs.args);
-	},
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);
@@ -55,11 +49,23 @@ Curve = new Class({
 		return this;
 	},
 
+	// Canvas Curve methods
+	bounds: function(prevEnd){
+		if(!Curve.canvasFunctions[this.method].bounds){
+			return null;
+		}
+		if(!prevEnd){
+			prevEnd = this.startAt();
+		}
+		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.attrs.args);
+	},
+
 	process: function(ctx){
 		ctx[this.method].apply(ctx, this.attrs.args);
 	}
 });
 
+// todo: rename to canvasMethods
 Curve.canvasFunctions = {
 	moveTo: {
 		attrHooks: makeAttrHooks(['x', 'y']),

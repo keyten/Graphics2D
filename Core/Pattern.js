@@ -12,7 +12,8 @@ Pattern = new Class({
 			}
 		}.bind(this));
 
-		// todo: error process?
+		// todo: error process
+		// todo: check imageSmoothingEnabled, imageSmoothingQuality
 	},
 
 	update: function(){

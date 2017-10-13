@@ -1,6 +1,7 @@
 // var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
 
+// https://mootools.net/core/docs/1.6.0/Fx/Fx
 Animation = new Class({
 
 	initialize: function(duration, easing, callback){

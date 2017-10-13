@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 08.09.2017
+ *  Last edit: 13.10.2017
  *  License: MIT / LGPL
  */
 
@@ -806,6 +806,7 @@ Drawable = new Class({
 	clone : function(attrs, styles, events){
 		// todo: test on all objs
 		var clone = new this.constructor([], this.context);
+// todo: необходим deepClone везде
 
 		if(attrs === false){
 			clone.attrs = this.attrs;
@@ -855,8 +856,7 @@ Drawable = new Class({
 		}
 
 		if(arguments.length === 1){
-			// todo: check the fastest check of property
-			// ...[name] or name in or hasOwnProperty
+			// its the fastest way
 			if(this.attrHooks[name] && this.attrHooks[name].get){
 				return this.attrHooks[name].get.call(this);
 			}
@@ -957,7 +957,74 @@ Drawable = new Class({
 				// this._setCursorListener();
 				// this._teardownCursorListener();
 			}
+		},
+
+		transform: {
+			get: function(){
+				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+			},
+			set: function(){
+				this.update();
+			}
+		},
+
+		translate: {
+			get: function(){
+				return this.attrs.translate || [0, 0];
+			},
+			set: function(value){
+				value = parsePoint(value);
+				this.attrs.translate = value;
+				this.genMatrix(); // todo: лениво генерировать при апдейте
+				this.update();
+				return value;
+			}
+		},
+
+		rotate: {
+			get: function(){
+				return this.attrs.rotate || 0;
+			},
+			set: function(value){
+				this.attrs.rotate = value;
+				this.genMatrix();
+				this.update();
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(value){
+				value = parsePoint(value);
+				this.attrs.skew = value;
+				this.genMatrix();
+				this.update();
+				return value;
+			}
+		},
+
+		scale: {
+			get: function(){
+				return this.attrs.scale || [1, 1];
+			},
+			set: function(value){
+				value = parsePoint(value); // неверно на самом деле
+				// тут же не точка
+				this.attrs.scale = value;
+				this.genMatrix();
+				this.update();
+				return value;
+			}
 		}
+
+		// transformOrder, rotatePivot, scalePivot, skewPivot are passive attributes
+		// they do not update anything but influence onto changes of transform attrs
+	},
+
+	genMatrix: function(){
+		;
 	},
 
 	// todo: move to Drawable.processArgumentsObject
@@ -1095,6 +1162,66 @@ Drawable = new Class({
 		return this;
 	},
 
+	// Drawing (2D Context)
+	preDraw: function(ctx){
+		ctx.save();
+
+		var style = this.styles;
+		// styles
+		// note1: we can cache Object.keys
+		// note2: we should hold gradients / patterns in attrs not in styles
+		Object.keys(style).forEach(function(key){
+			ctx[key] = style[key];
+		});
+
+		if(style.fillStyle && style.fillStyle.toCanvasStyle){
+			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, object)
+		}
+		if(style.strokeStyle && style.strokeStyle.toCanvasStyle){
+			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, object);
+		}
+
+		if(style.lineDash){
+			if(ctx.setLineDash){ // webkit
+				// there's also available ctx.lineDashOffset
+				ctx.setLineDash(style.lineDash);
+			} else {
+				ctx.mozDash = style.lineDash;
+			}
+		}
+
+		// clip
+		if(this.attrs.clip){
+			if(this.attrs.clip.matrix){
+				ctx.save();
+				ctx.transform.apply(ctx, this.attrs.clip.matrix);
+				this.attrs.clip.processPath(ctx);
+				ctx.restore();
+			} else {
+				this.attrs.clip.processPath(ctx);
+			}
+			ctx.clip();
+		}
+
+		if(this.matrix){
+			ctx.transform(
+				this.matrix[0], this.matrix[1], this.matrix[2],
+				this.matrix[3], this.matrix[4], this.matrix[5]
+			);
+		}
+	},
+
+	postDraw: function(ctx){
+		var style = this.styles;
+		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(style.strokeStyle){
+			ctx.stroke();
+		}
+		ctx.restore();
+	},
+
 	// Transforms
 	transform: function(a, b, c, d, e, f, pivot){
 		if(a === null){
@@ -1163,7 +1290,7 @@ Drawable = new Class({
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
 			} else {
-				throw 'Object #' + this.z() + ' can\'t be rasterized: need the bounds.';
+				throw 'Object #' + this.attr('z') + ' can\'t be rasterized: need the bounds.';
 			}
 		}
 
@@ -1426,7 +1553,7 @@ Context.prototype.eventsInteract.forEach(function(eventName){
 	};
 });
 // todo:
-Drawable.prototype._genMatrix = function(){
+/* Drawable.prototype._genMatrix = function(){
 	this.transform(null);
 	(this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
 		if(!this.attrs[name]){
@@ -1495,11 +1622,12 @@ Drawable.prototype.attrHooks.scale = {
 		this._genMatrix();
 		this.update();
 	}
-};
+}; */
 
 // var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
 
+// https://mootools.net/core/docs/1.6.0/Fx/Fx
 Animation = new Class({
 
 	initialize: function(duration, easing, callback){
@@ -1922,8 +2050,7 @@ Circle = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-
+			this.preDraw(ctx);
 			ctx.beginPath();
 			ctx.arc(
 				this.attrs.cx,
@@ -1933,8 +2060,7 @@ Circle = new Class(Drawable, {
 				Math.PI * 2,
 				true
 			);
-
-			this.context.renderer.post(ctx, this.styles);
+			this.postDraw(ctx);
 		}
 	},
 
@@ -1973,6 +2099,7 @@ Curve = new Class({
 		}
 	},
 
+	// General Curve methods
 	attrHooks: CurveAttrHooks.prototype = {
 		args: {
 			set: function(){
@@ -1982,13 +2109,6 @@ Curve = new Class({
 	},
 
 	attr: Drawable.prototype.attr,
-
-	bounds: function(prevEnd){
-		if(!Curve.canvasFunctions[this.method].bounds){
-			return null;
-		}
-		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.attrs.args);
-	},
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);
@@ -2015,11 +2135,23 @@ Curve = new Class({
 		return this;
 	},
 
+	// Canvas Curve methods
+	bounds: function(prevEnd){
+		if(!Curve.canvasFunctions[this.method].bounds){
+			return null;
+		}
+		if(!prevEnd){
+			prevEnd = this.startAt();
+		}
+		return Curve.canvasFunctions[this.method].bounds(prevEnd, this.attrs.args);
+	},
+
 	process: function(ctx){
 		ctx[this.method].apply(ctx, this.attrs.args);
 	}
 });
 
+// todo: rename to canvasMethods
 Curve.canvasFunctions = {
 	moveTo: {
 		attrHooks: makeAttrHooks(['x', 'y']),
@@ -2145,31 +2277,8 @@ Delta.curve = function(method, attrs, path){
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
 
+// General Curve methods
 extend(Curve.prototype, {
-
-	// For canvas curves
-	// (should be redefined in other curves)
-	pointAt: function(t, startPoint){
-		var fn = Curve.canvasFunctions[this.method];
-
-		if(fn && fn.pointAt){
-			return fn.pointAt(this, t, startPoint);
-		}
-
-		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
-	},
-
-	splitAt: function(t, startPoint){
-		var fn = Curve.canvasFunctions[this.method];
-
-		if(fn && fn.splitAt){
-			return fn.splitAt(this, t, startPoint);
-		}
-
-		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
-	},
-
-	// For any curves
 	tangentAt: function(t, epsilon, startPoint){
 		if(!epsilon){
 			epsilon = Curve.epsilon;
@@ -2195,8 +2304,9 @@ extend(Curve.prototype, {
 		return this.tangentAt(t, epsilon, startPoint) - 90;
 	},
 
+	// like reduce
+	// todo: check if this function neccessary
 	approx: function(detail, func, value){
-		// todo: cache startPoint
 		var startPoint = this.startAt();
 		var lastPoint = startPoint;
 		for(var i = 1; i <= detail; i++){
@@ -2205,13 +2315,18 @@ extend(Curve.prototype, {
 		return value;
 	},
 
-	length: function(detail){
+	length: function(detail, startPoint){
+		// supports canvas curves
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length){
+			return Curve.canvasFunctions[this.method].length(this, startPoint);
+		}
+
 		if(!detail){
 			detail = Curve.detail;
 		}
 
 		var length = 0,
-			lastPoint = this.pointAt(0),
+			lastPoint = startPoint || this.startAt(),
 			point;
 		for(var i = 1; i <= detail; i++){
 			point = this.pointAt(i / detail);
@@ -2221,9 +2336,18 @@ extend(Curve.prototype, {
 		return length;
 	},
 
-	nearest: function(x, y, detail){
+	nearest: function(x, y, detail, startPoint){
+		// supports canvas curves
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].nearest){
+			return Curve.canvasFunctions[this.method].nearest(this, startPoint);
+		}
+
 		if(!detail){
 			detail = Curve.detail;
+		}
+
+		if(!startPoint){
+			startPoint = this.startAt();
 		}
 
 		// todo: gradient descent
@@ -2233,7 +2357,7 @@ extend(Curve.prototype, {
 			minI,
 			distance;
 		for(var i = 0; i <= detail; i++){
-			point = this.pointAt(i / detail);
+			point = this.pointAt(i / detail, startPoint);
 			distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
 			if(distance < min){
 				minPoint = point;
@@ -2252,71 +2376,156 @@ extend(Curve.prototype, {
 	// работает весьма плохо, нужно поотлаживать
 	// переопределяет внутренний у curve, когда это не нужно
 	// нужно сделать точные у всех родных
-/*	bounds: function(startPoint, detail){
+	bounds: function(startPoint, detail){
 		if(!startPoint){
 			startPoint = this.startAt();
+		}
+
+		if(Curve.canvasFunctions[this.method].bounds){
+			return Curve.canvasFunctions[this.method].bounds(startPoint, this.attrs.args);
 		}
 
 		if(!detail){
 			detail = Curve.detail;
 		}
 
-		var minX = Infinity,
+		var point,
+
+			minX = Infinity,
 			minY = Infinity,
 			maxX = -Infinity,
-			maxY = -Infinity,
-			point;
+			maxY = -Infinity;
 
 		for(var t = 0; t <= detail; t++){
 			point = this.pointAt(t / detail, startPoint);
-			minX = Math.min(minX, point[0]);
-			minY = Math.min(minY, point[1]);
-			maxX = Math.max(maxX, point[0]);
-			maxY = Math.max(maxY, point[1]);
+			if(minX > point[0]){
+				minX = point[0];
+			}
+			if(minY > point[1]){
+				minY = point[1];
+			}
+			if(maxX < point[0]){
+				maxX = point[0];
+			}
+			if(maxY < point[1]){
+				maxY = point[1];
+			}
 		}
 
 		return [minX, minY, maxX, maxY];
-	}, */
+	},
 
 	intersections: function(curve){
 		;
 	}
-
 });
 
-// Lines
-Curve.canvasFunctions.moveTo.pointAt = function(curve, t, startPoint){
-	return curve.funcAttrs;
-};
+// Canvas Curve methods
+extend(Curve.prototype, {
+	pointAt: function(t, startPoint){
+		var fn = Curve.canvasFunctions[this.method];
 
-// todo: attrs instead of curve?
-Curve.canvasFunctions.lineTo.pointAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
+		if(fn && fn.pointAt){
+			return fn.pointAt(this, t, startPoint);
+		}
+
+		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
+	},
+
+	splitAt: function(t, startPoint){
+		var fn = Curve.canvasFunctions[this.method];
+
+		if(fn && fn.splitAt){
+			return fn.splitAt(this, t, startPoint);
+		}
+
+		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
 	}
-	return [
-		startPoint[0] + t * (curve.funcAttrs[0] - startPoint[0]),
-		startPoint[1] + t * (curve.funcAttrs[1] - startPoint[1]),
-	];
-};
+});
 
-Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
+// MoveTo
+extend(Curve.canvasFunctions.moveTo, {
+	pointAt: function(curve, t, startPoint){
+		return curve.attrs.args;
+	},
+
+	length: function(){
+		return 0;
 	}
-	var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
-	return {
-		start: [
-			startPoint,
-			point
-		],
-		end: [
-			point,
-			[curve.funcAttrs[0], curve.funcAttrs[1]]
-		]
-	};
-};
+});
 
+// LineTo
+extend(Curve.canvasFunctions.lineTo, {
+	pointAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		return [
+			startPoint[0] + t * (curve.attrs.args[0] - startPoint[0]),
+			startPoint[1] + t * (curve.attrs.args[1] - startPoint[1]),
+		];
+	},
+
+	splitAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
+		return {
+			start: [
+				startPoint,
+				point
+			],
+			end: [
+				point,
+				[curve.attrs.args[0], curve.attrs.args[1]]
+			]
+		};
+	},
+
+	length: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var dx = curve.attrs.args[0] - startPoint[0],
+			dy = curve.attrs.args[1] - startPoint[1];
+
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+});
+
+// LineTo
+extend(Curve.canvasFunctions.quadraticCurveTo, {
+	bounds: function(startPoint, attrs){
+		// note: doesn't work right
+		var x0 = startPoint[0],
+			y0 = startPoint[1],
+			x1 = attrs[0],
+			y1 = attrs[1],
+			x2 = attrs[2],
+			y2 = attrs[3];
+
+		var tx = (x0 - x1 / 2) / (x0 - x1 + x2);
+		var ty = (y0 - y1 / 2) / (y0 - y1 + y2);
+
+		var x;
+		var y;
+		if(tx >= 0 && tx <= 1){
+			x = Math.pow(1 - tx, 2) * x0 + (1 - tx) * tx * x1 + tx * tx * x2;;
+		}
+		if(ty >= 0 && ty <= 1){
+			y = Math.pow(1 - ty, 2) * y0 + (1 - ty) * ty * y1 + ty * ty * y2;
+		}
+
+		var minX = Math.min(startPoint[0], attrs[2], x === undefined ? Infinity : x);
+		var minY = Math.min(startPoint[1], attrs[3], y === undefined ? Infinity : y);
+		var maxX = Math.max(startPoint[0], attrs[2], x === undefined ? -Infinity : x);
+		var maxY = Math.max(startPoint[1], attrs[3], y === undefined ? -Infinity : y);
+		return [minX, minY, maxX, maxY];
+	}
+});
 var CurveCatmull = new Class(Curve, {
 	initialize: function(method, attrs, path){
 		this.super('initialize', arguments);
@@ -2708,6 +2917,8 @@ var GeneralBezier = new Class(Curve, {
 	}
 });
 
+// Delta.math.factorial = ...
+
 function factorial(n){
 	if(n <= 1){
 		return 1;
@@ -2843,6 +3054,213 @@ function attrHooksProcess(attrName, i){
 }
 
 Delta.curves['lagrange'] = CurveLagrange;
+/* GPL License
+ * Ported from LibCanvas
+ * "Artem Smirnov <art543484@ya.ru>"
+ * "Shock <shocksilien@gmail.com>"
+ * https://github.com/theshock/libcanvas/blob/master/Source/Plugins/Curves.js
+ */
+Delta.drawRibbonCurve = function(ctx, params){
+	var step = params.step || 0.2;
+	var prev = params.point(-step);
+	for(var t = -step; t < 1.02; t += step){
+		var cur = params.point(t);
+		var drawPoints = getDrawPoints(prev, cur, 10, -1);
+		if(t >= step){
+			ctx.lineWidth = 1;
+			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[1].y);
+			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
+			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
+			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
+			ctx.fillStyle = randcolor();
+			ctx.fill();
+			ctx.stroke();
+		}
+		prev = cur;
+		var prevDrawPoints = drawPoints;
+	}
+};
+
+function getDrawPoints(prev, cur, width, inverted){
+	var w = cur.x - prev.x,
+		h = cur.y - prev.y,
+		dist = Math.sqrt(w * w + h * h),
+
+		sin = h / dist,
+		cos = w / dist,
+
+		dx = sin * width,
+		dy = cos * width;
+
+	return [{
+		x: cur.x + dx,
+		y: cur.y + dy * inverted
+	}, {
+		x: cur.x - dx,
+		y: cur.y - dy * inverted
+	}];
+}
+
+
+function abc() {
+
+// The following text contains bad code and due to it's code it should not be readed by ANYONE!
+
+var
+	Transition = atom.Transition,
+	Color = atom.Color,
+	EC = {};
+
+/** @returns {atom.Color} */
+EC.getColor = function (color) {
+	return new Color(color || [0,0,0,1]);
+};
+
+EC.getPoints = function (prevPos, pos, width, inverted) {
+	var
+		w    = pos.x-prevPos.x,
+		h    = pos.y-prevPos.y,
+		dist = atom.math.hypotenuse(w, h),
+
+		sin = h / dist,
+		cos = w / dist,
+
+		dx = sin * width,
+		dy = cos * width;
+
+	return [
+		new Point(pos.x + dx, pos.y + dy*inverted),
+		new Point(pos.x - dx, pos.y - dy*inverted)
+	];
+};
+
+EC.getGradientFunction = function (attr) {
+	switch (typeof attr.gradient) {
+		case 'undefined' :
+			return atom.fn.lambda( EC.getColor(attr.color) );
+
+		case 'function' :
+			return attr.gradient;
+
+		default :
+			var gradient = { fn: attr.gradient.fn || 'linear' };
+
+			if (typeof gradient.fn != 'string') {
+				throw new Error('LibCanvas.Context2D.drawCurve -- unexpected type of gradient function');
+			}
+
+			gradient.from = EC.getColor(attr.gradient.from);
+			gradient.to   = EC.getColor(attr.gradient.to  );
+
+			var diff = gradient.from.diff( gradient.to );
+
+			return function (t) {
+				var factor = Transition.get(gradient.fn)(t);
+				return gradient.from.shift( diff.clone().mul(factor) ).toString();
+			};
+	}
+};
+
+// возвращает width(t)
+EC.getWidthFunction = function (attr) {
+	attr.width = attr.width || 1;
+	switch (typeof attr.width) {
+		case 'number'  : return atom.fn.lambda(attr.width);
+		case 'function': return attr.width;
+		case 'object'  : return EC.getWidthFunction.range( attr.width );
+		default: throw new TypeError('LibCanvas.Context2D.drawCurve -- unexpected type of width');
+	}
+};
+
+EC.getWidthFunction.range = function (width) {
+	if(!width.from || !width.to){
+		throw new Error('LibCanvas.Context2D.drawCurve -- width.from or width.to undefined');
+	}
+	var diff = width.to - width.from;
+	return function(t){
+		return width.from + diff * Transition.get(width.fn || 'linear')(t);
+	}
+};
+
+// возвращает точки кривой
+EC.curvesFunctions = [
+	function (p, t) { // linear
+		return {
+			x:p[0].x + (p[1].x - p[0].x) * t,
+			y:p[0].y + (p[1].y - p[0].y) * t
+		};
+	},
+	function (p,t) { // quadratic
+		var i = 1-t;
+		return {
+			x:i*i*p[0].x + 2*t*i*p[1].x + t*t*p[2].x,
+			y:i*i*p[0].y + 2*t*i*p[1].y + t*t*p[2].y
+		};
+	},
+	function (p, t) { // qubic
+		var i = 1-t;
+		return {
+			x:i*i*i*p[0].x + 3*t*i*i*p[1].x + 3*t*t*i*p[2].x + t*t*t*p[3].x,
+			y:i*i*i*p[0].y + 3*t*i*i*p[1].y + 3*t*t*i*p[2].y + t*t*t*p[3].y
+		};
+	}
+];
+
+Context2D.prototype.drawCurve = function (obj) {
+	var points = atom.array.append( [Point(obj.from)], obj.points.map(Point), [Point(obj.to)] );
+
+	var gradientFunction = EC.getGradientFunction(obj),             //Getting gradient function
+		widthFunction    = EC.getWidthFunction(obj),                //Getting width function
+		curveFunction    = EC.curvesFunctions[ obj.points.length ]; //Getting curve function
+
+	if (!curveFunction) throw new Error('LibCanvas.Context2D.drawCurve -- unexpected number of points');
+
+	var step = obj.step || 0.02;
+
+	var invertedMultipler = obj.inverted ? 1 : -1;
+
+	var controlPoint, prevContorolPoint,
+		drawPoints  , prevDrawPoints   ,
+		width , color, prevColor, style;
+
+	prevContorolPoint = curveFunction(points, -step);
+
+	for (var t=-step ; t<1.02 ; t += step) {
+		controlPoint = curveFunction(points, t);
+		color = gradientFunction(t);
+		width = widthFunction(t) / 2;
+
+		drawPoints = EC.getPoints(prevContorolPoint, controlPoint, width, invertedMultipler);
+
+		if (t >= step) {
+			// #todo: reduce is part of array, not color
+			var diff = EC.getColor(prevColor).diff(color);
+
+			if ( (diff.red + diff.green + diff.blue) > 150 ) {
+				style = this.createLinearGradient(prevContorolPoint, controlPoint);
+				style.addColorStop(0, prevColor);
+				style.addColorStop(1,     color);
+			} else {
+				style = color;
+			}
+
+				this
+					.set("lineWidth",1)
+					.beginPath(prevDrawPoints[0])
+					.lineTo   (prevDrawPoints[1])
+					.lineTo   (drawPoints[1])
+					.lineTo   (drawPoints[0])
+					.fill  (style)
+					.stroke(style);
+		}
+		prevDrawPoints    = drawPoints;
+		prevContorolPoint = controlPoint;
+		prevColor         = color;
+	}
+	return this;
+};
+
+};
 
 /*Delta.Math.EPSILON_intersection = Number.EPSILON;
 
@@ -3015,7 +3433,7 @@ Curve.canvasFunctions.quadraticCurveTo.pointAt = function(curve, t, startPoint){
 
 	var x1 = startPoint[0],
 		y1 = startPoint[1],
-		p = curve.funcAttrs;
+		p = curve.attrs.args;
 
 	return [
 		Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * p[0] + t * t * p[2],
@@ -3027,7 +3445,7 @@ Curve.canvasFunctions.quadraticCurveTo.splitAt = function(curve, t, startPoint){
 	if(!startPoint){
 		startPoint = curve.startAt();
 	}
-	var p = curve.funcAttrs;
+	var p = curve.attrs.args;
 	var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
 	return {
 		start: [
@@ -4428,7 +4846,8 @@ Pattern = new Class({
 			}
 		}.bind(this));
 
-		// todo: error process?
+		// todo: error process
+		// todo: check imageSmoothingEnabled, imageSmoothingQuality
 	},
 
 	update: function(){
@@ -4590,6 +5009,17 @@ function isPatternLike(value){
 				value.indexOf('data:image/') &&
 				value.indexOf('<svg')
 			) );
+}
+
+function parsePoint(point){
+	if(+point === point){
+		point = Delta.distance(point);
+		return [point, point];
+	}
+	return [
+		Delta.distance(point[0]),
+		Delta.distance(point[1])
+	];
 }
 
 Delta.class = Class;
@@ -4936,11 +5366,12 @@ var defaultUnits = {
 	// in: 90
 };
 
-Delta.snapToPixels = 0;
+Delta.snapToPixels = 1;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
 	if(!value) return 0;
+	// todo: snapToPixels === 1 ? return Math.round(...) : ...
 	if(Delta.snapToPixels && !dontsnap){
 		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}
@@ -5505,6 +5936,10 @@ Drawable.prototype.draggable.init = function(options){
 	// такая чистка мусора
 };
 
+Drawable.prototype.draggable.destroy = function(){};
+Drawable.prototype.draggable.enable = function(){};
+Drawable.prototype.draggable.disable = function(){};
+
 Drawable.prototype.draggable.updateMods = function(){
 	var mods = [];
 
@@ -5926,8 +6361,49 @@ Context.prototype.toSVG = function(format, quickCalls){
 
 };
 
-Rect.prototype.toSVG = function(quickCalls){
-	return '';
+Drawable.prototype.toSVGGetStyle = function(){
+	var result = [];
+
+	// fill
+	if(this.styles.fillStyle){
+		// todo: gradients
+
+		if(this.styles.fillStyle + '' === this.styles.fillStyle){
+			result.push('fill="rgba(' + Delta.color(this.styles.fillStyle).join(',') + ')"');
+		}
+	} else {
+		result.push('fill="transparent"');
+	}
+
+	console.log(this.styles);
+	if(this.styles.strokeStyle){
+		// todo: gradients
+
+		if(this.styles.strokeStyle + '' === this.styles.strokeStyle){
+			result.push('stroke="rgba(' + Delta.color(this.styles.strokeStyle).join(',') + ')"');
+		}
+
+		var lineWidth = this.styles.lineWidth;
+		if(lineWidth === undefined){
+			lineWidth = 1;
+		}
+		result.push('stroke-width="' + lineWidth + '"');
+	}
+
+	// stroke
+
+	return ' ' + result.join(' ');
+};
+
+Rect.prototype.toSVG = function(quickCalls, svgContext){
+	// svgContext.style.push(...)
+	// svgContext.head.push(...)
+	// для фильтров и етс
+	return (
+		'<rect x="' + this.attrs.x + '" y="' + this.attrs.y +
+		'" width="' + this.attrs.width + '" height="' + this.attrs.height + '"' +
+		this.toSVGGetStyle() + '/>'
+	);
 };
 
 Delta.drawGradientCurve = function(curve, ctx){
@@ -5944,6 +6420,307 @@ Delta.drawGradientCurve = function(curve, ctx){
 		lastPoint = point;
 	}
 };
+Drawable.prototype.attrHooks.shadow = {
+	set: function(value){
+		this._useEnhancedShadow = !(value + '' === value || (
+			value.length === undefined &&
+			value.opacityDependence !== false &&
+			+value.opacity !== value.opacity &&
+			+value.size !== value.size));
+
+		if(!this._useEnhancedShadow){
+			Drawable.processShadow(value, this.styles);
+		} else {
+			// todo: make up a good way to delete items
+			// without delete
+			delete this.styles.shadowOffsetX;
+			delete this.styles.shadowOffsetY;
+			delete this.styles.shadowBlur;
+			delete this.styles.shadowColor;
+
+			if(!value.length){
+				value = [value];
+			}
+		//	this.attrs.shadow = value;
+		}
+
+		this.update();
+	}
+};
+
+var offsetForShadow = 1000;
+
+var pre = Circle.prototype.draw;
+Circle.prototype.draw = function(ctx){
+	// вполне умещается в переопределение Renderer.pre
+	if(this._useEnhancedShadow){
+		ctx.save();
+		ctx.translate(-offsetForShadow, -offsetForShadow);
+
+		var thisContext = {
+			attrs: {
+				visible: true
+			},
+			context: {
+				renderer: {
+					pre: function(){},
+					post: function(){}
+				}
+			}
+		};
+		// нам нужны только трансформации на самом деле
+		// this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+		this.attrs.shadow.forEach(function(shadowElem){
+			// нужно бы, чтобы offsetForShadow зависел ещё и от трансформаций самого канваса сейчас
+			ctx.shadowOffsetX = (shadowElem.x || 0) + offsetForShadow;
+			ctx.shadowOffsetY = (shadowElem.y || 0) + offsetForShadow;
+			ctx.shadowColor = shadowElem.color;
+			ctx.shadowBlur = shadowElem.blur || 0;
+			if(shadowElem.size && shadowElem.size !== 1){
+				;
+			}
+			pre.call(this, ctx);
+		}, this);
+		ctx.restore();
+	}
+	pre.call(this, ctx);
+};
+
+
+// boolean
+function evenOddRule(x, y, poly){
+	var c = false;
+	for(var i = 0, j = poly.length - 1; i < poly.length; j = i, i++){
+		if((poly[i][1] > y) !== (poly[j][1] > y) &&
+			(x < (poly[j][0] - poly[i][0]) * (y - poly[i][1]) / (poly[j][1] - poly[i][1]) + poly[i][0])){
+			c = !c;
+		}
+	}
+	return c;
+}
+
+function lineIntersection(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1){
+	var d = (ax0 - ax1) * (by0 - by1) - (ay0 - ay1) * (bx0 - bx1);
+	if(d === 0){
+		return [];
+	}
+
+	var nx = (ax0 * ay1 - ay0 * ax1) * (bx0 - bx1) - (ax0 - ax1) * (bx0 * by1 - by0 * bx1),
+		ny = (ax0 * ay1 - ay0 * ax1) * (by0 - by1) - (ay0 - ay1) * (bx0 * by1 - by0 * bx1);
+
+	return [
+		[nx / d | 0, ny / d | 0]
+	];
+}
+
+function segmentIntersection(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1){
+	var d = (ax1 - ax0) * (by0 - by1) - (ay1 - ay0) * (bx0 - bx1);
+	if(d === 0){
+		return [];
+	}
+
+	var t = (bx0 - ax0) * (by0 - by1) - (by0 - ay0) * (bx0 - bx1);
+	var w = (ax1 - ax0) * (by0 - ay0) - (bx0 - ax0) * (ay1 - ay0);
+
+	t /= d;
+	w /= d;
+
+	if(t < 0 || t > 1 || w < 0 || w > 1){
+		return [];
+	}
+
+	return [
+		[
+			ax0 + (ax1 - ax0) * t,
+			ay0 + (ay1 - ay0) * t,
+			t, w
+		]
+	];
+}
+
+function segmentQuadIntersection(ax0, ay0, ax1, ay1, ax2, ay2, bx0, by0, bx1, by1){
+	var lineAngle = Math.atan2(by1 - by0, bx1 - bx0);
+}
+
+function pointInRect(x, y, x1, y1, x2, y2){
+	return (
+		x > x1 && y > y1 && x < x2 && y < y2
+	);
+}
+
+function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
+	/* return (
+		((ax1 < bx1 && ay1 < by1) && (ax2 > bx1 && ay2 > by1))
+		||
+		((bx1 < ax1 && by1 < ay1) && (bx2 > ax1 && by2 > ay1))
+	); */
+
+	return (
+		pointInRect(ax1, ay1, bx1, by1, bx2, by2)
+		||
+		pointInRect(ax1, ay2, bx1, by1, bx2, by2)
+		||
+		pointInRect(ax2, ay1, bx1, by1, bx2, by2)
+		||
+		pointInRect(ax2, ay2, bx1, by1, bx2, by2)
+		||
+		// второй не нужно проверять!
+		// точка одного во втором => точка второго в 1ом
+		// нужно только понять, почему это не всегда работает, и пофиксить
+		pointInRect(bx1, by1, ax1, ay1, ax2, ay2)
+		||
+		pointInRect(bx2, by1, ax1, ay1, ax2, ay2)
+		||
+		pointInRect(bx1, by2, ax1, ay1, ax2, ay2)
+		||
+		pointInRect(bx2, by2, ax1, ay1, ax2, ay2)
+	);
+}
+
+// http://noonat.github.io/intersect/
+
+function polyIntersections(poly1, poly2){
+	var intersection;
+	return poly1.reduce(function(results, point1, i){
+		if(i === 0){
+			return results;
+		}
+
+		poly2.forEach(function(point2, j){
+			if(j === 0){
+				return;
+			}
+
+			intersection = segmentIntersection(
+				poly1[i - 1][0], poly1[i - 1][1], point1[0], point1[1],
+				poly2[j - 1][0], poly2[j - 1][1], point2[0], point2[1]
+			);
+
+			if(intersection.length !== 0){
+				results.push(intersection);
+			}
+		});
+		return results;
+	}, []);
+}
+/*
+function polyUnion(poly1, poly2){
+	poly1 = poly1.slice();
+	poly2 = poly2.slice();
+	if(polyOrientArea(poly1) > 0){
+		poly1.reverse();
+	}
+	if(polyOrientArea(poly2) > 0){
+		poly2.reverse();
+	}
+
+	// note: if there are no intersections should return them both
+
+	var intersection;
+	var additions;
+	var entry = !evenOddRule(poly1[0][0], poly1[0][1], poly2);
+	var i, j;
+
+	var breaker = 0;
+	for(i = 1; i < poly1.length; i++){
+		if(breaker++ > 50){
+			throw 'too much of cicle';
+		}
+
+		additions = [];
+		for(j = 1; j < poly2.length; j++){
+			intersection = segmentIntersection(
+				poly1[i - 1][0], poly1[i - 1][1], poly1[i][0], poly1[i][1],
+				poly2[j - 1][0], poly2[j - 1][1], poly2[j][0], poly2[j][1]
+			);
+
+			if(intersection.length !== 0){
+				intersection[0][4] = j;
+				additions.push(intersection[0]);
+			}
+		}
+
+		if(additions.length !== 0){
+			// intersections has 't' param in the [2]
+			// we should sort them by it bcs intersections must be added in right order
+			additions.sort(function(a, b){
+				return a[2] > b[2];
+			});
+
+			additions.forEach(function(addition){
+				addition[5] = entry;
+				entry = !entry;
+			});
+
+			poly1.splice.apply(poly1, [i, 0].concat(additions));
+			i += additions.length;
+		}
+	}
+
+	var result = [];
+	var breaker = 0;
+	for(i = 0; i < poly1.length; i++){
+		if(breaker++ > 50){
+			throw 'too much of cicle';
+		}
+
+		result.push(poly1[i]);
+
+		if(poly1[i].length !== 2 && poly1[i][5]){
+
+			// entry is here
+			// if(i !== 2) continue;
+
+			var cur = poly1[i],
+				next = poly1[i + 1];
+
+			for(j = cur[4]; j !== next[4]; j = j + 1 % poly2.length){
+				if(breaker++ > 50){
+					throw 'too much of cicle';
+				}
+
+				// console.log(j);
+				// result.push(poly2[j]);
+			}
+		}
+	}
+	console.log(poly2);
+
+	return result;
+}
+/* In the third phase, the result is generated. The algorithm starts
+ * at an unprocessed intersection and picks the direction of traversal
+ * based on the entry/exit flag: for an entry intersection it traverses
+ * forward, and for an exit intersection it traverses in reverse.
+ * Vertices are added to the result until the next intersection is found;
+ * the algorithm then switches to the corresponding intersection vertex
+ * in the other polygon and picks the traversal direction again using
+ * the same rule. If the next intersection has already been processed,
+ * the algorithm finishes the current component of the output and starts
+ * again from an unprocessed intersection. The output is complete when
+ * there are no more unprocessed intersections.
+ */
+
+// в greiner-hormann algo нужны полигоны с правильной ориентацией
+// поэтому righthandrule
+function polyOrientArea(poly){
+	var area = 0;
+	for(var i = 1; i < poly.length; i++){
+		area += (poly[i - 1][0] * poly[i][1] - poly[i - 1][1] * poly[i][0]) / 2;
+	}
+	return area;
+}
+
+
+Delta.intersections = {};
+Delta.intersections.lineIntersection = lineIntersection;
+Delta.intersections.segmentIntersection = segmentIntersection;
+Delta.intersections.segmentQuadIntersection = segmentQuadIntersection;
+Delta.intersections.pointInRect = pointInRect;
+Delta.intersections.evenOddRule = evenOddRule;
+Delta.intersections.rectIntersect = rectIntersect;
+Delta.intersections.polyIntersections = polyIntersections;
+// Delta.intersections.polyUnion = polyUnion;
 
 Delta.version = "1.9.0";
 
