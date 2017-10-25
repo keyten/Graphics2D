@@ -12,7 +12,7 @@ var Delta = {},
 
 // Classes
 	Context,
-	Drawable,
+	Drawable, // todo: var DOMImage = Image, Image = class...
 	Animation,
 	Rect, Circle, Curve, Path, Picture, Text,
 	Gradient, Pattern,
@@ -33,6 +33,44 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
+
+// DOM
+	eventsToInteract = [
+		// mouse
+		'click',
+		'dblclick',
+		'mousedown',
+		'mouseup',
+		'mousemove',
+		'mouseover',
+		'mouseout',
+		'mouseenter',
+		'mouseleave',
+		'mousewheel',
+		'blur',
+		'focus',
+		// keyboard
+		'keypress',
+		'keydown',
+		'keyup',
+		// touch
+		'touchstart',
+		'touchmove',
+		'touchend',
+		'touchcancel',
+		// pointer
+		'pointerover',
+		'pointerenter',
+		'pointerdown',
+		'pointermove',
+		'pointerup',
+		'pointercancel',
+		'pointerout',
+		'pointerleave',
+		// check:
+		'gotpointercapture',
+		'lostpointercapture'
+	],
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -59,6 +97,7 @@ var Delta = {},
 						   window.clearTimeout;
 
 Delta.renderers = {};
+// {{include utils.js}}
 
 // {{include Renderer.js}}
 
@@ -103,7 +142,6 @@ Delta.contexts = {
 
 // {{include Pattern.js}}
 
-// {{include utils.js}}
 // {{include Animation.Along.js}}
 // {{include Animation.Morph.js}}
 // {{include Curve.Approx.js}}
@@ -122,6 +160,8 @@ Delta.contexts = {
 // {{include EnhancedShadows.js}}
 
 // {{include Intersections.js}}
+
+// {{include MouseEvents.js}}
 
 Delta.version = "{{version}}";
 

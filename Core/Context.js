@@ -168,110 +168,14 @@ Context.prototype = {
 
 		this.listeners[event] = [];
 
-		if(this.eventsHooks.hasOwnProperty(event)){
-			// todo: eventHook.on
-			this.eventsHooks[event].call(this, event);
+		if(this.eventsHooks[event]){
+			(this.eventsHooks[event].setup || this.eventsHooks[event]).call(this, event);
 		}
-
-		if(this.eventsInteract.indexOf(event) === -1){
-			return this.listeners[event];
-		}
-
-		this.canvas.addEventListener(event, function(e){
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			if(event === 'mouseout'){
-				e.targetObject = this.hoverElement;
-				this.hoverElement = null;
-
-				var coords = this.contextCoords(e.clientX, e.clientY);
-				e.contextX = coords[0];
-				e.contextY = coords[1];
-
-				if(e.targetObject && e.targetObject.fire){
-					if(!e.targetObject.fire('mouseout', e)){
-						e.stopPropagation();
-						e.preventDefault();
-					}
-				}
-			} else {
-				// negative contextX / contextY when canvas has a border
-				// not a bug, it's a feature :)
-				if(+e.clientX === e.clientX){
-					this._processPointParams(e, event, e);
-				}
-				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
-					if(e[prop]){
-						Array.prototype.forEach.call(e[prop], function(touch){
-							this._processPointParams(touch, event, e);
-						}, this);
-					}
-				}, this);
-			}
-
-			if(propagation){
-				this.fire(event, e);
-			}
-		}.bind(this));
 
 		return this.listeners[event];
 	},
 
-// remove from Context.prototype
-	_processPointParams: function(point, name, event){
-		var coords = this.contextCoords(point.clientX, point.clientY);
-		point.contextX = coords[0];
-		point.contextY = coords[1];
-
-		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
-		if(point.targetObject && point.targetObject.fire){
-			if(!point.targetObject.fire(name, event)){
-				event.stopPropagation();
-				event.preventDefault();
-			}
-		}
-	},
-
-	eventsInteract: [
-		// mouse
-		'click',
-		'dblclick',
-		'mousedown',
-		'mouseup',
-		'mousemove',
-		'mouseover',
-		'mouseout',
-		'mouseenter',
-		'mouseleave',
-		'mousewheel',
-		'blur',
-		'focus',
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup',
-		// touch
-		'touchstart',
-		'touchmove',
-		'touchend',
-		'touchcancel',
-		// pointer
-		'pointerover',
-		'pointerenter',
-		'pointerdown',
-		'pointermove',
-		'pointerup',
-		'pointercancel',
-		'pointerout',
-		'pointerleave',
-		// check:
-		'gotpointercapture',
-		'lostpointercapture'
-	],
+	eventsInteract: eventsToInteract,
 
 	eventsHooks : {
 		mouseover : function(){
@@ -315,9 +219,6 @@ Context.prototype = {
 					last.fire(out, e);
 				}
 				if(current && current.fire){
-					// it is not good to change event object
-					// make special class for event obs?
-					// e.originalEvent and etc
 					e.targetObject = current;
 					current.fire(over, e);
 				}
@@ -327,13 +228,81 @@ Context.prototype = {
 		return this;
 	},
 
-	on : function(event, callback){
+	listenerCanvas : function(event){
+		this.canvas.addEventListener(event, function(e){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			if(event === 'mouseout'){
+				e.targetObject = this.hoverElement;
+				this.hoverElement = null;
+
+				var coords = this.contextCoords(e.clientX, e.clientY);
+				e.contextX = coords[0];
+				e.contextY = coords[1];
+
+				if(e.targetObject && e.targetObject.fire){
+					if(!e.targetObject.fire('mouseout', e)){
+						e.stopPropagation();
+						e.preventDefault();
+					}
+				}
+			} else {
+				// negative contextX / contextY when canvas has a border
+				// not a bug, it's a feature :)
+				if(+e.clientX === e.clientX){
+					this._processPointParams(e, event, e);
+				}
+				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
+					if(e[prop]){
+						Array.prototype.forEach.call(e[prop], function(touch){
+							this._processPointParams(touch, event, e);
+						}, this);
+					}
+				}, this);
+			}
+
+			if(propagation && !this.fire(event, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}.bind(this));
+	},
+
+	// todo: make up a more good name (contains 'Event')
+	_processPointParams: function(point, name, event){
+		var coords = this.contextCoords(point.clientX, point.clientY);
+		point.contextX = coords[0];
+		point.contextY = coords[1];
+
+		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
+		if(point.targetObject && point.targetObject.fire){
+			if(!point.targetObject.fire(name, event)){
+				event.stopPropagation();
+				event.preventDefault();
+			}
+		}
+	},
+
+	on : function(event, options, callback){
 		if(event + '' !== event){
 			Object.keys(event).forEach(function(eventName){
 				this.on(eventName, event[eventName]);
 			});
 			return this;
 		}
+
+		if(!callback){
+			callback = options;
+			options = null;
+		}
+
+		callback.options = options;
+
+		// Quick calls are not supported!
 
 		(this.listeners[event] || this.listener(event)).push(callback);
 		return this;
@@ -363,6 +332,22 @@ Context.prototype = {
 	contextCoords: function(x, y){
 		var coords = Delta.coordsOfElement(this.canvas);
 		return [x - coords.x, y - coords.y];
+	},
+
+	// Attrs
+	attr: Class.attr,
+	attrHooks: {
+		transform: {
+			get: function(){
+				if(this.attrs.transform === 'dirty'){
+					// calc and this... = ...
+				}
+				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+			},
+			set: function(value){
+				this.update();
+			}
+		}
 	},
 
 	// Transforms
@@ -434,5 +419,17 @@ Context.prototype = {
 		);
 	}
 };
+
+eventsToInteract.forEach(function(eventName){
+	Context.prototype.eventsHooks[eventName] = function(){
+		this.listenerCanvas(eventName);
+	};
+
+	Context.prototype[eventName] = function(callback){
+		return this[
+			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
+		].apply(this, [eventName].concat(slice.call(arguments)));
+	};
+});
 
 Delta.Context = Context;

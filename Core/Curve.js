@@ -22,7 +22,7 @@ Curve = new Class({
 		}
 	},
 
-	attr: Drawable.prototype.attr,
+	attr: Class.attr,
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);

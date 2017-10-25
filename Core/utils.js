@@ -10,33 +10,6 @@ function Class(parent, properties){
 	};
 
 	if(parent){
-		/* if(properties.liftInits){
-			// go to the parent
-			init = function(){
-				if(init.prototype.__initialize__){
-					return init.prototype.__initialize__.apply(this, arguments);
-				}
-
-				var inits = [],
-					parent = this.constructor.parent;
-
-				while(parent){
-					inits.push(parent.prototype.initialize);
-					parent = parent.parent;
-				}
-
-				for(var i = inits.length; i--;){
-					if(inits[i]){
-						inits[i].apply(this, arguments);
-					}
-				}
-
-				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
-					return init.prototype.initialize.apply(this, arguments);
-				}
-			};
-		} */
-
 		// prototype inheriting
 		var sklass = function(){};
 		sklass.prototype = parent.prototype;
@@ -64,6 +37,42 @@ function Class(parent, properties){
 
 	return init;
 }
+
+Class.attr = function(name, value){
+	if(Array.isArray(name)){
+		// getter attr(['attr1', 'attr2'])
+		return name.map(function(name){
+			return this.attr(name);
+		}, this);
+	} else if(name + '' !== name){
+		// setter attr({ attr1: val1, attr2: val2 });
+		Object.keys(name).forEach(function(key){
+			this.attr(key, name[key]);
+		}, this);
+		return this;
+	}
+
+	if(arguments.length === 1){
+		// getter attr('attr1')
+		if(this.attrHooks[name] && this.attrHooks[name].get){
+			return this.attrHooks[name].get.call(this);
+		}
+		return this.attrs[name];
+	}
+
+	// setter attr('attr1', 'val1')
+	if(this.attrHooks[name] && this.attrHooks[name].set){
+		var result = this.attrHooks[name].set.call(this, value);
+		if(result !== null){ // replace to result !== Delta._doNotSetProperty;
+			// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
+			this.attrs[name] = result === undefined ? value : result;
+		}
+	} else {
+		this.attrs[name] = value;
+	}
+
+	return this;
+};
 
 // Bounds class
 function Bounds(x, y, w, h){
@@ -98,11 +107,11 @@ function argument(index){
 } // не нужно
 
 // wrapper for quick calls
-function wrap(args){
-	var fn = args[1];
-	args = slice.call(args, 2);
+function wrap(args, index){
+	var funcName = args[index];
+	args = slice.call(args, index + 1);
 	return function(){
-		this[fn].apply(this, args);
+		this[funcName].apply(this, args);
 	};
 }
 
@@ -375,6 +384,7 @@ Delta.coordsOfElement = function(element){ // returns coords of a DOM element
 // Clean functions
 Delta.clone = function(object){
 	var result = new object.constructor();
+	// todo: replace to Object.keys
 	for(var i in object){
 		if(has(object, i)){
 			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){

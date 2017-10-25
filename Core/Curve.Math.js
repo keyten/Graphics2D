@@ -1,9 +1,31 @@
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
 
+// Curve utilities
+extend(Curve.prototype, {
+	before: function(){
+		if(!this.path){
+			return null;
+		}
+
+		var d = this.path.attr('d');
+		var index = d.indexOf(this);
+
+		if(index < 1){
+			return null;
+		}
+		return d[index - 1];
+	}
+});
+
 // General Curve methods
 extend(Curve.prototype, {
 	tangentAt: function(t, epsilon, startPoint){
+		// supports canvas curves
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].tangentAt){
+			return Curve.canvasFunctions[this.method].tangentAt(this, startPoint);
+		}
+
 		if(!epsilon){
 			epsilon = Curve.epsilon;
 		}
@@ -26,6 +48,11 @@ extend(Curve.prototype, {
 
 	normalAt: function(t, epsilon, startPoint){
 		return this.tangentAt(t, epsilon, startPoint) - 90;
+	},
+
+	flatten: function(detail, startPoint){
+		// превратить кривую в кучу прямых
+		// todo: запилить также атрибут flatten, который не превращает в прямые, но меняет отрисовку
 	},
 
 	// like reduce
@@ -97,14 +124,12 @@ extend(Curve.prototype, {
 		};
 	},
 
-	// работает весьма плохо, нужно поотлаживать
-	// переопределяет внутренний у curve, когда это не нужно
-	// нужно сделать точные у всех родных
 	bounds: function(startPoint, detail){
 		if(!startPoint){
 			startPoint = this.startAt();
 		}
 
+		// supports canvas curves
 		if(Curve.canvasFunctions[this.method].bounds){
 			return Curve.canvasFunctions[this.method].bounds(startPoint, this.attrs.args);
 		}
@@ -112,6 +137,8 @@ extend(Curve.prototype, {
 		if(!detail){
 			detail = Curve.detail;
 		}
+
+		// todo: how about binary search?
 
 		var point,
 
@@ -190,6 +217,8 @@ extend(Curve.canvasFunctions.lineTo, {
 		];
 	},
 
+	tangentAt: function(curve){},
+
 	splitAt: function(curve, t, startPoint){
 		if(!startPoint){
 			startPoint = curve.startAt();
@@ -220,33 +249,128 @@ extend(Curve.canvasFunctions.lineTo, {
 	}
 });
 
-// LineTo
+// QuadraticCurveTo
 extend(Curve.canvasFunctions.quadraticCurveTo, {
+	pointAt: function(){},
+	tangentAt: function(){},
+	splitAt: function(){},
+
+	length: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var x0 = startPoint[0],
+			y0 = startPoint[1],
+			x1 = curve.attrs.args[0],
+			y1 = curve.attrs.args[1],
+			x2 = curve.attrs.args[2],
+			y2 = curve.attrs.args[3],
+
+			dx0 = x1 - x0,
+			dy0 = y1 - y0,
+			dx1 = x2 - x1,
+			dy1 = y2 - y1,
+
+			A = Math.pow(dx0 - dx1, 2) + Math.pow(dy0 - dy1, 2),
+			B = 2 * (dx0 * (dx1 - dx0) + dy0 * (dy1 - dy0)),
+			C = dx0 * dx0 + dy0 * dy0;
+
+		// 2 * Int( sqrt(C + tB + t^2 A) dt )
+
+// A is zero if and only if the len is zero
+// so check before integrating
+
+		function integral(t){
+		console.log( 2 * A * t + B );
+
+			return ((2 * A * t + B) * Math.sqrt(t * (A * t + B) + C)) /
+					(4 * A) -
+				((B * B - 4 * A * C) * Math.log(2 * Math.sqrt(A) * Math.sqrt(t * (A * t + B) + C) + 2 * A * t + B)) / (8 * Math.pow(A, 3/2))
+		}
+
+		return integral(1) - integral(0);
+	},
+
 	bounds: function(startPoint, attrs){
-		// note: doesn't work right
+		var x0 = startPoint[0],
+			y0 = startPoint[1],
+			hx = attrs[0],
+			hy = attrs[1],
+			x2 = attrs[2],
+			y2 = attrs[3],
+			tx = (x0 - hx) / (x2 - 2 * hx + x0),
+			ty = (y0 - hy) / (y2 - 2 * hy + y0),
+			extrX, extrY;
+
+		if(tx >= 0 && tx <= 1){
+			extrX = [
+				Math.pow(1 - tx, 2) * x0 + 2 * (1 - tx) * tx * hx + tx * tx * x2,
+				Math.pow(1 - tx, 2) * y0 + 2 * (1 - tx) * tx * hy + tx * tx * y2
+			];
+		}
+
+		if(ty >= 0 && ty <= 1){
+			extrY = [
+				Math.pow(1 - ty, 2) * x0 + 2 * (1 - ty) * ty * hx + ty * ty * x2,
+				Math.pow(1 - ty, 2) * y0 + 2 * (1 - ty) * ty * hy + ty * ty * y2
+			];
+		}
+
+		return [
+			Math.min(x0, x2, extrX ? extrX[0] : Infinity, extrY ? extrY[0] : Infinity),
+			Math.min(y0, y2, extrX ? extrX[1] : Infinity, extrY ? extrY[1] : Infinity),
+			Math.max(x0, x2, extrX ? extrX[0] : -Infinity, extrY ? extrY[0] : -Infinity),
+			Math.max(y0, y2, extrX ? extrX[1] : -Infinity, extrY ? extrY[1] : -Infinity)
+		];
+	}
+});
+
+// BezierCurveTo
+extend(Curve.canvasFunctions.bezierCurveTo, {
+	bounds: function(startPoint, attrs){
 		var x0 = startPoint[0],
 			y0 = startPoint[1],
 			x1 = attrs[0],
 			y1 = attrs[1],
 			x2 = attrs[2],
-			y2 = attrs[3];
+			y2 = attrs[3],
+			x3 = attrs[4],
+			y3 = attrs[5],
 
-		var tx = (x0 - x1 / 2) / (x0 - x1 + x2);
-		var ty = (y0 - y1 / 2) / (y0 - y1 + y2);
+			ax = 3 * (-x0 + 3 * x1 - 3 * x2 + x3),
+			ay = 3 * (-y0 + 3 * y1 - 3 * y2 + y3),
+			bx = 6 * (x0 - 2 * x1 + x2),
+			by = 6 * (y0 - 2 * y1 + y2),
+			cx = 3 * (x1 - x0),
+			cy = 3 * (y1 - y0),
 
-		var x;
-		var y;
-		if(tx >= 0 && tx <= 1){
-			x = Math.pow(1 - tx, 2) * x0 + (1 - tx) * tx * x1 + tx * tx * x2;;
+			dxrt = Math.sqrt(bx * bx - 4 * ax * cx),
+			dyrt = Math.sqrt(by * by - 4 * ay * cy),
+
+			extrX1, extrX2, extrY1, extrY2;
+
+		function bezierPoint(t){
+			return t >= 0 && t <= 1 && [
+				Math.pow(1 - t, 3) * x0 + 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t * x3,
+				Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t * y3
+			];
 		}
-		if(ty >= 0 && ty <= 1){
-			y = Math.pow(1 - ty, 2) * y0 + (1 - ty) * ty * y1 + ty * ty * y2;
-		}
 
-		var minX = Math.min(startPoint[0], attrs[2], x === undefined ? Infinity : x);
-		var minY = Math.min(startPoint[1], attrs[3], y === undefined ? Infinity : y);
-		var maxX = Math.max(startPoint[0], attrs[2], x === undefined ? -Infinity : x);
-		var maxY = Math.max(startPoint[1], attrs[3], y === undefined ? -Infinity : y);
-		return [minX, minY, maxX, maxY];
+		extrX1 = bezierPoint((-bx + dxrt) / (2 * ax));
+		extrX2 = bezierPoint((-bx - dxrt) / (2 * ax));
+		extrY1 = bezierPoint((-by + dyrt) / (2 * ay));
+		extrY2 = bezierPoint((-by - dyrt) / (2 * ay));
+
+		return [
+			Math.min(x0, x3, extrX1 ? extrX1[0] : Infinity, extrX2 ? extrX2[0] : Infinity,
+				extrY1 ? extrY1[0] : Infinity, extrY2 ? extrY2[0] : Infinity),
+			Math.min(y0, y3, extrX1 ? extrX1[1] : Infinity, extrX2 ? extrX2[1] : Infinity,
+				extrY1 ? extrY1[1] : Infinity, extrY2 ? extrY2[1] : Infinity),
+			Math.max(x0, x3, extrX1 ? extrX1[0] : -Infinity, extrX2 ? extrX2[0] : -Infinity,
+				extrY1 ? extrY1[0] : -Infinity, extrY2 ? extrY2[0] : -Infinity),
+			Math.max(y0, y3, extrX1 ? extrX1[1] : -Infinity, extrX2 ? extrX2[1] : -Infinity,
+				extrY1 ? extrY1[1] : -Infinity, extrY2 ? extrY2[1] : -Infinity)
+		];
 	}
 });

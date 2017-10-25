@@ -10,7 +10,7 @@ function getTemporaryCanvas(width, height){
 }
 
 function DrawableAttrHooks(attrs){
-	extend(this, attrs); // deepExtend neccessary?
+	extend(this, attrs); // todo: deepExtend neccessary?
 }
 
 Drawable = new Class({
@@ -77,38 +77,7 @@ Drawable = new Class({
 	},
 
 	// Attributes
-	attr: function(name, value){
-		if(Array.isArray(name)){
-			return name.map(function(name){
-				return this.attr(name);
-			}, this);
-		} else if(name + '' !== name){
-			Object.keys(name).forEach(function(key){
-				this.attr(key, name[key]);
-			}, this);
-			return this;
-		}
-
-		if(arguments.length === 1){
-			// its the fastest way
-			if(this.attrHooks[name] && this.attrHooks[name].get){
-				return this.attrHooks[name].get.call(this);
-			}
-			return this.attrs[name];
-		}
-
-		if(this.attrHooks[name] && this.attrHooks[name].set){
-			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== null){ // replace to result !== Delta._doNotSetProperty;
-				// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
-				this.attrs[name] = result === undefined ? value : result;
-			}
-		} else {
-			this.attrs[name] = value;
-		}
-
-		return this;
-	},
+	attr: Class.attr,
 
 	attrHooks: DrawableAttrHooks.prototype = {
 		z: {
@@ -779,10 +748,6 @@ Drawable.processShadow = function(shadow, style){
 Delta.Drawable = Drawable;
 
 // events aliases
-Context.prototype.eventsInteract.forEach(function(eventName){
-	Drawable.prototype[eventName] = Context.prototype[eventName] = function(callback){
-		return this[
-			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
-		].apply(this, [eventName].concat(slice.call(arguments)));
-	};
+eventsToInteract.forEach(function(eventName){
+	Drawable.prototype[eventName] = Context.prototype[eventName];
 });

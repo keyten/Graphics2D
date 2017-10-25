@@ -28,7 +28,7 @@ Gradient = new Class({
 		}
 	},
 
-	attr: Drawable.prototype.attr,
+	attr: Class.attr,
 
 	attrHooks: {
 		colors: {

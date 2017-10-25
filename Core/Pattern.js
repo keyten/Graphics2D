@@ -30,4 +30,6 @@ Pattern = new Class({
 	}
 });
 
+// https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern/setTransform
+
 Delta.Pattern = Pattern;

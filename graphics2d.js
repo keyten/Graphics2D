@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 13.10.2017
+ *  Last edit: 25.10.2017
  *  License: MIT / LGPL
  */
 
@@ -12,7 +12,7 @@ var Delta = {},
 
 // Classes
 	Context,
-	Drawable,
+	Drawable, // todo: var DOMImage = Image, Image = class...
 	Animation,
 	Rect, Circle, Curve, Path, Picture, Text,
 	Gradient, Pattern,
@@ -33,6 +33,44 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
+
+// DOM
+	eventsToInteract = [
+		// mouse
+		'click',
+		'dblclick',
+		'mousedown',
+		'mouseup',
+		'mousemove',
+		'mouseover',
+		'mouseout',
+		'mouseenter',
+		'mouseleave',
+		'mousewheel',
+		'blur',
+		'focus',
+		// keyboard
+		'keypress',
+		'keydown',
+		'keyup',
+		// touch
+		'touchstart',
+		'touchmove',
+		'touchend',
+		'touchcancel',
+		// pointer
+		'pointerover',
+		'pointerenter',
+		'pointerdown',
+		'pointermove',
+		'pointerup',
+		'pointercancel',
+		'pointerout',
+		'pointerleave',
+		// check:
+		'gotpointercapture',
+		'lostpointercapture'
+	],
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -59,6 +97,567 @@ var Delta = {},
 						   window.clearTimeout;
 
 Delta.renderers = {};
+// Class
+function Class(parent, properties){
+	if(!properties){
+		properties = parent;
+		parent = null;
+	}
+
+	var init = function(){
+		return this.initialize && this.initialize.apply(this, arguments);
+	};
+
+	if(parent){
+		// prototype inheriting
+		var sklass = function(){};
+		sklass.prototype = parent.prototype;
+		init.prototype = new sklass();
+		init.prototype.superclass = parent.prototype;
+		init.prototype.constructor = init;
+
+		init.prototype.super = function(name, args){
+			// при вызове super внутри таймаута получим бесконечный цикл
+			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
+			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
+			if(!this.superclass.superclass || !this.superclass.superclass[name]){
+				return this.superclass[name].apply(this, args);
+			}
+
+			var superclass = this.superclass;
+			this.superclass = this.superclass.superclass;
+			var result = superclass[name].apply(this, args);
+			this.superclass = parent.prototype;
+			return result;
+		};
+	}
+
+	extend(init.prototype, properties);
+
+	return init;
+}
+
+Class.attr = function(name, value){
+	if(Array.isArray(name)){
+		// getter attr(['attr1', 'attr2'])
+		return name.map(function(name){
+			return this.attr(name);
+		}, this);
+	} else if(name + '' !== name){
+		// setter attr({ attr1: val1, attr2: val2 });
+		Object.keys(name).forEach(function(key){
+			this.attr(key, name[key]);
+		}, this);
+		return this;
+	}
+
+	if(arguments.length === 1){
+		// getter attr('attr1')
+		if(this.attrHooks[name] && this.attrHooks[name].get){
+			return this.attrHooks[name].get.call(this);
+		}
+		return this.attrs[name];
+	}
+
+	// setter attr('attr1', 'val1')
+	if(this.attrHooks[name] && this.attrHooks[name].set){
+		var result = this.attrHooks[name].set.call(this, value);
+		if(result !== null){ // replace to result !== Delta._doNotSetProperty;
+			// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
+			this.attrs[name] = result === undefined ? value : result;
+		}
+	} else {
+		this.attrs[name] = value;
+	}
+
+	return this;
+};
+
+// Bounds class
+function Bounds(x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
+
+	this.x = this.x1 = x;
+	this.y = this.y1 = y;
+	this.w = this.width  = w;
+	this.h = this.height = h;
+	this.x2 = x + w;
+	this.y2 = y + h;
+	this.cx = x + w / 2;
+	this.cy = y + h / 2;
+}
+
+Delta.bounds = function(x, y, width, height){
+	return new Bounds(x, y, width, height);
+};
+
+// utils
+function argument(index){
+	return function(value){
+		return this.argument( index, value );
+	};
+} // не нужно
+
+// wrapper for quick calls
+function wrap(args, index){
+	var funcName = args[index];
+	args = slice.call(args, index + 1);
+	return function(){
+		this[funcName].apply(this, args);
+	};
+}
+
+// typeofs
+
+/*
+use common typeofs
+String: something + '' === something
+Boolean: !!something === something
+Array: Array.isArray(something)
+Number: +something === something
+Function: typeof something === 'function'
+ */
+
+function isObject(a){
+	return toString.call(a) === '[object Object]';
+}
+
+function isPivot(v){
+	return Array.isArray(v) || v in Delta.corners;
+}
+
+function isNumberLike(value){
+	return +value === value || (value + '' === value && reNumberLike.test(value));
+}
+
+// todo: Pattern.isPatternLike();
+function isPatternLike(value){
+	return value instanceof Image ||
+			(isObject(value) && has(value, 'image')) ||
+			(value + '' === value && !(
+				value.indexOf('http://') &&
+				value.indexOf('https://') &&
+				value.indexOf('./') &&
+				value.indexOf('../') &&
+				value.indexOf('data:image/') &&
+				value.indexOf('<svg')
+			) );
+}
+
+function parsePoint(point){
+	if(+point === point){
+		point = Delta.distance(point);
+		return [point, point];
+	}
+	return [
+		Delta.distance(point[0]),
+		Delta.distance(point[1])
+	];
+}
+
+Delta.class = Class;
+Delta.Bounds = Bounds;
+Delta.extend = extend;
+Delta.argument = argument;
+Delta.wrap = wrap;
+Delta.isObject = isObject;
+Delta.isNumberLike = isNumberLike;
+Delta.isPatternLike = isPatternLike;
+
+// constants
+Delta.dashes = {
+	shortdash:			[4, 1],
+	shortdot:			[1, 1],
+	shortdashdot:		[4, 1, 1, 1],
+	shortdashdotdot:	[4, 1, 1, 1, 1, 1],
+	dot:				[1, 3],
+	dash:				[4, 3],
+	longdash:			[8, 3],
+	dashdot:			[4, 3, 1, 3],
+	longdashdot:		[8, 3, 1, 3],
+	longdashdotdot:		[8, 3, 1, 3, 1, 3]
+};
+
+Delta.fileTypes = {
+	'jpeg': 'image/jpeg',
+	'jpg': 'image/jpeg',
+	'png': 'image/png',
+	'webp': 'image/webp'
+};
+
+Delta.corners = {
+	'left'  : [0, 0.5],
+	'right' : [1, 0.5],
+	'top'   : [0.5, 0],
+	'bottom': [0.5, 1],
+	'center': [0.5, 0.5],
+	'left top'    : [0, 0],
+	'top left'    : [0, 0],
+	'left bottom' : [0, 1],
+	'bottom left' : [0, 1],
+	'right top'   : [1, 0],
+	'top right'   : [1, 0],
+	'right bottom': [1, 1],
+	'bottom right': [1, 1],
+
+	'lt'	: [0, 0],
+	'tl'	: [0, 0],
+	'lb'	: [0, 1],
+	'bl'	: [0, 1],
+	'rt'	: [1, 0],
+	'tr'	: [1, 0],
+	'rb'	: [1, 1],
+	'br'	: [1, 1]
+};
+
+Delta.colors = { // http://www.w3.org/TR/css3-color/#svg-color
+	'aliceblue':				'f0f8ff',
+	'antiquewhite':				'faebd7',
+	'aqua':						'0ff',
+	'aquamarine':				'7fffd4',
+	'azure':					'f0ffff',
+	'beige':					'f5f5dc',
+	'bisque':					'ffe4c4',
+	'black':					'000',
+	'blanchedalmond':			'ffebcd',
+	'blue':						'00f',
+	'blueviolet':				'8a2be2',
+	'brown':					'a52a2a',
+	'burlywood':				'deb887',
+	'burntsienna':				'ea7e5d',
+	'cadetblue':				'5f9ea0',
+	'chartreuse':				'7fff00',
+	'chocolate':				'd2691e',
+	'chucknorris':				'c00000',
+	'coral':					'ff7f50',
+	'cornflowerblue':			'6495ed',
+	'cornsilk':					'fff8dc',
+	'crimson':					'dc143c',
+	'cyan':						'0ff',
+	'darkblue':					'00008b',
+	'darkcyan':					'008b8b',
+	'darkgoldenrod':			'b8860b',
+	'darkgray':					'a9a9a9',
+	'darkgreen':				'006400',
+	'darkgrey':					'a9a9a9',
+	'darkkhaki':				'bdb76b',
+	'darkmagenta':				'8b008b',
+	'darkolivegreen':			'556b2f',
+	'darkorange':				'ff8c00',
+	'darkorchid':				'9932cc',
+	'darkred':					'8b0000',
+	'darksalmon':				'e9967a',
+	'darkseagreen':				'8fbc8f',
+	'darkslateblue':			'483d8b',
+	'darkslategray':			'2f4f4f',
+	'darkslategrey':			'2f4f4f',
+	'darkturquoise':			'00ced1',
+	'darkviolet':				'9400d3',
+	'deeppink':					'ff1493',
+	'deepskyblue':				'00bfff',
+	'dimgray':					'696969',
+	'dimgrey':					'696969',
+	'dodgerblue':				'1e90ff',
+	'firebrick':				'b22222',
+	'floralwhite':				'fffaf0',
+	'forestgreen':				'228b22',
+	'fuchsia':					'f0f',
+	'gainsboro':				'dcdcdc',
+	'ghostwhite':				'f8f8ff',
+	'gold':						'ffd700',
+	'goldenrod':				'daa520',
+	'gray':						'808080',
+	'green':					'008000',
+	'greenyellow':				'adff2f',
+	'grey':						'808080',
+	'honeydew':					'f0fff0',
+	'hotpink':					'ff69b4',
+	'indianred':				'cd5c5c',
+	'indigo':					'4b0082',
+	'ivory':					'fffff0',
+	'khaki':					'f0e68c',
+	'lavender':					'e6e6fa',
+	'lavenderblush':			'fff0f5',
+	'lawngreen':				'7cfc00',
+	'lemonchiffon':				'fffacd',
+	'lightblue':				'add8e6',
+	'lightcoral':				'f08080',
+	'lightcyan':				'e0ffff',
+	'lightgoldenrodyellow':		'fafad2',
+	'lightgray':				'd3d3d3',
+	'lightgreen':				'90ee90',
+	'lightgrey':				'd3d3d3',
+	'lightpink':				'ffb6c1',
+	'lightsalmon':				'ffa07a',
+	'lightseagreen':			'20b2aa',
+	'lightskyblue':				'87cefa',
+	'lightslategray':			'789',
+	'lightslategrey':			'789',
+	'lightsteelblue':			'b0c4de',
+	'lightyellow':				'ffffe0',
+	'lime':						'0f0',
+	'limegreen':				'32cd32',
+	'linen':					'faf0e6',
+	'magenta':					'f0f',
+	'maroon':					'800000',
+	'mediumaquamarine':			'66cdaa',
+	'mediumblue':				'0000cd',
+	'mediumorchid':				'ba55d3',
+	'mediumpurple':				'9370db',
+	'mediumseagreen':			'3cb371',
+	'mediumslateblue':			'7b68ee',
+	'mediumspringgreen':		'00fa9a',
+	'mediumturquoise':			'48d1cc',
+	'mediumvioletred':			'c71585',
+	'midnightblue':				'191970',
+	'mintcream':				'f5fffa',
+	'mistyrose':				'ffe4e1',
+	'moccasin':					'ffe4b5',
+	'navajowhite':				'ffdead', // FF is not dead
+	'navy':						'000080',
+	'oldlace':					'fdf5e6',
+	'olive':					'808000',
+	'olivedrab':				'6b8e23',
+	'orange':					'ffa500',
+	'orangered':				'ff4500',
+	'orchid':					'da70d6',
+	'palegoldenrod':			'eee8aa',
+	'palegreen':				'98fb98',
+	'paleturquoise':			'afeeee',
+	'palevioletred':			'db7093',
+	'papayawhip':				'ffefd5',
+	'peachpuff':				'ffdab9',
+	'peru':						'cd853f',
+	'pink':						'ffc0cb',
+	'plum':						'dda0dd',
+	'powderblue':				'b0e0e6',
+	'purple':					'800080',
+	'red':						'f00',
+	'rosybrown':				'bc8f8f',
+	'royalblue':				'4169e1',
+	'saddlebrown':				'8b4513',
+	'salmon':					'fa8072',
+	'sandybrown':				'f4a460',
+	'seagreen':					'2e8b57',
+	'seashell':					'fff5ee',
+	'sienna':					'a0522d',
+	'silver':					'c0c0c0',
+	'skyblue':					'87ceeb',
+	'slateblue':				'6a5acd',
+	'slategray':				'708090',
+	'slategrey':				'708090',
+	'snow':						'fffafa',
+	'springgreen':				'00ff7f',
+	'steelblue':				'4682b4',
+	'tan':						'd2b48c',
+	'teal':						'008080',
+	'thistle':					'd8bfd8',
+	'tomato':					'ff6347',
+	'turquoise':				'40e0d0',
+	'violet':					'ee82ee',
+	'wheat':					'f5deb3',
+	'white':					'fff',
+	'whitesmoke':				'f5f5f5',
+	'yellow':					'ff0',
+	'yellowgreen':				'9acd32'
+};
+
+// DOM
+Delta.coordsOfElement = function(element){ // returns coords of a DOM element
+	var box = element.getBoundingClientRect(),
+		style = window.getComputedStyle(element);
+
+	return {
+		x: box.left + parseInt(style.borderLeftWidth || 0) + parseInt(style.paddingLeft || 0),
+		y: box.top  + parseInt(style.borderTopWidth  || 0) + parseInt(style.paddingTop  || 0)
+	};
+};
+
+// Clean functions
+Delta.clone = function(object){
+	var result = new object.constructor();
+	// todo: replace to Object.keys
+	for(var i in object){
+		if(has(object, i)){
+			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
+				result[i] = Delta.clone(object[i]);
+			} else {
+				result[i] = object[i];
+			}
+		}
+	}
+	return result;
+};
+
+// Matrices
+// renamed from Delta.multiply
+// rename to Delta.transformMatrix?
+Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
+	return [
+		m1[0] * m2[0] + m1[2] * m2[1],
+		m1[1] * m2[0] + m1[3] * m2[1],
+		m1[0] * m2[2] + m1[2] * m2[3],
+		m1[1] * m2[2] + m1[3] * m2[3],
+		m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
+		m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+	];
+};
+
+Delta.transformPoint = function(matrix, point){
+	return [
+		matrix[0] * point[0] + matrix[2] * point[1] + matrix[4],
+		matrix[1] * point[0] + matrix[3] * point[1] + matrix[5]
+	];
+};
+
+Delta.inverseTransform = function(matrix){
+	var det = matrix[0] * matrix[3] - matrix[2] * matrix[1];
+
+	if(det === 0){
+		return null;
+	}
+
+	return [
+		matrix[3] / det,
+		-matrix[1] / det,
+		-matrix[2] / det,
+		matrix[0] / det,
+		-(matrix[3] * matrix[4] - matrix[2] * matrix[5]) / det,
+		(matrix[1] * matrix[4] - matrix[0] * matrix[5]) / det
+	];
+};
+
+Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
+	if(value === undefined){
+		return;
+	}
+	if(Array.isArray(value)){
+		return value.slice(0, 4);
+	}
+	if(value + '' !== value){
+		throw 'Not a color: ' + value.toString();
+	}
+
+	// rgba(255, 100, 20, 0.5)
+	if(value.indexOf('rgb') === 0){
+		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',');
+		var opacity = value[3];
+		value = value.slice(0, 3).map(function(v, i){
+			// rgba(100%, 0%, 50%, 1)
+			if(v.indexOf('%') > 0){
+				return Math.round(parseInt(v) * 2.55);
+			}
+			return parseInt(v);
+		});
+
+		if(opacity === undefined){
+			opacity = 1;
+		}
+		value.push(Number(opacity));
+
+		return value;
+	}
+	// #bebebe
+	else if(value[0] === '#'){
+		// remove the # and turn into array
+		value = value.substring(1);
+
+		// #555
+		if(value.length === 3){
+			// 'f0a' -> 'ff00aa'
+			value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
+		}
+
+		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
+	}
+	// 'red'
+	else if(value in Delta.colors){
+		return Delta.color('#' + Delta.colors[value]);
+	}
+	// 'rand'
+	else if(value === 'rand'){
+		return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), 1];
+	}
+
+	return [0, 0, 0, 0];
+};
+
+Delta.angleUnit = 'grad';
+Delta.unit = 'px';
+
+var units = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
+var defaultUnits = {
+	// my values; may be different on different screens / browsers / devices / etc
+	px: 1, ch: 8, cm: 37.78125, em: 16,
+	ex: 7.15625, 'in': 96, mm: 3.765625,
+	pc: 16, pt: 1.328125, rem: 16, v: 16,
+	vmax: 13.65625, vmin: 4.78125, wvh: 16
+	// values from p5.js:
+	// pt: 1.25
+	// pc: 15
+	// mm: 3.543307
+	// cm: 35.43307
+	// in: 90
+};
+
+Delta.snapToPixels = 1;
+
+function distance(value, dontsnap){
+	if(value === undefined) return;
+	if(!value) return 0;
+	// todo: snapToPixels === 1 ? return Math.round(...) : ...
+	if(Delta.snapToPixels && !dontsnap){
+		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
+	}
+
+	if(+value === value){
+		if(Delta.unit !== 'px'){
+			return Delta.distance( value + '' + Delta.unit );
+		}
+
+		return value;
+	}
+
+	value += '';
+	if(value.indexOf('px') === value.length-2){
+		return parseInt(value);
+	}
+
+	if(!Delta.units){
+		if(!document){
+			Delta.units = defaultUnits;
+		} else {
+			var div = document.createElement('div');
+			document.body.appendChild(div); // FF doesn't need this :)
+			Delta.units = {};
+			units.forEach(function(unit){
+				div.style.width = '1' + unit;
+				Delta.units[unit] = parseFloat(getComputedStyle(div).width);
+			});
+			document.body.removeChild(div);
+		}
+	}
+
+	var unit = value.replace(/[\d\.]+?/g, '');
+	value = value.replace(/[^\d\.]+?/g, '');
+	if(unit === ''){
+		return value;
+	}
+
+	if(Delta.snapToPixels === 1){
+		return Math.round(Delta.units[unit] * value);
+	}
+	return Delta.units[unit] * value;
+}
+
+Delta.distance = distance;
 
 Delta.renderers['2d'] = {
 
@@ -487,110 +1086,14 @@ Context.prototype = {
 
 		this.listeners[event] = [];
 
-		if(this.eventsHooks.hasOwnProperty(event)){
-			// todo: eventHook.on
-			this.eventsHooks[event].call(this, event);
+		if(this.eventsHooks[event]){
+			(this.eventsHooks[event].setup || this.eventsHooks[event]).call(this, event);
 		}
-
-		if(this.eventsInteract.indexOf(event) === -1){
-			return this.listeners[event];
-		}
-
-		this.canvas.addEventListener(event, function(e){
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			if(event === 'mouseout'){
-				e.targetObject = this.hoverElement;
-				this.hoverElement = null;
-
-				var coords = this.contextCoords(e.clientX, e.clientY);
-				e.contextX = coords[0];
-				e.contextY = coords[1];
-
-				if(e.targetObject && e.targetObject.fire){
-					if(!e.targetObject.fire('mouseout', e)){
-						e.stopPropagation();
-						e.preventDefault();
-					}
-				}
-			} else {
-				// negative contextX / contextY when canvas has a border
-				// not a bug, it's a feature :)
-				if(+e.clientX === e.clientX){
-					this._processPointParams(e, event, e);
-				}
-				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
-					if(e[prop]){
-						Array.prototype.forEach.call(e[prop], function(touch){
-							this._processPointParams(touch, event, e);
-						}, this);
-					}
-				}, this);
-			}
-
-			if(propagation){
-				this.fire(event, e);
-			}
-		}.bind(this));
 
 		return this.listeners[event];
 	},
 
-// remove from Context.prototype
-	_processPointParams: function(point, name, event){
-		var coords = this.contextCoords(point.clientX, point.clientY);
-		point.contextX = coords[0];
-		point.contextY = coords[1];
-
-		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
-		if(point.targetObject && point.targetObject.fire){
-			if(!point.targetObject.fire(name, event)){
-				event.stopPropagation();
-				event.preventDefault();
-			}
-		}
-	},
-
-	eventsInteract: [
-		// mouse
-		'click',
-		'dblclick',
-		'mousedown',
-		'mouseup',
-		'mousemove',
-		'mouseover',
-		'mouseout',
-		'mouseenter',
-		'mouseleave',
-		'mousewheel',
-		'blur',
-		'focus',
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup',
-		// touch
-		'touchstart',
-		'touchmove',
-		'touchend',
-		'touchcancel',
-		// pointer
-		'pointerover',
-		'pointerenter',
-		'pointerdown',
-		'pointermove',
-		'pointerup',
-		'pointercancel',
-		'pointerout',
-		'pointerleave',
-		// check:
-		'gotpointercapture',
-		'lostpointercapture'
-	],
+	eventsInteract: eventsToInteract,
 
 	eventsHooks : {
 		mouseover : function(){
@@ -634,9 +1137,6 @@ Context.prototype = {
 					last.fire(out, e);
 				}
 				if(current && current.fire){
-					// it is not good to change event object
-					// make special class for event obs?
-					// e.originalEvent and etc
 					e.targetObject = current;
 					current.fire(over, e);
 				}
@@ -646,13 +1146,81 @@ Context.prototype = {
 		return this;
 	},
 
-	on : function(event, callback){
+	listenerCanvas : function(event){
+		this.canvas.addEventListener(event, function(e){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			if(event === 'mouseout'){
+				e.targetObject = this.hoverElement;
+				this.hoverElement = null;
+
+				var coords = this.contextCoords(e.clientX, e.clientY);
+				e.contextX = coords[0];
+				e.contextY = coords[1];
+
+				if(e.targetObject && e.targetObject.fire){
+					if(!e.targetObject.fire('mouseout', e)){
+						e.stopPropagation();
+						e.preventDefault();
+					}
+				}
+			} else {
+				// negative contextX / contextY when canvas has a border
+				// not a bug, it's a feature :)
+				if(+e.clientX === e.clientX){
+					this._processPointParams(e, event, e);
+				}
+				['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
+					if(e[prop]){
+						Array.prototype.forEach.call(e[prop], function(touch){
+							this._processPointParams(touch, event, e);
+						}, this);
+					}
+				}, this);
+			}
+
+			if(propagation && !this.fire(event, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}.bind(this));
+	},
+
+	// todo: make up a more good name (contains 'Event')
+	_processPointParams: function(point, name, event){
+		var coords = this.contextCoords(point.clientX, point.clientY);
+		point.contextX = coords[0];
+		point.contextY = coords[1];
+
+		point.targetObject = this.getObjectInPoint(point.contextX, point.contextY, true);
+		if(point.targetObject && point.targetObject.fire){
+			if(!point.targetObject.fire(name, event)){
+				event.stopPropagation();
+				event.preventDefault();
+			}
+		}
+	},
+
+	on : function(event, options, callback){
 		if(event + '' !== event){
 			Object.keys(event).forEach(function(eventName){
 				this.on(eventName, event[eventName]);
 			});
 			return this;
 		}
+
+		if(!callback){
+			callback = options;
+			options = null;
+		}
+
+		callback.options = options;
+
+		// Quick calls are not supported!
 
 		(this.listeners[event] || this.listener(event)).push(callback);
 		return this;
@@ -682,6 +1250,22 @@ Context.prototype = {
 	contextCoords: function(x, y){
 		var coords = Delta.coordsOfElement(this.canvas);
 		return [x - coords.x, y - coords.y];
+	},
+
+	// Attrs
+	attr: Class.attr,
+	attrHooks: {
+		transform: {
+			get: function(){
+				if(this.attrs.transform === 'dirty'){
+					// calc and this... = ...
+				}
+				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+			},
+			set: function(value){
+				this.update();
+			}
+		}
 	},
 
 	// Transforms
@@ -754,6 +1338,18 @@ Context.prototype = {
 	}
 };
 
+eventsToInteract.forEach(function(eventName){
+	Context.prototype.eventsHooks[eventName] = function(){
+		this.listenerCanvas(eventName);
+	};
+
+	Context.prototype[eventName] = function(callback){
+		return this[
+			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
+		].apply(this, [eventName].concat(slice.call(arguments)));
+	};
+});
+
 Delta.Context = Context;
 
 Delta.contexts = {
@@ -776,7 +1372,7 @@ function getTemporaryCanvas(width, height){
 }
 
 function DrawableAttrHooks(attrs){
-	extend(this, attrs); // deepExtend neccessary?
+	extend(this, attrs); // todo: deepExtend neccessary?
 }
 
 Drawable = new Class({
@@ -843,38 +1439,7 @@ Drawable = new Class({
 	},
 
 	// Attributes
-	attr: function(name, value){
-		if(Array.isArray(name)){
-			return name.map(function(name){
-				return this.attr(name);
-			}, this);
-		} else if(name + '' !== name){
-			Object.keys(name).forEach(function(key){
-				this.attr(key, name[key]);
-			}, this);
-			return this;
-		}
-
-		if(arguments.length === 1){
-			// its the fastest way
-			if(this.attrHooks[name] && this.attrHooks[name].get){
-				return this.attrHooks[name].get.call(this);
-			}
-			return this.attrs[name];
-		}
-
-		if(this.attrHooks[name] && this.attrHooks[name].set){
-			var result = this.attrHooks[name].set.call(this, value);
-			if(result !== null){ // replace to result !== Delta._doNotSetProperty;
-				// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
-				this.attrs[name] = result === undefined ? value : result;
-			}
-		} else {
-			this.attrs[name] = value;
-		}
-
-		return this;
-	},
+	attr: Class.attr,
 
 	attrHooks: DrawableAttrHooks.prototype = {
 		z: {
@@ -1545,12 +2110,8 @@ Drawable.processShadow = function(shadow, style){
 Delta.Drawable = Drawable;
 
 // events aliases
-Context.prototype.eventsInteract.forEach(function(eventName){
-	Drawable.prototype[eventName] = Context.prototype[eventName] = function(callback){
-		return this[
-			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
-		].apply(this, [eventName].concat(slice.call(arguments)));
-	};
+eventsToInteract.forEach(function(eventName){
+	Drawable.prototype[eventName] = Context.prototype[eventName];
 });
 // todo:
 /* Drawable.prototype._genMatrix = function(){
@@ -2108,7 +2669,7 @@ Curve = new Class({
 		}
 	},
 
-	attr: Drawable.prototype.attr,
+	attr: Class.attr,
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);
@@ -2277,9 +2838,31 @@ Delta.curve = function(method, attrs, path){
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
 
+// Curve utilities
+extend(Curve.prototype, {
+	before: function(){
+		if(!this.path){
+			return null;
+		}
+
+		var d = this.path.attr('d');
+		var index = d.indexOf(this);
+
+		if(index < 1){
+			return null;
+		}
+		return d[index - 1];
+	}
+});
+
 // General Curve methods
 extend(Curve.prototype, {
 	tangentAt: function(t, epsilon, startPoint){
+		// supports canvas curves
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].tangentAt){
+			return Curve.canvasFunctions[this.method].tangentAt(this, startPoint);
+		}
+
 		if(!epsilon){
 			epsilon = Curve.epsilon;
 		}
@@ -2302,6 +2885,11 @@ extend(Curve.prototype, {
 
 	normalAt: function(t, epsilon, startPoint){
 		return this.tangentAt(t, epsilon, startPoint) - 90;
+	},
+
+	flatten: function(detail, startPoint){
+		// превратить кривую в кучу прямых
+		// todo: запилить также атрибут flatten, который не превращает в прямые, но меняет отрисовку
 	},
 
 	// like reduce
@@ -2373,14 +2961,12 @@ extend(Curve.prototype, {
 		};
 	},
 
-	// работает весьма плохо, нужно поотлаживать
-	// переопределяет внутренний у curve, когда это не нужно
-	// нужно сделать точные у всех родных
 	bounds: function(startPoint, detail){
 		if(!startPoint){
 			startPoint = this.startAt();
 		}
 
+		// supports canvas curves
 		if(Curve.canvasFunctions[this.method].bounds){
 			return Curve.canvasFunctions[this.method].bounds(startPoint, this.attrs.args);
 		}
@@ -2388,6 +2974,8 @@ extend(Curve.prototype, {
 		if(!detail){
 			detail = Curve.detail;
 		}
+
+		// todo: how about binary search?
 
 		var point,
 
@@ -2466,6 +3054,8 @@ extend(Curve.canvasFunctions.lineTo, {
 		];
 	},
 
+	tangentAt: function(curve){},
+
 	splitAt: function(curve, t, startPoint){
 		if(!startPoint){
 			startPoint = curve.startAt();
@@ -2496,34 +3086,129 @@ extend(Curve.canvasFunctions.lineTo, {
 	}
 });
 
-// LineTo
+// QuadraticCurveTo
 extend(Curve.canvasFunctions.quadraticCurveTo, {
+	pointAt: function(){},
+	tangentAt: function(){},
+	splitAt: function(){},
+
+	length: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var x0 = startPoint[0],
+			y0 = startPoint[1],
+			x1 = curve.attrs.args[0],
+			y1 = curve.attrs.args[1],
+			x2 = curve.attrs.args[2],
+			y2 = curve.attrs.args[3],
+
+			dx0 = x1 - x0,
+			dy0 = y1 - y0,
+			dx1 = x2 - x1,
+			dy1 = y2 - y1,
+
+			A = Math.pow(dx0 - dx1, 2) + Math.pow(dy0 - dy1, 2),
+			B = 2 * (dx0 * (dx1 - dx0) + dy0 * (dy1 - dy0)),
+			C = dx0 * dx0 + dy0 * dy0;
+
+		// 2 * Int( sqrt(C + tB + t^2 A) dt )
+
+// A is zero if and only if the len is zero
+// so check before integrating
+
+		function integral(t){
+		console.log( 2 * A * t + B );
+
+			return ((2 * A * t + B) * Math.sqrt(t * (A * t + B) + C)) /
+					(4 * A) -
+				((B * B - 4 * A * C) * Math.log(2 * Math.sqrt(A) * Math.sqrt(t * (A * t + B) + C) + 2 * A * t + B)) / (8 * Math.pow(A, 3/2))
+		}
+
+		return integral(1) - integral(0);
+	},
+
 	bounds: function(startPoint, attrs){
-		// note: doesn't work right
+		var x0 = startPoint[0],
+			y0 = startPoint[1],
+			hx = attrs[0],
+			hy = attrs[1],
+			x2 = attrs[2],
+			y2 = attrs[3],
+			tx = (x0 - hx) / (x2 - 2 * hx + x0),
+			ty = (y0 - hy) / (y2 - 2 * hy + y0),
+			extrX, extrY;
+
+		if(tx >= 0 && tx <= 1){
+			extrX = [
+				Math.pow(1 - tx, 2) * x0 + 2 * (1 - tx) * tx * hx + tx * tx * x2,
+				Math.pow(1 - tx, 2) * y0 + 2 * (1 - tx) * tx * hy + tx * tx * y2
+			];
+		}
+
+		if(ty >= 0 && ty <= 1){
+			extrY = [
+				Math.pow(1 - ty, 2) * x0 + 2 * (1 - ty) * ty * hx + ty * ty * x2,
+				Math.pow(1 - ty, 2) * y0 + 2 * (1 - ty) * ty * hy + ty * ty * y2
+			];
+		}
+
+		return [
+			Math.min(x0, x2, extrX ? extrX[0] : Infinity, extrY ? extrY[0] : Infinity),
+			Math.min(y0, y2, extrX ? extrX[1] : Infinity, extrY ? extrY[1] : Infinity),
+			Math.max(x0, x2, extrX ? extrX[0] : -Infinity, extrY ? extrY[0] : -Infinity),
+			Math.max(y0, y2, extrX ? extrX[1] : -Infinity, extrY ? extrY[1] : -Infinity)
+		];
+	}
+});
+
+// BezierCurveTo
+extend(Curve.canvasFunctions.bezierCurveTo, {
+	bounds: function(startPoint, attrs){
 		var x0 = startPoint[0],
 			y0 = startPoint[1],
 			x1 = attrs[0],
 			y1 = attrs[1],
 			x2 = attrs[2],
-			y2 = attrs[3];
+			y2 = attrs[3],
+			x3 = attrs[4],
+			y3 = attrs[5],
 
-		var tx = (x0 - x1 / 2) / (x0 - x1 + x2);
-		var ty = (y0 - y1 / 2) / (y0 - y1 + y2);
+			ax = 3 * (-x0 + 3 * x1 - 3 * x2 + x3),
+			ay = 3 * (-y0 + 3 * y1 - 3 * y2 + y3),
+			bx = 6 * (x0 - 2 * x1 + x2),
+			by = 6 * (y0 - 2 * y1 + y2),
+			cx = 3 * (x1 - x0),
+			cy = 3 * (y1 - y0),
 
-		var x;
-		var y;
-		if(tx >= 0 && tx <= 1){
-			x = Math.pow(1 - tx, 2) * x0 + (1 - tx) * tx * x1 + tx * tx * x2;;
+			dxrt = Math.sqrt(bx * bx - 4 * ax * cx),
+			dyrt = Math.sqrt(by * by - 4 * ay * cy),
+
+			extrX1, extrX2, extrY1, extrY2;
+
+		function bezierPoint(t){
+			return t >= 0 && t <= 1 && [
+				Math.pow(1 - t, 3) * x0 + 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t * x3,
+				Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t * y3
+			];
 		}
-		if(ty >= 0 && ty <= 1){
-			y = Math.pow(1 - ty, 2) * y0 + (1 - ty) * ty * y1 + ty * ty * y2;
-		}
 
-		var minX = Math.min(startPoint[0], attrs[2], x === undefined ? Infinity : x);
-		var minY = Math.min(startPoint[1], attrs[3], y === undefined ? Infinity : y);
-		var maxX = Math.max(startPoint[0], attrs[2], x === undefined ? -Infinity : x);
-		var maxY = Math.max(startPoint[1], attrs[3], y === undefined ? -Infinity : y);
-		return [minX, minY, maxX, maxY];
+		extrX1 = bezierPoint((-bx + dxrt) / (2 * ax));
+		extrX2 = bezierPoint((-bx - dxrt) / (2 * ax));
+		extrY1 = bezierPoint((-by + dyrt) / (2 * ay));
+		extrY2 = bezierPoint((-by - dyrt) / (2 * ay));
+
+		return [
+			Math.min(x0, x3, extrX1 ? extrX1[0] : Infinity, extrX2 ? extrX2[0] : Infinity,
+				extrY1 ? extrY1[0] : Infinity, extrY2 ? extrY2[0] : Infinity),
+			Math.min(y0, y3, extrX1 ? extrX1[1] : Infinity, extrX2 ? extrX2[1] : Infinity,
+				extrY1 ? extrY1[1] : Infinity, extrY2 ? extrY2[1] : Infinity),
+			Math.max(x0, x3, extrX1 ? extrX1[0] : -Infinity, extrX2 ? extrX2[0] : -Infinity,
+				extrY1 ? extrY1[0] : -Infinity, extrY2 ? extrY2[0] : -Infinity),
+			Math.max(y0, y3, extrX1 ? extrX1[1] : -Infinity, extrX2 ? extrX2[1] : -Infinity,
+				extrY1 ? extrY1[1] : -Infinity, extrY2 ? extrY2[1] : -Infinity)
+		];
 	}
 });
 var CurveCatmull = new Class(Curve, {
@@ -3063,12 +3748,15 @@ Delta.curves['lagrange'] = CurveLagrange;
 Delta.drawRibbonCurve = function(ctx, params){
 	var step = params.step || 0.2;
 	var prev = params.point(-step);
+	var prevDrawPoints;
+	var drawPoints;
 	for(var t = -step; t < 1.02; t += step){
 		var cur = params.point(t);
-		var drawPoints = getDrawPoints(prev, cur, 10, -1);
+		drawPoints = getDrawPoints(prev, cur, 10, -1);
 		if(t >= step){
 			ctx.lineWidth = 1;
-			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[1].y);
+			ctx.beginPath();
+			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[0].y)
 			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
 			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
 			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
@@ -3076,11 +3764,17 @@ Delta.drawRibbonCurve = function(ctx, params){
 			ctx.fill();
 			ctx.stroke();
 		}
+		prevDrawPoints = drawPoints;
 		prev = cur;
-		var prevDrawPoints = drawPoints;
 	}
 };
+// curve.attr('ribbon', true);
+// curve.attr('ribbonGradient', ctx.gradient('ribbon', 'horizontal' / 'vertical', colors, tStart = 0, tEnd = 1, etc));
 
+// or:
+// path.attr('ribbon', true)
+// path.attr('ribbonGradient', ...);
+// В свою очередь, должен быть абстрактный (не привязанный к канвасу!) класс Gradient
 function getDrawPoints(prev, cur, width, inverted){
 	var w = cur.x - prev.x,
 		h = cur.y - prev.y,
@@ -3947,69 +4641,503 @@ extend(Path.prototype, {
     }
 
 });
-// CurveUtils
-extend(Curve.prototype, {
-	before: function(){
-		if(!this.path){
-			return null;
-		}
-
-		var d = this.path.attr('d');
-		var index = d.indexOf(this);
-
-		if(index < 1){
-			return null;
-		}
-		return d[index - 1];
-	}
-});
+// todo: redefine Path.draw for passing current last coordinates into process function
+// or add this into Core Path
+// smth like curve.__lastCoordinates = [...]
+// or
+// this.__lastCoordinates = [...]
+// and in curve:
+// this.path.__lastCoordinates[0] + this.x...
 
 // SVG Curves
-Delta.curves['moveBy'] = new Class(Curve, {
-	process: function(ctx){
-		var lastPoint = this.before().endAt();
-		ctx.moveTo(lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]);
-	},
+extend(Delta.curves, {
+	// todo: add everywhere pointAt and etc
+	// they should be possible to animate
 
-	endAt: function(){
-		var lastPoint = this.before().endAt();
-		return [lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]];
-	}
+	moveBy: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.moveTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		}
+	}),
+
+	lineBy: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		}
+	}),
+
+	horizontalLineTo: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.lineTo(this.attrs.args[0], lastPoint[1]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [this.attrs.args[0], lastPoint[1]];
+		}
+	}),
+
+	horizontalLineBy: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [lastPoint[0] + this.attrs.args[0], lastPoint[1]];
+		}
+	}),
+
+	verticalLineTo: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.lineTo(lastPoint[0], this.attrs.args[0]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [lastPoint[0], this.attrs.args[0]];
+		}
+	}),
+
+	verticalLineBy: new Class(Curve, {
+		process: function(ctx){
+			var lastPoint = this.before().endAt();
+			ctx.lineTo(lastPoint[0], lastPoint[1] + this.attrs.args[0]);
+		},
+
+		endAt: function(){
+			var lastPoint = this.before().endAt();
+			return [lastPoint[0], lastPoint[1] + this.attrs.args[0]];
+		}
+	}),
+
+	quadraticCurveBy: new Class(Curve, {
+		getQuadraticParameters: function(){
+			var lastPoint = this.before().endAt();
+			return [
+				lastPoint[0] + this.attrs.args[0],
+				lastPoint[1] + this.attrs.args[1],
+				lastPoint[0] + this.attrs.args[2],
+				lastPoint[1] + this.attrs.args[3]
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getQuadraticParameters();
+			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
+		},
+
+		endAt: function(){
+			var p = this.getQuadraticParameters();
+			return [p[2], p[3]];
+		}
+	}),
+
+	shorthandQuadraticCurveTo: new Class(Curve, {
+		getQuadraticParameters: function(){
+			var lastCurve = this.before();
+			var lastPoint = lastCurve.endAt();
+			var tangentDelta;
+
+			if(lastCurve.method === 'quadraticCurveTo'){
+				lastCurve = lastCurve.attrs.args;
+			} else if(lastCurve.getQuadraticParameters){
+				lastCurve = lastCurve.getQuadraticParameters();
+			} else {
+				lastCurve = null;
+			}
+
+			if(lastCurve){
+				tangentDelta = [
+					lastCurve[2] - lastCurve[0],
+					lastCurve[3] - lastCurve[1],
+				];
+			} else {
+				tangentDelta = [0, 0];
+			}
+
+			return [
+				lastPoint[0] + tangentDelta[0],
+				lastPoint[1] + tangentDelta[1],
+				this.attrs.args[0],
+				this.attrs.args[1],
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getQuadraticParameters();
+			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
+		},
+
+		endAt: function(){
+			var p = this.getQuadraticParameters();
+			return [p[2], p[3]];
+		}
+	}),
+
+	shorthandQuadraticCurveBy: new Class(Curve, {
+		getQuadraticParameters: function(){
+			var lastCurve = this.before();
+			var lastPoint = lastCurve.endAt();
+			var tangentDelta;
+
+			if(lastCurve.method === 'quadraticCurveTo'){
+				lastCurve = lastCurve.attrs.args;
+			} else if(lastCurve.getQuadraticParameters){
+				lastCurve = lastCurve.getQuadraticParameters();
+			} else {
+				lastCurve = null;
+			}
+
+			if(lastCurve){
+				tangentDelta = [
+					lastCurve[2] - lastCurve[0],
+					lastCurve[3] - lastCurve[1],
+				];
+			} else {
+				tangentDelta = [0, 0];
+			}
+
+			return [
+				lastPoint[0] + tangentDelta[0],
+				lastPoint[1] + tangentDelta[1],
+				lastPoint[0] + this.attrs.args[0],
+				lastPoint[1] + this.attrs.args[1],
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getQuadraticParameters();
+			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
+		},
+
+		endAt: function(){
+			var p = this.getQuadraticParameters();
+			return [p[2], p[3]];
+		}
+	}),
+
+	bezierCurveBy: new Class(Curve, {
+		getBezierParameters: function(){
+			var lastPoint = this.before().endAt();
+			return [
+				lastPoint[0] + this.attrs.args[0],
+				lastPoint[1] + this.attrs.args[1],
+				lastPoint[0] + this.attrs.args[2],
+				lastPoint[1] + this.attrs.args[3],
+				lastPoint[0] + this.attrs.args[4],
+				lastPoint[1] + this.attrs.args[5]
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getBezierParameters();
+			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
+		},
+
+		endAt: function(){
+			var p = this.getBezierParameters();
+			return [p[4], p[5]];
+		}
+	}),
+
+	shorthandCurveTo: new Class(Curve, {
+		getBezierParameters: function(){
+			var lastCurve = this.before();
+			var lastPoint = lastCurve.endAt();
+			var tangentDelta;
+			// add quadratic support?
+
+			// possibly this will work will all the functions which can be approximated as bezier
+			if(lastCurve.getBezierParameters){
+				lastCurve = lastCurve.getBezierParameters();
+			} else if(lastCurve.method === 'bezierCurveTo'){
+				lastCurve = lastCurve.attrs.args;
+			} else {
+				lastCurve = null;
+			}
+
+			if(lastCurve){
+				tangentDelta = [
+					lastCurve[4] - lastCurve[2],
+					lastCurve[5] - lastCurve[3]
+				];
+			} else {
+				tangentDelta = [0, 0];
+			}
+
+			return [
+				lastPoint[0] + tangentDelta[0],
+				lastPoint[1] + tangentDelta[1],
+				this.attrs.args[0],
+				this.attrs.args[1],
+				this.attrs.args[2],
+				this.attrs.args[3],
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getBezierParameters();
+			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
+		},
+
+		endAt: function(){
+			var p = this.getBezierParameters();
+			return [p[4], p[5]];
+		}
+	}),
+
+	shorthandCurveBy: new Class(Curve, {
+		getBezierParameters: function(){
+			var lastCurve = this.before();
+			var lastPoint = lastCurve.endAt();
+			var tangentDelta;
+			if(lastCurve.getBezierParameters){
+				lastCurve = lastCurve.getBezierParameters();
+			} else if(lastCurve.method === 'bezierCurveTo'){
+				lastCurve = lastCurve.attrs.args;
+			} else {
+				lastCurve = null;
+			}
+
+			if(lastCurve){
+				tangentDelta = [
+					lastCurve[4] - lastCurve[2],
+					lastCurve[5] - lastCurve[3]
+				];
+			} else {
+				tangentDelta = [0, 0];
+			}
+
+			return [
+				lastPoint[0] + tangentDelta[0],
+				lastPoint[1] + tangentDelta[1],
+				lastPoint[0] + this.attrs.args[0],
+				lastPoint[1] + this.attrs.args[1],
+				lastPoint[0] + this.attrs.args[2],
+				lastPoint[1] + this.attrs.args[3],
+			];
+		},
+
+		process: function(ctx){
+			var p = this.getBezierParameters();
+			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
+		},
+
+		endAt: function(){
+			var p = this.getBezierParameters();
+			return [p[4], p[5]];
+		}
+	}),
+
+	ellipticalArcTo: new Class(Curve, {
+		process: function(ctx){
+			// rx, ry x-axis-rotation large-arc-flag, sweep-flag, x,y
+			var rx = this.attrs.args[0],
+				ry = this.attrs.args[1],
+				rot = this.attrs.args[2],
+				large = this.attrs.args[3] === 1,
+				sweep = this.attrs.args[4] === 1,
+				x = this.attrs.args[5],
+				y = this.attrs.args[6],
+
+				start = this.before().endAt();
+
+			var segs = arcToSegments(x, y, rx, ry, large, sweep, rot, start[0], start[1]);
+			segs.forEach(function(segment){
+				segment = segmentToBezier.apply(this, segment);
+				ctx.bezierCurveTo.apply(ctx, segment);
+			});
+
+			// from cakejs from inkscape
+			function arcToSegments(x, y, rx, ry, large, sweep, th, ox, oy) {
+				th = th * (Math.PI/180)
+				var sin_th = Math.sin(th)
+				var cos_th = Math.cos(th)
+				rx = Math.abs(rx)
+				ry = Math.abs(ry)
+				var px = cos_th * (ox - x) * 0.5 + sin_th * (oy - y) * 0.5
+				var py = cos_th * (oy - y) * 0.5 - sin_th * (ox - x) * 0.5
+				var pl = (px*px) / (rx*rx) + (py*py) / (ry*ry)
+				if (pl > 1) {
+				  pl = Math.sqrt(pl)
+				  rx *= pl
+				  ry *= pl
+				}
+
+				var a00 = cos_th / rx
+				var a01 = sin_th / rx
+				var a10 = (-sin_th) / ry
+				var a11 = (cos_th) / ry
+				var x0 = a00 * ox + a01 * oy
+				var y0 = a10 * ox + a11 * oy
+				var x1 = a00 * x + a01 * y
+				var y1 = a10 * x + a11 * y
+
+				var d = (x1-x0) * (x1-x0) + (y1-y0) * (y1-y0)
+				var sfactor_sq = 1 / d - 0.25
+				if (sfactor_sq < 0) sfactor_sq = 0
+				var sfactor = Math.sqrt(sfactor_sq)
+				if (sweep == large) sfactor = -sfactor
+				var xc = 0.5 * (x0 + x1) - sfactor * (y1-y0)
+				var yc = 0.5 * (y0 + y1) + sfactor * (x1-x0)
+
+				var th0 = Math.atan2(y0-yc, x0-xc)
+				var th1 = Math.atan2(y1-yc, x1-xc)
+
+				var th_arc = th1-th0
+				if (th_arc < 0 && sweep == 1){
+				  th_arc += 2*Math.PI
+				} else if (th_arc > 0 && sweep == 0) {
+				  th_arc -= 2 * Math.PI
+				}
+
+				var segments = Math.ceil(Math.abs(th_arc / (Math.PI * 0.5 + 0.001)))
+				var result = []
+				for (var i=0; i<segments; i++) {
+				  var th2 = th0 + i * th_arc / segments
+				  var th3 = th0 + (i+1) * th_arc / segments
+				  result[i] = [xc, yc, th2, th3, rx, ry, sin_th, cos_th]
+				}
+
+				return result
+			}
+
+			function segmentToBezier(cx, cy, th0, th1, rx, ry, sin_th, cos_th) {
+				var a00 = cos_th * rx
+				var a01 = -sin_th * ry
+				var a10 = sin_th * rx
+				var a11 = cos_th * ry
+
+				var th_half = 0.5 * (th1 - th0)
+				var t = (8/3) * Math.sin(th_half * 0.5) * Math.sin(th_half * 0.5) / Math.sin(th_half)
+				var x1 = cx + Math.cos(th0) - t * Math.sin(th0)
+				var y1 = cy + Math.sin(th0) + t * Math.cos(th0)
+				var x3 = cx + Math.cos(th1)
+				var y3 = cy + Math.sin(th1)
+				var x2 = x3 + t * Math.sin(th1)
+				var y2 = y3 - t * Math.cos(th1)
+				return [
+				  a00 * x1 + a01 * y1,      a10 * x1 + a11 * y1,
+				  a00 * x2 + a01 * y2,      a10 * x2 + a11 * y2,
+				  a00 * x3 + a01 * y3,      a10 * x3 + a11 * y3
+				];
+			}
+
+			;
+		},
+
+		endAt: function(){
+			return [
+				this.attrs.args[5],
+				this.attrs.args[6]
+			];
+		}
+	})
 });
 
-Delta.curves['lineBy'] = new Class(Curve, {
-	process: function(ctx){
-		var lastPoint = this.before().endAt();
-		ctx.lineTo(lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]);
-	},
+// SVG Parsing
+Delta.SVGCurves = {
+	M: 'moveTo',
+	m: 'moveBy',
+	L: 'lineTo',
+	l: 'lineBy',
+	H: 'horizontalLineTo',
+	h: 'horizontalLineBy',
+	V: 'verticalLineTo',
+	v: 'verticalLineBy',
+	C: 'bezierCurveTo',
+	c: 'bezierCurveBy',
+	S: 'shorthandCurveTo',
+	s: 'shorthandCurveBy',
+	Q: 'quadraticCurveTo',
+	q: 'quadraticCurveBy',
+	T: 'shorthandQuadraticCurveTo',
+	t: 'shorthandQuadraticCurveBy',
+	A: 'ellipticalArcTo',
+	a: 'ellipticalArcBy',
+	Z: 'closePath',
+	z: 'closePath'
+};
 
-	endAt: function(){
-		var lastPoint = this.before().endAt();
-		return [lastPoint[0] + this.funcAttrs[0], lastPoint[1] + this.funcAttrs[1]];
+Delta.SVGCurvesLengths = {
+	M: 2,
+	m: 2,
+	L: 2,
+	l: 2,
+	H: 1,
+	h: 1,
+	V: 1,
+	v: 1,
+	C: 6,
+	c: 6,
+	S: 4,
+	s: 4,
+	Q: 4,
+	q: 4,
+	T: 2,
+	t: 2,
+	A: 7,
+	a: 7,
+	z: 0
+};
+
+var pathParseOld = Path.parse;
+Path.parse = function(data, path, firstIsNotMove){
+	if(data + '' !== data){
+		return pathParseOld(data, path, firstIsNotMove);
 	}
-});
 
-Delta.curves['quadraticCurveBy'] = new Class(Curve, {
-	process: function(ctx){
-		var lastPoint = this.before().endAt();
-		ctx.quadraticCurveTo(
-			lastPoint[0] + this.funcAttrs[0],
-			lastPoint[1] + this.funcAttrs[1],
-			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3]
+	var result = [];
+	data.match(/[a-zA-Z](\s*-?\d+\,?|\s*-?\d*\.\d+\,?)*/g).forEach(function(curve, index){
+		var command = curve[0];
+		if(!Delta.SVGCurves[command]){
+			throw 'Unknown SVG curve command "' + command + '"';
+		}
+
+		// replacing anything like .7.8 to .7,.8
+		curve = curve.replace(/(\.\d+)\./g, '$1,.');
+
+		var args = curve.match(/-?\d+?\.\d+|-?\d+/g);
+		if(args){
+			args = args.map(Number);
+		} else {
+			args = [];
+		}
+
+		var len = Delta.SVGCurvesLengths[command];
+		while(args.length > len){
+			result.push(
+				Delta.curve(Delta.SVGCurves[command], args.slice(0, len), path)
+			);
+
+			args = args.slice(len);
+		}
+		result.push(
+			Delta.curve(Delta.SVGCurves[command], args, path)
 		);
-	},
+	});
+	return result;
+};
 
-	endAt: function(){
-		var lastPoint = this.before().endAt();
-		return [
-			lastPoint[0] + this.funcAttrs[0],
-			lastPoint[1] + this.funcAttrs[1],
-			lastPoint[0] + this.funcAttrs[2],
-			lastPoint[1] + this.funcAttrs[3]
-		];
-	}
-});
+/*
+http://www.intuit.ru/studies/courses/1063/210/lecture/5428
+*/
 
 extend(Path.prototype, {
 	moveBy: function(x, y){
@@ -4656,7 +5784,7 @@ Gradient = new Class({
 		}
 	},
 
-	attr: Drawable.prototype.attr,
+	attr: Class.attr,
 
 	attrHooks: {
 		colors: {
@@ -4864,559 +5992,10 @@ Pattern = new Class({
 	}
 });
 
+// https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern/setTransform
+
 Delta.Pattern = Pattern;
 
-// Class
-function Class(parent, properties){
-	if(!properties){
-		properties = parent;
-		parent = null;
-	}
-
-	var init = function(){
-		return this.initialize && this.initialize.apply(this, arguments);
-	};
-
-	if(parent){
-		/* if(properties.liftInits){
-			// go to the parent
-			init = function(){
-				if(init.prototype.__initialize__){
-					return init.prototype.__initialize__.apply(this, arguments);
-				}
-
-				var inits = [],
-					parent = this.constructor.parent;
-
-				while(parent){
-					inits.push(parent.prototype.initialize);
-					parent = parent.parent;
-				}
-
-				for(var i = inits.length; i--;){
-					if(inits[i]){
-						inits[i].apply(this, arguments);
-					}
-				}
-
-				if(init.prototype.initialize && properties.initialize === init.prototype.initialize){
-					return init.prototype.initialize.apply(this, arguments);
-				}
-			};
-		} */
-
-		// prototype inheriting
-		var sklass = function(){};
-		sklass.prototype = parent.prototype;
-		init.prototype = new sklass();
-		init.prototype.superclass = parent.prototype;
-		init.prototype.constructor = init;
-
-		init.prototype.super = function(name, args){
-			// при вызове super внутри таймаута получим бесконечный цикл
-			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
-			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
-			if(!this.superclass.superclass || !this.superclass.superclass[name]){
-				return this.superclass[name].apply(this, args);
-			}
-
-			var superclass = this.superclass;
-			this.superclass = this.superclass.superclass;
-			var result = superclass[name].apply(this, args);
-			this.superclass = parent.prototype;
-			return result;
-		};
-	}
-
-	extend(init.prototype, properties);
-
-	return init;
-}
-
-// Bounds class
-function Bounds(x, y, w, h){
-	if(w < 0){
-		w = -w;
-		x -= w;
-	}
-	if(h < 0){
-		h = -h;
-		y -= h;
-	}
-
-	this.x = this.x1 = x;
-	this.y = this.y1 = y;
-	this.w = this.width  = w;
-	this.h = this.height = h;
-	this.x2 = x + w;
-	this.y2 = y + h;
-	this.cx = x + w / 2;
-	this.cy = y + h / 2;
-}
-
-Delta.bounds = function(x, y, width, height){
-	return new Bounds(x, y, width, height);
-};
-
-// utils
-function argument(index){
-	return function(value){
-		return this.argument( index, value );
-	};
-} // не нужно
-
-// wrapper for quick calls
-function wrap(args){
-	var fn = args[1];
-	args = slice.call(args, 2);
-	return function(){
-		this[fn].apply(this, args);
-	};
-}
-
-// typeofs
-
-/*
-use common typeofs
-String: something + '' === something
-Boolean: !!something === something
-Array: Array.isArray(something)
-Number: +something === something
-Function: typeof something === 'function'
- */
-
-function isObject(a){
-	return toString.call(a) === '[object Object]';
-}
-
-function isPivot(v){
-	return Array.isArray(v) || v in Delta.corners;
-}
-
-function isNumberLike(value){
-	return +value === value || (value + '' === value && reNumberLike.test(value));
-}
-
-// todo: Pattern.isPatternLike();
-function isPatternLike(value){
-	return value instanceof Image ||
-			(isObject(value) && has(value, 'image')) ||
-			(value + '' === value && !(
-				value.indexOf('http://') &&
-				value.indexOf('https://') &&
-				value.indexOf('./') &&
-				value.indexOf('../') &&
-				value.indexOf('data:image/') &&
-				value.indexOf('<svg')
-			) );
-}
-
-function parsePoint(point){
-	if(+point === point){
-		point = Delta.distance(point);
-		return [point, point];
-	}
-	return [
-		Delta.distance(point[0]),
-		Delta.distance(point[1])
-	];
-}
-
-Delta.class = Class;
-Delta.Bounds = Bounds;
-Delta.extend = extend;
-Delta.argument = argument;
-Delta.wrap = wrap;
-Delta.isObject = isObject;
-Delta.isNumberLike = isNumberLike;
-Delta.isPatternLike = isPatternLike;
-
-// constants
-Delta.dashes = {
-	shortdash:			[4, 1],
-	shortdot:			[1, 1],
-	shortdashdot:		[4, 1, 1, 1],
-	shortdashdotdot:	[4, 1, 1, 1, 1, 1],
-	dot:				[1, 3],
-	dash:				[4, 3],
-	longdash:			[8, 3],
-	dashdot:			[4, 3, 1, 3],
-	longdashdot:		[8, 3, 1, 3],
-	longdashdotdot:		[8, 3, 1, 3, 1, 3]
-};
-
-Delta.fileTypes = {
-	'jpeg': 'image/jpeg',
-	'jpg': 'image/jpeg',
-	'png': 'image/png',
-	'webp': 'image/webp'
-};
-
-Delta.corners = {
-	'left'  : [0, 0.5],
-	'right' : [1, 0.5],
-	'top'   : [0.5, 0],
-	'bottom': [0.5, 1],
-	'center': [0.5, 0.5],
-	'left top'    : [0, 0],
-	'top left'    : [0, 0],
-	'left bottom' : [0, 1],
-	'bottom left' : [0, 1],
-	'right top'   : [1, 0],
-	'top right'   : [1, 0],
-	'right bottom': [1, 1],
-	'bottom right': [1, 1],
-
-	'lt'	: [0, 0],
-	'tl'	: [0, 0],
-	'lb'	: [0, 1],
-	'bl'	: [0, 1],
-	'rt'	: [1, 0],
-	'tr'	: [1, 0],
-	'rb'	: [1, 1],
-	'br'	: [1, 1]
-};
-
-Delta.colors = { // http://www.w3.org/TR/css3-color/#svg-color
-	'aliceblue':				'f0f8ff',
-	'antiquewhite':				'faebd7',
-	'aqua':						'0ff',
-	'aquamarine':				'7fffd4',
-	'azure':					'f0ffff',
-	'beige':					'f5f5dc',
-	'bisque':					'ffe4c4',
-	'black':					'000',
-	'blanchedalmond':			'ffebcd',
-	'blue':						'00f',
-	'blueviolet':				'8a2be2',
-	'brown':					'a52a2a',
-	'burlywood':				'deb887',
-	'burntsienna':				'ea7e5d',
-	'cadetblue':				'5f9ea0',
-	'chartreuse':				'7fff00',
-	'chocolate':				'd2691e',
-	'chucknorris':				'c00000',
-	'coral':					'ff7f50',
-	'cornflowerblue':			'6495ed',
-	'cornsilk':					'fff8dc',
-	'crimson':					'dc143c',
-	'cyan':						'0ff',
-	'darkblue':					'00008b',
-	'darkcyan':					'008b8b',
-	'darkgoldenrod':			'b8860b',
-	'darkgray':					'a9a9a9',
-	'darkgreen':				'006400',
-	'darkgrey':					'a9a9a9',
-	'darkkhaki':				'bdb76b',
-	'darkmagenta':				'8b008b',
-	'darkolivegreen':			'556b2f',
-	'darkorange':				'ff8c00',
-	'darkorchid':				'9932cc',
-	'darkred':					'8b0000',
-	'darksalmon':				'e9967a',
-	'darkseagreen':				'8fbc8f',
-	'darkslateblue':			'483d8b',
-	'darkslategray':			'2f4f4f',
-	'darkslategrey':			'2f4f4f',
-	'darkturquoise':			'00ced1',
-	'darkviolet':				'9400d3',
-	'deeppink':					'ff1493',
-	'deepskyblue':				'00bfff',
-	'dimgray':					'696969',
-	'dimgrey':					'696969',
-	'dodgerblue':				'1e90ff',
-	'firebrick':				'b22222',
-	'floralwhite':				'fffaf0',
-	'forestgreen':				'228b22',
-	'fuchsia':					'f0f',
-	'gainsboro':				'dcdcdc',
-	'ghostwhite':				'f8f8ff',
-	'gold':						'ffd700',
-	'goldenrod':				'daa520',
-	'gray':						'808080',
-	'green':					'008000',
-	'greenyellow':				'adff2f',
-	'grey':						'808080',
-	'honeydew':					'f0fff0',
-	'hotpink':					'ff69b4',
-	'indianred':				'cd5c5c',
-	'indigo':					'4b0082',
-	'ivory':					'fffff0',
-	'khaki':					'f0e68c',
-	'lavender':					'e6e6fa',
-	'lavenderblush':			'fff0f5',
-	'lawngreen':				'7cfc00',
-	'lemonchiffon':				'fffacd',
-	'lightblue':				'add8e6',
-	'lightcoral':				'f08080',
-	'lightcyan':				'e0ffff',
-	'lightgoldenrodyellow':		'fafad2',
-	'lightgray':				'd3d3d3',
-	'lightgreen':				'90ee90',
-	'lightgrey':				'd3d3d3',
-	'lightpink':				'ffb6c1',
-	'lightsalmon':				'ffa07a',
-	'lightseagreen':			'20b2aa',
-	'lightskyblue':				'87cefa',
-	'lightslategray':			'789',
-	'lightslategrey':			'789',
-	'lightsteelblue':			'b0c4de',
-	'lightyellow':				'ffffe0',
-	'lime':						'0f0',
-	'limegreen':				'32cd32',
-	'linen':					'faf0e6',
-	'magenta':					'f0f',
-	'maroon':					'800000',
-	'mediumaquamarine':			'66cdaa',
-	'mediumblue':				'0000cd',
-	'mediumorchid':				'ba55d3',
-	'mediumpurple':				'9370db',
-	'mediumseagreen':			'3cb371',
-	'mediumslateblue':			'7b68ee',
-	'mediumspringgreen':		'00fa9a',
-	'mediumturquoise':			'48d1cc',
-	'mediumvioletred':			'c71585',
-	'midnightblue':				'191970',
-	'mintcream':				'f5fffa',
-	'mistyrose':				'ffe4e1',
-	'moccasin':					'ffe4b5',
-	'navajowhite':				'ffdead', // FF is not dead
-	'navy':						'000080',
-	'oldlace':					'fdf5e6',
-	'olive':					'808000',
-	'olivedrab':				'6b8e23',
-	'orange':					'ffa500',
-	'orangered':				'ff4500',
-	'orchid':					'da70d6',
-	'palegoldenrod':			'eee8aa',
-	'palegreen':				'98fb98',
-	'paleturquoise':			'afeeee',
-	'palevioletred':			'db7093',
-	'papayawhip':				'ffefd5',
-	'peachpuff':				'ffdab9',
-	'peru':						'cd853f',
-	'pink':						'ffc0cb',
-	'plum':						'dda0dd',
-	'powderblue':				'b0e0e6',
-	'purple':					'800080',
-	'red':						'f00',
-	'rosybrown':				'bc8f8f',
-	'royalblue':				'4169e1',
-	'saddlebrown':				'8b4513',
-	'salmon':					'fa8072',
-	'sandybrown':				'f4a460',
-	'seagreen':					'2e8b57',
-	'seashell':					'fff5ee',
-	'sienna':					'a0522d',
-	'silver':					'c0c0c0',
-	'skyblue':					'87ceeb',
-	'slateblue':				'6a5acd',
-	'slategray':				'708090',
-	'slategrey':				'708090',
-	'snow':						'fffafa',
-	'springgreen':				'00ff7f',
-	'steelblue':				'4682b4',
-	'tan':						'd2b48c',
-	'teal':						'008080',
-	'thistle':					'd8bfd8',
-	'tomato':					'ff6347',
-	'turquoise':				'40e0d0',
-	'violet':					'ee82ee',
-	'wheat':					'f5deb3',
-	'white':					'fff',
-	'whitesmoke':				'f5f5f5',
-	'yellow':					'ff0',
-	'yellowgreen':				'9acd32'
-};
-
-// DOM
-Delta.coordsOfElement = function(element){ // returns coords of a DOM element
-	var box = element.getBoundingClientRect(),
-		style = window.getComputedStyle(element);
-
-	return {
-		x: box.left + parseInt(style.borderLeftWidth || 0) + parseInt(style.paddingLeft || 0),
-		y: box.top  + parseInt(style.borderTopWidth  || 0) + parseInt(style.paddingTop  || 0)
-	};
-};
-
-// Clean functions
-Delta.clone = function(object){
-	var result = new object.constructor();
-	for(var i in object){
-		if(has(object, i)){
-			if(typeof object[i] === 'object' && !(object[i] instanceof Context) && !(object[i] instanceof Image)){
-				result[i] = Delta.clone(object[i]);
-			} else {
-				result[i] = object[i];
-			}
-		}
-	}
-	return result;
-};
-
-// Matrices
-// renamed from Delta.multiply
-// rename to Delta.transformMatrix?
-Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
-	return [
-		m1[0] * m2[0] + m1[2] * m2[1],
-		m1[1] * m2[0] + m1[3] * m2[1],
-		m1[0] * m2[2] + m1[2] * m2[3],
-		m1[1] * m2[2] + m1[3] * m2[3],
-		m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
-		m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
-	];
-};
-
-Delta.transformPoint = function(matrix, point){
-	return [
-		matrix[0] * point[0] + matrix[2] * point[1] + matrix[4],
-		matrix[1] * point[0] + matrix[3] * point[1] + matrix[5]
-	];
-};
-
-Delta.inverseTransform = function(matrix){
-	var det = matrix[0] * matrix[3] - matrix[2] * matrix[1];
-
-	if(det === 0){
-		return null;
-	}
-
-	return [
-		matrix[3] / det,
-		-matrix[1] / det,
-		-matrix[2] / det,
-		matrix[0] / det,
-		-(matrix[3] * matrix[4] - matrix[2] * matrix[5]) / det,
-		(matrix[1] * matrix[4] - matrix[0] * matrix[5]) / det
-	];
-};
-
-Delta.color = function color(value){ // parses CSS-like colors (rgba(255,0,0,0.5), green, #f00...)
-	if(value === undefined){
-		return;
-	}
-	if(Array.isArray(value)){
-		return value.slice(0, 4);
-	}
-	if(value + '' !== value){
-		throw 'Not a color: ' + value.toString();
-	}
-
-	// rgba(255, 100, 20, 0.5)
-	if(value.indexOf('rgb') === 0){
-		value = value.substring(value.indexOf('(') + 1, value.length-1).replace(/\s/g, '').split(',');
-		var opacity = value[3];
-		value = value.slice(0, 3).map(function(v, i){
-			// rgba(100%, 0%, 50%, 1)
-			if(v.indexOf('%') > 0){
-				return Math.round(parseInt(v) * 2.55);
-			}
-			return parseInt(v);
-		});
-
-		if(opacity === undefined){
-			opacity = 1;
-		}
-		value.push(Number(opacity));
-
-		return value;
-	}
-	// #bebebe
-	else if(value[0] === '#'){
-		// remove the # and turn into array
-		value = value.substring(1);
-
-		// #555
-		if(value.length === 3){
-			// 'f0a' -> 'ff00aa'
-			value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
-		}
-
-		return [parseInt(value.substring(0, 2), 16), parseInt(value.substring(2, 4), 16), parseInt(value.substring(4, 6), 16), 1];
-	}
-	// 'red'
-	else if(value in Delta.colors){
-		return Delta.color('#' + Delta.colors[value]);
-	}
-	// 'rand'
-	else if(value === 'rand'){
-		return [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255), 1];
-	}
-
-	return [0, 0, 0, 0];
-};
-
-Delta.angleUnit = 'grad';
-Delta.unit = 'px';
-
-var units = 'pt em in cm mm pc ex ch rem v wvh vmin vmax'.split(' ');
-var defaultUnits = {
-	// my values; may be different on different screens / browsers / devices / etc
-	px: 1, ch: 8, cm: 37.78125, em: 16,
-	ex: 7.15625, 'in': 96, mm: 3.765625,
-	pc: 16, pt: 1.328125, rem: 16, v: 16,
-	vmax: 13.65625, vmin: 4.78125, wvh: 16
-	// values from p5.js:
-	// pt: 1.25
-	// pc: 15
-	// mm: 3.543307
-	// cm: 35.43307
-	// in: 90
-};
-
-Delta.snapToPixels = 1;
-
-function distance(value, dontsnap){
-	if(value === undefined) return;
-	if(!value) return 0;
-	// todo: snapToPixels === 1 ? return Math.round(...) : ...
-	if(Delta.snapToPixels && !dontsnap){
-		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
-	}
-
-	if(+value === value){
-		if(Delta.unit !== 'px'){
-			return Delta.distance( value + '' + Delta.unit );
-		}
-
-		return value;
-	}
-
-	value += '';
-	if(value.indexOf('px') === value.length-2){
-		return parseInt(value);
-	}
-
-	if(!Delta.units){
-		if(!document){
-			Delta.units = defaultUnits;
-		} else {
-			var div = document.createElement('div');
-			document.body.appendChild(div); // FF doesn't need this :)
-			Delta.units = {};
-			units.forEach(function(unit){
-				div.style.width = '1' + unit;
-				Delta.units[unit] = parseFloat(getComputedStyle(div).width);
-			});
-			document.body.removeChild(div);
-		}
-	}
-
-	var unit = value.replace(/[\d\.]+?/g, '');
-	value = value.replace(/[^\d\.]+?/g, '');
-	if(unit === ''){
-		return value;
-	}
-
-	if(Delta.snapToPixels === 1){
-		return Math.round(Delta.units[unit] * value);
-	}
-	return Delta.units[unit] * value;
-}
-
-Delta.distance = distance;
 // {moduleName Animation.Along}
 // {requires Math.Curve}
 
@@ -6721,6 +7300,74 @@ Delta.intersections.evenOddRule = evenOddRule;
 Delta.intersections.rectIntersect = rectIntersect;
 Delta.intersections.polyIntersections = polyIntersections;
 // Delta.intersections.polyUnion = polyUnion;
+
+extend(Context.prototype.eventsHooks, {
+	// TODO: touch support
+	mousedrag: function(){
+		var self = this,
+
+			startX = null,
+			startY = null,
+			startObject = null,
+			lastX = null,
+			lastY = null;
+
+		this.on('mousedown', function(e){
+			startX = e.contextX;
+			startY = e.contextY;
+			startObject = e.targetObject;
+		});
+
+		window.addEventListener('mouseup', function(e){
+			if(lastX === null){
+				return;
+			}
+
+			processEventObject(e, 'mousedragend');
+
+			startX = null;
+			startY = null;
+		});
+
+		window.addEventListener('mousemove', function(e){
+			if(startX === null){
+				return;
+			}
+
+			processEventObject(e, 'mousedrag');
+
+			lastX = e.contextX;
+			lastY = e.contextY;
+		});
+
+		function processEventObject(e, eventName){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+			e.lastX = lastX;
+			e.lastY = lastY;
+			e.startX = startX;
+			e.startY = startY;
+			e.startObject = startObject;
+
+			// but we do not yet have contextX
+			// e.deltaX = lastX - e.contextX;
+
+			// adds contextX, contextY, targetObject
+			// calls the event on the targetObject
+			self._processPointParams(e, eventName, e);
+
+			if(propagation && !self.fire(eventName, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}
+	}
+});
+
+Context.prototype.eventsHooks.mousedragend = Context.prototype.eventsHooks.mousedrag;
 
 Delta.version = "1.9.0";
 

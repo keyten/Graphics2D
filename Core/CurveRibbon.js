@@ -7,12 +7,15 @@
 Delta.drawRibbonCurve = function(ctx, params){
 	var step = params.step || 0.2;
 	var prev = params.point(-step);
+	var prevDrawPoints;
+	var drawPoints;
 	for(var t = -step; t < 1.02; t += step){
 		var cur = params.point(t);
-		var drawPoints = getDrawPoints(prev, cur, 10, -1);
+		drawPoints = getDrawPoints(prev, cur, 10, -1);
 		if(t >= step){
 			ctx.lineWidth = 1;
-			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[1].y);
+			ctx.beginPath();
+			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[0].y)
 			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
 			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
 			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
@@ -20,11 +23,17 @@ Delta.drawRibbonCurve = function(ctx, params){
 			ctx.fill();
 			ctx.stroke();
 		}
+		prevDrawPoints = drawPoints;
 		prev = cur;
-		var prevDrawPoints = drawPoints;
 	}
 };
+// curve.attr('ribbon', true);
+// curve.attr('ribbonGradient', ctx.gradient('ribbon', 'horizontal' / 'vertical', colors, tStart = 0, tEnd = 1, etc));
 
+// or:
+// path.attr('ribbon', true)
+// path.attr('ribbonGradient', ...);
+// В свою очередь, должен быть абстрактный (не привязанный к канвасу!) класс Gradient
 function getDrawPoints(prev, cur, width, inverted){
 	var w = cur.x - prev.x,
 		h = cur.y - prev.y,
