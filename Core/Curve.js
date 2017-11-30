@@ -65,6 +65,8 @@ Curve = new Class({
 	}
 });
 
+Curve.AttrHooks = CurveAttrHooks;
+
 // todo: rename to canvasMethods
 Curve.canvasFunctions = {
 	moveTo: {

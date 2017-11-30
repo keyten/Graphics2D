@@ -1,5 +1,7 @@
 Picture = new Class(Drawable, {
 
+	// todo: image format libcanvas-like:
+	// '/files/img/hexes.png [150:100]{0:0}'
 	initialize : function(args, context){
 		this.super('initialize', arguments);
 

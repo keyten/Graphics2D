@@ -107,10 +107,7 @@ Delta.contexts = {
 	'2d': Context
 };
 
-// {{include math.js}}
-
 // {{include Drawable.js}}
-// {{include Attrs.Transform.js}}
 
 // {{include Animation.js}}
 
@@ -125,10 +122,7 @@ Delta.contexts = {
 // {{include CurveGeneralBezier.js}}
 // {{include CurveLagrange.js}}
 // {{include CurveRibbon.js}}
-
-// {{include Math.Line.js}}
-// {{include Math.Quadratic.js}}
-// {{include Math.Bezier.js}}
+// {{include Curve.Approx.js}}
 
 // {{include Path.js}}
 // {{include Path.Math.js}}
@@ -139,12 +133,12 @@ Delta.contexts = {
 // {{include Text.js}}
 
 // {{include Gradient.js}}
+// {{include GradientDiamond.js}}
 
 // {{include Pattern.js}}
 
 // {{include Animation.Along.js}}
 // {{include Animation.Morph.js}}
-// {{include Curve.Approx.js}}
 
 // {{include Context.WebGL.js}}
 // {{include Rect.WebGL.js}}

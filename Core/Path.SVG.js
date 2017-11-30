@@ -13,79 +13,87 @@ extend(Delta.curves, {
 
 	moveBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.moveTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		},
+
+		pointAt: function(){
+			return this.endAt();
 		}
 	}),
 
 	lineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		},
+
+		pointAt: function(t, start){
+			;
 		}
 	}),
 
 	horizontalLineTo: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(this.attrs.args[0], lastPoint[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [this.attrs.args[0], lastPoint[1]];
 		}
 	}),
 
 	horizontalLineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1]];
 		}
 	}),
 
 	verticalLineTo: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0], this.attrs.args[0]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0], this.attrs.args[0]];
 		}
 	}),
 
 	verticalLineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0], lastPoint[1] + this.attrs.args[0]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0], lastPoint[1] + this.attrs.args[0]];
 		}
 	}),
 
 	quadraticCurveBy: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [
 				lastPoint[0] + this.attrs.args[0],
 				lastPoint[1] + this.attrs.args[1],
@@ -107,7 +115,7 @@ extend(Delta.curves, {
 
 	shorthandQuadraticCurveTo: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 
@@ -149,7 +157,7 @@ extend(Delta.curves, {
 
 	shorthandQuadraticCurveBy: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 
@@ -191,7 +199,7 @@ extend(Delta.curves, {
 
 	bezierCurveBy: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [
 				lastPoint[0] + this.attrs.args[0],
 				lastPoint[1] + this.attrs.args[1],
@@ -215,7 +223,7 @@ extend(Delta.curves, {
 
 	shorthandCurveTo: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 			// add quadratic support?
@@ -261,7 +269,7 @@ extend(Delta.curves, {
 
 	shorthandCurveBy: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 			if(lastCurve.getBezierParameters){
@@ -313,7 +321,7 @@ extend(Delta.curves, {
 				x = this.attrs.args[5],
 				y = this.attrs.args[6],
 
-				start = this.before().endAt();
+				start = this.startAt();
 
 			var segs = arcToSegments(x, y, rx, ry, large, sweep, rot, start[0], start[1]);
 			segs.forEach(function(segment){
@@ -395,8 +403,6 @@ extend(Delta.curves, {
 				  a00 * x3 + a01 * y3,      a10 * x3 + a11 * y3
 				];
 			}
-
-			;
 		},
 
 		endAt: function(){
@@ -451,6 +457,7 @@ Delta.SVGCurvesLengths = {
 	t: 2,
 	A: 7,
 	a: 7,
+	Z: 0,
 	z: 0
 };
 
@@ -492,12 +499,11 @@ Path.parse = function(data, path, firstIsNotMove){
 	return result;
 };
 
-/*
-http://www.intuit.ru/studies/courses/1063/210/lecture/5428
-*/
-
-extend(Path.prototype, {
-	moveBy: function(x, y){
-		return this.attrs.d.push(Delta.curve('moveBy', [x, y], this));
+Object.keys(Delta.SVGCurves).forEach(function(key){
+	var name = Delta.SVGCurves[key];
+	if(!Path.prototype[name]){
+		Path.prototype[name] = function(){
+			return this.push(name, Array.prototype.slice.call(arguments), this);
+		};
 	}
-})
+});

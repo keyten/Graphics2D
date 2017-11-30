@@ -27,6 +27,28 @@ Delta.drawRibbonCurve = function(ctx, params){
 		prev = cur;
 	}
 };
+
+Curve.prototype.attrHooks.ribbon = {
+	set: function(){
+		this.update();
+	}
+};
+
+Curve.prototype.attrHooks.ribbonGradient = {
+	set: function(){
+		this.update();
+	}
+};
+
+// Curve работает на process; надо переопределять process и вызывать из него draw
+var oldCurveDraw = Curve.prototype.draw;
+Curve.prototype.draw = function(){
+	if(!this.attrs.ribbon || !this.attrs.ribbonGradient || !this.pointAt){
+		oldCurveDraw.apply(this, arguments);
+	}
+	// ...
+};
+
 // curve.attr('ribbon', true);
 // curve.attr('ribbonGradient', ctx.gradient('ribbon', 'horizontal' / 'vertical', colors, tStart = 0, tEnd = 1, etc));
 

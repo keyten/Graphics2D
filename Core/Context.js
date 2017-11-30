@@ -5,11 +5,15 @@ Context = function(canvas){
 	this.context   = canvas.getContext('2d');
 	this.elements  = [];
 	this.listeners = {};
-	this._cache = {};
+	this.attrs = {
+		transform: 'attributes'
+	};
+	this.cache = {};
 
 // rudiment
 	this.renderer = Delta.renderers['2d'];
 
+	// why not updateNow = ...?
 	this.updateNowBounded = this.updateNow.bind(this);
 };
 
@@ -110,15 +114,9 @@ Context.prototype = {
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		if(this.matrix){
-			ctx.setTransform(
-				this.matrix[0],
-				this.matrix[1],
-				this.matrix[2],
-				this.matrix[3],
-				this.matrix[4],
-				this.matrix[5]
-			);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.setTransform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
 		}
 
 		this.elements.forEach(function(element){
@@ -175,29 +173,31 @@ Context.prototype = {
 		return this.listeners[event];
 	},
 
-	eventsInteract: eventsToInteract,
-
 	eventsHooks : {
 		mouseover : function(){
 			if(!this.listeners['mouseout']){
+				this.listenerCanvas('mouseout');
 				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener('mouseout');
 			}
 		},
 		mouseout: function(){
 			if(!this.listeners['mouseover']){
+				this.listenerCanvas('mouseover');
 				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener('mouseover');
 			}
 		},
 		focus : function(){
 			if(!this.listeners['blur']){
+				this.listenerCanvas('blur');
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 				this.listener('blur');
 			}
 		},
 		blur: function(){
 			if(!this.listeners['focus']){
+				this.listenerCanvas('focus');
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 				this.listener('focus');
 			}
@@ -317,12 +317,17 @@ Context.prototype = {
 		return this;
 	},
 
-	fire : function(event, data){
+	fire : function(event, data, checker){
 		if(!this.listeners[event]){
 			return this;
 		}
 
-		this.listeners[event].forEach(function(callback){
+		var listeners = this.listeners[event];
+		if(checker){
+			listeners = listeners.filter(checker, this);
+		}
+
+		listeners.forEach(function(callback){
 			callback.call(this, data);
 		}, this);
 		return this;
@@ -338,92 +343,86 @@ Context.prototype = {
 	attr: Class.attr,
 	attrHooks: {
 		transform: {
+			set: function(value){
+				this.cache.transform = null;
+				this.update();
+			}
+		},
+
+		translate: {
 			get: function(){
-				if(this.attrs.transform === 'dirty'){
-					// calc and this... = ...
-				}
-				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+				return this.attrs.translate || [0, 0];
 			},
 			set: function(value){
-				this.update();
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		rotate: {
+			get: function(){
+				return this.attrs.rotate || 0;
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		scale: {
+			get: function(){
+				return this.attrs.scale || [1, 1];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		}
 	},
 
 	// Transforms
-	matrix: null,
-	transform: function(a, b, c, d, e, f, pivot){
-		if(a === null){
-			this.matrix = null;
-			return this.update();
+	getTransform: function(){
+		if(this.cache.transform){
+			return this.cache.transform;
 		}
 
-		if(pivot){
-			if(pivot + '' === pivot){
-				pivot = Delta.corners[pivot];
-				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
-			}
-
-			e = e - a * pivot[0] + pivot[0] - c * pivot[1];
-			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
-		}
-
-		this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
-		return this.update();
+		var matrix = Delta.parseTransform(this.attrs, this);
+		this.cache.transform = matrix;
+		return matrix;
 	},
 
-	translate: function(x, y){
-		return this.transform(
-			1, 0,
-			0, 1,
-			x, y
-		);
-	},
-
-	rotate: function(angle, pivot){
-		angle = angle / 180 * Math.PI;
-		return this.transform(
-			Math.cos(angle), Math.sin(angle),
-			-Math.sin(angle), Math.cos(angle),
-			0, 0,
-
-			pivot
-		);
-	},
-
-	scale: function(x, y, pivot){
-		if(y === undefined || isPivot(y)){
-			pivot = y;
-			y = x;
-		}
-		return this.transform(
-			x, 0,
-			0, y,
-			0, 0,
-
-			pivot
-		);
-	},
-
-	skew: function(x, y, pivot){
-		if(y === undefined || isPivot(y)){
-			pivot = y;
-			y = x;
-		}
-		return this.transform(
-			1, Math.tan(y * Math.PI / 180),
-			Math.tan(x * Math.PI / 180), 1,
-			0, 0,
-
-			pivot
-		);
+	corner: function(corner){
+		return [
+			this.canvas.width * Delta.corners[corner][0],
+			this.canvas.height * Delta.corners[corner][1]
+		];
 	}
 };
 
 eventsToInteract.forEach(function(eventName){
-	Context.prototype.eventsHooks[eventName] = function(){
-		this.listenerCanvas(eventName);
-	};
+	if(!Context.prototype.eventsHooks[eventName]){
+		Context.prototype.eventsHooks[eventName] = function(){
+			this.listenerCanvas(eventName);
+		};
+	}
 
 	Context.prototype[eventName] = function(callback){
 		return this[

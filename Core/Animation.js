@@ -135,7 +135,6 @@ Animation.easing = {
 		return x;
 	},
 
-	// jquery :P
 	swing: function(x){
 		return 0.5 - Math.cos(x * Math.PI) / 2;
 	},
@@ -174,7 +173,13 @@ Animation.easing = {
 
 	elastic: function(t, v){
 		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
-	}
+	},
+
+	bezier: function(t, v){
+		// todo
+	},
+
+	// [tension, elastic]
 
 };
 

@@ -3,7 +3,7 @@ Delta.renderers['2d'] = {
 	// renderer.init(g2dcontext, canvas);
 	init: function(delta, canvas){
 		delta.context = canvas.getContext('2d');
-		delta._cache = {}; // for gradients
+		delta.cache = {}; // for gradients
 	},
 
 	preRedraw: function(ctx, delta){
@@ -137,8 +137,8 @@ Delta.renderers['2d'] = {
 		var hash;
 		if(delta.useCache){
 			hash = this.hashGradient(type, from, to, colors);
-			if(delta._cache[hash]){
-				return delta._cache[hash];
+			if(delta.cache[hash]){
+				return delta.cache[hash];
 			}
 		}
 
@@ -154,7 +154,7 @@ Delta.renderers['2d'] = {
 		});
 
 		if(delta.useCache){
-			delta._cache[hash] = grad;
+			delta.cache[hash] = grad;
 		}
 
 		return grad;

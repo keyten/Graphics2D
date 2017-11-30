@@ -3,7 +3,8 @@ Curve.detail = 10;
 
 // Curve utilities
 extend(Curve.prototype, {
-	before: function(){
+	// renamed from before
+	prev: function(){
 		if(!this.path){
 			return null;
 		}
@@ -15,6 +16,20 @@ extend(Curve.prototype, {
 			return null;
 		}
 		return d[index - 1];
+	},
+
+	next: function(){
+		if(!this.path){
+			return null;
+		}
+
+		var d = this.path.attr('d');
+		var index = d.indexOf(this);
+
+		if(index === d.length - 2){
+			return null;
+		}
+		return d[index + 1];
 	}
 });
 
@@ -50,9 +65,23 @@ extend(Curve.prototype, {
 		return this.tangentAt(t, epsilon, startPoint) - 90;
 	},
 
-	flatten: function(detail, startPoint){
-		// превратить кривую в кучу прямых
-		// todo: запилить также атрибут flatten, который не превращает в прямые, но меняет отрисовку
+	flatten: function(detail, start){
+		if(!start){
+			start = this.startAt();
+		}
+
+		var lines = [];
+
+		for(var i = 1; i <= detail; i++){
+			lines.push(
+				Delta.curve('lineTo', this.pointAt(i / detail, start), this.path)
+			);
+		}
+
+		var curves = this.path.attr('d');
+		curves.splice.apply(curves, [curves.indexOf(this), 1].concat(lines));
+		this.path.attr('d', curves);
+		return this;
 	},
 
 	// like reduce
@@ -66,9 +95,9 @@ extend(Curve.prototype, {
 		return value;
 	},
 
-	length: function(detail, startPoint){
+	length: function(detail, startPoint, dont){
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length){
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length && !dont){
 			return Curve.canvasFunctions[this.method].length(this, startPoint);
 		}
 
@@ -217,7 +246,14 @@ extend(Curve.canvasFunctions.lineTo, {
 		];
 	},
 
-	tangentAt: function(curve){},
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		// x = x0 + (x1 - x0)t
+		// y = y0 + (y1 - y0)t
+		return Math.atan2(curve.attrs.args[1] - startPoint[1], curve.attrs.args[0] - startPoint[0]) / Math.PI * 180;
+	},
 
 	splitAt: function(curve, t, startPoint){
 		if(!startPoint){
@@ -251,10 +287,54 @@ extend(Curve.canvasFunctions.lineTo, {
 
 // QuadraticCurveTo
 extend(Curve.canvasFunctions.quadraticCurveTo, {
-	pointAt: function(){},
-	tangentAt: function(){},
-	splitAt: function(){},
+	pointAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		var i = 1 - t;
+		return [
+			i * i * startPoint[0] + 2 * t * i * curve.attrs.args[0] + t * t * curve.attrs.args[2],
+			i * i * startPoint[1] + 2 * t * i * curve.attrs.args[1] + t * t * curve.attrs.args[3],
+		];
+	},
 
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+	},
+
+	splitAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var i = 1 - t;
+		var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
+		return {
+			start: [
+				startPoint,
+				[
+					t * p[0] + i * startPoint[0],
+					t * p[1] + i * startPoint[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * p[2] + i * p[0],
+					t * p[3] + i * p[1]
+				],
+				[
+					p[2],
+					p[3]
+				]
+			]
+		};
+	},
+
+	// note: check a curve ([x, y, x, y, x, y])
 	length: function(curve, startPoint){
 		if(!startPoint){
 			startPoint = curve.startAt();
@@ -267,26 +347,29 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 			x2 = curve.attrs.args[2],
 			y2 = curve.attrs.args[3],
 
-			dx0 = x1 - x0,
-			dy0 = y1 - y0,
-			dx1 = x2 - x1,
-			dy1 = y2 - y1,
+			ax = x0 - 2 * x1 + x2,
+			bx = x1 - x0,
+			ay = y0 - 2 * y1 + y2,
+			by = y1 - y0,
 
-			A = Math.pow(dx0 - dx1, 2) + Math.pow(dy0 - dy1, 2),
-			B = 2 * (dx0 * (dx1 - dx0) + dy0 * (dy1 - dy0)),
-			C = dx0 * dx0 + dy0 * dy0;
-
-		// 2 * Int( sqrt(C + tB + t^2 A) dt )
-
-// A is zero if and only if the len is zero
-// so check before integrating
+			A = ax * ax + ay * ay,
+			B = ax * bx + ay * by,
+			C = bx * bx + by * by;
 
 		function integral(t){
-		console.log( 2 * A * t + B );
+			// the quadratic curve is just a straight line
+			if(A * C === B * B){
+				// note: works bad with lines where handle is not inside the line
+				// from [0, 0], to [50, 50] with handle [100, 100] for ex.
+				return 2 * Math.sqrt(A) * Math.abs(t * t / 2 + B * t / A);
+			}
 
-			return ((2 * A * t + B) * Math.sqrt(t * (A * t + B) + C)) /
-					(4 * A) -
-				((B * B - 4 * A * C) * Math.log(2 * Math.sqrt(A) * Math.sqrt(t * (A * t + B) + C) + 2 * A * t + B)) / (8 * Math.pow(A, 3/2))
+			return (
+				(A * C - B * B) * Math.log(
+					Math.sqrt(A) * Math.sqrt(A * t * t + 2 * B * t + C) + A * t + B
+				) +
+				Math.sqrt(A) * (A * t + B) * Math.sqrt(t * (A * t + 2 * B) + C)
+			) / Math.pow(A, 3/2);
 		}
 
 		return integral(1) - integral(0);
@@ -328,6 +411,61 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 
 // BezierCurveTo
 extend(Curve.canvasFunctions.bezierCurveTo, {
+	pointAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		var i = 1 - t;
+		return [
+			i * i * i * startPoint[0] + 3 * t * i * i * curve.attrs.args[0] + 3 * t * t * i * curve.attrs.args[2] + t * t * t * curve.attrs.args[4],
+			i * i * i * startPoint[1] + 3 * t * i * i * curve.attrs.args[1] + 3 * t * t * i * curve.attrs.args[3] + t * t * t * curve.attrs.args[5]
+		];
+	},
+
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+	},
+
+	splitAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var i = 1 - t;
+		var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
+		return {
+			start: [
+				startPoint,
+				[
+					t * p[0] + i * startPoint[0],
+					t * p[1] + i * startPoint[1]
+				],
+				[
+					t * t * p[2] + 2 * t * i * p[0] + i * i * startPoint[0],
+					t * t * p[3] + 2 * t * i * p[1] + i * i * startPoint[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * t * p[4] + 2 * t * i * p[2] + i * i * p[0],
+					t * t * p[5] + 2 * t * i * p[3] + i * i * p[1]
+				],
+				[
+					t * p[4] + i * p[2],
+					t * p[5] + i * p[3]
+				],
+				[
+					p[4],
+					p[5]
+				]
+			]
+		};
+	},
+
 	bounds: function(startPoint, attrs){
 		var x0 = startPoint[0],
 			y0 = startPoint[1],
@@ -374,3 +512,27 @@ extend(Curve.canvasFunctions.bezierCurveTo, {
 		];
 	}
 });
+
+// Flattening
+extend(Curve.prototype.attrHooks, {
+	flatten: {
+		set: function(){
+			this.update();
+		}
+	}
+});
+
+var oldCurveProcess = Curve.prototype.process;
+Curve.prototype.process = function(ctx){
+	if(!this.attrs.flatten){
+		return oldCurveProcess.apply(this, arguments);
+	}
+
+	var detail = this.attrs.flatten;
+	var start = this.startAt();
+	var point;
+	for(var i = 1; i <= detail; i++){
+		point = this.pointAt(i / detail, start);
+		ctx.lineTo(point[0], point[1]);
+	}
+};

@@ -147,9 +147,8 @@ function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, tension){
 	return bezier;
 }
 
-// catmull rom is a special case of hermite spline
+// catmull rom is a special case of the hermite spline
 function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
-	// возвращает то что можно запихнуть в path.push(...)
 	return {
 		h0: [x1, y1], // start point
 		h1: [x2, y2], // end point
@@ -158,6 +157,7 @@ function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
 	};
 }
 
+// возвращает то что можно запихнуть в path.push(...)
 // надо научить быть closed (нужно чтобы первая и последняя точка равнялись)
 Delta.Curve.catmullSpline = function(points, closed, tension){
 	return points.map(function(point, i){

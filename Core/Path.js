@@ -160,7 +160,13 @@ Path = new Class(Drawable, {
 		y = point[1];
 
 		var ctx = this.context.context;
-		this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+		ctx.save();
+
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+		}
+
 		if(this.attrs.x || this.attrs.y){
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
@@ -200,21 +206,25 @@ Path = new Class(Drawable, {
 		]);
 	},
 
+	process : function(ctx){
+		ctx.beginPath();
+		this.attrs.d.forEach(function(curve){
+			curve.process(ctx);
+		});
+	},
+
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+			this.preDraw(ctx);
 
 			if(this.attrs.x || this.attrs.y){
 				// todo: will it be affected by previous transformations (the path itself, the canvas)?
 				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 			}
 
-			ctx.beginPath();
-			this.attrs.d.forEach(function(curve){
-				curve.process(ctx);
-			});
+			this.process(ctx);
 
-			this.context.renderer.post(ctx, this.styles);
+			this.postDraw(ctx);
 		}
 	}
 

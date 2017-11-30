@@ -116,7 +116,7 @@ Rect = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+			this.preDraw(ctx);
 
 			if(this.styles.fillStyle){
 				ctx.fillRect(

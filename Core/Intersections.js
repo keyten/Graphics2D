@@ -65,7 +65,7 @@ function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
 		||
 		((bx1 < ax1 && by1 < ay1) && (bx2 > ax1 && by2 > ay1))
 	); */
-
+/*
 	return (
 		pointInRect(ax1, ay1, bx1, by1, bx2, by2)
 		||
@@ -85,6 +85,20 @@ function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
 		pointInRect(bx1, by2, ax1, ay1, ax2, ay2)
 		||
 		pointInRect(bx2, by2, ax1, ay1, ax2, ay2)
+	); */
+
+	// todo: check about normalizing coords (bx1 should be less than bx2, y analogously)
+
+	// нужно проверять пересечение проекций на оси
+	// кажется, как-то так
+	return (
+		(
+			// intersection on x
+			(ax1 > bx1 && ax1 < bx2) || (ax2 > bx1 && ax2 < bx2) // wrong? point doesn't have to lay inside projection... or not?
+		) && (
+			// intersection on y
+			(ay1 > by1 && ay1 < by2) || (ay2 > by1 && ay2 < by2)
+		)
 	);
 }
 

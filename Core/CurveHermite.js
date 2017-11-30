@@ -80,7 +80,7 @@ var CurveHermite = new Class(Curve, {
 	},
 
 	tangentAt: function(t, start){
-		if(!start){
+		/* if(!start){
 			start = this.startAt();
 		}
 
@@ -101,7 +101,7 @@ var CurveHermite = new Class(Curve, {
 			0.5 * (3 * t * t * (-h1x + 3 * x1 - 3 * x2 + h2x)
 				+ 2 * t * (2 * h1x - 5 * x1 + 4 * x2 - h2x)
 				+ (-h1x + x2))
-		) / Math.PI * 180;
+		) / Math.PI * 180; */
 	},
 
 	process: function(ctx){

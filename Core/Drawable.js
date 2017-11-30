@@ -14,13 +14,14 @@ function DrawableAttrHooks(attrs){
 }
 
 Drawable = new Class({
-
 	initialize: function(args){
 		this.listeners = {};
 		this.styles = {};
+		this.cache = {};
 		this.attrs = {
 			interaction: true,
-			visible: true
+			visible: true,
+			transform: 'attributes'
 		};
 	},
 
@@ -32,15 +33,15 @@ Drawable = new Class({
 		return this;
 	},
 
-	// update function for state before being drawn
+	// update function for the state before the first draw
 	update: function(){
 		return this;
 	},
 
 	clone : function(attrs, styles, events){
-		// todo: test on all objs
+		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
-// todo: необходим deepClone везде
+		// todo: необходим deepClone везде
 
 		if(attrs === false){
 			clone.attrs = this.attrs;
@@ -54,6 +55,7 @@ Drawable = new Class({
 		} else {
 			clone.styles = extend({}, this.styles);
 			// must gradients be cloned?
+			// yep, they should
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
 			}
@@ -120,6 +122,15 @@ Drawable = new Class({
 			}
 		},
 
+		strokeMode: {
+			get: function(){
+				return this.attrs.strokeMode || 'over';
+			},
+			set: function(value){
+				this.update();
+			}
+		},
+
 		shadow: {
 			set: function(value){
 				Drawable.processShadow(value, this.styles);
@@ -163,10 +174,8 @@ Drawable = new Class({
 		},
 
 		transform: {
-			get: function(){
-				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
-			},
-			set: function(){
+			set: function(value){
+				this.cache.transform = null;
 				this.update();
 			}
 		},
@@ -176,11 +185,10 @@ Drawable = new Class({
 				return this.attrs.translate || [0, 0];
 			},
 			set: function(value){
-				value = parsePoint(value);
-				this.attrs.translate = value;
-				this.genMatrix(); // todo: лениво генерировать при апдейте
-				this.update();
-				return value;
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		},
 
@@ -188,23 +196,11 @@ Drawable = new Class({
 			get: function(){
 				return this.attrs.rotate || 0;
 			},
-			set: function(value){
-				this.attrs.rotate = value;
-				this.genMatrix();
-				this.update();
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(value){
-				value = parsePoint(value);
-				this.attrs.skew = value;
-				this.genMatrix();
-				this.update();
-				return value;
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		},
 
@@ -212,51 +208,45 @@ Drawable = new Class({
 			get: function(){
 				return this.attrs.scale || [1, 1];
 			},
-			set: function(value){
-				value = parsePoint(value); // неверно на самом деле
-				// тут же не точка
-				this.attrs.scale = value;
-				this.genMatrix();
-				this.update();
-				return value;
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		}
-
-		// transformOrder, rotatePivot, scalePivot, skewPivot are passive attributes
-		// they do not update anything but influence onto changes of transform attrs
 	},
 
-	genMatrix: function(){
-		;
+	// Transforms
+	getTransform: function(){
+		if(this.cache.transform){
+			return this.cache.transform;
+		}
+
+		var matrix = Delta.parseTransform(this.attrs, this);
+		this.cache.transform = matrix;
+		return matrix;
 	},
 
-	// todo: move to Drawable.processArgumentsObject
 	processObject: function(object, arglist){
-		// todo: has must be a macros
-		// здесь везде вообще заменить на object.opacity !== undefined
-
-		// нужно заменить эту функцию на прямой маппинг в attrs (в функции set)
-		// а функция update должна ставиться после первого рисования
-		// а по умолчанию быть пустой
-
-		if(has(object, 'opacity')){
-			this.styles.globalAlpha = object.opacity;
-		}
-		if(has(object, 'composite')){
-			this.styles.globalCompositeOperation = object.composite;
-		}
-		if(has(object, 'clip')){
-			object.clip.context = this.context;
-			this.attrs.clip = object.clip;
-		}
-		if(has(object, 'visible')){
-			object.attrs.visible = object.visible;
-		}
-		if(has(object, 'interaction')){
-			object.attrs.interaction = object.interaction;
-		}
-		// todo: add other attrs
-		// и обработчики событий
+		['opacity', 'composite', 'clip', 'visible', 'interaction',
+		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
+			if(object[prop] !== undefined){
+				this.attr(prop, object[prop]);
+			}
+		}, this);
 
 		return arglist.map(function(name){
 			return object[name];
@@ -265,16 +255,27 @@ Drawable = new Class({
 
 	isPointIn : function(x, y){
 		// if(this.attrs.interactionParameters.transform)
-		if(this.matrix){
-			var inverse = Delta.inverseTransform(this.matrix);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			var inverse = Delta.inverseTransform(transform);
 			return Delta.transformPoint(inverse, [x, y]);
 		}
+
 		return [x, y];
 	},
 
 	// Bounds
 	bounds: function(rect, transform, around){
-		// maybe add processClip?
+		// todo:
+		// 'rough' / 'precise'
+		// 'stroke-with' / 'stroke-out'
+		// 'clip-exclude'
+		// 'self' / 'transformed' / 'tight'
+		// self - only self transforms
+		// transformed - self & context
+
+		// example: 'rough tight'
+
 		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
 			if(around === 'strokeExclude'){
@@ -325,16 +326,23 @@ Drawable = new Class({
 	},
 
 	// Events
-	on : function(event, callback){
+	on : function(event, options, callback){
 		if(event + '' !== event){
 			for(var key in event) if(has(event, key)){
 				this.on(key, event[key]);
 			}
 		}
 
+		if(typeof options === 'function'){
+			callback = options;
+			options = null;
+		} else if(options + '' === options){
+			Array.prototype.splice.call(arguments, 1, 0, null);
+		}
+
+
 		if(callback + '' === callback){
-			// todo: slice.call(arguments, 1)
-			callback = wrap(arguments);
+			callback = wrap(arguments, 2);
 		}
 
 		this.context.listener(event);
@@ -348,6 +356,7 @@ Drawable = new Class({
 			this.listeners = {};
 			return this;
 		}
+
 		if(!callback){
 			this.listeners[event] = null;
 			return this;
@@ -358,8 +367,17 @@ Drawable = new Class({
 		return this;
 	},
 
-	fire : function(event, data){
-		(this.listeners[event] || []).forEach(function(callback){
+	fire : function(event, data, checker){
+		if(!this.listeners[event]){
+			return this;
+		}
+
+		var listeners = this.listeners[event];
+		if(checker){
+			listeners = listeners.filter(checker, this);
+		}
+
+		listeners.forEach(function(callback){
 			callback.call(this, data);
 		}, this);
 		return this;
@@ -371,7 +389,7 @@ Drawable = new Class({
 
 		var style = this.styles;
 		// styles
-		// note1: we can cache Object.keys
+		// note1: we might cache Object.keys
 		// note2: we should hold gradients / patterns in attrs not in styles
 		Object.keys(style).forEach(function(key){
 			ctx[key] = style[key];
@@ -403,88 +421,48 @@ Drawable = new Class({
 			} else {
 				this.attrs.clip.processPath(ctx);
 			}
+			// несколько фигур, склиппеных последовательно, складываются
 			ctx.clip();
 		}
 
-		if(this.matrix){
-			ctx.transform(
-				this.matrix[0], this.matrix[1], this.matrix[2],
-				this.matrix[3], this.matrix[4], this.matrix[5]
-			);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
 		}
 	},
 
 	postDraw: function(ctx){
 		var style = this.styles;
+		var strokeMode = this.attrs.strokeMode || 'over';
+		if(strokeMode === 'clipInsideUnder' && style.strokeStyle){
+			ctx.clip();
+			ctx.stroke();
+		}
+		if(strokeMode === 'under' && style.strokeStyle){
+			ctx.stroke();
+		}
 		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(strokeMode === 'over' && style.strokeStyle){
+			ctx.stroke();
+		}
+		if(strokeMode === 'clipInsideOver' && style.strokeStyle){
+			ctx.clip();
+			ctx.stroke();
+		}
+		if(strokeMode === 'clip' && style.strokeStyle){
+			// i have no idea
+		//	ctx.scale(5, 1.5);
+		//	ctx.stroke();
+		}
+		/* if(style.fillStyle){
 			ctx.fill();
 		}
 		if(style.strokeStyle){
 			ctx.stroke();
-		}
+		} */
 		ctx.restore();
-	},
-
-	// Transforms
-	transform: function(a, b, c, d, e, f, pivot){
-		if(a === null){
-			this.matrix = null;
-		} else {
-			if(pivot){
-				pivot = this.corner(pivot, {transform: 'ignore'});
-				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
-				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
-			}
-			this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
-		}
-		return this.update();
-	},
-
-	translate: function(x, y){
-		return this.transform(
-			1, 0,
-			0, 1,
-			x, y
-		);
-	},
-
-	rotate: function(angle, pivot){
-		angle = angle / 180 * Math.PI;
-		return this.transform(
-			Math.cos(angle), Math.sin(angle),
-			-Math.sin(angle), Math.cos(angle),
-			0, 0,
-
-			pivot || 'center'
-		);
-	},
-
-	scale: function(x, y, pivot){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(
-			x, 0,
-			0, y,
-			0, 0,
-
-			pivot || 'center'
-		);
-	},
-
-	skew: function(x, y, pivot){
-		if(y === undefined){
-			y = x;
-		}
-		x = x / 180 * Math.PI;
-		y = y / 180 * Math.PI;
-		return this.transform(
-			1, Math.tan(y),
-			Math.tan(x), 1,
-			0, 0,
-
-			pivot || 'center'
-		);
 	},
 
 	// Rasterization
@@ -623,7 +601,7 @@ Drawable = new Class({
 		// pause changes the original array
 		// so we need slice
 		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (!name || anim.name === name)){
+			if(anim.elem === this && (anim.name === name || !name)){
 				anim.pause();
 				this._paused.push(anim);
 			}
@@ -648,6 +626,8 @@ Drawable = new Class({
 
 });
 
+Drawable.AttrHooks = DrawableAttrHooks;
+
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
 		// remove spaces between commas
@@ -659,7 +639,6 @@ Drawable.processStroke = function(stroke, style){
 
 		while(l--){
 			if(reFloat.test(stroke[l])){
-				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = Delta.distance(stroke[l]);
@@ -680,6 +659,13 @@ Drawable.processStroke = function(stroke, style){
 				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
 			} else if(stroke[l] in Delta.dashes){
 				style.lineDash = Delta.dashes[stroke[l]];
+			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
+				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
+			} else if(stroke[l].indexOf('do') === 0){
+				// todo: check about cross-browser support
+				// mozDashOffset
+				// webkitLineDashOffset
+				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
 			} else {
 				style.strokeStyle = stroke[l];
 			}
@@ -707,12 +693,18 @@ Drawable.processStroke = function(stroke, style){
 		if(stroke.cap !== undefined){
 			style.lineCap = stroke.cap;
 		}
+		if(stroke.miterLimit !== undefined){
+			style.miterLimit = stroke.miterLimit;
+		}
 		if(stroke.dash !== undefined){
 			if(stroke.dash in Delta.dashes){
 				style.lineDash = Delta.dashes[stroke.dash];
 			} else {
 				style.lineDash = stroke.dash;
 			}
+		}
+		if(stroke.dashOffset !== undefined){
+			style.lineDashOffset = Delta.distance(stroke.dashOffset);
 		}
 	}
 };

@@ -24,6 +24,7 @@ GLContext = new Class(Context, {
 		// array for not yet drawn obs
 		this._missing  = [];
 
+		// todo: this.drawMissing = this.drawMissing.bind(this)
 		this.drawMissingBound = this.drawMissing.bind(this);
 		this.updateNowBounded = this.updateNow.bind(this);
 	},
@@ -65,7 +66,7 @@ GLContext = new Class(Context, {
 				this._willDrawMissing = true;
 			}
 			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
-			// а в этом тике надо компилировать все нужные для запушленного объекта шейдеры
+			// а в этом тике надо компилировать все нужные для запушенного объекта шейдеры
 			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
 			// и используется первым :P
 			// element.drawGL(this.gl);

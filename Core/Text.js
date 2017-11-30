@@ -227,8 +227,7 @@ Text = new Class(Drawable, {
 				}
 
 				var x = this.attrs.x,
-					y = this.attrs.y,
-					func;
+					y = this.attrs.y;
 
 				if(this.styles.fillStyle && !this.styles.strokeStyle){
 					this.lines.forEach(function(line){
@@ -260,6 +259,7 @@ Text = new Class(Drawable, {
 
 	measure: function(){
 		var width;
+		// todo: if(this.context is 2d) measure through it else make new 2d context
 		if(this.attrs.breaklines){
 			if(!this.lines){
 				this.processLines(this.context.context);

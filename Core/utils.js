@@ -398,8 +398,109 @@ Delta.clone = function(object){
 };
 
 // Matrices
-// renamed from Delta.multiply
-// rename to Delta.transformMatrix?
+Delta.parseTransform = function(attrs, element){
+	if(Array.isArray(attrs.transform)){
+		return attrs.transform;
+	}
+
+	var result = [1, 0, 0, 1, 0, 0];
+	if(attrs.transform === 'attributes'){
+		(attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(method){
+			if(attrs[method] !== undefined){
+				result = Delta.transforms[method](result, attrs[method], element);
+			}
+		});
+	} else {
+		var str = attrs.transform.split(')');
+		str.forEach(function(part){
+			part = part.trim();
+			if(part === ''){
+				return;
+			}
+
+			var method = part.match(/[a-z]+/);
+			var args = part.split('(')[1].split(',').map(function(arg){
+				return arg.trim();
+			});
+			result = Delta.transforms[method](result, args, element);
+		});
+	}
+	return result;
+};
+
+Delta.transforms = {
+	translate: function(matrix, args){
+		matrix[4] += +args[0];
+		matrix[5] += +args[1];
+		return matrix;
+	},
+
+	// todo: optimize matrix multiplications
+	// todo: corner(..., {transform: 'ignore'})
+
+	/* if(pivot){
+		pivot = this.corner(pivot, {transform: 'ignore'});
+		e = pivot[0] + e - a * pivot[0] - c * pivot[1];
+		f = pivot[1] + f - b * pivot[0] - d * pivot[1];
+	} */
+
+	scale: function(matrix, args, elem){
+		if(+args === args){
+			// args = scale
+			args = [args, args];
+		} else if(+args[1] !== args[1]){
+			// args = [scale, pivot]
+			args = [args[0], args[0], args[1]];
+		}
+
+		var pivot = elem.corner(args[2] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [args[0], 0, 0, args[1], 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	},
+
+	skew: function(matrix, args, elem){
+		if(+args === args){
+			// args = skew
+			args = [args, args];
+		} else if(+args[1] !== args[1]){
+			// args = [skew, pivot]
+			args = [args[0], args[0], args[1]];
+		}
+		args[0] = (+args[0]) / 180 * Math.PI;
+		args[1] = (+args[1]) / 180 * Math.PI;
+
+		var pivot = elem.corner(args[2] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [1, Math.tan(args[1]), Math.tan(args[0]), 1, 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	},
+
+	rotate: function(matrix, args, elem){
+		if(+args === args){
+			args = [args];
+		}
+		args[0] = (+args[0]) / 180 * Math.PI;
+
+		var pivot = elem.corner(args[1] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [Math.cos(args[0]), Math.sin(args[0]), -Math.sin(args[0]), Math.cos(args[0]), 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	}
+};
+
+Delta.isIdentityTransform = function(matrix){
+	return matrix[5] === 0 && matrix[4] === 0 &&
+			matrix[3] === 1 && matrix[2] === 0 &&
+			matrix[1] === 0 && matrix[0] === 1;
+};
+
 Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],

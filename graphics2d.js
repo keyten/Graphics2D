@@ -1,7 +1,7 @@
 /*  Graphics2D Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 25.10.2017
+ *  Last edit: 29.11.2017
  *  License: MIT / LGPL
  */
 
@@ -497,8 +497,109 @@ Delta.clone = function(object){
 };
 
 // Matrices
-// renamed from Delta.multiply
-// rename to Delta.transformMatrix?
+Delta.parseTransform = function(attrs, element){
+	if(Array.isArray(attrs.transform)){
+		return attrs.transform;
+	}
+
+	var result = [1, 0, 0, 1, 0, 0];
+	if(attrs.transform === 'attributes'){
+		(attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(method){
+			if(attrs[method] !== undefined){
+				result = Delta.transforms[method](result, attrs[method], element);
+			}
+		});
+	} else {
+		var str = attrs.transform.split(')');
+		str.forEach(function(part){
+			part = part.trim();
+			if(part === ''){
+				return;
+			}
+
+			var method = part.match(/[a-z]+/);
+			var args = part.split('(')[1].split(',').map(function(arg){
+				return arg.trim();
+			});
+			result = Delta.transforms[method](result, args, element);
+		});
+	}
+	return result;
+};
+
+Delta.transforms = {
+	translate: function(matrix, args){
+		matrix[4] += +args[0];
+		matrix[5] += +args[1];
+		return matrix;
+	},
+
+	// todo: optimize matrix multiplications
+	// todo: corner(..., {transform: 'ignore'})
+
+	/* if(pivot){
+		pivot = this.corner(pivot, {transform: 'ignore'});
+		e = pivot[0] + e - a * pivot[0] - c * pivot[1];
+		f = pivot[1] + f - b * pivot[0] - d * pivot[1];
+	} */
+
+	scale: function(matrix, args, elem){
+		if(+args === args){
+			// args = scale
+			args = [args, args];
+		} else if(+args[1] !== args[1]){
+			// args = [scale, pivot]
+			args = [args[0], args[0], args[1]];
+		}
+
+		var pivot = elem.corner(args[2] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [args[0], 0, 0, args[1], 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	},
+
+	skew: function(matrix, args, elem){
+		if(+args === args){
+			// args = skew
+			args = [args, args];
+		} else if(+args[1] !== args[1]){
+			// args = [skew, pivot]
+			args = [args[0], args[0], args[1]];
+		}
+		args[0] = (+args[0]) / 180 * Math.PI;
+		args[1] = (+args[1]) / 180 * Math.PI;
+
+		var pivot = elem.corner(args[2] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [1, Math.tan(args[1]), Math.tan(args[0]), 1, 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	},
+
+	rotate: function(matrix, args, elem){
+		if(+args === args){
+			args = [args];
+		}
+		args[0] = (+args[0]) / 180 * Math.PI;
+
+		var pivot = elem.corner(args[1] || 'center');
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, pivot[0], pivot[1]]);
+		matrix = Delta.transform(matrix, [Math.cos(args[0]), Math.sin(args[0]), -Math.sin(args[0]), Math.cos(args[0]), 0, 0]);
+		matrix = Delta.transform(matrix, [1, 0, 0, 1, -pivot[0], -pivot[1]]);
+
+		return matrix;
+	}
+};
+
+Delta.isIdentityTransform = function(matrix){
+	return matrix[5] === 0 && matrix[4] === 0 &&
+			matrix[3] === 1 && matrix[2] === 0 &&
+			matrix[1] === 0 && matrix[0] === 1;
+};
+
 Delta.transform = function(m1, m2){ // multiplies two 2D-transform matrices
 	return [
 		m1[0] * m2[0] + m1[2] * m2[1],
@@ -664,7 +765,7 @@ Delta.renderers['2d'] = {
 	// renderer.init(g2dcontext, canvas);
 	init: function(delta, canvas){
 		delta.context = canvas.getContext('2d');
-		delta._cache = {}; // for gradients
+		delta.cache = {}; // for gradients
 	},
 
 	preRedraw: function(ctx, delta){
@@ -798,8 +899,8 @@ Delta.renderers['2d'] = {
 		var hash;
 		if(delta.useCache){
 			hash = this.hashGradient(type, from, to, colors);
-			if(delta._cache[hash]){
-				return delta._cache[hash];
+			if(delta.cache[hash]){
+				return delta.cache[hash];
 			}
 		}
 
@@ -815,7 +916,7 @@ Delta.renderers['2d'] = {
 		});
 
 		if(delta.useCache){
-			delta._cache[hash] = grad;
+			delta.cache[hash] = grad;
 		}
 
 		return grad;
@@ -923,11 +1024,15 @@ Context = function(canvas){
 	this.context   = canvas.getContext('2d');
 	this.elements  = [];
 	this.listeners = {};
-	this._cache = {};
+	this.attrs = {
+		transform: 'attributes'
+	};
+	this.cache = {};
 
 // rudiment
 	this.renderer = Delta.renderers['2d'];
 
+	// why not updateNow = ...?
 	this.updateNowBounded = this.updateNow.bind(this);
 };
 
@@ -1028,15 +1133,9 @@ Context.prototype = {
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		if(this.matrix){
-			ctx.setTransform(
-				this.matrix[0],
-				this.matrix[1],
-				this.matrix[2],
-				this.matrix[3],
-				this.matrix[4],
-				this.matrix[5]
-			);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.setTransform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
 		}
 
 		this.elements.forEach(function(element){
@@ -1093,29 +1192,31 @@ Context.prototype = {
 		return this.listeners[event];
 	},
 
-	eventsInteract: eventsToInteract,
-
 	eventsHooks : {
 		mouseover : function(){
 			if(!this.listeners['mouseout']){
+				this.listenerCanvas('mouseout');
 				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener('mouseout');
 			}
 		},
 		mouseout: function(){
 			if(!this.listeners['mouseover']){
+				this.listenerCanvas('mouseover');
 				this.listenerSpecial('mouseover', 'mouseout', 'hover', 'mousemove');
 				this.listener('mouseover');
 			}
 		},
 		focus : function(){
 			if(!this.listeners['blur']){
+				this.listenerCanvas('blur');
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 				this.listener('blur');
 			}
 		},
 		blur: function(){
 			if(!this.listeners['focus']){
+				this.listenerCanvas('focus');
 				this.listenerSpecial('focus', 'blur', 'focus', 'mousedown');
 				this.listener('focus');
 			}
@@ -1235,12 +1336,17 @@ Context.prototype = {
 		return this;
 	},
 
-	fire : function(event, data){
+	fire : function(event, data, checker){
 		if(!this.listeners[event]){
 			return this;
 		}
 
-		this.listeners[event].forEach(function(callback){
+		var listeners = this.listeners[event];
+		if(checker){
+			listeners = listeners.filter(checker, this);
+		}
+
+		listeners.forEach(function(callback){
 			callback.call(this, data);
 		}, this);
 		return this;
@@ -1256,92 +1362,86 @@ Context.prototype = {
 	attr: Class.attr,
 	attrHooks: {
 		transform: {
+			set: function(value){
+				this.cache.transform = null;
+				this.update();
+			}
+		},
+
+		translate: {
 			get: function(){
-				if(this.attrs.transform === 'dirty'){
-					// calc and this... = ...
-				}
-				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
+				return this.attrs.translate || [0, 0];
 			},
 			set: function(value){
-				this.update();
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		rotate: {
+			get: function(){
+				return this.attrs.rotate || 0;
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		scale: {
+			get: function(){
+				return this.attrs.scale || [1, 1];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		}
 	},
 
 	// Transforms
-	matrix: null,
-	transform: function(a, b, c, d, e, f, pivot){
-		if(a === null){
-			this.matrix = null;
-			return this.update();
+	getTransform: function(){
+		if(this.cache.transform){
+			return this.cache.transform;
 		}
 
-		if(pivot){
-			if(pivot + '' === pivot){
-				pivot = Delta.corners[pivot];
-				pivot = [pivot[0] * this.canvas.width, pivot[1] * this.canvas.height];
-			}
-
-			e = e - a * pivot[0] + pivot[0] - c * pivot[1];
-			f = f - b * pivot[0] - d * pivot[1] + pivot[1];
-		}
-
-		this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
-		return this.update();
+		var matrix = Delta.parseTransform(this.attrs, this);
+		this.cache.transform = matrix;
+		return matrix;
 	},
 
-	translate: function(x, y){
-		return this.transform(
-			1, 0,
-			0, 1,
-			x, y
-		);
-	},
-
-	rotate: function(angle, pivot){
-		angle = angle / 180 * Math.PI;
-		return this.transform(
-			Math.cos(angle), Math.sin(angle),
-			-Math.sin(angle), Math.cos(angle),
-			0, 0,
-
-			pivot
-		);
-	},
-
-	scale: function(x, y, pivot){
-		if(y === undefined || isPivot(y)){
-			pivot = y;
-			y = x;
-		}
-		return this.transform(
-			x, 0,
-			0, y,
-			0, 0,
-
-			pivot
-		);
-	},
-
-	skew: function(x, y, pivot){
-		if(y === undefined || isPivot(y)){
-			pivot = y;
-			y = x;
-		}
-		return this.transform(
-			1, Math.tan(y * Math.PI / 180),
-			Math.tan(x * Math.PI / 180), 1,
-			0, 0,
-
-			pivot
-		);
+	corner: function(corner){
+		return [
+			this.canvas.width * Delta.corners[corner][0],
+			this.canvas.height * Delta.corners[corner][1]
+		];
 	}
 };
 
 eventsToInteract.forEach(function(eventName){
-	Context.prototype.eventsHooks[eventName] = function(){
-		this.listenerCanvas(eventName);
-	};
+	if(!Context.prototype.eventsHooks[eventName]){
+		Context.prototype.eventsHooks[eventName] = function(){
+			this.listenerCanvas(eventName);
+		};
+	}
 
 	Context.prototype[eventName] = function(callback){
 		return this[
@@ -1355,10 +1455,6 @@ Delta.Context = Context;
 Delta.contexts = {
 	'2d': Context
 };
-
-Delta.Math = {};
-
-// todo: rename to Delta.math
 
 var temporaryCanvas;
 
@@ -1376,13 +1472,14 @@ function DrawableAttrHooks(attrs){
 }
 
 Drawable = new Class({
-
 	initialize: function(args){
 		this.listeners = {};
 		this.styles = {};
+		this.cache = {};
 		this.attrs = {
 			interaction: true,
-			visible: true
+			visible: true,
+			transform: 'attributes'
 		};
 	},
 
@@ -1394,15 +1491,15 @@ Drawable = new Class({
 		return this;
 	},
 
-	// update function for state before being drawn
+	// update function for the state before the first draw
 	update: function(){
 		return this;
 	},
 
 	clone : function(attrs, styles, events){
-		// todo: test on all objs
+		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
-// todo: необходим deepClone везде
+		// todo: необходим deepClone везде
 
 		if(attrs === false){
 			clone.attrs = this.attrs;
@@ -1416,6 +1513,7 @@ Drawable = new Class({
 		} else {
 			clone.styles = extend({}, this.styles);
 			// must gradients be cloned?
+			// yep, they should
 			if(this.matrix){
 				clone.matrix = this.matrix.slice();
 			}
@@ -1482,6 +1580,15 @@ Drawable = new Class({
 			}
 		},
 
+		strokeMode: {
+			get: function(){
+				return this.attrs.strokeMode || 'over';
+			},
+			set: function(value){
+				this.update();
+			}
+		},
+
 		shadow: {
 			set: function(value){
 				Drawable.processShadow(value, this.styles);
@@ -1525,10 +1632,8 @@ Drawable = new Class({
 		},
 
 		transform: {
-			get: function(){
-				return this.attrs.transform || [1, 0, 0, 1, 0, 0];
-			},
-			set: function(){
+			set: function(value){
+				this.cache.transform = null;
 				this.update();
 			}
 		},
@@ -1538,11 +1643,10 @@ Drawable = new Class({
 				return this.attrs.translate || [0, 0];
 			},
 			set: function(value){
-				value = parsePoint(value);
-				this.attrs.translate = value;
-				this.genMatrix(); // todo: лениво генерировать при апдейте
-				this.update();
-				return value;
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		},
 
@@ -1550,23 +1654,11 @@ Drawable = new Class({
 			get: function(){
 				return this.attrs.rotate || 0;
 			},
-			set: function(value){
-				this.attrs.rotate = value;
-				this.genMatrix();
-				this.update();
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(value){
-				value = parsePoint(value);
-				this.attrs.skew = value;
-				this.genMatrix();
-				this.update();
-				return value;
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		},
 
@@ -1574,51 +1666,45 @@ Drawable = new Class({
 			get: function(){
 				return this.attrs.scale || [1, 1];
 			},
-			set: function(value){
-				value = parsePoint(value); // неверно на самом деле
-				// тут же не точка
-				this.attrs.scale = value;
-				this.genMatrix();
-				this.update();
-				return value;
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
+			}
+		},
+
+		skew: {
+			get: function(){
+				return this.attrs.skew || [0, 0];
+			},
+			set: function(){
+				if(this.attrs.transform === 'attributes'){
+					this.cache.transform = null;
+					this.update();
+				}
 			}
 		}
-
-		// transformOrder, rotatePivot, scalePivot, skewPivot are passive attributes
-		// they do not update anything but influence onto changes of transform attrs
 	},
 
-	genMatrix: function(){
-		;
+	// Transforms
+	getTransform: function(){
+		if(this.cache.transform){
+			return this.cache.transform;
+		}
+
+		var matrix = Delta.parseTransform(this.attrs, this);
+		this.cache.transform = matrix;
+		return matrix;
 	},
 
-	// todo: move to Drawable.processArgumentsObject
 	processObject: function(object, arglist){
-		// todo: has must be a macros
-		// здесь везде вообще заменить на object.opacity !== undefined
-
-		// нужно заменить эту функцию на прямой маппинг в attrs (в функции set)
-		// а функция update должна ставиться после первого рисования
-		// а по умолчанию быть пустой
-
-		if(has(object, 'opacity')){
-			this.styles.globalAlpha = object.opacity;
-		}
-		if(has(object, 'composite')){
-			this.styles.globalCompositeOperation = object.composite;
-		}
-		if(has(object, 'clip')){
-			object.clip.context = this.context;
-			this.attrs.clip = object.clip;
-		}
-		if(has(object, 'visible')){
-			object.attrs.visible = object.visible;
-		}
-		if(has(object, 'interaction')){
-			object.attrs.interaction = object.interaction;
-		}
-		// todo: add other attrs
-		// и обработчики событий
+		['opacity', 'composite', 'clip', 'visible', 'interaction',
+		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
+			if(object[prop] !== undefined){
+				this.attr(prop, object[prop]);
+			}
+		}, this);
 
 		return arglist.map(function(name){
 			return object[name];
@@ -1627,16 +1713,27 @@ Drawable = new Class({
 
 	isPointIn : function(x, y){
 		// if(this.attrs.interactionParameters.transform)
-		if(this.matrix){
-			var inverse = Delta.inverseTransform(this.matrix);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			var inverse = Delta.inverseTransform(transform);
 			return Delta.transformPoint(inverse, [x, y]);
 		}
+
 		return [x, y];
 	},
 
 	// Bounds
 	bounds: function(rect, transform, around){
-		// maybe add processClip?
+		// todo:
+		// 'rough' / 'precise'
+		// 'stroke-with' / 'stroke-out'
+		// 'clip-exclude'
+		// 'self' / 'transformed' / 'tight'
+		// self - only self transforms
+		// transformed - self & context
+
+		// example: 'rough tight'
+
 		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
 			if(around === 'strokeExclude'){
@@ -1687,16 +1784,23 @@ Drawable = new Class({
 	},
 
 	// Events
-	on : function(event, callback){
+	on : function(event, options, callback){
 		if(event + '' !== event){
 			for(var key in event) if(has(event, key)){
 				this.on(key, event[key]);
 			}
 		}
 
+		if(typeof options === 'function'){
+			callback = options;
+			options = null;
+		} else if(options + '' === options){
+			Array.prototype.splice.call(arguments, 1, 0, null);
+		}
+
+
 		if(callback + '' === callback){
-			// todo: slice.call(arguments, 1)
-			callback = wrap(arguments);
+			callback = wrap(arguments, 2);
 		}
 
 		this.context.listener(event);
@@ -1710,6 +1814,7 @@ Drawable = new Class({
 			this.listeners = {};
 			return this;
 		}
+
 		if(!callback){
 			this.listeners[event] = null;
 			return this;
@@ -1720,8 +1825,17 @@ Drawable = new Class({
 		return this;
 	},
 
-	fire : function(event, data){
-		(this.listeners[event] || []).forEach(function(callback){
+	fire : function(event, data, checker){
+		if(!this.listeners[event]){
+			return this;
+		}
+
+		var listeners = this.listeners[event];
+		if(checker){
+			listeners = listeners.filter(checker, this);
+		}
+
+		listeners.forEach(function(callback){
 			callback.call(this, data);
 		}, this);
 		return this;
@@ -1733,7 +1847,7 @@ Drawable = new Class({
 
 		var style = this.styles;
 		// styles
-		// note1: we can cache Object.keys
+		// note1: we might cache Object.keys
 		// note2: we should hold gradients / patterns in attrs not in styles
 		Object.keys(style).forEach(function(key){
 			ctx[key] = style[key];
@@ -1765,88 +1879,48 @@ Drawable = new Class({
 			} else {
 				this.attrs.clip.processPath(ctx);
 			}
+			// несколько фигур, склиппеных последовательно, складываются
 			ctx.clip();
 		}
 
-		if(this.matrix){
-			ctx.transform(
-				this.matrix[0], this.matrix[1], this.matrix[2],
-				this.matrix[3], this.matrix[4], this.matrix[5]
-			);
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
 		}
 	},
 
 	postDraw: function(ctx){
 		var style = this.styles;
+		var strokeMode = this.attrs.strokeMode || 'over';
+		if(strokeMode === 'clipInsideUnder' && style.strokeStyle){
+			ctx.clip();
+			ctx.stroke();
+		}
+		if(strokeMode === 'under' && style.strokeStyle){
+			ctx.stroke();
+		}
 		if(style.fillStyle){
+			ctx.fill();
+		}
+		if(strokeMode === 'over' && style.strokeStyle){
+			ctx.stroke();
+		}
+		if(strokeMode === 'clipInsideOver' && style.strokeStyle){
+			ctx.clip();
+			ctx.stroke();
+		}
+		if(strokeMode === 'clip' && style.strokeStyle){
+			// i have no idea
+		//	ctx.scale(5, 1.5);
+		//	ctx.stroke();
+		}
+		/* if(style.fillStyle){
 			ctx.fill();
 		}
 		if(style.strokeStyle){
 			ctx.stroke();
-		}
+		} */
 		ctx.restore();
-	},
-
-	// Transforms
-	transform: function(a, b, c, d, e, f, pivot){
-		if(a === null){
-			this.matrix = null;
-		} else {
-			if(pivot){
-				pivot = this.corner(pivot, {transform: 'ignore'});
-				e = pivot[0] + e - a * pivot[0] - c * pivot[1];
-				f = pivot[1] + f - b * pivot[0] - d * pivot[1];
-			}
-			this.matrix = Delta.transform(this.matrix || [1, 0, 0, 1, 0, 0], [a, b, c, d, e, f]);
-		}
-		return this.update();
-	},
-
-	translate: function(x, y){
-		return this.transform(
-			1, 0,
-			0, 1,
-			x, y
-		);
-	},
-
-	rotate: function(angle, pivot){
-		angle = angle / 180 * Math.PI;
-		return this.transform(
-			Math.cos(angle), Math.sin(angle),
-			-Math.sin(angle), Math.cos(angle),
-			0, 0,
-
-			pivot || 'center'
-		);
-	},
-
-	scale: function(x, y, pivot){
-		if(y === undefined){
-			y = x;
-		}
-		return this.transform(
-			x, 0,
-			0, y,
-			0, 0,
-
-			pivot || 'center'
-		);
-	},
-
-	skew: function(x, y, pivot){
-		if(y === undefined){
-			y = x;
-		}
-		x = x / 180 * Math.PI;
-		y = y / 180 * Math.PI;
-		return this.transform(
-			1, Math.tan(y),
-			Math.tan(x), 1,
-			0, 0,
-
-			pivot || 'center'
-		);
 	},
 
 	// Rasterization
@@ -1985,7 +2059,7 @@ Drawable = new Class({
 		// pause changes the original array
 		// so we need slice
 		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (!name || anim.name === name)){
+			if(anim.elem === this && (anim.name === name || !name)){
 				anim.pause();
 				this._paused.push(anim);
 			}
@@ -2010,6 +2084,8 @@ Drawable = new Class({
 
 });
 
+Drawable.AttrHooks = DrawableAttrHooks;
+
 Drawable.processStroke = function(stroke, style){
 	if(stroke + '' === stroke){
 		// remove spaces between commas
@@ -2021,7 +2097,6 @@ Drawable.processStroke = function(stroke, style){
 
 		while(l--){
 			if(reFloat.test(stroke[l])){
-				// how about 0?
 				opacity = parseFloat(stroke[l]);
 			} else if(isNumberLike(stroke[l])){
 				style.lineWidth = Delta.distance(stroke[l]);
@@ -2042,6 +2117,13 @@ Drawable.processStroke = function(stroke, style){
 				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
 			} else if(stroke[l] in Delta.dashes){
 				style.lineDash = Delta.dashes[stroke[l]];
+			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
+				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
+			} else if(stroke[l].indexOf('do') === 0){
+				// todo: check about cross-browser support
+				// mozDashOffset
+				// webkitLineDashOffset
+				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
 			} else {
 				style.strokeStyle = stroke[l];
 			}
@@ -2069,12 +2151,18 @@ Drawable.processStroke = function(stroke, style){
 		if(stroke.cap !== undefined){
 			style.lineCap = stroke.cap;
 		}
+		if(stroke.miterLimit !== undefined){
+			style.miterLimit = stroke.miterLimit;
+		}
 		if(stroke.dash !== undefined){
 			if(stroke.dash in Delta.dashes){
 				style.lineDash = Delta.dashes[stroke.dash];
 			} else {
 				style.lineDash = stroke.dash;
 			}
+		}
+		if(stroke.dashOffset !== undefined){
+			style.lineDashOffset = Delta.distance(stroke.dashOffset);
 		}
 	}
 };
@@ -2113,77 +2201,6 @@ Delta.Drawable = Drawable;
 eventsToInteract.forEach(function(eventName){
 	Drawable.prototype[eventName] = Context.prototype[eventName];
 });
-// todo:
-/* Drawable.prototype._genMatrix = function(){
-	this.transform(null);
-	(this.attrs.transformOrder || 'translate rotate scale skew').split(' ').forEach(function(name){
-		if(!this.attrs[name]){
-			return;
-		}
-
-		if(name === 'translate'){
-			this.translate(this.attrs.translate[0], this.attrs.translate[1]);
-		} else if(name === 'rotate'){
-			this.rotate(this.attrs.rotate, this.attrs.rotatePivot);
-		} else if(name === 'scale'){
-			this.scale(this.attrs.scale[0], this.attrs.scale[1], this.attrs.scalePivot);
-		} else if(name === 'skew'){
-			this.skew(this.attrs.skew[0], this.attrs.skew[1], this.attrs.skewPivot);
-		}
-	}.bind(this));
-};
-
-		// одноименные функции, если им передать bounds, добавят соответствующий translate, и всё
-		// ...или же они просто меняют matrix?
-
-Drawable.prototype.attrHooks.translate = {
-	get: function(){
-		return this.matrix ? this.matrix.slice(4) : [0, 0];
-	},
-
-	set: function(value){
-		this.attrs.translate = value;
-		this._genMatrix();
-		this.update();
-	}
-};
-
-Drawable.prototype.attrHooks.rotate = {
-	get: function(){
-		return this.attrs.rotate || 0;
-	},
-
-	set: function(value){
-		this.attrs.rotate = value;
-		this._genMatrix();
-		this.update();
-		return null;
-	}
-};
-
-Drawable.prototype.attrHooks.skew = {
-	get: function(){
-		return this.attrs.skew || [0, 0];
-	},
-
-	set: function(value){
-		this.attrs.skew = +value === value ? [value, value] : value;
-		this._genMatrix();
-		this.update();
-	}
-};
-
-Drawable.prototype.attrHooks.scale = {
-	get: function(){
-		return this.attrs.scale || [1, 1];
-	},
-
-	set: function(value){
-		this.attrs.scale = +value === value ? [value, value] : value;
-		this._genMatrix();
-		this.update();
-	}
-}; */
 
 // var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
@@ -2322,7 +2339,6 @@ Animation.easing = {
 		return x;
 	},
 
-	// jquery :P
 	swing: function(x){
 		return 0.5 - Math.cos(x * Math.PI) / 2;
 	},
@@ -2361,7 +2377,13 @@ Animation.easing = {
 
 	elastic: function(t, v){
 		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
-	}
+	},
+
+	bezier: function(t, v){
+		// todo
+	},
+
+	// [tension, elastic]
 
 };
 
@@ -2513,7 +2535,7 @@ Rect = new Class(Drawable, {
 
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+			this.preDraw(ctx);
 
 			if(this.styles.fillStyle){
 				ctx.fillRect(
@@ -2712,6 +2734,8 @@ Curve = new Class({
 	}
 });
 
+Curve.AttrHooks = CurveAttrHooks;
+
 // todo: rename to canvasMethods
 Curve.canvasFunctions = {
 	moveTo: {
@@ -2840,7 +2864,8 @@ Curve.detail = 10;
 
 // Curve utilities
 extend(Curve.prototype, {
-	before: function(){
+	// renamed from before
+	prev: function(){
 		if(!this.path){
 			return null;
 		}
@@ -2852,6 +2877,20 @@ extend(Curve.prototype, {
 			return null;
 		}
 		return d[index - 1];
+	},
+
+	next: function(){
+		if(!this.path){
+			return null;
+		}
+
+		var d = this.path.attr('d');
+		var index = d.indexOf(this);
+
+		if(index === d.length - 2){
+			return null;
+		}
+		return d[index + 1];
 	}
 });
 
@@ -2887,9 +2926,23 @@ extend(Curve.prototype, {
 		return this.tangentAt(t, epsilon, startPoint) - 90;
 	},
 
-	flatten: function(detail, startPoint){
-		// превратить кривую в кучу прямых
-		// todo: запилить также атрибут flatten, который не превращает в прямые, но меняет отрисовку
+	flatten: function(detail, start){
+		if(!start){
+			start = this.startAt();
+		}
+
+		var lines = [];
+
+		for(var i = 1; i <= detail; i++){
+			lines.push(
+				Delta.curve('lineTo', this.pointAt(i / detail, start), this.path)
+			);
+		}
+
+		var curves = this.path.attr('d');
+		curves.splice.apply(curves, [curves.indexOf(this), 1].concat(lines));
+		this.path.attr('d', curves);
+		return this;
 	},
 
 	// like reduce
@@ -2903,9 +2956,9 @@ extend(Curve.prototype, {
 		return value;
 	},
 
-	length: function(detail, startPoint){
+	length: function(detail, startPoint, dont){
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length){
+		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length && !dont){
 			return Curve.canvasFunctions[this.method].length(this, startPoint);
 		}
 
@@ -3054,7 +3107,14 @@ extend(Curve.canvasFunctions.lineTo, {
 		];
 	},
 
-	tangentAt: function(curve){},
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		// x = x0 + (x1 - x0)t
+		// y = y0 + (y1 - y0)t
+		return Math.atan2(curve.attrs.args[1] - startPoint[1], curve.attrs.args[0] - startPoint[0]) / Math.PI * 180;
+	},
 
 	splitAt: function(curve, t, startPoint){
 		if(!startPoint){
@@ -3088,10 +3148,54 @@ extend(Curve.canvasFunctions.lineTo, {
 
 // QuadraticCurveTo
 extend(Curve.canvasFunctions.quadraticCurveTo, {
-	pointAt: function(){},
-	tangentAt: function(){},
-	splitAt: function(){},
+	pointAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		var i = 1 - t;
+		return [
+			i * i * startPoint[0] + 2 * t * i * curve.attrs.args[0] + t * t * curve.attrs.args[2],
+			i * i * startPoint[1] + 2 * t * i * curve.attrs.args[1] + t * t * curve.attrs.args[3],
+		];
+	},
 
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+	},
+
+	splitAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var i = 1 - t;
+		var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
+		return {
+			start: [
+				startPoint,
+				[
+					t * p[0] + i * startPoint[0],
+					t * p[1] + i * startPoint[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * p[2] + i * p[0],
+					t * p[3] + i * p[1]
+				],
+				[
+					p[2],
+					p[3]
+				]
+			]
+		};
+	},
+
+	// note: check a curve ([x, y, x, y, x, y])
 	length: function(curve, startPoint){
 		if(!startPoint){
 			startPoint = curve.startAt();
@@ -3104,26 +3208,29 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 			x2 = curve.attrs.args[2],
 			y2 = curve.attrs.args[3],
 
-			dx0 = x1 - x0,
-			dy0 = y1 - y0,
-			dx1 = x2 - x1,
-			dy1 = y2 - y1,
+			ax = x0 - 2 * x1 + x2,
+			bx = x1 - x0,
+			ay = y0 - 2 * y1 + y2,
+			by = y1 - y0,
 
-			A = Math.pow(dx0 - dx1, 2) + Math.pow(dy0 - dy1, 2),
-			B = 2 * (dx0 * (dx1 - dx0) + dy0 * (dy1 - dy0)),
-			C = dx0 * dx0 + dy0 * dy0;
-
-		// 2 * Int( sqrt(C + tB + t^2 A) dt )
-
-// A is zero if and only if the len is zero
-// so check before integrating
+			A = ax * ax + ay * ay,
+			B = ax * bx + ay * by,
+			C = bx * bx + by * by;
 
 		function integral(t){
-		console.log( 2 * A * t + B );
+			// the quadratic curve is just a straight line
+			if(A * C === B * B){
+				// note: works bad with lines where handle is not inside the line
+				// from [0, 0], to [50, 50] with handle [100, 100] for ex.
+				return 2 * Math.sqrt(A) * Math.abs(t * t / 2 + B * t / A);
+			}
 
-			return ((2 * A * t + B) * Math.sqrt(t * (A * t + B) + C)) /
-					(4 * A) -
-				((B * B - 4 * A * C) * Math.log(2 * Math.sqrt(A) * Math.sqrt(t * (A * t + B) + C) + 2 * A * t + B)) / (8 * Math.pow(A, 3/2))
+			return (
+				(A * C - B * B) * Math.log(
+					Math.sqrt(A) * Math.sqrt(A * t * t + 2 * B * t + C) + A * t + B
+				) +
+				Math.sqrt(A) * (A * t + B) * Math.sqrt(t * (A * t + 2 * B) + C)
+			) / Math.pow(A, 3/2);
 		}
 
 		return integral(1) - integral(0);
@@ -3165,6 +3272,61 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 
 // BezierCurveTo
 extend(Curve.canvasFunctions.bezierCurveTo, {
+	pointAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+		var i = 1 - t;
+		return [
+			i * i * i * startPoint[0] + 3 * t * i * i * curve.attrs.args[0] + 3 * t * t * i * curve.attrs.args[2] + t * t * t * curve.attrs.args[4],
+			i * i * i * startPoint[1] + 3 * t * i * i * curve.attrs.args[1] + 3 * t * t * i * curve.attrs.args[3] + t * t * t * curve.attrs.args[5]
+		];
+	},
+
+	tangentAt: function(curve, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+	},
+
+	splitAt: function(curve, t, startPoint){
+		if(!startPoint){
+			startPoint = curve.startAt();
+		}
+
+		var i = 1 - t;
+		var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
+		return {
+			start: [
+				startPoint,
+				[
+					t * p[0] + i * startPoint[0],
+					t * p[1] + i * startPoint[1]
+				],
+				[
+					t * t * p[2] + 2 * t * i * p[0] + i * i * startPoint[0],
+					t * t * p[3] + 2 * t * i * p[1] + i * i * startPoint[1]
+				],
+				point
+			],
+			end: [
+				point,
+				[
+					t * t * p[4] + 2 * t * i * p[2] + i * i * p[0],
+					t * t * p[5] + 2 * t * i * p[3] + i * i * p[1]
+				],
+				[
+					t * p[4] + i * p[2],
+					t * p[5] + i * p[3]
+				],
+				[
+					p[4],
+					p[5]
+				]
+			]
+		};
+	},
+
 	bounds: function(startPoint, attrs){
 		var x0 = startPoint[0],
 			y0 = startPoint[1],
@@ -3211,6 +3373,30 @@ extend(Curve.canvasFunctions.bezierCurveTo, {
 		];
 	}
 });
+
+// Flattening
+extend(Curve.prototype.attrHooks, {
+	flatten: {
+		set: function(){
+			this.update();
+		}
+	}
+});
+
+var oldCurveProcess = Curve.prototype.process;
+Curve.prototype.process = function(ctx){
+	if(!this.attrs.flatten){
+		return oldCurveProcess.apply(this, arguments);
+	}
+
+	var detail = this.attrs.flatten;
+	var start = this.startAt();
+	var point;
+	for(var i = 1; i <= detail; i++){
+		point = this.pointAt(i / detail, start);
+		ctx.lineTo(point[0], point[1]);
+	}
+};
 var CurveCatmull = new Class(Curve, {
 	initialize: function(method, attrs, path){
 		this.super('initialize', arguments);
@@ -3360,9 +3546,8 @@ function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, tension){
 	return bezier;
 }
 
-// catmull rom is a special case of hermite spline
+// catmull rom is a special case of the hermite spline
 function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
-	// возвращает то что можно запихнуть в path.push(...)
 	return {
 		h0: [x1, y1], // start point
 		h1: [x2, y2], // end point
@@ -3371,6 +3556,7 @@ function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
 	};
 }
 
+// возвращает то что можно запихнуть в path.push(...)
 // надо научить быть closed (нужно чтобы первая и последняя точка равнялись)
 Delta.Curve.catmullSpline = function(points, closed, tension){
 	return points.map(function(point, i){
@@ -3474,7 +3660,7 @@ var CurveHermite = new Class(Curve, {
 	},
 
 	tangentAt: function(t, start){
-		if(!start){
+		/* if(!start){
 			start = this.startAt();
 		}
 
@@ -3495,7 +3681,7 @@ var CurveHermite = new Class(Curve, {
 			0.5 * (3 * t * t * (-h1x + 3 * x1 - 3 * x2 + h2x)
 				+ 2 * t * (2 * h1x - 5 * x1 + 4 * x2 - h2x)
 				+ (-h1x + x2))
-		) / Math.PI * 180;
+		) / Math.PI * 180; */
 	},
 
 	process: function(ctx){
@@ -3588,6 +3774,9 @@ var GeneralBezier = new Class(Curve, {
 			x = [start[0]].concat(this._x),
 			y = [start[1]].concat(this._y),
 			detail = this.attrs.detail;
+			// сейчас при каждом вызове все координаты точек вычисляются заново
+			// это тяжело
+			// не нужно так
 
 		ctx.moveTo(start[0], start[1]);
 
@@ -3601,8 +3790,6 @@ var GeneralBezier = new Class(Curve, {
 		}
 	}
 });
-
-// Delta.math.factorial = ...
 
 function factorial(n){
 	if(n <= 1){
@@ -3623,6 +3810,8 @@ function C(i, m){
 	return factorial(m) / (factorial(i) * factorial(m - i));
 }
 
+Delta.combinations = C;
+Delta.factorial = factorial;
 
 function bezier(points, t){
 	var len = points.length,
@@ -3768,6 +3957,28 @@ Delta.drawRibbonCurve = function(ctx, params){
 		prev = cur;
 	}
 };
+
+Curve.prototype.attrHooks.ribbon = {
+	set: function(){
+		this.update();
+	}
+};
+
+Curve.prototype.attrHooks.ribbonGradient = {
+	set: function(){
+		this.update();
+	}
+};
+
+// Curve работает на process; надо переопределять process и вызывать из него draw
+var oldCurveDraw = Curve.prototype.draw;
+Curve.prototype.draw = function(){
+	if(!this.attrs.ribbon || !this.attrs.ribbonGradient || !this.pointAt){
+		oldCurveDraw.apply(this, arguments);
+	}
+	// ...
+};
+
 // curve.attr('ribbon', true);
 // curve.attr('ribbonGradient', ctx.gradient('ribbon', 'horizontal' / 'vertical', colors, tStart = 0, tEnd = 1, etc));
 
@@ -3955,317 +4166,54 @@ Context2D.prototype.drawCurve = function (obj) {
 };
 
 };
-
-/*Delta.Math.EPSILON_intersection = Number.EPSILON;
-
-Delta.Math.Line = {
-	pointAt: function(start, end, t){
-		return [
-			start[0] + t * (end[0] - start[0]),
-			start[1] + t * (end[1] - start[1])
-		];
+var CurveApprox = new Class(Curve, {
+	initialize: function(method, attrs, path, detail){
+		this.super('initialize', arguments);
+		this.attrs.detail = detail;
 	},
 
-	splitAt: function(start, end, t){
-		var point = Delta.Math.Line.pointAt(start, end, t);
-		return {
-			start: [start, point],
-			end: [point, end]
-		};
-	},
-
-	length: function(start, end){
-		return Math.sqrt(
-			Math.pow(end[0] - start[0], 2) + Math.pow(end[1] - start[1], 2)
-		);
-	},
-
-// why is this func?
-	same: function(line1start, line1end, line2start, line2end){
-		return (
-			Math.abs(line1start[0] - line2start[0]) < Number.EPSILON &&
-			Math.abs(line1start[1] - line2start[1]) < Number.EPSILON &&
-			Math.abs(line1end[0] - line2end[0]) < Number.EPSILON &&
-			Math.abs(line1end[1] - line1end[1]) < Number.EPSILON
-		);
-	},
-
-	intersections: function(line1start, line1end, line2start, line2end){
-		// what if line1start == line1end or line2start == line2end ?
-		// P1x + (P2x - P1x)t = Q1x + (Q2x - Q1x)v
-		// P1y + (P2y - P1y)t = Q1y + (Q2y - Q1y)v
-
-		// (P2x - P1x)t + (Q1x - Q2x)v = Q1x - P1x
-		// (P2y - P1y)t + (Q1y - Q2y)v = Q1y - P1y
-/*
-		var det = (line1end[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line1end[1] - line1start[0]) * (line2start[0] - line2end[0]);
-		if(Math.abs(det) < Delta.Math.EPSILON_intersection){
-			return [];
-			if(line1end[0] < line2start[0] || line1start[0] > line2end[0]){
-				return [];
-			}
-
-			// note: lines can intersect in 2 points ([-5,-5], [5, 5] and [-4, -4], [4, 4])
-			// and what if they are same?
-			var points = [];
-			if(line1end[0] < line2start[0]){
-				points.push(line1end);
-				points.push(line2start);
-			}
-
-			if(line2end[0] > line1start[0]){
-				points.push(line2end);
-				points.push(line1start);
-			}
-			return points;
-		} else {
-			var det1 = (line2start[0] - line1start[0]) * (line2start[1] - line2end[1]) - (line2start[1] - line1start[1]) * (line2start[0] - line2end[0]),
-				t = det1 / det,
-				det2 = (line1end[0] - line1start[0]) * (line2start[0] - line1start[0]) - (line1end[1] - line1start[0]) * (line2start[1] - line1start[1]),
-				v = det2 / det;
-			console.log(t, v);
-			if(t >= 0 && t <= 1 && v >= 0 && v <= 1){
-				return [Delta.Math.Line.pointAt(line1start, line1end, t)];
-			} else {
-				return [];
-			}
-		} */
-		//x1 = line1start[0]
-		//y1 = line1start[1]
-		//x2 = line1end[0]
-		//y2 = line1end[0]
-		//x3 = line2start[0]
-		//y3 = line2start[1]
-		//x4 = line2end[0]
-		//y4 = line2end[1]
-/*		var nx = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[0]-line2end[0])-(line1start[0]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
-			ny = (line1start[0]*line1end[0]-line1start[1]*line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]*line2end[1]-line2start[1]*line2end[0]),
-			d = (line1start[0]-line1end[0]) * (line2start[1]-line2end[1])-(line1start[1]-line1end[0]) * (line2start[0]-line2end[0]);
-		if(d === 0){
-			return [];
+	genPoints: function(startPoint){
+		var detail = this.attrs.detail || Curve.detail;
+		var points = [startPoint || this.startAt()];
+		for(var i = 1; i <= detail; i++){
+			points.push(this.pointAt(i / detail, points[0]));
 		}
-		return [[nx / d | 0, ny / d | 0]];
-	}
-};
-
-// Curves
-Curve.canvasFunctions.moveTo.pointAt = function(curve, t, startPoint){
-	return curve.funcAttrs;
-};
-
-// todo: attrs instead of curve?
-Curve.canvasFunctions.lineTo.pointAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-	return [
-		startPoint[0] + t * (curve.funcAttrs[0] - startPoint[0]),
-		startPoint[1] + t * (curve.funcAttrs[1] - startPoint[1]),
-	];
-};
-
-Curve.canvasFunctions.lineTo.splitAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-	var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
-	return {
-		start: [
-			startPoint,
-			point
-		],
-		end: [
-			point,
-			[curve.funcAttrs[0], curve.funcAttrs[1]]
-		]
-	};
-};
- */
-Delta.Math.Quadratic = {
-	pointAt: function(start, handle, end, t){
-		return [
-			Math.pow(1 - t, 2) * start[0] + 2 * t * (1 - t) * handle[0] + t * t * end[0],
-			Math.pow(1 - t, 2) * start[1] + 2 * t * (1 - t) * handle[1] + t * t * end[1]
-		];
+		return points;
 	},
 
-	splitAt: function(start, handle, end, t){
-		var point = Delta.Math.Quadratic.pointAt(start, handle, end, t);
-		return {
-			start: [
-				start,
-				[
-					t * handle[0] + (1 - t) * start[0],
-					t * handle[1] + (1 - t) * start[1]
-				],
-				point
-			],
-			end: [
-				point,
-				[
-					t * end[0] + (1 - t) * handle[0],
-					t * end[1] + (1 - t) * handle[1]
-				],
-				end
-			]
+	process: function(ctx){
+		if(!this._points){
+			this._points = this.genPoints();
+		}
+
+		this._points.forEach(function(point){
+			ctx.lineTo(point[0], point[1]);
+		});
+	}
+});
+
+Delta.CurveApprox = CurveApprox;
+
+var CurvePolyline = new Class(Curve, {
+	initialize: function(method, attrs, path){
+		this.super('initialize', arguments);
+		this.attrs = {
+			points: attrs
 		};
 	},
 
-	length: function(start, handle, end){
-		;
-	},
+	process: function(ctx){
+		if(!this._points){
+			this._points = this.genPoints();
+		}
 
-	intersect: function(line1start, line1handle, line1end, line2start, line2handle, line2end){
-		//;
+		this._points.forEach(function(point){
+			ctx.lineTo(point[0], point[1]);
+		});
 	}
-};
+});
 
-Curve.canvasFunctions.quadraticCurveTo.pointAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-
-	var x1 = startPoint[0],
-		y1 = startPoint[1],
-		p = curve.attrs.args;
-
-	return [
-		Math.pow(1 - t, 2) * x1 + 2 * t * (1 - t) * p[0] + t * t * p[2],
-		Math.pow(1 - t, 2) * y1 + 2 * t * (1 - t) * p[1] + t * t * p[3]
-	];
-};
-
-Curve.canvasFunctions.quadraticCurveTo.splitAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-	var p = curve.attrs.args;
-	var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
-	return {
-		start: [
-			startPoint,
-			[
-				t * p[0] - (t - 1) * startPoint[0],
-				t * p[1] - (t - 1) * startPoint[1]
-			],
-			point
-		],
-		end: [
-			point,
-			[
-				t * p[2] - (t - 1) * p[0],
-				t * p[3] - (t - 1) * p[1]
-			],
-			[
-				p[2],
-				p[3]
-			]
-		]
-	};
-};
-
-Delta.Math.Bezier = {
-	pointAt: function(start, handle1, handle2, end, t){
-		return [
-			Math.pow(1 - t, 3) * start[0] + 3 * t * Math.pow(1 - t, 2) * handle1[0] + 3 * t * t * (1 - t) * handle2[0] + t * t * t * end[0],
-			Math.pow(1 - t, 3) * start[1] + 3 * t * Math.pow(1 - t, 2) * handle1[1] + 3 * t * t * (1 - t) * handle2[1] + t * t * t * end[1]
-		];
-	},
-
-	splitAt: function(start, handle1, handle2, end, t){
-		var point = Delta.Math.Bezier.pointAt(start, handle1, handle2, end, t);
-		return {
-			start: [
-				start,
-				[
-					t * handle1[0] + (1 - t) * start[0],
-					t * handle2[1] + (1 - t) * start[1]
-				],
-				[
-					t * t * handle2[0] + 2 * t * (1 - t) * handle1[0] + Math.pow(1 - t, 2) * start[0],
-					t * t * handle2[1] + 2 * t * (1 - t) * handle1[1] + Math.pow(1 - t, 2) * start[1]
-				],
-				point
-			],
-			end: [
-				point,
-				[
-					t * t * end[0] + 2 * t * (1 - t) * handle2[0] + Math.pow(1 - t, 2) * handle1[0],
-					t * t * end[1] + 2 * t * (1 - t) * handle2[1] + Math.pow(1 - t, 2) * handle1[1]
-				],
-				[
-					t * end[0] - (1 - t) * handle2[0],
-					t * end[1] - (1 - t) * handle2[1]
-				],
-				end
-			]
-		};
-	},
-
-	length: function(start, handle1, handle2, end){
-		;
-	},
-
-	intersect: function(
-		line1start, line1handle1, line1handle2, line1end,
-		line2start, line2handle1, line2handle2, line2end
-		){
-		//;
-	}
-};
-
-Curve.canvasFunctions.bezierCurveTo.pointAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-
-	var x1 = startPoint[0],
-		y1 = startPoint[1],
-		p = curve.funcAttrs;
-
-	return [
-		Math.pow(1 - t, 3) * x1 + 3 * t * Math.pow(1 - t, 2) * p[0] + 3 * t * t * (1 - t) * p[2] + t * t * t * p[4],
-		Math.pow(1 - t, 3) * y1 + 3 * t * Math.pow(1 - t, 2) * p[1] + 3 * t * t * (1 - t) * p[3] + t * t * t * p[5]
-	];
-};
-
-Curve.canvasFunctions.bezierCurveTo.splitAt = function(curve, t, startPoint){
-	if(!startPoint){
-		startPoint = curve.startAt();
-	}
-	var p = curve.funcAttrs;
-	var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
-	return {
-		start: [
-			startPoint,
-			[
-				t * p[0] - (t - 1) * startPoint[0],
-				t * p[1] - (t - 1) * startPoint[1]
-			],
-			[
-				t * t * p[2] - 2 * t * (t - 1) * p[0] + (t - 1) * (t - 1) * startPoint[0],
-				t * t * p[3] - 2 * t * (t - 1) * p[1] + (t - 1) * (t - 1) * startPoint[1]
-			],
-			point
-		],
-		end: [
-			point,
-			[
-				t * t * p[4] - 2 * t * (t - 1) * p[2] + (t - 1) * (t - 1) * p[0],
-				t * t * p[5] - 2 * t * (t - 1) * p[3] + (t - 1) * (t - 1) * p[1]
-			],
-			[
-				t * p[4] - (t - 1) * p[2],
-				t * p[5] - (t - 1) * p[3]
-			],
-			[
-				p[4],
-				p[5]
-			]
-		]
-	};
-};
-
+Delta.CurvePolyline = CurvePolyline;
 
 Path = new Class(Drawable, {
 
@@ -4429,7 +4377,13 @@ Path = new Class(Drawable, {
 		y = point[1];
 
 		var ctx = this.context.context;
-		this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+		ctx.save();
+
+		var transform = this.getTransform();
+		if(!Delta.isIdentityTransform(transform)){
+			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+		}
+
 		if(this.attrs.x || this.attrs.y){
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
@@ -4469,21 +4423,25 @@ Path = new Class(Drawable, {
 		]);
 	},
 
+	process : function(ctx){
+		ctx.beginPath();
+		this.attrs.d.forEach(function(curve){
+			curve.process(ctx);
+		});
+	},
+
 	draw : function(ctx){
 		if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+			this.preDraw(ctx);
 
 			if(this.attrs.x || this.attrs.y){
 				// todo: will it be affected by previous transformations (the path itself, the canvas)?
 				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 			}
 
-			ctx.beginPath();
-			this.attrs.d.forEach(function(curve){
-				curve.process(ctx);
-			});
+			this.process(ctx);
 
-			this.context.renderer.post(ctx, this.styles);
+			this.postDraw(ctx);
 		}
 	}
 
@@ -4656,79 +4614,87 @@ extend(Delta.curves, {
 
 	moveBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.moveTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		},
+
+		pointAt: function(){
+			return this.endAt();
 		}
 	}),
 
 	lineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
+		},
+
+		pointAt: function(t, start){
+			;
 		}
 	}),
 
 	horizontalLineTo: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(this.attrs.args[0], lastPoint[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [this.attrs.args[0], lastPoint[1]];
 		}
 	}),
 
 	horizontalLineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0] + this.attrs.args[0], lastPoint[1]];
 		}
 	}),
 
 	verticalLineTo: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0], this.attrs.args[0]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0], this.attrs.args[0]];
 		}
 	}),
 
 	verticalLineBy: new Class(Curve, {
 		process: function(ctx){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			ctx.lineTo(lastPoint[0], lastPoint[1] + this.attrs.args[0]);
 		},
 
 		endAt: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [lastPoint[0], lastPoint[1] + this.attrs.args[0]];
 		}
 	}),
 
 	quadraticCurveBy: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [
 				lastPoint[0] + this.attrs.args[0],
 				lastPoint[1] + this.attrs.args[1],
@@ -4750,7 +4716,7 @@ extend(Delta.curves, {
 
 	shorthandQuadraticCurveTo: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 
@@ -4792,7 +4758,7 @@ extend(Delta.curves, {
 
 	shorthandQuadraticCurveBy: new Class(Curve, {
 		getQuadraticParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 
@@ -4834,7 +4800,7 @@ extend(Delta.curves, {
 
 	bezierCurveBy: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastPoint = this.before().endAt();
+			var lastPoint = this.startAt();
 			return [
 				lastPoint[0] + this.attrs.args[0],
 				lastPoint[1] + this.attrs.args[1],
@@ -4858,7 +4824,7 @@ extend(Delta.curves, {
 
 	shorthandCurveTo: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 			// add quadratic support?
@@ -4904,7 +4870,7 @@ extend(Delta.curves, {
 
 	shorthandCurveBy: new Class(Curve, {
 		getBezierParameters: function(){
-			var lastCurve = this.before();
+			var lastCurve = this.prev();
 			var lastPoint = lastCurve.endAt();
 			var tangentDelta;
 			if(lastCurve.getBezierParameters){
@@ -4956,7 +4922,7 @@ extend(Delta.curves, {
 				x = this.attrs.args[5],
 				y = this.attrs.args[6],
 
-				start = this.before().endAt();
+				start = this.startAt();
 
 			var segs = arcToSegments(x, y, rx, ry, large, sweep, rot, start[0], start[1]);
 			segs.forEach(function(segment){
@@ -4964,7 +4930,7 @@ extend(Delta.curves, {
 				ctx.bezierCurveTo.apply(ctx, segment);
 			});
 
-			// from cakejs from inkscape
+			// from cakejs from inkscape svgtopdf
 			function arcToSegments(x, y, rx, ry, large, sweep, th, ox, oy) {
 				th = th * (Math.PI/180)
 				var sin_th = Math.sin(th)
@@ -5038,8 +5004,6 @@ extend(Delta.curves, {
 				  a00 * x3 + a01 * y3,      a10 * x3 + a11 * y3
 				];
 			}
-
-			;
 		},
 
 		endAt: function(){
@@ -5094,6 +5058,7 @@ Delta.SVGCurvesLengths = {
 	t: 2,
 	A: 7,
 	a: 7,
+	Z: 0,
 	z: 0
 };
 
@@ -5135,18 +5100,20 @@ Path.parse = function(data, path, firstIsNotMove){
 	return result;
 };
 
-/*
-http://www.intuit.ru/studies/courses/1063/210/lecture/5428
-*/
-
-extend(Path.prototype, {
-	moveBy: function(x, y){
-		return this.attrs.d.push(Delta.curve('moveBy', [x, y], this));
+Object.keys(Delta.SVGCurves).forEach(function(key){
+	var name = Delta.SVGCurves[key];
+	if(!Path.prototype[name]){
+		Path.prototype[name] = function(){
+			return this.push(name, Array.prototype.slice.call(arguments), this);
+		};
 	}
-})
+});
+
 
 Picture = new Class(Drawable, {
 
+	// todo: image format libcanvas-like:
+	// '/files/img/hexes.png [150:100]{0:0}'
 	initialize : function(args, context){
 		this.super('initialize', arguments);
 
@@ -5603,8 +5570,7 @@ Text = new Class(Drawable, {
 				}
 
 				var x = this.attrs.x,
-					y = this.attrs.y,
-					func;
+					y = this.attrs.y;
 
 				if(this.styles.fillStyle && !this.styles.strokeStyle){
 					this.lines.forEach(function(line){
@@ -5636,6 +5602,7 @@ Text = new Class(Drawable, {
 
 	measure: function(){
 		var width;
+		// todo: if(this.context is 2d) measure through it else make new 2d context
 		if(this.attrs.breaklines){
 			if(!this.lines){
 				this.processLines(this.context.context);
@@ -5765,12 +5732,17 @@ Gradient = new Class({
 			type = 'linear';
 		}
 
-		this.type = type || 'linear';
+		if(!Gradient.types[type]){
+			throw 'Unknown gradient type "' + type + '"';
+		}
+
+		this.type = type;
 		this.attrs = {
 			from: from,
 			to: to,
 			colors: Gradient.parseColors(colors)
 		};
+		this.binds = [];
 
 		if(Gradient.types[this.type]){
 			this.attrHooks = extend(
@@ -5829,6 +5801,7 @@ Gradient = new Class({
 	},
 
 	update: function(){
+		// this.binds.forEach(elem => elem.update());
 		this.context.update();
 		return this;
 	},
@@ -5853,6 +5826,7 @@ Gradient.parseColors = function(colors){
 
 // Linear and radial gradient species
 Gradient.types = {
+	// todo: allow to pass promises (add light promises fallback into Delta)
 	linear: {
 		attrHooks: {
 			from: {
@@ -5959,6 +5933,51 @@ Gradient.types = {
 };
 
 Delta.Gradient = Gradient;
+Gradient.types.diamond = {
+	// todo: parameters like in circle (size, angle, etc)
+	toCanvasStyle: function(ctx, element){
+		// todo: bounds('untransformed');
+		var bounds = element.bounds(),
+			canvas = getTemporaryCanvas(bounds.width, bounds.height),
+			context = canvas.getContext('2d'),
+			w = bounds.width / 2,
+			h = bounds.height / 2,
+			lt = context.createLinearGradient(w, h, 0, 0),
+			rt = context.createLinearGradient(w, h, w * 2, 0),
+			lb = context.createLinearGradient(w, h, 0, h * 2),
+			rb = context.createLinearGradient(w, h, w * 2, h * 2),
+			colors = this.attrs.colors;
+
+		// it's adaptive
+		Object.keys(colors).forEach(function(offset){
+			lt.addColorStop(offset, colors[offset]);
+			rt.addColorStop(offset, colors[offset]);
+			lb.addColorStop(offset, colors[offset]);
+			rb.addColorStop(offset, colors[offset]);
+		});
+
+		context.fillStyle = lt;
+		context.fillRect(0, 0, w, h);
+		context.fillStyle = rt;
+		context.fillRect(w, 0, w, h);
+		context.fillStyle = lb;
+		context.fillRect(0, h, w, h);
+		context.fillStyle = rb;
+		context.fillRect(w, h, w, h);
+
+		var img = new Image;
+		img.src = canvas.toDataURL('image/png');
+
+		return ctx.createPattern(img, 'no-repeat');
+		/* return this.context.renderer.makeGradient(
+			this.context,
+			'linear',
+			element.corner(this.attrs.from),
+			element.corner(this.attrs.to),
+			this.attrs.colors
+		); */
+	}
+};
 
 Pattern = new Class({
 	initialize: function(image, repeat, context){
@@ -6096,54 +6115,6 @@ Path.prototype.attrHooks.morph = {
 		}
 	}
 };
-var CurveApprox = new Class(Curve, {
-	initialize: function(method, attrs, path, detail){
-		this.super('initialize', arguments);
-		this.attrs.detail = detail;
-	},
-
-	genPoints: function(startPoint){
-		var detail = this.attrs.detail || Curve.detail;
-		var points = [startPoint || this.startAt()];
-		for(var i = 1; i <= detail; i++){
-			points.push(this.pointAt(i / detail, points[0]));
-		}
-		return points;
-	},
-
-	process: function(ctx){
-		if(!this._points){
-			this._points = this.genPoints();
-		}
-
-		this._points.forEach(function(point){
-			ctx.lineTo(point[0], point[1]);
-		});
-	}
-});
-
-Delta.CurveApprox = CurveApprox;
-
-var CurvePolyline = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		this.attrs = {
-			points: attrs
-		};
-	},
-
-	process: function(ctx){
-		if(!this._points){
-			this._points = this.genPoints();
-		}
-
-		this._points.forEach(function(point){
-			ctx.lineTo(point[0], point[1]);
-		});
-	}
-});
-
-Delta.CurvePolyline = CurvePolyline;
 
 var GLContext;
 
@@ -6171,6 +6142,7 @@ GLContext = new Class(Context, {
 		// array for not yet drawn obs
 		this._missing  = [];
 
+		// todo: this.drawMissing = this.drawMissing.bind(this)
 		this.drawMissingBound = this.drawMissing.bind(this);
 		this.updateNowBounded = this.updateNow.bind(this);
 	},
@@ -6212,7 +6184,7 @@ GLContext = new Class(Context, {
 				this._willDrawMissing = true;
 			}
 			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
-			// а в этом тике надо компилировать все нужные для запушленного объекта шейдеры
+			// а в этом тике надо компилировать все нужные для запушенного объекта шейдеры
 			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
 			// и используется первым :P
 			// element.drawGL(this.gl);
@@ -6554,7 +6526,7 @@ Drawable.prototype.draggable.updateMods = function(){
 				this._draggingOptions.grid
 			];
 		}
-		// just a fix for common mistake
+		// just a fix for a common mistake
 		if(this._draggingOptions.grid[0] === 0){
 			this._draggingOptions.grid[0] = 1;
 		}
@@ -6934,45 +6906,145 @@ Delta.editors.transform = {
 	__controls: Delta.editors.__commonControls
 };
 
-Context.prototype.toSVG = function(format, quickCalls){
+// Context
+Context.prototype.toSVG = function(options){
+	options = options || {};
 
-	;
+	var svg = {
+		root: {
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: this.canvas.width,
+			height: this.canvas.height
+		},
+		elements: []
+	};
 
+	this.elements.forEach(function(element){
+		if(element.toSVG){
+			svg.elements.push(element.toSVG(svg));
+		}
+	});
+
+	if(options.format === 'string' || !options.format){
+		// how about options.viewBox?
+		var svgTag = '<svg xmlns="' + svg.root.xmlns + '" width="' +
+				svg.root.width + '" height="' + svg.root.height +
+				'" viewBox="0 0 ' + svg.root.width + ' ' + svg.root.height + '">';
+		// <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+		return [
+			svgTag,
+			svg.elements.join('\n'),
+			'</svg>'
+		].join('\n');
+	} else if(options.format === '...'){ // англ. слово "сырой" забыл
+		return svg;
+	} else if(options.format === 'dom'){
+		// var elem = document.createElement('svg');
+		;// dom node
+	} else if(options.format === 'file'){
+		// blob? dataurl?
+	} else {
+		throw 'Unknown SVG format "' + options.format + '"';
+	}
 };
 
-Drawable.prototype.toSVGGetStyle = function(){
-	var result = [];
+// Drawable
+var directSVGAttribute = function(value, name){
+	return name + '="' + value + '"';
+}
 
-	// fill
-	if(this.styles.fillStyle){
-		// todo: gradients
+// градиенты должны храниться в атрибутах, зачем эта конверсия?
+var styleToAttrConversion = {
+	fillStyle: 'fill'
+};
 
-		if(this.styles.fillStyle + '' === this.styles.fillStyle){
-			result.push('fill="rgba(' + Delta.color(this.styles.fillStyle).join(',') + ')"');
+function rgbToHex(rgb){
+	var r = rgb[0].toString(16),
+		g = rgb[1].toString(16),
+		b = rgb[2].toString(16);
+
+	if(r.length === 1){
+		r += r;
+	}
+	if(g.length === 1){
+		g += g;
+	}
+	if(b.length === 1){
+		b += b;
+	}
+
+	return '#' + r + g + b;
+}
+
+Drawable.prototype.attrHooks.fill.toSVG = function(value, name, svg){
+	var fill = this.styles.fillStyle;
+	if(fill){
+		if(fill + '' === fill){
+			fill = Delta.color(fill);
+			return 'fill="' + (fill[3] === 1 ? rgbToHex(fill) : ('rgba(' + fill.join(',') + ')')) + '"';
+		} else {
+			// ...
+			// svg.head.push({blablabla})
+			// fill.toSVG()
 		}
 	} else {
-		result.push('fill="transparent"');
+		return 'fill="none"';
 	}
-
-	console.log(this.styles);
-	if(this.styles.strokeStyle){
-		// todo: gradients
-
-		if(this.styles.strokeStyle + '' === this.styles.strokeStyle){
-			result.push('stroke="rgba(' + Delta.color(this.styles.strokeStyle).join(',') + ')"');
-		}
-
-		var lineWidth = this.styles.lineWidth;
-		if(lineWidth === undefined){
-			lineWidth = 1;
-		}
-		result.push('stroke-width="' + lineWidth + '"');
-	}
-
-	// stroke
-
-	return ' ' + result.join(' ');
 };
+
+Drawable.prototype.attrHooks.stroke.toSVG = function(value, name, svg){
+	var stroke = this.styles.strokeStyle;
+	if(!stroke){
+		return '';
+	}
+
+	var result = '';
+	if(stroke + '' === stroke){
+		stroke = Delta.color(stroke);
+		result = 'stroke="' + (stroke[3] === 1 ? rgbToHex(stroke) : ('rgba(' + stroke.join(',') + ')')) + '"'
+	} else {
+		// gradients
+	}
+
+	if(this.styles.lineWidth){
+		result += ' stroke-width="' + this.styles.lineWidth + '"';
+	}
+
+	return result;
+};
+
+Drawable.prototype.toSVG = function(svg){
+	if(!this.svgTagName){
+		return '';
+	}
+	var attrs = Object.keys(this.attrs).reduce(function(result, attrName){
+		if(this.attrHooks[attrName] && this.attrHooks[attrName].toSVG){
+			return result + ' ' + this.attrHooks[attrName].toSVG.call(this, this.attrs[attrName], attrName, svg);
+		}
+		return result;
+	}.bind(this), '');
+
+	attrs = Object.keys(this.styles).reduce(function(result, attrName){
+		attrName = styleToAttrConversion[attrName];
+		if(attrName && this.attrHooks[attrName] && this.attrHooks[attrName].toSVG){
+			return result + ' ' + this.attrHooks[attrName].toSVG.call(this, this.attrs[attrName], attrName, svg);
+		}
+		return result;
+	}.bind(this), attrs);
+	// если fill нет, то нужно поставить fill="none", иначе некоторые элементы заливаются автоматически
+
+	return '<' + this.svgTagName + attrs + '/>';
+};
+
+// Rect
+Rect.prototype.svgTagName = 'rect';
+
+['x', 'y', 'width', 'height'].forEach(function(paramName){
+	Rect.prototype.attrHooks[paramName].toSVG = directSVGAttribute;
+});
+/*
+
+а теперь будет if(svgDoc.options.quickCalls)
 
 Rect.prototype.toSVG = function(quickCalls, svgContext){
 	// svgContext.style.push(...)
@@ -6983,7 +7055,87 @@ Rect.prototype.toSVG = function(quickCalls, svgContext){
 		'" width="' + this.attrs.width + '" height="' + this.attrs.height + '"' +
 		this.toSVGGetStyle() + '/>'
 	);
+}; */
+
+// Circle
+Circle.prototype.svgTagName = 'circle';
+
+['cx', 'cy'].forEach(function(paramName){
+	Circle.prototype.attrHooks[paramName].toSVG = directSVGAttribute;
+});
+
+Circle.prototype.attrHooks.radius.toSVG = function(value){
+	return 'r="' + value + '"';
 };
+
+
+// Path
+Path.prototype.svgTagName = 'path';
+Path.prototype.attrHooks.d.toSVG = function(value, name, svg){
+	var result = [];
+	this.attrs.d.forEach(function(curve, i){
+		result.push(curve.toSVG());
+	}, this);
+	return 'd="' + result.join(' ') + '"';
+};
+
+// Curve
+Delta.curvesSVGNames = {
+	moveTo: 'M',
+	moveBy: 'm',
+	lineTo: 'L',
+	lineBy: 'l',
+	horizontalLineTo: 'H',
+	horizontalLineBy: 'h',
+	verticalLineTo: 'V',
+	verticalLineBy: 'v',
+	bezierCurveTo: 'C',
+	bezierCurveBy: 'c',
+	shorthandCurveTo: 'S',
+	shorthandCurveBy: 's',
+	quadraticCurveTo: 'Q',
+	quadraticCurveBy: 'q',
+	shorthandQuadraticCurveTo: 'T',
+	shorthandQuadraticCurveBy: 't',
+	ellipticalArcTo: 'A',
+	ellipticalArcBy: 'a',
+	closePath: 'Z'
+};
+
+// todo: check about conversion between boolean and 1 / 0
+Curve.prototype.toSVG = function(){
+	return Delta.curvesSVGNames[this.method] ?
+		Delta.curvesSVGNames[this.method] + this.attrs.args.join(',') :
+		Curve.canvasFunctions[this.method].toSVG(this);
+};
+
+Curve.canvasFunctions.arc.toSVG = function(curve){
+	// into ellipticalArcTo
+};
+
+Curve.canvasFunctions.arcTo.toSVG = function(curve){
+	// into ellipticalArcTo
+};
+
+// Image
+// toSVG(document){
+// 	if(document.options.imagesToDataURL) <- 'all' / 'possible' (loaded not with data url but from rasterize, document Image, etc)
+// }
+// Text
+// Gradient
+// Pattern
+
+
+
+
+
+
+
+
+
+
+
+
 
 Delta.drawGradientCurve = function(curve, ctx){
 	var point, lastPoint;
@@ -7133,7 +7285,7 @@ function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
 		||
 		((bx1 < ax1 && by1 < ay1) && (bx2 > ax1 && by2 > ay1))
 	); */
-
+/*
 	return (
 		pointInRect(ax1, ay1, bx1, by1, bx2, by2)
 		||
@@ -7153,6 +7305,20 @@ function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
 		pointInRect(bx1, by2, ax1, ay1, ax2, ay2)
 		||
 		pointInRect(bx2, by2, ax1, ay1, ax2, ay2)
+	); */
+
+	// todo: check about normalizing coords (bx1 should be less than bx2, y analogously)
+
+	// нужно проверять пересечение проекций на оси
+	// кажется, как-то так
+	return (
+		(
+			// intersection on x
+			(ax1 > bx1 && ax1 < bx2) || (ax2 > bx1 && ax2 < bx2) // wrong? point doesn't have to lay inside projection... or not?
+		) && (
+			// intersection on y
+			(ay1 > by1 && ay1 < by2) || (ay2 > by1 && ay2 < by2)
+		)
 	);
 }
 
@@ -7306,68 +7472,167 @@ extend(Context.prototype.eventsHooks, {
 	mousedrag: function(){
 		var self = this,
 
-			startX = null,
-			startY = null,
 			startObject = null,
 			lastX = null,
-			lastY = null;
+			lastY = null,
+			path = null;
 
 		this.on('mousedown', function(e){
-			startX = e.contextX;
-			startY = e.contextY;
+			path = [];
 			startObject = e.targetObject;
 		});
 
 		window.addEventListener('mouseup', function(e){
-			if(lastX === null){
+			if(!path){
 				return;
 			}
 
 			processEventObject(e, 'mousedragend');
 
-			startX = null;
-			startY = null;
+			startObject = null;
+			lastX = null;
+			lastY = null;
+			path = null;
 		});
 
 		window.addEventListener('mousemove', function(e){
-			if(startX === null){
+			if(path === null){
 				return;
 			}
 
-			processEventObject(e, 'mousedrag');
+			e = processEventObject(e, 'mousedrag');
+			path.push([e.contextX, e.contextY]);
 
 			lastX = e.contextX;
 			lastY = e.contextY;
 		});
 
 		function processEventObject(e, eventName){
+			e = new MouseDragEvent(e, eventName);
+
 			var propagation = true;
 
 			e.cancelContextPropagation = function(){
 				propagation = false;
 			};
+
+			e.dragPath = path;
 			e.lastX = lastX;
 			e.lastY = lastY;
-			e.startX = startX;
-			e.startY = startY;
+			if(path.length){
+				e.startX = path[0][0];
+				e.startY = path[0][1];
+			} else {
+				e.startX = lastX;
+				e.startY = lastY;
+			}
 			e.startObject = startObject;
 
-			// but we do not yet have contextX
-			// e.deltaX = lastX - e.contextX;
+			// add contextX, contextY
+			var coords = self.contextCoords(e.clientX, e.clientY);
+			e.contextX = coords[0];
+			e.contextY = coords[1];
 
-			// adds contextX, contextY, targetObject
-			// calls the event on the targetObject
-			self._processPointParams(e, eventName, e);
+			// add deltas
+			e.deltaX = lastX ? coords[0] - lastX : 0;
+			e.deltaY = lastY ? coords[1] - lastY : 0;
+			e.delta = Math.sqrt(e.deltaX * e.deltaX + e.deltaY * e.deltaY);
 
-			if(propagation && !self.fire(eventName, e)){
+			e.startDeltaX = coords[0] - e.startX;
+			e.startDeltaY = coords[1] - e.startY;
+			e.startDelta = Math.sqrt(e.startDeltaX * e.startDeltaX + e.startDeltaY * e.startDeltaY);
+
+			var checker = function(listener){
+				var options = listener.options;
+				if(!options){
+					return true;
+				}
+
+				if(options.max){
+					if(e.delta < options.max){
+						return true;
+					} else {
+						var coefficient = e.delta / options.max;
+						var i = 1;
+						var delta = e.delta;
+						while(delta > options.max){
+							delta -= options.max;
+							var evt = MouseDragEvent.clone(e);
+							evt.contextX = lastX + (e.deltaX / coefficient) * i;
+							evt.contextY = lastY + (e.deltaY / coefficient) * i;
+							listener.call(null, evt);
+							i++;
+						}
+					}
+				}
+				//return true;
+				//if(options && options.min && e.delta < options.min){
+				//	return false;
+				//}
+				//return true;
+				return false;
+			};
+			/* 	if(d < delta){
+		return;
+	} else if(d > delta){
+		var coef = d / delta;
+		var i = 1;
+		while(d > delta){
+			d -= delta;
+			var k = dy/dx;
+			draw(
+				last[0] + (dx / coef) * i,
+				last[1] + (dy / coef) * i,
+				getColor(e.clientX, e.clientY)
+			);
+			i++;
+		}
+	} else draw(e.clientX, e.clientY, getColor(e.clientX, e.clientY));
+ */
+
+			// call the event on the targetObject
+			e.targetObject = self.getObjectInPoint(e.contextX, e.contextY, true);
+			if(e.targetObject && e.targetObject.fire){
+				if(!e.targetObject.fire(eventName, e, checker)){
+					event.stopPropagation();
+					event.preventDefault();
+				}
+			}
+
+			if(propagation && !self.fire(eventName, e, checker)){
 				e.stopPropagation();
 				e.preventDefault();
 			}
+			return e;
 		}
 	}
 });
 
 Context.prototype.eventsHooks.mousedragend = Context.prototype.eventsHooks.mousedrag;
+
+function MouseDragEvent(originalEvent, eventName){
+	MouseDragEvent.propsToClone.forEach(function(prop){
+		this[prop] = originalEvent[prop];
+	}, this);
+
+	this.originalEvent = originalEvent;
+	this.type = eventName;
+}
+
+MouseDragEvent.propsToClone = [
+	'altKey', 'ctrlKey', 'shiftKey', 'metaKey',
+	'button', 'buttons', 'which',
+	'clientX', 'clientY', 'layerX', 'layerY', 'pageX', 'pageY',
+	'screenX', 'screenY', 'movementX', 'movementY', 'x', 'y',
+	'target', 'view', 'timeStamp',
+	'mozInputSource', 'mozPressure'
+];
+
+MouseDragEvent.clone = function(event){
+	return Delta.extend(new MouseDragEvent(event.originalEvent, event.type), event);
+};
+
+Delta.MouseDragEvent = MouseDragEvent;
 
 Delta.version = "1.9.0";
 

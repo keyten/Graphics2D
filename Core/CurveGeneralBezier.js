@@ -64,6 +64,9 @@ var GeneralBezier = new Class(Curve, {
 			x = [start[0]].concat(this._x),
 			y = [start[1]].concat(this._y),
 			detail = this.attrs.detail;
+			// сейчас при каждом вызове все координаты точек вычисляются заново
+			// это тяжело
+			// не нужно так
 
 		ctx.moveTo(start[0], start[1]);
 
@@ -77,8 +80,6 @@ var GeneralBezier = new Class(Curve, {
 		}
 	}
 });
-
-// Delta.math.factorial = ...
 
 function factorial(n){
 	if(n <= 1){
@@ -99,6 +100,8 @@ function C(i, m){
 	return factorial(m) / (factorial(i) * factorial(m - i));
 }
 
+Delta.combinations = C;
+Delta.factorial = factorial;
 
 function bezier(points, t){
 	var len = points.length,

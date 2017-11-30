@@ -87,7 +87,7 @@ Drawable.prototype.draggable.updateMods = function(){
 				this._draggingOptions.grid
 			];
 		}
-		// just a fix for common mistake
+		// just a fix for a common mistake
 		if(this._draggingOptions.grid[0] === 0){
 			this._draggingOptions.grid[0] = 1;
 		}

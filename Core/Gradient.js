@@ -9,12 +9,17 @@ Gradient = new Class({
 			type = 'linear';
 		}
 
-		this.type = type || 'linear';
+		if(!Gradient.types[type]){
+			throw 'Unknown gradient type "' + type + '"';
+		}
+
+		this.type = type;
 		this.attrs = {
 			from: from,
 			to: to,
 			colors: Gradient.parseColors(colors)
 		};
+		this.binds = [];
 
 		if(Gradient.types[this.type]){
 			this.attrHooks = extend(
@@ -73,6 +78,7 @@ Gradient = new Class({
 	},
 
 	update: function(){
+		// this.binds.forEach(elem => elem.update());
 		this.context.update();
 		return this;
 	},
@@ -97,6 +103,7 @@ Gradient.parseColors = function(colors){
 
 // Linear and radial gradient species
 Gradient.types = {
+	// todo: allow to pass promises (add light promises fallback into Delta)
 	linear: {
 		attrHooks: {
 			from: {
