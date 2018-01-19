@@ -115,8 +115,11 @@ Context.prototype = {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 		var transform = this.getTransform();
+		var dpi = this.attrs.dpi || 1;
 		if(!Delta.isIdentityTransform(transform)){
-			ctx.setTransform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+			ctx.setTransform(transform[0] / dpi, transform[1], transform[2], transform[3] / dpi, transform[4], transform[5]);
+		} else if(dpi !== 1){
+			ctx.setTransform(1 * dpi, 0, 0, 1 * dpi, 0, 0);
 		}
 
 		this.elements.forEach(function(element){
@@ -135,7 +138,7 @@ Context.prototype = {
 		// mouse=true : ignore elements with interaction = false
 		// todo: rename to pointerEvents?
 			if( elements[i].isPointIn && (elements[i].attrs.interaction || !mouse) &&
-				elements[i].isPointIn(x,y) ){
+				elements[i].isPointIn(x, y, 'mouse') ){
 				return elements[i];
 			}
 		}
@@ -342,6 +345,44 @@ Context.prototype = {
 	// Attrs
 	attr: Class.attr,
 	attrHooks: {
+		width: {
+			get: function(){
+				return this.canvas.width;
+			},
+			set: function(value){
+				this.canvas.width = value;
+				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
+				this.update();
+			}
+		},
+
+		height: {
+			get: function(){
+				return this.canvas.height;
+			},
+			set: function(value){
+				this.canvas.height = value;
+				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
+				this.update();
+			}
+		},
+
+		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
+		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
+		// http://www.html5gamedevs.com/topic/732-retina-support/
+		dpi: {
+			get: function(){
+				return this.attrs.dpi || 1;
+			},
+			set: function(value){
+				this.canvas.style.width = this.canvas.width / value + 'px';
+				this.canvas.style.height = this.canvas.height / value + 'px';
+				this.update();
+			}
+		},
+
+		// smooth: changing image-rendering css property
+
 		transform: {
 			set: function(value){
 				this.cache.transform = null;

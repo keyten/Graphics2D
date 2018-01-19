@@ -33,6 +33,7 @@ extend(Path.prototype, {
         return null;
     },
 
+// rename to getPositionAtCurve
     _pathToCurveParams: function(t){
         if(t < 0 || t > 1){
             // todo: add values < 0 and > 1 for elasticOut animation

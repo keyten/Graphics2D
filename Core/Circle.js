@@ -37,11 +37,16 @@ Circle = new Class(Drawable, {
 		}
 	}),
 
-	isPointIn : function(x, y){
-		var point = this.super('isPointIn', [x, y]);
+	isPointIn : function(x, y, options){
+		options = (options === 'mouse' ? this.attrs.interactionProps : options) || {};
+		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
-		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
+		var stroke = options.stroke ? (this.styles.lineWidth || 0) / 2 : 0;
+//		if(options.fill === false && Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2) <= Math.pow(this.attrs.radius - stroke, 2)){
+//			return false;
+//		}
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius + stroke, 2);
 	},
 
 	bounds: function(transform, around){

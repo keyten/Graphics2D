@@ -9,8 +9,9 @@ Animation = new Class({
 		if(easing + '' === easing){
 			if(easing.indexOf('(') > -1){
 				this.easingParam = +easing.split('(')[1].split(')')[0];
+				easing = easing.split('(')[0];
 			}
-			this.easing = Animation.easing[easing.split('(')[0]];
+			this.easing = Animation.easing[easing];
 		} else {
 			this.easing = easing || Animation.easing.default;
 		}

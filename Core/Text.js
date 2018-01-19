@@ -248,8 +248,8 @@ Text = new Class(Drawable, {
 		}
 	},
 
-	isPointIn : function(x, y){
-		var point = this.super('isPointIn', [x, y]);
+	isPointIn : function(x, y, options){
+		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
 

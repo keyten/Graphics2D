@@ -89,11 +89,14 @@ function Bounds(x, y, w, h){
 	this.y = this.y1 = y;
 	this.w = this.width  = w;
 	this.h = this.height = h;
+	// todo: remove this all
+	// and make a method `get` or `corner`: aabb.corner('left');
 	this.x2 = x + w;
 	this.y2 = y + h;
 	this.cx = x + w / 2;
 	this.cy = y + h / 2;
 }
+
 
 Delta.bounds = function(x, y, width, height){
 	return new Bounds(x, y, width, height);
@@ -399,6 +402,7 @@ Delta.clone = function(object){
 
 // Matrices
 Delta.parseTransform = function(attrs, element){
+	// todo: check about speed and think how to raise it
 	if(Array.isArray(attrs.transform)){
 		return attrs.transform;
 	}

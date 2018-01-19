@@ -22,7 +22,7 @@ Gradient = new Class({
 		this.binds = [];
 
 		if(Gradient.types[this.type]){
-			this.attrHooks = extend(
+			this.attrHooks = extend( //  тут надо наследовать через прототипы, а не так
 				extend({}, this.attrHooks),
 				Gradient.types[this.type].attrHooks
 			);

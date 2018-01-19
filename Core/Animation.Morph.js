@@ -12,22 +12,20 @@ Path.prototype.attrHooks.morph = {
 		// заменяем кривую на её аппроксимацию
 		fx.startCurve = curve;
 		fx.endCurve = Path.parse(to, null, true)[0]; // todo: multiple curves & paths
+		fx.detail = data.detail || Curve.detail || 10;
 
-		var curveApprox = new CurveApprox(curve.method, curve.attrs, curve.path, data.detail);
-		fx.startPoints = curveApprox._points = curveApprox.genPoints(start);
+		fx.startPoints = [start];
+		fx.endPoints = [fx.endCurve.pointAt(0, start)];
 
-		// получаем конечные точки аппроксимации
-		fx.endPoints = new CurveApprox(fx.endCurve.method, fx.endCurve.attrs, null, data.detail).genPoints(start);
-		fx.deltas = fx.endPoints.map(function(endPoint, i){
-			return [
-				endPoint[0] - fx.startPoints[i][0],
-				endPoint[1] - fx.startPoints[i][1]
-			];
-		});
-		// todo: вынести куда-нибудь genPoints (CurveApprox.genPoints), чтобы не создавать каждый раз новый объект
-		curve.path.curve(index, curveApprox);
-		fx.curve = curveApprox;
+		for(var i = 1; i <= fx.detail; i++){
+			fx.startPoints.push(curve.pointAt(i / fx.detail, start));
+			fx.endPoints.push(fx.endCurve.pointAt(i / fx.detail, start));
+		}
+
+		fx.polyline = new CurvePolyline('polyline', fx.startPoints, curve.path);
 		fx.index = index;
+
+		curve.path.curve(index, fx.polyline);
 	},
 
 	anim: function(fx){
@@ -40,16 +38,15 @@ Path.prototype.attrHooks.morph = {
 			];
 		}); */
 
-		fx.curve._points = fx.curve._points.map(function(point, i){
+		fx.polyline.attr('args', fx.polyline.attr('args').map(function(point, i){
 			return [
-				fx.startPoints[i][0] + fx.deltas[i][0] * fx.pos,
-				fx.startPoints[i][1] + fx.deltas[i][1] * fx.pos
+				fx.startPoints[i][0] + (fx.endPoints[i][0] - fx.startPoints[i][0]) * fx.pos,
+				fx.startPoints[i][1] + (fx.endPoints[i][1] - fx.startPoints[i][1]) * fx.pos
 			];
-		});
-		fx.curve.update();
+		}));
 
 		if(fx.pos === 1){
-			fx.curve.path.curve(fx.index, fx.endCurve);
+			fx.startCurve.path.curve(fx.index, fx.endCurve);
 		}
 	}
 };

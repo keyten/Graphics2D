@@ -1,12 +1,51 @@
 // A file with demos for the site
 var demos = {
+	'Moving along curve': {
+		description: 'Change the position: <input type="range" onMouseMove="demo.onValueChange(+this.value)" min="0" max="1" step="0.01" value="0.5"/><br/><i>Note: if you want to animate element, there\'s a simpler way. Watch the next demo.</i>',
+		init: function(ctx){
+			var path = ctx.path([
+				[100, 100],
+				[200, 150, 250, 50, 400, 200]
+			], null, 'white 2px');
+
+			var curve = path.curve(1);
+			var circle = ctx.circle(0, 0, 7, 'red');
+
+			demo.onValueChange = function(value){
+				var point = curve.pointAt(value);
+				circle.attr({
+					cx: point[0],
+					cy: point[1]
+				});
+			};
+
+			demo.onValueChange(0.5);
+		}
+	},
+
+	'Morphing curves': {
+		description: 'Morphing bezier curve into lagrange curve',
+		init: function(ctx){
+			var path = ctx.path([
+				[100, 100],
+				[200, 50, 250, 50, 400, 200]
+			], null, 'white 2px');
+
+			path.animate('morph', {
+				curve: path.curve(1),
+				to: ['lagrange', 200, 250, 250, 50, 400, 200],
+				detail: 100
+			}, 2500, 'sine');
+		}
+	},
+
 	'Bezier Curve Editing': {
 		init: function(ctx){
 			// todo: запускать teardownListeners в reset
 			var path = ctx.path([
 				[100, 100],
 				[200, 150, 250, 50, 400, 200]
-			], null, 'white');
+			], null, 'white 2px');
 
 			var move = path.curve(0);
 			var curve = path.curve(1);
@@ -18,6 +57,9 @@ var demos = {
 				this.element = ctx.circle(x, y, 4, 'red', 'red 9px 0.3');
 				this.element.on('mouseover', 'attr', 'stroke', '0.5');
 				this.element.on('mouseout', 'attr', 'stroke', '0.3');
+				this.element.attr('interactionProps', {
+					stroke: true
+				});
 
 				this.addListeners();
 			}
@@ -79,10 +121,11 @@ var demos = {
 
 		init: function(ctx){
 			// the code below will be shown
+			var mousePoint = ctx.circle(0, 0, 4, 'red', 'red 9px 0.3');
 			var path = ctx.path([
 				[100, 100],
 				['lagrange', 200, 150, 250, 50, 400, 200]
-			], null, 'white');
+			], null, 'white 2px');
 			var curve = path.curve(1);
 
 			var point = 0;
@@ -101,6 +144,11 @@ var demos = {
 				points[point * 2 + 0] = e.contextX;
 				points[point * 2 + 1] = e.contextY;
 				curve.attr('args', points);
+
+				mousePoint.attr({
+					cx: e.contextX,
+					cy: e.contextY
+				});
 			});
 		},
 
@@ -119,7 +167,7 @@ var demos = {
 			var path = ctx.path([
 				[100, 100],
 				['lagrange', 200, 150, 250, 50, 400, 200]
-			], null, 'white');
+			], null, 'white 2px');
 
 			var move = path.curve(0);
 			var curve = path.curve(1);
@@ -133,6 +181,9 @@ var demos = {
 				this.element = ctx.circle(x, y, 4, 'red', 'red 9px 0.3');
 				this.element.on('mouseover', 'attr', 'stroke', '0.5');
 				this.element.on('mouseout', 'attr', 'stroke', '0.3');
+				this.element.attr('interactionProps', {
+					stroke: true
+				});
 
 				this.addListeners();
 			}

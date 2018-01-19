@@ -253,15 +253,18 @@ Drawable = new Class({
 		});
 	},
 
-	isPointIn : function(x, y){
-		// if(this.attrs.interactionParameters.transform)
-		var transform = this.getTransform();
-		if(!Delta.isIdentityTransform(transform)){
-			var inverse = Delta.inverseTransform(transform);
-			return Delta.transformPoint(inverse, [x, y]);
+	isPointInBefore : function(x, y, options){
+		if(options){
+			if(options.transform !== false){
+				var transform = this.getTransform();
+				if(!Delta.isIdentityTransform(transform)){
+					var inverse = Delta.inverseTransform(transform);
+					return Delta.transformPoint(inverse, [x, y]);
+				}
+			}
 		}
 
-		return [x, y];
+		return [x, y, options];
 	},
 
 	// Bounds
@@ -433,7 +436,7 @@ Drawable = new Class({
 
 	postDraw: function(ctx){
 		var style = this.styles;
-		var strokeMode = this.attrs.strokeMode || 'over';
+		/*var strokeMode = this.attrs.strokeMode || 'over';
 		if(strokeMode === 'clipInsideUnder' && style.strokeStyle){
 			ctx.clip();
 			ctx.stroke();
@@ -441,9 +444,11 @@ Drawable = new Class({
 		if(strokeMode === 'under' && style.strokeStyle){
 			ctx.stroke();
 		}
+
 		if(style.fillStyle){
 			ctx.fill();
 		}
+
 		if(strokeMode === 'over' && style.strokeStyle){
 			ctx.stroke();
 		}
@@ -455,13 +460,13 @@ Drawable = new Class({
 			// i have no idea
 		//	ctx.scale(5, 1.5);
 		//	ctx.stroke();
-		}
-		/* if(style.fillStyle){
-			ctx.fill();
+		} */
+		if(style.fillStyle){
+			ctx.fill(this.attrs.fillRule);
 		}
 		if(style.strokeStyle){
 			ctx.stroke();
-		} */
+		}
 		ctx.restore();
 	},
 

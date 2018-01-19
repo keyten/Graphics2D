@@ -121,6 +121,9 @@ Curve.canvasFunctions = {
 				clockwise = attrs[5];
 				// todo: support 'from'
 			return [x - radius, y - radius, x + radius, y + radius];
+			// не учитывается старт-энд
+			// нужно собрать точки начало, конец и между ними через 90 градусов каждую по модулю
+			// хочется функцию Bounds.fromPoints(array)
 		},
 		endAt: function(attrs){
 			var x = attrs[0],

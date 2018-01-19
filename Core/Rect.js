@@ -100,8 +100,8 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
-	isPointIn : function(x, y){
-		var point = this.super('isPointIn', [x, y]);
+	isPointIn : function(x, y, options){
+		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
