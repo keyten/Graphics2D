@@ -13,13 +13,15 @@ Delta.text(...);
  - `string`
  - `x`
  - `y`
- - `font`
- - `align`
- - `baseline`
- - `breaklines`
- - `lineHeight`
+ - `font` (Text.font = '10px sans-serif')
+ - `align` ('left')
+ - `baseline` ('top')
+ - `breaklines` (true)
+ - `lineHeight` ('auto')
  - `maxStringWidth` - при breaklines = false
  - `blockWidth` - при условии breaklines = true. По умолчанию Infinity.
 
+ - `boundsMode` - `inline` or `block` (возвращать в bounds & isPointIn - blockWidth / maxStringWidth или через measure).
+
 ## Методы
- - `measure()` — возвращает длину строки
+ - `measure()` — возвращает длину строки (для breaklines = true возвращает длину наибольшей)

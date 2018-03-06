@@ -1,16 +1,18 @@
+**Концепт (пока не реализовано):**
 ## Инициализация
 
 ```js
-rect.editor('draggable');
+rect.draggable();
 ```
 
 ## Команды:
 ```js
-rect.editor('draggable', 'disable');
-rect.editor('draggable', 'enable');
-rect.editor('draggable', 'destroy'); // note: destroy also removes all draggable parameters
+rect.draggable('init');
+rect.draggable('disable');
+rect.draggable('enable');
+rect.draggable('destroy'); // note: destroy also removes all draggable parameters
 
-rect.editor('draggable', {
+rect.draggable({
 	// default values:
 	axis: null / 'x' / 'y', // движение только по одной координате
 	inBounds: boundsObject / drawable, // движение в пределах прямоугольника
@@ -32,9 +34,9 @@ rect.editor('draggable', {
 	zIndex: null // z-index for helper being dragged (можно даже 'top', как в обычном Drawable::attr('z')) — несовместимо со stack
 });
 
-rect.editor('draggable', 'revert', [duration, easing, callback, etc]); // возвращает элемент туда, где он был до последнего драга
+rect.draggable('revert', [duration, easing, callback, etc]); // возвращает элемент туда, где он был до последнего драга
 // например:
-rect.on('dragend', 'editor', 'draggable', 'revert');
+rect.on('dragend', 'draggable', 'revert');
 ```
 
 Sends events:

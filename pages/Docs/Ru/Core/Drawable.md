@@ -110,7 +110,7 @@ rect.attr('x', 200);
 Метод `attr` также позволяет получать и устанавливать свои собственные параметры.
 
 ----
-Можно добавлять геттеры и сеттеры (и аниматоры) в `Delta.Drawable.prototype.attrHooks`. Этот объект является прототипом для `attrHooks` в наследниках классов (например, `Delta.Rect`), поэтому его изменение затронет также `attrHooks` дочерних классов.
+Можно добавлять геттеры и сеттеры (и аниматоры) в `Delta.Drawable.prototype.attrHooks`. Этот объект является прототипом для `attrHooks` в наследниках класса Drawable (например, `Delta.Rect`), поэтому его изменение затронет также `attrHooks` дочерних классов. Подробнее — в Custom Objects.
 
 ### Метод remove
 Удаляет объект с контекста (но не из памяти, так что остаётся возможность добавить его туда вновь методом `ctx.push`).
@@ -122,8 +122,6 @@ rect.attr('x', 200);
 - `cloneEvents` — события.
 
 По умолчанию все равны `true` (клонировать всё).
-
-// todo: необходим deepClone везде
 
 ### Метод bounds([transform, [around]])
 Возвращает boundbox объекта.
@@ -213,7 +211,7 @@ rect.fire('someCustomEvent', {
 });
 ```
 
-### Метод toDataURL([options, [bounds]])
+### Метод toDataURL([mimeType, [quality, [bounds]]])
 Рисует объект на канвасе в памяти и возвращает картинку в формате Data:URL.
 
 ```js
@@ -223,21 +221,21 @@ var image = rect.toDataURL();
 window.open(image);
 ```
 
-Первым аргументом можно передать опции рисования, либо просто формат (по умолчанию `png`):
+Первым аргументом можно передать формат (по умолчанию png), вторым качество (число между 0 и 1, по умолчанию 1).
 ```js
-rect.toDataURL({
-    type: 'png',
-    quality: 0.9 // по умолчанию 1
-});
-
-rect.toDataURL('png'); // в короткой форме поддерживаются jpg, png, webp
+rect.toDataURL('png', 0.9);
 rect.toDataURL('image/jpeg'); // можно передать mimeType
 ```
 
-Вторым аргументом можно передать произвольный boundbox для картинки.
+Третьим аргументом можно передать произвольный boundbox для картинки.
 
 ### Метод toImageData([bounds])
 Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.
+
+### Метод toBlob(type, quality, bounds, callback)
+// canvas.toBlob(callback, type, quality)
+
+^ эти 3 метода должны быть у Context
 
 ### Метод rasterize(deleteOriginal = true)
 Добавляет вместо объекта картинку из toDataURL()
@@ -258,6 +256,7 @@ rect.serialize(); // -> {}
 
 // если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
 // при добавлении quickCall через on нужно просто где-нибудь дописывать там "listener.serializeString = '...';"
+К слову, при быстрых вызовах исключена возможность XSS.
 
 ## Параметры
 Меняются методом `attr`.
@@ -365,6 +364,9 @@ MDN: http://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Composi
 strict для attrs + rotatePivot, scalePivot, etc
 
 и free для функций
+
+// не
+просто атрибуты сбрасывают всё, что сделано обычными функциями
 
 https://habrahabr.ru/post/278597/
 

@@ -1,3 +1,4 @@
+**Концепт (пока не реализовано):**
 ## Инициализация
 
 ```js
@@ -17,11 +18,17 @@ rect.editor('transform', {
 	rotate: true,
 	translate: true,
 	scale: true,
+	proportionalScale: true, // works with shift if true. works always if scale false
 	skew: false,
+	proportionalSkew: true,
+	proportionalModifier: 'shift',
 	minScale, minRotate, etc
+	stepScale, stepRotate,
+
+	pivot: 'center',
 
 	showPivot: false, // a draggable point with pivot, like in photoshop
-	saveProportions: false,
+	// saveProportions: false,
 	// how about alt, shift?
 	// maybe in future
 });
