@@ -1,0 +1,4 @@
+/*
+Virtual DOM.
+Update compares everything and changes.
+ */

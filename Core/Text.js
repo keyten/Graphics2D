@@ -2,7 +2,7 @@ var defaultBaseline = 'top';
 
 Text = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -48,7 +48,7 @@ Text = new Class(Drawable, {
 			}
 
 			if(args[0].text){
-				args[0].string = args[0].text;
+				args[0].text = args[0].text;
 			}
 
 			// todo
@@ -67,7 +67,7 @@ Text = new Class(Drawable, {
 
 		this.styles.textBaseline = this.attrs.baseline;
 
-		this.attrs.string = args[0] + '';
+		this.attrs.text = args[0] + '';
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 		this.attrs.font = Text.parseFont(args[3] || Text.font);
@@ -83,7 +83,7 @@ Text = new Class(Drawable, {
 	},
 
 	attrHooks: new DrawableAttrHooks({
-		string: {
+		text: {
 			set: function(value){
 				this.lines = null;
 				this.update();
@@ -164,7 +164,7 @@ Text = new Class(Drawable, {
 	lines: null,
 
 	processLines: function(ctx){
-		var text = this.attrs.string,
+		var text = this.attrs.text,
 			lines = this.lines = [],
 
 			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight,
@@ -216,10 +216,10 @@ Text = new Class(Drawable, {
 				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
 
 				if(this.styles.fillStyle){
-					ctx.fillText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
 				}
 				if(this.styles.strokeStyle){
-					ctx.strokeText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
 				}
 			} else {
 				if(!this.lines){
@@ -276,7 +276,7 @@ Text = new Class(Drawable, {
 			this.context.renderer.postMeasure();
 		} else {
 			this.context.renderer.preMeasure(this.styles.font);
-			width = this.context.renderer.measure(this.attrs.string);
+			width = this.context.renderer.measure(this.attrs.text);
 			this.context.renderer.postMeasure();
 		}
 		return width;
@@ -334,7 +334,7 @@ Text = new Class(Drawable, {
 });
 
 Text.font = '10px sans-serif';
-Text.args = ['string', 'x', 'y', 'font', 'fill', 'stroke'];
+Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
 // 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
 Text.parseFont = function(font){

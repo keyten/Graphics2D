@@ -1,6 +1,6 @@
 Rect = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){

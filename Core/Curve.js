@@ -147,7 +147,18 @@ Curve.canvasFunctions = {
 
 function makeAttrHooks(argList){
 	var attrHooks = new CurveAttrHooks({});
-	argList.forEach(function(arg, i){
+	for(var i = 0; i < argList.length; i++){
+	/*	attrHooks[argList[arg]] = {
+			get: function(){
+				return this.attrs.args[i];
+			},
+			set: function(value){
+				this.attrs.args[i] = value;
+				this.update();
+			}
+		}; */
+	}
+/*	argList.forEach(function(arg, i){
 		attrHooks[arg] = {
 			get: function(){
 				return this.attrs.args[i];
@@ -157,7 +168,7 @@ function makeAttrHooks(argList){
 				this.update();
 			}
 		};
-	});
+	});*/
 	return attrHooks;
 }
 

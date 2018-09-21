@@ -2,7 +2,6 @@
 
 // todo: transforms support
 extend(Path.prototype, {
-
     length: function(){
         return this.attrs.d.reduce(function(sum, curve){
             return sum + curve.length();
@@ -11,6 +10,31 @@ extend(Path.prototype, {
 
     startAt: function(){
         return this.pointAt(0);
+    },
+
+    pointAt: function(t){
+        if(t === 1){
+            // must return the end of the last geometric (! not moveTo!) curve
+            return this.curveAt(1).endAt();
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.pointAt(curveParams.t);
+    },
+
+    tangentAt: function(t){
+        if(t === 1){
+            t = 1 - Number.EPSILON;
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.tangentAt(curveParams.t);
+    },
+
+    normalAt: function(t){
+        if(t === 1){
+            t = 1 - Number.EPSILON;
+        }
+        var curveParams = this._pathToCurveParams(t);
+        return curveParams.curve.normalAt(curveParams.t);
     },
 
     curveAt: function(t){
@@ -60,31 +84,6 @@ extend(Path.prototype, {
         };
     },
 
-    pointAt: function(t){
-        if(t === 1){
-            // must return the end of the last geometric (! not moveTo!) curve
-            return this.curveAt(1).endAt();
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.pointAt(curveParams.t);
-    },
-
-    tangentAt: function(t){
-        if(t === 1){
-            t = 1 - Number.EPSILON;
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.tangentAt(curveParams.t);
-    },
-
-    normalAt: function(t){
-        if(t === 1){
-            t = 1 - Number.EPSILON;
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.normalAt(curveParams.t);
-    },
-
     nearest: function(x, y, detail){
         return this.attrs.d.reduce(function(current, curve){
             var nearest = curve.nearest(x, y, detail);
@@ -97,6 +96,12 @@ extend(Path.prototype, {
             t: 0,
             distance: Infinity
         });
-    }
+    },
+
+    flatten: function(){},
+
+    approx: function(){},
+
+    intersections: function(){}
 
 });

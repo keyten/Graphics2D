@@ -1,3 +1,27 @@
+// возвращает ТОЧКИ
+function intersect1D(a, b){
+	return [
+		Math.max(a[0], b[0]),
+		Math.min(a[1], b[1])
+	]
+}
+
+function intersectBounds(aabb1, aabb2){
+	var intersection = [
+		Math.max(aabb1[0], aabb2[0]),
+		Math.max(aabb1[1], aabb2[1]),
+		Math.min(aabb1[2], aabb2[2]),
+		Math.min(aabb1[3], aabb2[3])
+	];
+
+	if(intersection[2] < intersection[0] || intersection[3] < intersection[1]){
+		return [0, 0, 0, 0];
+	}
+
+	return intersection;
+}
+
+
 // boolean
 function evenOddRule(x, y, poly){
 	var c = false;

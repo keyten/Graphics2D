@@ -11,8 +11,10 @@ ctx.image('./image.jpg', 10, 10);
 // document.getElementById('img')
 ctx.image('#img', 10, 10, 200, 200);
 
-var i = new Image;
-i.src = 'abc';
+var img = new Image;
+img.src = './image.jpg';
+ctx.image(img, 10, 10);
+
 ctx.image({
   image:i,
   x:10,
@@ -23,7 +25,7 @@ ctx.image({
 });
 ```
 
-### Методы
+### Параметры
 #### x / y / width / height
 #### x1 / y1 / x2 / y2
 Работают аналогично аналогичным методам `Graphics2D.Rect`. Только `width` и `height` ещё умеют возвращать размеры самой картинки.

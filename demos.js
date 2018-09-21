@@ -1,5 +1,88 @@
 // A file with demos for the site
 var demos = {
+	'Pie loader': {
+		description: '',
+		init: function(ctx){
+			var center = [250, 200];
+			var radius = 100;
+			var width = 30;
+			var percent = 0.01;
+
+			var backgroundColor = '#333';
+			var loaderColor = '#a00';
+
+			var loaderBackground = ctx.path([
+				[center[0] + radius, center[1]],
+				['arc', center[0], center[1], radius, 0, Math.PI * 2]
+			], null, {
+				color: backgroundColor,
+				width: width
+			});
+
+			var loader = ctx.path([
+				[center[0], center[1] - radius],
+				['arc', center[0], center[1], radius, -Math.PI / 2, Math.PI * 2 * percent - Math.PI / 2]
+			], null, {
+				color: loaderColor,
+				width: width
+			});
+
+			var text = ctx.text({
+				text: Math.floor(percent * 100) + '%',
+				x: center[0] + 2,
+				y: center[1] - 1,
+				font: 'Arial 20px',
+				align: 'center',
+				baseline: 'middle',
+				fill: loaderColor
+			});
+
+			var interval = setInterval(function(){
+				percent += 0.001;
+				loader.curve(1).attr('end', Math.PI * 2 * percent - Math.PI / 2);
+				text.attr('string', Math.floor(percent * 100) + '%');
+				if(percent >= 1){
+					clearInterval(interval);
+				}
+			}, 10);
+		}
+	},
+
+	// Core
+	'Pie chart': {
+		description: '',
+		init: function(ctx){
+			var center = [250, 200];
+			var radius = 100;
+			var currentAngle = 0;
+			var values = [{
+				percent: 0.77,
+				color: 'red'
+			}, {
+				percent: 0.23,
+				color: 'green'
+			}];
+
+			values.forEach(function(part){
+				var endAngle = currentAngle + (Math.PI * 2 * part.percent);
+
+				var piePart = ctx.path([
+					center,
+					['arc', center[0], center[1], radius, currentAngle, endAngle],
+					center
+				], part.color, 'white 2px');
+
+				piePart.mouseover(function(){
+					this.attr('scale', 1.1);
+				}).mouseout(function(){
+					this.attr('scale', 1);
+				});
+
+				currentAngle = endAngle;
+			});
+		}
+	},
+
 	'Moving along curve': {
 		description: 'Change the position: <input type="range" onMouseMove="demo.onValueChange(+this.value)" min="0" max="1" step="0.01" value="0.5"/><br/><i>Note: if you want to animate element, there\'s a simpler way. Watch the next demo.</i>',
 		init: function(ctx){
@@ -40,6 +123,7 @@ var demos = {
 	},
 
 	'Bezier Curve Editing': {
+		description: 'Move the points below',
 		init: function(ctx){
 			// todo: запускать teardownListeners в reset
 			var path = ctx.path([
@@ -268,6 +352,42 @@ var demos = {
 			});
 
 			curve.attr('detail', 100);
+		}
+	},
+
+	'Draggable': {
+		description: 'Drag any shape below',
+		init: function(ctx){
+			var rect = ctx.rect(30, 30, 50, 50, 'red');
+			var circle = ctx.circle(150, 55, 30, 'green');
+			var path = ctx.path([
+				[220, 80],
+				[260, -10, 300, 80]
+			], 'red');
+
+			rect.draggable('enable', {
+				cursor: 'move',
+				zIndex: 'top',
+				helper: 'clone'
+			});
+			circle.draggable('enable');
+			path.draggable('enable');
+		}
+	},
+
+	'Ribbon': {
+		description: 'Drag any shape below',
+		init: function(ctx){
+			Delta.drawRibbonCurve(ctx.context, {
+				/* point: function(t){
+					return {
+						x: t * 300 + 100,
+						y: 100 - (t * t) * 100
+					};
+				} */
+				curve: Delta.curve('lineTo', [100, 100]),
+				start: [10,10]
+			});
 		}
 	}
 };

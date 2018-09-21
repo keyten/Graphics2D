@@ -5,7 +5,7 @@
  * https://github.com/theshock/libcanvas/blob/master/Source/Plugins/Curves.js
  */
 Delta.drawRibbonCurve = function(ctx, params){
-	var step = params.step || 0.2;
+	/*var step = params.step || 0.2;
 	var prev = params.point(-step);
 	var prevDrawPoints;
 	var drawPoints;
@@ -21,7 +21,28 @@ Delta.drawRibbonCurve = function(ctx, params){
 			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
 			ctx.fillStyle = randcolor();
 			ctx.fill();
-			ctx.stroke();
+//			ctx.stroke();
+		}
+		prevDrawPoints = drawPoints;
+		prev = cur;
+	} */
+	var step = params.step || 0.2;
+	var prev = params.curve.pointAt(-step, params.start);
+	var prevDrawPoints;
+	var drawPoints;
+	for(var t = -step; t < 1.02; t += step){
+		var cur = params.curve.pointAt(t, params.start);
+		drawPoints = getDrawPoints(prev, cur, 10, -1);
+		if(t >= step){
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[0].y)
+			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
+			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
+			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
+			ctx.fillStyle = randcolor();
+			ctx.fill();
+//			ctx.stroke();
 		}
 		prevDrawPoints = drawPoints;
 		prev = cur;

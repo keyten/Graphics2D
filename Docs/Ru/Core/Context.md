@@ -67,14 +67,16 @@ ctx.arcTo(x1, y1, x2, y2, radius, clockwise, [stroke]);
 ```js
 ctx.on(‘click’, firstListener)
    .on(‘click’, secondListener)
-   .rotate(1)
-   .translate(10, 10);
+   .attr('rotate', 45)
+   .attr('translate', [10, 10]);
 ```
 
 #### on(event, func)
-Ставит обработчик события на canvas. Передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:
-- `targetObject` - объект DeltaJS, на котором находится мышь (либо `null`).
-- `contextX`, `contextY` - координаты мыши на canvas (так, например, левый верхний угол canvas - это `contextX = contextY = 0`).
+Ставит обработчик события на canvas.
+
+Для событий мыши передаёт в обработчик браузерный объект события, но добавляет в него 3 своих свойства:
+- `targetObject` - объект контекста, на котором находится мышь (либо `null`).
+- `contextX`, `contextY` - координаты мыши на canvas (например, левый верхний угол canvas - это `contextX = contextY = 0`).
 
 ```js
 ctx.on('click', function(event){
@@ -98,7 +100,7 @@ ctx.on('click', function(event){
 
 #### off(event, [func])
 ```js
-// TODO: написать более вменяемый пример
+// TODO: написать более близкий к жизни пример
 ctx.on('click', someFunc);
 
 function someFunc(){
@@ -109,7 +111,7 @@ function someFunc(){
 // по событию mousewheel удаляем все обработчики клика
 ctx.on('mousewheel', function(){
     ctx.off('click');
-})
+});
 ```
 Убирает либо конкретный обработчик события, либо все обработчики события.
 
@@ -149,6 +151,9 @@ ctx.on(‘click’, function(event){
     }
 });
 ```
+
+#### each
+
 
 #### update
 Принудительно обновляет холст. Обычно он обновляется сам, когда меняются свойства объектов, но если вы хотите вручную изменять внутренние параметры объектов и т.п., может пригодиться. Например:

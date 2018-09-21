@@ -1,6 +1,6 @@
 Path = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -17,7 +17,7 @@ Path = new Class(Drawable, {
 			args[1] = args[2] = null;
 		}
 
-		if(args[1] || args[2]){
+		if(args[1] || args[2]){ // how about both = 0?
 			this.attrs.x = args[1] || 0;
 			this.attrs.y = args[2] || 0;
 		}

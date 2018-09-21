@@ -1,4 +1,4 @@
-/*  Graphics2D Core {{version}}
+/*  DeltaJS Core {{version}}
  *
  *  Author: {{author}}
  *  Last edit: {{date}}
@@ -7,12 +7,12 @@
 
 (function(window, undefined){
 
-// The main graphics2D class
+// The main DeltaJS class
 var Delta = {},
 
 // Classes
 	Context,
-	Drawable, // todo: var DOMImage = Image, Image = class...
+	Drawable,
 	Animation,
 	Rect, Circle, Curve, Path, Picture, Text,
 	Gradient, Pattern,
@@ -25,6 +25,7 @@ var Delta = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
+	// todo: move to utils
 	extend = Object.assign ? Object.assign : function(dest, source){
 		var keys = Object.keys(source),
 			l = keys.length;
@@ -33,9 +34,50 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
+	deepExtend = function(){},
 
 // DOM
-	eventsToInteract = [
+	browserEvents = {
+		mouse: [
+			'click',
+			'dblclick',
+			'mousedown',
+			'mouseup',
+			'mousemove',
+			'mouseover',
+			'mouseout',
+			'mouseenter',
+			'mouseleave',
+			'mousewheel',
+			'blur',
+			'focus'
+		],
+		touch: [
+			'touchstart',
+			'touchmove',
+			'touchend',
+			'touchcancel'
+		],
+		pointer: [
+			'pointerover',
+			'pointerenter',
+			'pointerdown',
+			'pointermove',
+			'pointerup',
+			'pointercancel',
+			'pointerout',
+			'pointerleave',
+			// check:
+			'gotpointercapture',
+			'lostpointercapture'
+		],
+		keyboard: [
+			'keypress',
+			'keydown',
+			'keyup'
+		]
+	},
+	pointerEvents = [
 		// mouse
 		'click',
 		'dblclick',
@@ -49,10 +91,6 @@ var Delta = {},
 		'mousewheel',
 		'blur',
 		'focus',
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup',
 		// touch
 		'touchstart',
 		'touchmove',
@@ -70,6 +108,12 @@ var Delta = {},
 		// check:
 		'gotpointercapture',
 		'lostpointercapture'
+	],
+	eventsToInteract = [ // restEvents
+		// keyboard
+		'keypress',
+		'keydown',
+		'keyup'
 	],
 
 	_ = {},
@@ -98,8 +142,9 @@ var Delta = {},
 
 Delta.renderers = {};
 // {{include utils.js}}
+// {{include Class.js}}
 
-// {{include Renderer.js}}
+// {{dont include Renderer.js}}
 
 // {{include Context.js}}
 
@@ -116,46 +161,46 @@ Delta.contexts = {
 // {{include Circle.js}}
 
 // {{include Curve.js}}
-// {{include Curve.Math.js}}
-// {{include Curve.Catmull.js}}
-// {{include CurveHermite.js}}
-// {{include CurveGeneralBezier.js}}
-// {{include CurveLagrange.js}}
-// {{include CurveRibbon.js}}
-// {{include Curve.Approx.js}}
+// {{dont include CurveMath.js}}
+// {{dont include CurveCatmull.js}}
+// {{dont include CurveHermite.js}}
+// {{dont include CurveGeneralBezier.js}}
+// {{dont include CurveLagrange.js}}
+// {{dont include CurveRibbon.js}}
+// {{dont include CurvePolyline.js}}
 
 // {{include Path.js}}
-// {{include Path.Math.js}}
-// {{include Path.SVG.js}}
+// {{dont include Path.Math.js}}
+// {{dont include Path.SVG.js}}
 
 // {{include Image.js}}
 
 // {{include Text.js}}
 
 // {{include Gradient.js}}
-// {{include GradientDiamond.js}}
+// {{dont include GradientDiamond.js}}
 
 // {{include Pattern.js}}
 
-// {{include Animation.Along.js}}
-// {{include Animation.Morph.js}}
+// {{dont include Animation.Along.js}}
+// {{dont include Animation.Morph.js}}
 
-// {{include Context.WebGL.js}}
-// {{include Rect.WebGL.js}}
-// {{include Path.WebGL.js}}
+// {{dont include Context.WebGL.js}}
+// {{dont include Rect.WebGL.js}}
+// {{dont include Path.WebGL.js}}
 
-// {{include Editor.js}}
-// {{include Editor.Draggable.js}}
-// {{include Editor.Transform.js}}
+// {{dont include Editor.js}}
+// {{dont include Editor.Draggable.js}}
+// {{dont include Editor.Transform.js}}
 
-// {{include SVGExport.js}}
+// {{dont include SVGExport.js}}
 
-// {{include CurveGradient.js}}
-// {{include EnhancedShadows.js}}
+// {{dont include CurveGradient.js}}
+// {{dont include EnhancedShadows.js}}
 
-// {{include Intersections.js}}
+// {{dont include Intersections.js}}
 
-// {{include MouseEvents.js}}
+// {{dont include MouseEvents.js}}
 
 Delta.version = "{{version}}";
 
@@ -176,8 +221,15 @@ if(typeof module === 'object' && typeof module.exports === 'object'){
 	define('Delta', [], function(){
 		return Delta;
 	});
-} else {
+} else if(window) {
 	window.Delta = Delta;
+	// if (typeof global === 'object') global.Delta = Delta;
+} else {
+	/* try {
+		export default Delta;
+	} catch(e){
+		;
+	} */
 }
 
 })(typeof window !== 'undefined' ? window : this);

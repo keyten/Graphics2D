@@ -1,18 +1,18 @@
-/*  Graphics2D Core 1.9.0
+/*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 02.12.2017
+ *  Last edit: 21.09.2018
  *  License: MIT / LGPL
  */
 
 (function(window, undefined){
 
-// The main graphics2D class
+// The main DeltaJS class
 var Delta = {},
 
 // Classes
 	Context,
-	Drawable, // todo: var DOMImage = Image, Image = class...
+	Drawable,
 	Animation,
 	Rect, Circle, Curve, Path, Picture, Text,
 	Gradient, Pattern,
@@ -25,6 +25,7 @@ var Delta = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
+	// todo: move to utils
 	extend = Object.assign ? Object.assign : function(dest, source){
 		var keys = Object.keys(source),
 			l = keys.length;
@@ -33,9 +34,50 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
+	deepExtend = function(){},
 
 // DOM
-	eventsToInteract = [
+	browserEvents = {
+		mouse: [
+			'click',
+			'dblclick',
+			'mousedown',
+			'mouseup',
+			'mousemove',
+			'mouseover',
+			'mouseout',
+			'mouseenter',
+			'mouseleave',
+			'mousewheel',
+			'blur',
+			'focus'
+		],
+		touch: [
+			'touchstart',
+			'touchmove',
+			'touchend',
+			'touchcancel'
+		],
+		pointer: [
+			'pointerover',
+			'pointerenter',
+			'pointerdown',
+			'pointermove',
+			'pointerup',
+			'pointercancel',
+			'pointerout',
+			'pointerleave',
+			// check:
+			'gotpointercapture',
+			'lostpointercapture'
+		],
+		keyboard: [
+			'keypress',
+			'keydown',
+			'keyup'
+		]
+	},
+	pointerEvents = [
 		// mouse
 		'click',
 		'dblclick',
@@ -49,10 +91,6 @@ var Delta = {},
 		'mousewheel',
 		'blur',
 		'focus',
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup',
 		// touch
 		'touchstart',
 		'touchmove',
@@ -70,6 +108,12 @@ var Delta = {},
 		// check:
 		'gotpointercapture',
 		'lostpointercapture'
+	],
+	eventsToInteract = [ // restEvents
+		// keyboard
+		'keypress',
+		'keydown',
+		'keyup'
 	],
 
 	_ = {},
@@ -97,7 +141,7 @@ var Delta = {},
 						   window.clearTimeout;
 
 Delta.renderers = {};
-// Class
+/*// Class
 function Class(parent, properties){
 	if(!properties){
 		properties = parent;
@@ -151,6 +195,7 @@ Class.attr = function(name, value){
 		return this;
 	}
 
+	// afaik its not good to use arguments?
 	if(arguments.length === 1){
 		// getter attr('attr1')
 		if(this.attrHooks[name] && this.attrHooks[name].get){
@@ -171,7 +216,7 @@ Class.attr = function(name, value){
 	}
 
 	return this;
-};
+}; */
 
 // Bounds class
 function Bounds(x, y, w, h){
@@ -188,6 +233,8 @@ function Bounds(x, y, w, h){
 	this.y = this.y1 = y;
 	this.w = this.width  = w;
 	this.h = this.height = h;
+	// todo: remove this all
+	// and make a method `get` or `corner`: aabb.corner('left');
 	this.x2 = x + w;
 	this.y2 = y + h;
 	this.cx = x + w / 2;
@@ -196,6 +243,30 @@ function Bounds(x, y, w, h){
 
 Delta.bounds = function(x, y, width, height){
 	return new Bounds(x, y, width, height);
+};
+
+// Thenable is like Promise but faster 4x at Firefox and >100x at Chrome
+function Thenable(func){
+	func(this.resolve.bind(this), this.reject.bind(this));
+}
+
+Thenable.prototype = {
+	resolve: function(value){
+		if(this.success){
+			this.success(value);
+		}
+	},
+
+	reject: function(value){
+		if(this.error){
+			this.error(value);
+		}
+	},
+
+	then: function(success, error){
+		this.success = success;
+		this.error = error;
+	}
 };
 
 // utils
@@ -223,6 +294,11 @@ Boolean: !!something === something
 Array: Array.isArray(something)
 Number: +something === something
 Function: typeof something === 'function'
+ */
+
+/*
+Guidelines:
+Types: Array, String, Boolean, Number, UnitNumber
  */
 
 function isObject(a){
@@ -262,7 +338,7 @@ function parsePoint(point){
 	];
 }
 
-Delta.class = Class;
+Delta.Class = Class;
 Delta.Bounds = Bounds;
 Delta.extend = extend;
 Delta.argument = argument;
@@ -760,263 +836,260 @@ function distance(value, dontsnap){
 }
 
 Delta.distance = distance;
+/**
+ * Class
+ * Class.AttrMixin
+ * Class.EventMixin
+ * Class.LinkMixin?
+ */
 
-Delta.renderers['2d'] = {
+// Class
+function Class(parent, properties){
+	if(!properties){
+		properties = parent;
+		parent = null;
+	}
 
-	// renderer.init(g2dcontext, canvas);
-	init: function(delta, canvas){
-		delta.context = canvas.getContext('2d');
-		delta.cache = {}; // for gradients
-	},
+	var init = function(){
+		return this.initialize && this.initialize.apply(this, arguments);
+	};
 
-	preRedraw: function(ctx, delta){
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		if(delta.matrix){
-			ctx.setTransform.apply(ctx, delta.matrix);
-		}
-	},
+	if(parent){
+		// prototype inheriting
+		var sklass = function(){};
+		sklass.prototype = parent.prototype;
+		init.prototype = new sklass();
+		init.prototype.superclass = parent.prototype;
+		init.prototype.constructor = init;
 
-	preDraw: function(ctx, delta){
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		if(delta.matrix){
-			ctx.setTransform.apply(ctx, delta.matrix);
-		}
-	},
+		init.prototype.super = function(name, args){
+			// при вызове super внутри таймаута получим бесконечный цикл
+			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
+			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
+			if(!this.superclass.superclass || !this.superclass.superclass[name]){
+				return this.superclass[name].apply(this, args);
+			}
 
-	postDraw: function(ctx){
-		ctx.restore();
-	},
+			var superclass = this.superclass; // нужно подумать, можно ли это сделать иначе
+			this.superclass = this.superclass.superclass;
+			var result = superclass[name].apply(this, args);
+			this.superclass = parent.prototype;
+			return result;
+		};
+	}
 
-	// params = [cx, cy, radius]
-	drawCircle: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		ctx.beginPath();
-		ctx.arc(params[0], params[1], Math.abs(params[2]), 0, Math.PI * 2, true);
-		this.post(ctx, style);
-	},
-
-	// params = [x, y, width, height]
-	drawRect: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		if(style.fillStyle){
-			ctx.fillRect(params[0], params[1], params[2], params[3]);
-		}
-		if(style.strokeStyle){
-			ctx.strokeRect(params[0], params[1], params[2], params[3]);
-		}
-		ctx.restore();
-	},
-
-	// params is an array of curves
-	drawPath: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		if(params[1] || params[2]){
-			ctx.translate(params[1] || 0, params[2] || 0);
-		}
-		ctx.beginPath();
-		params[0].forEach(function(curve){
-			curve.process(ctx);
+	if(properties.mixins){
+		properties.mixins.forEach(function(mixinName){
+			extend(init.prototype, Class.mixins[mixinName]);
 		});
-		this.post(ctx, style);
-	},
+	}
 
-	// params = [image, x, y]
-	// params = [image, x, y, w, h]
-	// params = [image, x, y, w, h, cx, cy, cw, ch]
-	drawImage: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		switch(params.length){
-			// with size
-			case 5: {
-				ctx.drawImage(params[0], params[1], params[2], params[3], params[4]);
-			} break;
+	extend(init.prototype, properties);
 
-			// with size & crop
-			case 9: {
-				ctx.drawImage(
-					params[0],
-					params[5], params[6],
-					params[7], params[8],
+	return init;
+}
 
-					params[1], params[2],
-					params[3], params[4]
-				);
-			} break;
-
-			// without size
-			default: {
-				ctx.drawImage(params[0], params[1], params[2]);
-			} break;
-		}
-		ctx.restore();
-	},
-
-	drawData: function(params, ctx, style, matrix, object){
-		ctx.putImageData(params[0], params[1], params[2]);
-	},
-
-	// params = [text, x, y]
-	drawTextLines: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		var func;
-		if(style.fillStyle && !style.strokeStyle){
-			func = function(line){
-				ctx.fillText(line.text, params[1], params[2] + line.y);
-			};
-		} else if(style.fillStyle){
-			func = function(line){
-				ctx.fillText(line.text, params[1], params[2] + line.y);
-				ctx.strokeText(line.text, params[1], params[2] + line.y);
-			};
-		} else {
-			func = function(line){
-				ctx.strokeText(line.text, params[1], params[2] + line.y);
-			};
-		}
-		params[0].forEach(func);
-		ctx.restore();
-	},
-
-	// params = [text, x, y]
-	drawText: function(params, ctx, style, matrix, object){
-		this.pre(ctx, style, matrix, object);
-		// lolwat
-		// why did i do that
-		if(style.fillStyle && !style.strokeStyle){
-			ctx.fillText(params[0], params[1], params[2], params[3]);
-		} else if(style.fillStyle){
-			ctx.fillText(params[0], params[1], params[2]);
-			ctx.strokeText(params[0], params[1], params[2]);
-		} else {
-			ctx.strokeText(params[0], params[1], params[2]);
-		}
-		ctx.restore();
-	},
-
-	makeGradient: function(delta, type, from, to, colors){
-		var hash;
-		if(delta.useCache){
-			hash = this.hashGradient(type, from, to, colors);
-			if(delta.cache[hash]){
-				return delta.cache[hash];
+Class.mixins = {
+	AttrMixin : {
+		attrs : {},
+		attrHooks : {},
+		attr : function(name, value){
+			// if name is arr then map
+			if(name.constructor === Array){
+				// Array.isArray is too slow in V8
+				return name.map(function(attr){
+					return this.attrs[attr];
+				}, this);
 			}
-		}
 
-		var grad;
-		if(type === 'linear'){
-			grad = delta.context.createLinearGradient(from[0], from[1], to[0], to[1]);
-		} else {
-			grad = delta.context.createRadialGradient(from[0], from[1], from[2], to[0], to[1], to[2]);
-		}
-
-		Object.keys(colors).forEach(function(offset){
-			grad.addColorStop(offset, colors[offset]);
-		});
-
-		if(delta.useCache){
-			delta.cache[hash] = grad;
-		}
-
-		return grad;
-	},
-
-	// with caching works in chromes worser
-	hashGradient: function(type, from, to, colors){
-		var hash;
-		colors = JSON.stringify(colors);
-
-		if(type === 'linear'){
-			if(from[0] === to[0]){
-				hash = ['ver', from[1], to[1], colors];
-			} else if(from[1] === to[1]){
-				hash = ['hor', from[0], to[0], colors];
-			} else {
-				hash = [from[0], from[1], to[0], to[1], colors];
+			// if name is obj then forEach
+			if(typeof name !== 'string'){
+				Object.keys(name).forEach(function(attrName){
+					this.attr(attrName, name[attrName]);
+				}, this);
+				return this;
 			}
-		} else {
-			hash = [
-				from[0], from[1], from[2],
-				to[0], to[1], to[2],
-				colors
-			];
-		}
 
-		return hash.join(';');
-	},
-
-	pre: function(ctx, style, matrix, object){
-		ctx.save();
-
-		// styles
-		Object.keys(style).forEach(function(key){
-			ctx[key] = style[key];
-		});
-
-		if(style.fillStyle && style.fillStyle.toCanvasStyle){
-			ctx.fillStyle = style.fillStyle.toCanvasStyle(ctx, object)
-		}
-		if(style.strokeStyle && style.strokeStyle.toCanvasStyle){
-			ctx.strokeStyle = style.strokeStyle.toCanvasStyle(ctx, object);
-		}
-
-		if(style.lineDash){
-			if(ctx.setLineDash){ // webkit
-				// there's also available ctx.lineDashOffset
-				ctx.setLineDash(style.lineDash);
-			} else {
-				ctx.mozDash = style.lineDash;
+			// if value is not defined then get
+			if(arguments.length === 1){
+				return this.attrs[name];
 			}
-		}
 
-		// clip
-		if(object.attrs.clip){
-			if(object.attrs.clip.matrix){
-				ctx.save();
-				ctx.transform.apply(ctx, object.attrs.clip.matrix);
-				object.attrs.clip.processPath(ctx);
-				ctx.restore();
-			} else {
-				object.attrs.clip.processPath(ctx);
+			// else set
+			this.attrs[name] = val;
+			return this;
+		}
+	},
+
+	// todo: AnimatableMixin depending on the AttrMixin
+	// must be defined at Animation.js
+
+	// todo: TransformableMixin depending on the AttrMixin too
+
+	EventMixin : {
+		listeners : {},
+
+		// for inspiration:
+		// http://benalman.com/news/2010/03/jquery-special-events/
+		// http://learn.jquery.com/events/event-extensions/
+		eventHooks : {},
+
+		// hooks for add & remove are commented cause they dont seem to be neccessary
+		on : function(event, options, callback){
+			// if event is obj then keys(event) foreach
+			if(event.constructor !== String){
+				Object.keys(event).forEach(function(eventName){
+					this.on(eventName, event[eventName]);
+				}, this);
+				return this;
 			}
-			ctx.clip();
-		}
 
-		if(matrix){
-			ctx.transform(
-				matrix[0], matrix[1], matrix[2],
-				matrix[3], matrix[4], matrix[5]
-			);
+			// if options is not obj then callback = options
+			if(options){
+				if(options.constructor === Function){
+					// event, callback
+					callback = options;
+					options = null;
+				} else if(options.constructor === String){
+					// event, methodName, arg1, arg2...
+					Array.prototype.splice.call(arguments, 1, 0, null);
+				}
+			}
+
+			// if callback is string then process quick call
+			if(callback.constructor === String){
+				callback = wrapQuickCall(arguments);
+			}
+
+			// if event isnt inited then init it
+			if(!this.listeners[event]){
+				this.listeners[event] = [];
+				if(this.eventHooks[event] && this.eventHooks[event].init){
+					this.eventHooks[event].init.call(this, event);
+				}
+			}
+
+			// add the callback (with options)
+			this.listeners[event].push({
+				callback: callback,
+				options: options
+			});
+
+			// call the hook
+			/* if(this.eventHooks[event] && this.eventHooks[event].add){
+				this.eventHooks[event].add.call(this, options, callback, event);
+			} */
+
+			return this;
+		},
+
+		off : function(event, callback){
+			var listeners = this.listeners[event],
+				hooks = this.eventHooks[event];
+
+			if(listeners){
+				if(callback){
+					// if callback then remove it
+					for(var i = 0; i < listeners.length; i++){
+						if(listeners[i].callback === callback){
+							listeners.splice(i, 1);
+							break;
+						}
+					}
+
+					if(hooks){
+						/* if(hooks.remove){
+							hooks.remove.call(this, callback, event);
+						} */
+						if(!listeners.length && hooks.teardown){
+							this.listeners[event] = null;
+
+							hooks.teardown.call(this, event);
+						}
+					}
+				} else {
+					// otherwise remove all callbacks
+					this.listeners[event] = null;
+
+					if(hooks && hooks.teardown){
+						hooks.teardown.call(this, event);
+					}
+				}
+			}
+
+			return this;
+		},
+
+		fire : function(event, data, checker){
+			var listeners = this.listeners[event];
+
+			if(listeners){
+				if(checker){
+					listeners = listeners.filter(checker, this);
+				}
+
+				listeners.forEach(function(callbackData){
+					callbackData.callback.call(this, data);
+				}, this);
+			}
+
+			return this;
 		}
 	},
 
-	post: function(ctx, style){
-		if(style.fillStyle){
-			ctx.fill();
-		}
-		if(style.strokeStyle){
-			ctx.stroke();
-		}
-		ctx.restore();
-	},
-
-	// text
-	_currentMeasureContext: null,
-	preMeasure: function(font){
-		this._currentMeasureContext = getTemporaryCanvas(1, 1).getContext('2d');
-		this._currentMeasureContext.save();
-		this._currentMeasureContext.font = font;
-	},
-	measure: function(text){
-		return this._currentMeasureContext.measureText(text).width;
-	},
-	postMeasure: function(){
-		this._currentMeasureContext.restore();
-		this._currentMeasureContext = null;
+// gradients, patterns, clip
+	LinkMixin : {
+		links : [],
+		pushLink : function(){},
+		callLinks : function(funcName){}
 	}
 };
+
+function wrapQuickCall(args){
+	var name = args[2];
+	return function(){
+		return this[name].apply(this, Array.prototype.slice.call(args, 3));
+	};
+}
+
+Class.attr = function(name, value){
+	if(Array.isArray(name)){
+		// getter attr(['attr1', 'attr2'])
+		return name.map(function(name){
+			return this.attr(name);
+		}, this);
+	} else if(name + '' !== name){
+		// setter attr({ attr1: val1, attr2: val2 });
+		Object.keys(name).forEach(function(key){
+			this.attr(key, name[key]);
+		}, this);
+		return this;
+	}
+
+	// afaik its not good to use arguments?
+	if(arguments.length === 1){
+		// getter attr('attr1')
+		if(this.attrHooks[name] && this.attrHooks[name].get){
+			return this.attrHooks[name].get.call(this);
+		}
+		return this.attrs[name];
+	}
+
+	// setter attr('attr1', 'val1')
+	if(this.attrHooks[name] && this.attrHooks[name].set){
+		var result = this.attrHooks[name].set.call(this, value);
+		if(result !== null){ // replace to result !== Delta._doNotSetProperty;
+			// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
+			this.attrs[name] = result === undefined ? value : result;
+		}
+	} else {
+		this.attrs[name] = value;
+	}
+
+	return this;
+};
+
+// {{dont include Renderer.js}}
 
 var Context;
 
@@ -1030,42 +1103,37 @@ Context = function(canvas){
 	};
 	this.cache = {};
 
-// rudiment
-	this.renderer = Delta.renderers['2d'];
-
-	// why not updateNow = ...?
-	this.updateNowBounded = this.updateNow.bind(this);
+	this.updateNow = this.updateNow.bind(this);
 };
 
 Context.prototype = {
-
 	// Elements
-	object: function(object){
+	object : function(object){
 		return this.push(extend(new Drawable(), object));
 	},
 
-	rect: function(){
-		return this.push(new Rect(arguments, this));
+	rect : function(){
+		return this.push(new Rect(arguments));
 	},
 
-	circle: function(){
-		return this.push(new Circle(arguments, this));
+	circle : function(){
+		return this.push(new Circle(arguments));
 	},
 
-	path: function(){
-		return this.push(new Path(arguments, this));
+	path : function(){
+		return this.push(new Path(arguments));
 	},
 
-	image: function(){
-		return this.push(new Picture(arguments, this));
+	image : function(){
+		return this.push(new Picture(arguments));
 	},
 
-	text: function(){
-		return this.push(new Text(arguments, this));
+	text : function(){
+		return this.push(new Text(arguments));
 	},
 
 	// Path slices
-	line: function(fx, fy, tx, ty, stroke){
+	line : function(fx, fy, tx, ty, stroke){
 		return this.path([[fx, fy], [tx, ty]], null, stroke);
 	},
 
@@ -1082,7 +1150,7 @@ Context.prototype = {
 	},
 
 	// Fills
-	useCache: false,
+	useCache : false,
 	gradient : function(type, colors, from, to){
 		return new Gradient(type, colors, from, to, this);
 	},
@@ -1126,7 +1194,7 @@ Context.prototype = {
 		}
 
 		this._willUpdate = true;
-		requestAnimationFrame(this.updateNowBounded);
+		requestAnimationFrame(this.updateNow);
 	},
 
 	updateNow : function(){
@@ -1139,7 +1207,7 @@ Context.prototype = {
 		if(!Delta.isIdentityTransform(transform)){
 			ctx.setTransform(transform[0] / dpi, transform[1], transform[2], transform[3] / dpi, transform[4], transform[5]);
 		} else if(dpi !== 1){
-			ctx.setTransform(1 * dpi, 0, 0, 1 * dpi, 0, 0);
+			ctx.setTransform(dpi, 0, 0, dpi, 0, 0);
 		}
 
 		this.elements.forEach(function(element){
@@ -1179,7 +1247,7 @@ Context.prototype = {
 	},
 
 	// Events
-	hoverElement : null,
+/*	hoverElement : null,
 	focusElement : null,
 
 	listener : function(event){
@@ -1196,6 +1264,8 @@ Context.prototype = {
 		return this.listeners[event];
 	},
 
+	// todo: писать eventHooks: extend({ mouseover, mouseout, etc }, (function(){ return all other mouse evts })())?
+	// вроде менее очевидно даже
 	eventsHooks : {
 		mouseover : function(){
 			if(!this.listeners['mouseout']){
@@ -1354,7 +1424,7 @@ Context.prototype = {
 			callback.call(this, data);
 		}, this);
 		return this;
-	},
+	}, */
 
 	// translates screen coords to context coords
 	contextCoords: function(x, y){
@@ -1414,7 +1484,7 @@ Context.prototype = {
 			get: function(){
 				return this.attrs.translate || [0, 0];
 			},
-			set: function(value){
+			set: function(value){ // todo: not duplicate at all attrs
 				if(this.attrs.transform === 'attributes'){
 					this.cache.transform = null;
 					this.update();
@@ -1478,19 +1548,271 @@ Context.prototype = {
 	}
 };
 
-eventsToInteract.forEach(function(eventName){
-	if(!Context.prototype.eventsHooks[eventName]){
-		Context.prototype.eventsHooks[eventName] = function(){
-			this.listenerCanvas(eventName);
+// Events
+Object.assign(Context.prototype, Class.mixins['EventMixin'], {
+	hoverElement : null,
+	focusElement : null,
+
+	listeners: {},
+	eventHooks: {},
+/*
+	_processPointerEvent: function(pointObj, eventName, eventObj){
+		var coords = this.contextCoords(pointObj.clientX, pointObj.clientY);
+		pointObj.contextX = coords[0];
+		pointObj.contextY = coords[1];
+
+		pointObj.targetObject = this.getObjectInPoint(pointObj.contextX, pointObj.contextY, true);
+		if(pointObj.targetObject && pointObj.targetObject.fire){
+			// fixme: the event will be fired before eventObj got processed
+			if(!pointObj.targetObject.fire(eventName, eventObj)){
+				eventObj.stopPropagation();
+				eventObj.preventDefault();
+			}
+		}
+	} */
+});
+
+Delta.browserCommonEvent = {
+	init : function(event){
+		if(!this.canvas){
+			return;
+		}
+
+		if(this.eventHooks[event].canvas){
+			this.canvas.addEventListener(event,
+				this.listeners[event + '__canvasListener'] = this.eventHooks[event].canvas.bind(this));
+		}
+	},
+
+	teardown : function(event){
+		if(!this.canvas){
+			return;
+		}
+
+		requestAnimationFrame(function(){
+			if(!this.listeners[event]){
+				this.canvas.removeEventListener(event, this.listeners[event + '__canvasListener']);
+			}
+		}.bind(this));
+	},
+
+	canvas : function(e){
+		e.cancelContextPropagation = function(){};
+		this.fire(e.type, e);
+	}
+};
+
+// todo: check if there's event.touches at mobiles in mouse events (click and etc)
+Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
+	canvas : function(e){
+		var propagation = true;
+
+		e.cancelContextPropagation = function(){
+			propagation = false;
 		};
+
+		// negative contextX / contextY possible when canvas has a border
+		// not a bug, it's a feature :)
+		var coords = this.contextCoords(e.clientX, e.clientY);
+		e.contextX = coords[0];
+		e.contextY = coords[1];
+		e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
+
+		if(e.targetObject && e.targetObject.fire){
+			e.targetObject.fire(e.type, e);
+		}
+
+		if(propagation){
+			this.fire(e.type, e);
+		}
+	}
+});
+
+Delta.browserTouchEvent = Object.assign({}, Delta.browserCommonEvent, {
+	canvas : function(e){
+		var propagation = true;
+
+		e.cancelContextPropagation = function(){
+			propagation = false;
+		};
+
+		['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
+			if(e[prop]){
+				Array.prototype.forEach.call(e[prop], function(touch){
+					var coords = this.contextCoords(touch.clientX, touch.clientY);
+					touch.contextX = coords[0];
+					touch.contextY = coords[1];
+
+					// todo: make it as getter? it may cost a lot
+					touch.targetObject = this.getObjectInPoint(touch.contextX, touch.contextY, true);
+				}, this);
+			}
+		}, this);
+
+		// fixme: not sure if that is a right way to call them
+		Array.prototype.forEach.call(e.touches, function(touch){
+			if(touch.targetObject && touch.targetObject.fire){
+				e.targetObject.fire(e.type, e);
+			}
+		}, this);
+
+		if(propagation){
+			this.fire(e.type, e);
+		}
+	}
+});
+
+var eventKindsListeners = window.document ? {
+	mouse : Delta.browserMouseEvent,
+	touch : Delta.browserTouchEvent,
+	pointer : Delta.browserCommonEvent,
+	keyboard : Delta.browserCommonEvent
+} : {};
+
+Object.keys(browserEvents).forEach(function(eventsKind){
+	browserEvents[eventsKind].forEach(function(event){
+		Context.prototype.eventHooks[event] = eventKindsListeners[eventsKind];
+
+		Context.prototype[event] = function(callback){
+			return (
+				callback.constructor === Function
+			) ? this.on(event, callback) : (
+				callback.constructor === String
+			) ? this.on.apply(this, [event].concat(slice.call(arguments))) : this.fire(callback);
+		};
+	});
+});
+
+
+
+/*
+// todo: make this all more general:
+// are they really divided cause of difference in 2 ifs?
+Delta.browserCommonEvent = {
+	init : function(event){
+		if(!this.canvas){
+			return;
+		}
+/*
+		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			// if(this.eventHooks[event].canvas(e))
+
+			if(propagation && !this.fire(event, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}.bind(this)); *//*
+		this.canvas.addEventListener(event, this.eventHooks[event].canvasListener);
+	},
+
+	teardown : function(event){
+		if(!this.canvas){
+			return;
+		}
+
+		requestAnimationFrame(function(){
+			if(!this.listeners[event]){
+				this.canvas.removeEventListener(event, this.listeners[event + '_canvasListener']);
+			}
+		}.bind(this));
+	}
+};
+
+Delta.browserPointerEvent = {
+	init : function(event){
+		if(!this.canvas){
+			return;
+		}
+
+		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			// negative contextX / contextY when canvas has a border
+			// not a bug, it's a feature :)
+			if(e.clientX.constructor === Number){
+				this._processPointerEvent(e, event, e);
+			}
+			['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
+				if(e[prop]){
+					Array.prototype.forEach.call(e[prop], function(touch){
+						this._processPointerEvent(touch, event, e);
+					}, this);
+				}
+			}, this);
+
+			if(propagation && !this.fire(event, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}.bind(this));
+	},
+
+	teardown : Delta.browserCommonEvent.teardown
+};
+
+eventsToInteract.concat(pointerEvents).forEach(function(eventName){
+	if(!Context.prototype.eventHooks[eventName]){ // && window.document
+		// be careful with extending existing eventHooks
+		Context.prototype.eventHooks[eventName] = (
+			pointerEvents.indexOf(eventName) > -1 ? Delta.browserPointerEvent : Delta.browserCommonEvent
+		);
 	}
 
 	Context.prototype[eventName] = function(callback){
-		return this[
-			typeof callback === 'function' || callback + '' === callback ? 'on' : 'fire'
-		].apply(this, [eventName].concat(slice.call(arguments)));
+		return (
+			callback.constructor === Function
+		) ? this.on(eventName, callback) : (
+			callback.constructor === String
+		) ? this.on.apply(this, [eventName].concat(slice.call(arguments))) : this.fire(callback);
 	};
 });
+
+Context.prototype.eventHooks.mouseout = {
+	init : function(event){
+		if (!this.canvas) {
+			return;
+		}
+
+		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
+			var propagation = true;
+
+			e.cancelContextPropagation = function(){
+				propagation = false;
+			};
+
+			e.targetObject = this.hoverElement;
+			this.hoverElement = null;
+
+			var coords = this.contextCoords(e.clientX, e.clientY);
+			e.contextX = coords[0];
+			e.contextY = coords[1];
+
+			if(e.targetObject && e.targetObject.fire){
+				if(!e.targetObject.fire('mouseout', e)){
+					e.stopPropagation();
+					e.preventDefault();
+				}
+			}
+
+			if(propagation && !this.fire(event, e)){
+				e.stopPropagation();
+				e.preventDefault();
+			}
+		}.bind(this));
+	},
+
+	teardown : Delta.browserCommonEvent.teardown
+}; */
 
 Delta.Context = Context;
 
@@ -1513,9 +1835,11 @@ function DrawableAttrHooks(attrs){
 	extend(this, attrs); // todo: deepExtend neccessary?
 }
 
+// todo: Drawable не наследуется ни от чего, мб его тоже сделать не Class? как Context?
 Drawable = new Class({
 	initialize: function(args){
 		this.listeners = {};
+		// todo: попробовать заменить styles на массив
 		this.styles = {};
 		this.cache = {};
 		this.attrs = {
@@ -1524,6 +1848,9 @@ Drawable = new Class({
 			transform: 'attributes'
 		};
 	},
+
+	// mixin: [Class.AttrMixin, Class.EventMixin]
+	// to gradients & patterns: [Class.LinkMixin]
 
 	// actual update function
 	updateFunction: function(){
@@ -1538,7 +1865,15 @@ Drawable = new Class({
 		return this;
 	},
 
+	/*
+		default: {
+			attrs: true,
+			styles: true,
+			fills: true // clone gradients, patterns?
+		}
+	  */
 	clone : function(attrs, styles, events){
+		// todo: replace arguments to one config {styles: false, matrix: true}
 		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
 		// todo: необходим deepClone везде
@@ -1567,6 +1902,7 @@ Drawable = new Class({
 			clone.listeners = extend({}, this.listeners);
 		}
 
+		// if this.context:
 		return this.context.push(clone);
 	},
 
@@ -1606,6 +1942,7 @@ Drawable = new Class({
 
 		fill: {
 			get: function(){
+				// а градиенты?
 				return this.styles.fillStyle;
 			},
 			set: function(value){
@@ -1615,6 +1952,8 @@ Drawable = new Class({
 			}
 		},
 
+		// fillRule?
+
 		stroke: {
 			set: function(value){
 				Drawable.processStroke(value, this.styles);
@@ -1622,6 +1961,7 @@ Drawable = new Class({
 			}
 		},
 
+// todo: запихнуть всё относящееся к stroke в strokeMode
 		strokeMode: {
 			get: function(){
 				return this.attrs.strokeMode || 'over';
@@ -1740,7 +2080,9 @@ Drawable = new Class({
 		return matrix;
 	},
 
+// Object -> ArgumentObject?
 	processObject: function(object, arglist){
+		// todo: вынести в отдельный объект
 		['opacity', 'composite', 'clip', 'visible', 'interaction',
 		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
 			if(object[prop] !== undefined){
@@ -1753,6 +2095,7 @@ Drawable = new Class({
 		});
 	},
 
+	// Before -> Pre
 	isPointInBefore : function(x, y, options){
 		if(options){
 			if(options.transform !== false){
@@ -1768,12 +2111,15 @@ Drawable = new Class({
 	},
 
 	// Bounds
+	// -> boundsPost
+	// или не, должно вызывать this.roughBounds
+	// нужен массив функций, которые последовательно изменяют bounds
 	bounds: function(rect, transform, around){
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
 		// 'clip-exclude'
-		// 'self' / 'transformed' / 'tight'
+		// 'none' / 'self' / 'transformed' / 'tight'
 		// self - only self transforms
 		// transformed - self & context
 
@@ -1821,7 +2167,8 @@ Drawable = new Class({
 			return corner;
 		}
 
-		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
+		// todo: transformed state
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
 			bounds.y + bounds.h * Delta.corners[corner][1]
@@ -1842,7 +2189,6 @@ Drawable = new Class({
 		} else if(options + '' === options){
 			Array.prototype.splice.call(arguments, 1, 0, null);
 		}
-
 
 		if(callback + '' === callback){
 			callback = wrap(arguments, 2);
@@ -2467,7 +2813,7 @@ Delta.animation = function(duration, easing, callback){
 
 Rect = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -2627,8 +2973,8 @@ Delta.rect = function(){
 Delta.Rect = Rect;
 
 Circle = new Class(Drawable, {
-
-	initialize : function(args, context){
+	initialize : function(args){
+		// todo: replace to [args]?
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -2843,6 +3189,9 @@ Curve.canvasFunctions = {
 				clockwise = attrs[5];
 				// todo: support 'from'
 			return [x - radius, y - radius, x + radius, y + radius];
+			// не учитывается старт-энд
+			// нужно собрать точки начало, конец и между ними через 90 градусов каждую по модулю
+			// хочется функцию Bounds.fromPoints(array)
 		},
 		endAt: function(attrs){
 			var x = attrs[0],
@@ -2866,7 +3215,18 @@ Curve.canvasFunctions = {
 
 function makeAttrHooks(argList){
 	var attrHooks = new CurveAttrHooks({});
-	argList.forEach(function(arg, i){
+	for(var i = 0; i < argList.length; i++){
+	/*	attrHooks[argList[arg]] = {
+			get: function(){
+				return this.attrs.args[i];
+			},
+			set: function(value){
+				this.attrs.args[i] = value;
+				this.update();
+			}
+		}; */
+	}
+/*	argList.forEach(function(arg, i){
 		attrHooks[arg] = {
 			get: function(){
 				return this.attrs.args[i];
@@ -2876,7 +3236,7 @@ function makeAttrHooks(argList){
 				this.update();
 			}
 		};
-	});
+	});*/
 	return attrHooks;
 }
 
@@ -2912,1430 +3272,17 @@ Delta.Curve = Curve;
 Delta.curve = function(method, attrs, path){
 	return new Delta.curves[method](method, attrs, path);
 };
-Curve.epsilon = 0.0001;
-Curve.detail = 10;
-		// слишком многословно
-		// надо сделать во всём модуле локальную переменную для canvasFunctions
-		// а мб и для отдельных её элементов
-
-// Curve utilities
-extend(Curve.prototype, {
-	// renamed from before
-	prev: function(){
-		if(!this.path){
-			return null;
-		}
-
-		var d = this.path.attr('d');
-		var index = d.indexOf(this);
-
-		if(index < 1){
-			return null;
-		}
-		return d[index - 1];
-	},
-
-	next: function(){
-		if(!this.path){
-			return null;
-		}
-
-		var d = this.path.attr('d');
-		var index = d.indexOf(this);
-
-		if(index === d.length - 2){
-			return null;
-		}
-		return d[index + 1];
-	}
-});
-
-// General Curve methods
-extend(Curve.prototype, {
-	tangentAt: function(t, epsilon, startPoint){
-		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].tangentAt){
-			return Curve.canvasFunctions[this.method].tangentAt(this, startPoint);
-		}
-
-		if(!epsilon){
-			epsilon = Curve.epsilon;
-		}
-
-		var t1 = t - epsilon,
-			t2 = t + epsilon;
-
-		if(t1 < 0){
-			t1 = 0;
-		}
-		if(t2 > 1){
-			t2 = 1;
-		}
-
-		var point1 = this.pointAt(t1, startPoint),
-			point2 = this.pointAt(t2, startPoint);
-
-		return Math.atan2(point2[1] - point1[1], point2[0] - point1[0]) * 180 / Math.PI;
-	},
-
-	normalAt: function(t, epsilon, startPoint){
-		return this.tangentAt(t, epsilon, startPoint) - 90;
-	},
-
-	flatten: function(detail, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		var lines = [];
-
-		for(var i = 1; i <= detail; i++){
-			lines.push(
-				Delta.curve('lineTo', this.pointAt(i / detail, start), this.path)
-			);
-		}
-
-		var curves = this.path.attr('d');
-		curves.splice.apply(curves, [curves.indexOf(this), 1].concat(lines));
-		this.path.attr('d', curves);
-		return this;
-	},
-
-	// like reduce
-	// todo: check if this function neccessary
-	approx: function(detail, func, value){
-		var startPoint = this.startAt();
-		var lastPoint = startPoint;
-		for(var i = 1; i <= detail; i++){
-			value = func(value, lastPoint, lastPoint = this.pointAt(i / detail, startPoint), i);
-		}
-		return value;
-	},
-
-	length: function(detail, startPoint){
-		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length){
-			return Curve.canvasFunctions[this.method].length(this, startPoint);
-		}
-
-		if(!detail){
-			detail = Curve.detail;
-		}
-
-		// http://pomax.github.io/bezierinfo/legendre-gauss.html#n2
-		var lengthIntegrate = this.lengthIntegrate || (Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].lengthIntegrate);
-		if(lengthIntegrate){
-			// We use legendre-gauss approximation
-			return integrate(lengthIntegrate, 0, 1, detail);
-		} else {
-			// We just approximate the curve with lines
-		}
-
-		var length = 0,
-			lastPoint = startPoint || this.startAt(),
-			point;
-		for(var i = 1; i <= detail; i++){
-			point = this.pointAt(i / detail);
-			length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
-			lastPoint = point;
-		}
-		return length;
-	},
-
-	nearest: function(x, y, detail, startPoint){
-		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].nearest){
-			return Curve.canvasFunctions[this.method].nearest(this, startPoint);
-		}
-
-		if(!detail){
-			detail = Curve.detail;
-		}
-
-		if(!startPoint){
-			startPoint = this.startAt();
-		}
-
-		// todo: gradient descent
-		var point,
-			min = Infinity,
-			minPoint,
-			minI,
-			distance;
-		for(var i = 0; i <= detail; i++){
-			point = this.pointAt(i / detail, startPoint);
-			distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
-			if(distance < min){
-				minPoint = point;
-				minI = i;
-				min = distance;
-			}
-		}
-
-		return {
-			point: minPoint,
-			t: minI / detail,
-			distance: min
-		};
-	},
-
-	bounds: function(startPoint, detail){
-		if(!startPoint){
-			startPoint = this.startAt();
-		}
-
-		// supports canvas curves
-		if(Curve.canvasFunctions[this.method].bounds){
-			return Curve.canvasFunctions[this.method].bounds(startPoint, this.attrs.args);
-		}
-
-		if(!detail){
-			detail = Curve.detail;
-		}
-
-		// todo: how about binary search?
-
-		var point,
-
-			minX = Infinity,
-			minY = Infinity,
-			maxX = -Infinity,
-			maxY = -Infinity;
-
-		for(var t = 0; t <= detail; t++){
-			point = this.pointAt(t / detail, startPoint);
-			if(minX > point[0]){
-				minX = point[0];
-			}
-			if(minY > point[1]){
-				minY = point[1];
-			}
-			if(maxX < point[0]){
-				maxX = point[0];
-			}
-			if(maxY < point[1]){
-				maxY = point[1];
-			}
-		}
-
-		return [minX, minY, maxX, maxY];
-	},
-
-	intersections: function(curve){
-		;
-	}
-});
-
-// Canvas Curve methods
-extend(Curve.prototype, {
-	pointAt: function(t, startPoint){
-		var fn = Curve.canvasFunctions[this.method];
-
-		if(fn && fn.pointAt){
-			return fn.pointAt(this, t, startPoint);
-		}
-
-		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
-	},
-
-	splitAt: function(t, startPoint){
-		var fn = Curve.canvasFunctions[this.method];
-
-		if(fn && fn.splitAt){
-			return fn.splitAt(this, t, startPoint);
-		}
-
-		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
-	}
-});
-
-// MoveTo
-extend(Curve.canvasFunctions.moveTo, {
-	pointAt: function(curve, t, startPoint){
-		return curve.attrs.args;
-	},
-
-	length: function(){
-		return 0;
-	}
-});
-
-// LineTo
-extend(Curve.canvasFunctions.lineTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-		return [
-			startPoint[0] + t * (curve.attrs.args[0] - startPoint[0]),
-			startPoint[1] + t * (curve.attrs.args[1] - startPoint[1]),
-		];
-	},
-
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-		// x = x0 + (x1 - x0)t
-		// y = y0 + (y1 - y0)t
-		return Math.atan2(curve.attrs.args[1] - startPoint[1], curve.attrs.args[0] - startPoint[0]) / Math.PI * 180;
-	},
-
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-
-		var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
-		return {
-			start: [
-				startPoint,
-				point
-			],
-			end: [
-				point,
-				[curve.attrs.args[0], curve.attrs.args[1]]
-			]
-		};
-	},
-
-	length: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-
-		var dx = curve.attrs.args[0] - startPoint[0],
-			dy = curve.attrs.args[1] - startPoint[1];
-
-		return Math.sqrt(dx * dx + dy * dy);
-	}
-});
-
-// QuadraticCurveTo
-extend(Curve.canvasFunctions.quadraticCurveTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-		var i = 1 - t;
-		return [
-			i * i * startPoint[0] + 2 * t * i * curve.attrs.args[0] + t * t * curve.attrs.args[2],
-			i * i * startPoint[1] + 2 * t * i * curve.attrs.args[1] + t * t * curve.attrs.args[3],
-		];
-	},
-
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-	},
-
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-
-		var i = 1 - t;
-		var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
-		return {
-			start: [
-				startPoint,
-				[
-					t * p[0] + i * startPoint[0],
-					t * p[1] + i * startPoint[1]
-				],
-				point
-			],
-			end: [
-				point,
-				[
-					t * p[2] + i * p[0],
-					t * p[3] + i * p[1]
-				],
-				[
-					p[2],
-					p[3]
-				]
-			]
-		};
-	},
-
-	// note: check a curve ([x, y, x, y, x, y])
-	length: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
-			x1 = curve.attrs.args[0],
-			y1 = curve.attrs.args[1],
-			x2 = curve.attrs.args[2],
-			y2 = curve.attrs.args[3],
-
-			ax = x0 - 2 * x1 + x2,
-			bx = x1 - x0,
-			ay = y0 - 2 * y1 + y2,
-			by = y1 - y0,
-
-			A = ax * ax + ay * ay,
-			B = ax * bx + ay * by,
-			C = bx * bx + by * by;
-
-		function integral(t){
-			// the quadratic curve is just a straight line
-			if(A * C === B * B){
-				// note: works bad with lines where handle is not inside the line
-				// from [0, 0], to [50, 50] with handle [100, 100] for ex.
-				return 2 * Math.sqrt(A) * Math.abs(t * t / 2 + B * t / A);
-			}
-
-			return (
-				(A * C - B * B) * Math.log(
-					Math.sqrt(A) * Math.sqrt(A * t * t + 2 * B * t + C) + A * t + B
-				) +
-				Math.sqrt(A) * (A * t + B) * Math.sqrt(t * (A * t + 2 * B) + C)
-			) / Math.pow(A, 3/2);
-		}
-
-		return integral(1) - integral(0);
-	},
-
-	bounds: function(startPoint, attrs){
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
-			hx = attrs[0],
-			hy = attrs[1],
-			x2 = attrs[2],
-			y2 = attrs[3],
-			tx = (x0 - hx) / (x2 - 2 * hx + x0),
-			ty = (y0 - hy) / (y2 - 2 * hy + y0),
-			extrX, extrY;
-
-		if(tx >= 0 && tx <= 1){
-			extrX = [
-				Math.pow(1 - tx, 2) * x0 + 2 * (1 - tx) * tx * hx + tx * tx * x2,
-				Math.pow(1 - tx, 2) * y0 + 2 * (1 - tx) * tx * hy + tx * tx * y2
-			];
-		}
-
-		if(ty >= 0 && ty <= 1){
-			extrY = [
-				Math.pow(1 - ty, 2) * x0 + 2 * (1 - ty) * ty * hx + ty * ty * x2,
-				Math.pow(1 - ty, 2) * y0 + 2 * (1 - ty) * ty * hy + ty * ty * y2
-			];
-		}
-
-		return [
-			Math.min(x0, x2, extrX ? extrX[0] : Infinity, extrY ? extrY[0] : Infinity),
-			Math.min(y0, y2, extrX ? extrX[1] : Infinity, extrY ? extrY[1] : Infinity),
-			Math.max(x0, x2, extrX ? extrX[0] : -Infinity, extrY ? extrY[0] : -Infinity),
-			Math.max(y0, y2, extrX ? extrX[1] : -Infinity, extrY ? extrY[1] : -Infinity)
-		];
-	}
-});
-
-// BezierCurveTo
-extend(Curve.canvasFunctions.bezierCurveTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-		var i = 1 - t;
-		return [
-			i * i * i * startPoint[0] + 3 * t * i * i * curve.attrs.args[0] + 3 * t * t * i * curve.attrs.args[2] + t * t * t * curve.attrs.args[4],
-			i * i * i * startPoint[1] + 3 * t * i * i * curve.attrs.args[1] + 3 * t * t * i * curve.attrs.args[3] + t * t * t * curve.attrs.args[5]
-		];
-	},
-
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-	},
-
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
-		}
-
-		var i = 1 - t;
-		var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
-		return {
-			start: [
-				startPoint,
-				[
-					t * p[0] + i * startPoint[0],
-					t * p[1] + i * startPoint[1]
-				],
-				[
-					t * t * p[2] + 2 * t * i * p[0] + i * i * startPoint[0],
-					t * t * p[3] + 2 * t * i * p[1] + i * i * startPoint[1]
-				],
-				point
-			],
-			end: [
-				point,
-				[
-					t * t * p[4] + 2 * t * i * p[2] + i * i * p[0],
-					t * t * p[5] + 2 * t * i * p[3] + i * i * p[1]
-				],
-				[
-					t * p[4] + i * p[2],
-					t * p[5] + i * p[3]
-				],
-				[
-					p[4],
-					p[5]
-				]
-			]
-		};
-	},
-
-	lengthIntegrate: function(t, startPoint){
-		;
-	},
-
-	bounds: function(startPoint, attrs){
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
-			x1 = attrs[0],
-			y1 = attrs[1],
-			x2 = attrs[2],
-			y2 = attrs[3],
-			x3 = attrs[4],
-			y3 = attrs[5],
-
-			ax = 3 * (-x0 + 3 * x1 - 3 * x2 + x3),
-			ay = 3 * (-y0 + 3 * y1 - 3 * y2 + y3),
-			bx = 6 * (x0 - 2 * x1 + x2),
-			by = 6 * (y0 - 2 * y1 + y2),
-			cx = 3 * (x1 - x0),
-			cy = 3 * (y1 - y0),
-
-			dxrt = Math.sqrt(bx * bx - 4 * ax * cx),
-			dyrt = Math.sqrt(by * by - 4 * ay * cy),
-
-			extrX1, extrX2, extrY1, extrY2;
-
-		function bezierPoint(t){
-			return t >= 0 && t <= 1 && [
-				Math.pow(1 - t, 3) * x0 + 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t * x3,
-				Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t * y3
-			];
-		}
-
-		extrX1 = bezierPoint((-bx + dxrt) / (2 * ax));
-		extrX2 = bezierPoint((-bx - dxrt) / (2 * ax));
-		extrY1 = bezierPoint((-by + dyrt) / (2 * ay));
-		extrY2 = bezierPoint((-by - dyrt) / (2 * ay));
-
-		return [
-			Math.min(x0, x3, extrX1 ? extrX1[0] : Infinity, extrX2 ? extrX2[0] : Infinity,
-				extrY1 ? extrY1[0] : Infinity, extrY2 ? extrY2[0] : Infinity),
-			Math.min(y0, y3, extrX1 ? extrX1[1] : Infinity, extrX2 ? extrX2[1] : Infinity,
-				extrY1 ? extrY1[1] : Infinity, extrY2 ? extrY2[1] : Infinity),
-			Math.max(x0, x3, extrX1 ? extrX1[0] : -Infinity, extrX2 ? extrX2[0] : -Infinity,
-				extrY1 ? extrY1[0] : -Infinity, extrY2 ? extrY2[0] : -Infinity),
-			Math.max(y0, y3, extrX1 ? extrX1[1] : -Infinity, extrX2 ? extrX2[1] : -Infinity,
-				extrY1 ? extrY1[1] : -Infinity, extrY2 ? extrY2[1] : -Infinity)
-		];
-	}
-});
-
-// Flattening
-extend(Curve.prototype.attrHooks, {
-	flatten: {
-		set: function(){
-			this.update();
-		}
-	}
-});
-
-var oldCurveProcess = Curve.prototype.process;
-Curve.prototype.process = function(ctx){
-	if(!this.attrs.flatten){
-		return oldCurveProcess.apply(this, arguments);
-	}
-
-	var detail = this.attrs.flatten;
-	var start = this.startAt();
-	var point;
-	for(var i = 1; i <= detail; i++){
-		point = this.pointAt(i / detail, start);
-		ctx.lineTo(point[0], point[1]);
-	}
-};
-
-// Legendre-Gauss integration
-var abscissas = [
-	[0.5773502691896257],
-	[0, 0.7745966692414834],
-	[0.33998104358485626, 0.8611363115940526],
-	[0, 0.5384693101056831, 0.906179845938664],
-	[0.2386191860831969, 0.6612093864662645, 0.932469514203152],
-	[0, 0.4058451513773972, 0.7415311855993945, 0.9491079123427585],
-	[0.1834346424956498, 0.525532409916329, 0.7966664774136267, 0.9602898564975363],
-	[0, 0.3242534234038089, 0.6133714327005904, 0.8360311073266358, 0.9681602395076261],
-	[0.14887433898163122, 0.4333953941292472, 0.6794095682990244, 0.8650633666889845, 0.9739065285171717],
-	[0, 0.26954315595234496, 0.5190961292068118, 0.7301520055740494, 0.8870625997680953, 0.978228658146057],
-	[0.1252334085114689, 0.3678314989981802, 0.5873179542866175, 0.7699026741943047, 0.9041172563704749, 0.9815606342467192],
-	[0, 0.2304583159551348, 0.44849275103644687, 0.6423493394403402, 0.8015780907333099, 0.9175983992229779, 0.9841830547185881],
-	[0.10805494870734367, 0.31911236892788974, 0.5152486363581541, 0.6872929048116855, 0.827201315069765, 0.9284348836635735, 0.9862838086968123],
-	[0, 0.20119409399743451, 0.3941513470775634, 0.5709721726085388, 0.7244177313601701, 0.8482065834104272, 0.937273392400706, 0.9879925180204854],
-	[0.09501250983763744, 0.2816035507792589, 0.45801677765722737, 0.6178762444026438, 0.755404408355003, 0.8656312023878318, 0.9445750230732326, 0.9894009349916499]
-];
-
-var weights = [
-	[1],
-	[0.8888888888888888, 0.5555555555555556],
-	[0.6521451548625461, 0.34785484513745385],
-	[0.5688888888888889, 0.47862867049936647, 0.23692688505618908],
-	[0.46791393457269104, 0.3607615730481386, 0.17132449237917036],
-	[0.4179591836734694, 0.3818300505051189, 0.27970539148927664, 0.1294849661688697],
-	[0.362683783378362, 0.31370664587788727, 0.22238103445337448, 0.10122853629037626],
-	[0.3302393550012598, 0.31234707704000286, 0.26061069640293544, 0.1806481606948574, 0.08127438836157441],
-	[0.29552422471475287, 0.26926671930999635, 0.21908636251598204, 0.1494513491505806, 0.06667134430868814],
-	[0.2729250867779006, 0.26280454451024665, 0.23319376459199048, 0.18629021092773426, 0.1255803694649046, 0.05566856711617366],
-	[0.24914704581340277, 0.2334925365383548, 0.20316742672306592, 0.16007832854334622, 0.10693932599531843, 0.04717533638651183],
-	[0.2325515532308739, 0.22628318026289723, 0.2078160475368885, 0.17814598076194574, 0.13887351021978725, 0.09212149983772845, 0.04048400476531588],
-	[0.2152638534631578, 0.2051984637212956, 0.18553839747793782, 0.15720316715819355, 0.12151857068790319, 0.08015808715976021, 0.03511946033175186],
-	[0.2025782419255613, 0.19843148532711158, 0.1861610000155622, 0.16626920581699392, 0.13957067792615432, 0.10715922046717194, 0.07036604748810812, 0.03075324199611727],
-	[0.1894506104550685, 0.18260341504492358, 0.16915651939500254, 0.14959598881657674, 0.12462897125553388, 0.09515851168249279, 0.062253523938647894, 0.027152459411754096]
-];
-
-// ported with all the optimizations from paperjs
-function integrate(f, a, b, n){
-	var x = abscissas[n - 2],
-		w = weights[n - 2],
-		A = (b - a) * 0.5,
-		B = A + a,
-		i = 0,
-		m = (n + 1) >> 1,
-		sum = n & 1 ? w[i++] * f(B) : 0; // Handle odd n
-	while (i < m) {
-		var Ax = A * x[i];
-		sum += w[i++] * (f(B + Ax) + f(B - Ax));
-	}
-	return A * sum;
-}
-var CurveCatmull = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		if(!attrs[6]){
-			this.attrs.args[6] = 0.5;
-		}
-	},
-
-	attrHooks: new CurveAttrHooks({
-		h1x: {
-			set: function(value){
-				this.attrs.args[0] = value;
-				this.update();
-			}
-		},
-		h1y: {
-			set: function(value){
-				this.attrs.args[1] = value;
-				this.update();
-			}
-		},
-		h2x: {
-			set: function(value){
-				this.attrs.args[2] = value;
-				this.update();
-			}
-		},
-		h2y: {
-			set: function(value){
-				this.attrs.args[3] = value;
-				this.update();
-			}
-		},
-		x: {
-			set: function(value){
-				this.attrs.args[4] = value;
-				this.update();
-			}
-		},
-		y: {
-			set: function(value){
-				this.attrs.args[5] = value;
-				this.update();
-			}
-		},
-		tension: {
-			set: function(value){
-				this.attrs.args[6] = value;
-				this.update();
-			}
-		}
-	}),
-
-	pointAt: function(t, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		// P(t) = (2t³ - 3t² + 1)p0 + (t³ - 2t² + t)m0 + ( -2t³ + 3t²)p1 + (t³ - t²)m1
-		// Где p0, p1 - центральные точки сплайна, m0, m1 - крайние точки сплайна: (m0 - p0 - p1 - m1)
-
-		var args = this.attrs.args,
-			x1 = start[0],
-			y1 = start[1],
-			h1x = args[0],
-			h1y = args[1],
-			h2x = args[2],
-			h2y = args[3],
-			x2 = args[4],
-			y2 = args[5];
-
-		return [
-			0.5 * ((-h1x + 3 * x1 - 3 * x2 + h2x)*t*t*t
-				+ (2 * h1x - 5 * x1 + 4 * x2 - h2x)*t*t
-				+ (-x1 + x2) * t
-				+ 2 * x1),
-			0.5 * ((-h1y + 3 * y1 - 3 * y2 + h2y)*t*t*t
-				+ (2 * h1y - 5 * y1 + 4 * y2 - h2y)*t*t
-				+ (-y1 + y2) * t
-				+ 2 * y1)
-		];
-	},
-
-	endAt: function(){
-		return [this.attrs.args[4], this.attrs.args[5]];
-	},
-
-	tangentAt: function(t, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		var args = this.attrs.args,
-			x1 = start[0],
-			y1 = start[1],
-			h1x = args[0],
-			h1y = args[1],
-			h2x = args[2],
-			h2y = args[3],
-			x2 = args[4],
-			y2 = args[5];
-
-		return Math.atan2(
-			0.5 * (3 * t * t * (-h1y + 3 * y1 - 3 * y2 + h2y)
-				+ 2 * t * (2 * h1y - 5 * y1 + 4 * y2 - h2y)
-				+ (-h1y + y2)),
-			0.5 * (3 * t * t * (-h1x + 3 * x1 - 3 * x2 + h2x)
-				+ 2 * t * (2 * h1x - 5 * x1 + 4 * x2 - h2x)
-				+ (-h1x + x2))
-		) / Math.PI * 180;
-	},
-
-	process: function(ctx){
-		var start = this.startAt(),
-			args = this.attrs.args,
-			x1 = start[0],
-			y1 = start[1],
-			h1x = args[0],
-			h1y = args[1],
-			h2x = args[2],
-			h2y = args[3],
-			x2 = args[4],
-			y2 = args[5];
-
-		var bezier = catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, args[6]);
-		ctx.bezierCurveTo(bezier[2], bezier[3], bezier[4], bezier[5], bezier[6], bezier[7]);
-	}
-});
-
-function catmullRomToCubicBezier(x1, y1, h1x, h1y, h2x, h2y, x2, y2, tension){
-	var catmull = [
-		h1x, h1y, // 0, 1
-		x1, y1, // 2, 3
-		x2, y2, // 4, 5
-		h2x, h2y // 6, 7
-	];
-
-	var bezier = [
-		catmull[2], catmull[3],
-		catmull[2] + (catmull[4] - catmull[0]) / (6 * tension),
-		catmull[3] + (catmull[5] - catmull[1]) / (6 * tension),
-		catmull[4] - (catmull[6] - catmull[2]) / (6 * tension),
-		catmull[5] - (catmull[7] - catmull[3]) / (6 * tension),
-		catmull[4], catmull[5]
-	];
-
-	return bezier;
-}
-
-// catmull rom is a special case of the hermite spline
-function catmullRomToHermite(x1, y1, h1x, h1y, h2x, h2y, x2, y2){
-	return {
-		h0: [x1, y1], // start point
-		h1: [x2, y2], // end point
-		h2: [(x2 - h1x) / 2, (y2 - h1y) / 2], // derivative at start point
-		h3: [(h2x - x1) / 2, (h2y - y1) / 2] // derivative at end point
-	};
-}
-
-// возвращает то что можно запихнуть в path.push(...)
-// надо научить быть closed (нужно чтобы первая и последняя точка равнялись)
-Delta.Curve.catmullSpline = function(points, closed, tension){
-	return points.map(function(point, i){
-		if(i === 0){
-			return point;
-		}
-
-		var prev = points[i - 2] || points[i - 1];
-		var next = points[i + 1] || point;
-
-		return [
-			'catmullTo',
-			prev[0], prev[1],
-			next[0], next[1],
-			point[0], point[1],
-			tension
-		];
-	});
-}
-
-Delta.curves['catmullTo'] = CurveCatmull;
-var CurveHermite = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		// h1x, h1y, h2x, h2y, x, y, [detail]
-	},
-
-	attrHooks: new CurveAttrHooks({
-		h1x: {
-			set: function(value){
-				this.attrs.args[4] = value;
-				this.update();
-			}
-		},
-		h1y: {
-			set: function(value){
-				this.attrs.args[5] = value;
-				this.update();
-			}
-		},
-		h2x: {
-			set: function(value){
-				this.attrs.args[0] = value;
-				this.update();
-			}
-		},
-		h2y: {
-			set: function(value){
-				this.attrs.args[1] = value;
-				this.update();
-			}
-		},
-		h3x: {
-			set: function(value){
-				this.attrs.args[2] = value;
-				this.update();
-			}
-		},
-		h3y: {
-			set: function(value){
-				this.attrs.args[3] = value;
-				this.update();
-			}
-		}
-	}),
-
-	pointAt: function(t, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		var args = this.attrs.args,
-			h0x = start[0],
-			h0y = start[1],
-			h2x = args[0],
-			h2y = args[1],
-			h3x = args[2],
-			h3y = args[3],
-			h1x = args[4],
-			h1y = args[5];
-
-		var a = [
-			2 * h0x - 2 * h1x + h2x + h3x,
-			2 * h0y - 2 * h1y + h2y + h3y
-		];
-		var b = [
-			-3 * h0x + 3 * h1x - 2 * h2x - h3x,
-			-3 * h0y + 3 * h1y - 2 * h2y - h3y
-		];
-		var c = [h2x, h2y];
-		var d = [h0x, h0y]
-
-		return [
-			t * t * t * a[0] + t * t * b[0] + t * c[0] + d[0],
-			t * t * t * a[1] + t * t * b[1] + t * c[1] + d[1]
-		];
-	},
-
-	endAt: function(){
-		return [this.attrs.args[4], this.attrs.args[5]];
-	},
-
-	tangentAt: function(t, start){
-		/* if(!start){
-			start = this.startAt();
-		}
-
-		var args = this.attrs.args,
-			x1 = start[0],
-			y1 = start[1],
-			h1x = args[0],
-			h1y = args[1],
-			h2x = args[2],
-			h2y = args[3],
-			x2 = args[4],
-			y2 = args[5];
-
-		return Math.atan2(
-			0.5 * (3*t * t * (-h1y + 3 * y1 - 3 * y2 + h2y)
-				+ 2 * t * (2 * h1y - 5 * y1 + 4 * y2 - h2y)
-				+ (-h1y + y2)),
-			0.5 * (3 * t * t * (-h1x + 3 * x1 - 3 * x2 + h2x)
-				+ 2 * t * (2 * h1x - 5 * x1 + 4 * x2 - h2x)
-				+ (-h1x + x2))
-		) / Math.PI * 180; */
-	},
-
-	process: function(ctx){
-		this.approx(100, function(value, prev, cur, i){
-			if(i === 0){
-				ctx.moveTo(prev[0], prev[1]);
-			}
-			ctx.lineTo(cur[0], cur[1]);
-		});
-	}
-});
-
-// todo: hermite for a custom grid
-// https://ru.wikipedia.org/wiki/Сплайн_Эрмита
-// Delta.Path.hermiteGrid(points)
-// возвращает то что можно запихнуть в path.push(...)
-
-// Cardinal spline
-// Ti = a * ( Pi+1 - Pi-1 )
-// CatmullRom spline
-// Ti = 0.5 * ( P i+1 - Pi-1 )
-
-// Kochanek–Bartels spline:
-// https://en.wikipedia.org/wiki/Kochanek–Bartels_spline
-
-Delta.curves['hermiteTo'] = CurveHermite;
-//# Bezier Curves
-var GeneralBezier = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		this.attrs.detail = 30;
-	},
-
-	attrHooks: new CurveAttrHooks({
-		args: {
-			set: function(value){
-				this._x = this._y = null;
-				this.update();
-			}
-		},
-
-		detail: {
-			set: function(value){
-				this.update();
-			}
-		}
-	}),
-
-	_processCoords: function(){
-		var x = [], y = [];
-		this.attrs.args.forEach(function(coord, i){
-			if(i % 2 === 0){
-				x.push(coord);
-			} else {
-				y.push(coord);
-			}
-		});
-		this._x = x;
-		this._y = y;
-	},
-
-	pointAt: function(t, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		if(!this._x || !this._y){
-			this._processCoords();
-		}
-
-		var x = [start[0]].concat(this._x),
-			y = [start[1]].concat(this._y);
-
-		return [
-			bezier(x, t),
-			bezier(y, t)
-		];
-	},
-
-	endAt: function(){
-		return this.attrs.args.slice(this.attrs.args.length - 2);
-	},
-
-	process: function(ctx){
-		if(!this._x || !this._y){
-			this._processCoords();
-		}
-
-		var start = this.startAt(),
-			x = [start[0]].concat(this._x),
-			y = [start[1]].concat(this._y),
-			detail = this.attrs.detail;
-			// сейчас при каждом вызове все координаты точек вычисляются заново
-			// это тяжело
-			// не нужно так
-
-		ctx.moveTo(start[0], start[1]);
-
-		for(var i = 1; i <= detail; i++){
-			ctx.lineTo(
-				// сейчас два вызова bezier -> два цикла
-				// оптимизировать в один
-				bezier(x, i / detail),
-				bezier(y, i / detail)
-			);
-		}
-	}
-});
-
-function factorial(n){
-	if(n <= 1){
-		return 1;
-	}
-
-	n++;
-
-	var res = 1;
-	while(--n){
-		res *= n;
-	}
-
-	return res;
-}
-
-function C(i, m){
-	return factorial(m) / (factorial(i) * factorial(m - i));
-}
-
-Delta.combinations = C;
-Delta.factorial = factorial;
-
-function bezier(points, t){
-	var len = points.length,
-		m = len - 1,
-		i = 0,
-		l = 1 - t,
-		result = 0;
-	for(; i < len; i++){
-		result += C(i, m) * Math.pow(t, i) * Math.pow(l, m - i) * points[i];
-	}
-	return result;
-}
-
-Delta.curves['bezier'] = GeneralBezier;
-var CurveLagrange = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		this.attrs.detail = 30;
-	},
-
-	attrHooks: new CurveAttrHooks({
-		args: {
-			set: function(value){
-				if(this.attrs.t && this.attrs.t.length * 2 !== value.length + 2){
-					this.attrs.t = null;
-				}
-				this.update();
-			}
-		},
-
-		// t for x / y can be divided but iam not sure its neccessary
-		t: {
-			get: function(){
-				if(!this.attrs.t){
-					var ts = [];
-					var l = this.attrs.args.length / 2;
-					for(var i = 0; i <= l; i++){
-						ts.push(i / l);
-					}
-					return ts;
-				}
-				return this.attrs.t;
-			},
-			set: function(value){
-				this.update();
-			}
-		},
-
-		detail: {
-			set: function(value){
-				this.update();
-			}
-		}
-	}),
-
-	pointAt: function(t, start){
-		if(!start){
-			start = this.startAt();
-		}
-
-		if(t === 0){
-			return start;
-		} else if(t === 1){
-			return this.endAt();
-		}
-
-		var ts = this.attr('t');
-		var points = start.concat(this.attrs.args);
-		var x = 0;
-		var y = 0;
-		for(var i = 0; i < points.length; i += 2){
-			var pointIndex = i / 2;
-			var basisVal = 1;
-			for(var j = 0; j < ts.length; j++){
-				if(j !== pointIndex){
-					basisVal *= ((t - ts[j]) / (ts[pointIndex] - ts[j]));
-				}
-			}
-			x += basisVal * points[i];
-			y += basisVal * points[i + 1];
-		}
-		return [x, y];
-	},
-
-	endAt: function(){
-		return this.attrs.args.slice(this.attrs.args.length - 2);
-	},
-
-	process: function(ctx){
-		var start = this.startAt(),
-			args = this.attrs.args,
-			detail = this.attrs.detail;
-
-		ctx.moveTo(start[0], start[1]);
-
-		for(var i = 1; i <= detail; i++){
-			var point = this.pointAt(i / detail);
-			ctx.lineTo(point[0], point[1]);
-		}
-	}
-});
-
-function attrHooksProcess(attrName, i){
-	CurveLagrange.prototype.attrHooks[attrName] = {
-		get: function(){
-			return this.attrs.args[i];
-		},
-
-		set: function(value){
-			this.attrs.args[i] = value;
-			this.update();
-		}
-	};
-}
-
-Delta.curves['lagrange'] = CurveLagrange;
-/* GPL License
- * Ported from LibCanvas
- * "Artem Smirnov <art543484@ya.ru>"
- * "Shock <shocksilien@gmail.com>"
- * https://github.com/theshock/libcanvas/blob/master/Source/Plugins/Curves.js
- */
-Delta.drawRibbonCurve = function(ctx, params){
-	var step = params.step || 0.2;
-	var prev = params.point(-step);
-	var prevDrawPoints;
-	var drawPoints;
-	for(var t = -step; t < 1.02; t += step){
-		var cur = params.point(t);
-		drawPoints = getDrawPoints(prev, cur, 10, -1);
-		if(t >= step){
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(prevDrawPoints[0].x, prevDrawPoints[0].y)
-			ctx.lineTo(prevDrawPoints[1].x, prevDrawPoints[1].y);
-			ctx.lineTo(drawPoints[1].x, drawPoints[1].y);
-			ctx.lineTo(drawPoints[0].x, drawPoints[0].y);
-			ctx.fillStyle = randcolor();
-			ctx.fill();
-			ctx.stroke();
-		}
-		prevDrawPoints = drawPoints;
-		prev = cur;
-	}
-};
-
-Curve.prototype.attrHooks.ribbon = {
-	set: function(){
-		this.update();
-	}
-};
-
-Curve.prototype.attrHooks.ribbonGradient = {
-	set: function(){
-		this.update();
-	}
-};
-
-// Curve работает на process; надо переопределять process и вызывать из него draw
-var oldCurveDraw = Curve.prototype.draw;
-Curve.prototype.draw = function(){
-	if(!this.attrs.ribbon || !this.attrs.ribbonGradient || !this.pointAt){
-		oldCurveDraw.apply(this, arguments);
-	}
-	// ...
-};
-
-// curve.attr('ribbon', true);
-// curve.attr('ribbonGradient', ctx.gradient('ribbon', 'horizontal' / 'vertical', colors, tStart = 0, tEnd = 1, etc));
-
-// or:
-// path.attr('ribbon', true)
-// path.attr('ribbonGradient', ...);
-// В свою очередь, должен быть абстрактный (не привязанный к канвасу!) класс Gradient
-function getDrawPoints(prev, cur, width, inverted){
-	var w = cur.x - prev.x,
-		h = cur.y - prev.y,
-		dist = Math.sqrt(w * w + h * h),
-
-		sin = h / dist,
-		cos = w / dist,
-
-		dx = sin * width,
-		dy = cos * width;
-
-	return [{
-		x: cur.x + dx,
-		y: cur.y + dy * inverted
-	}, {
-		x: cur.x - dx,
-		y: cur.y - dy * inverted
-	}];
-}
-
-
-function abc() {
-
-// The following text contains bad code and due to it's code it should not be readed by ANYONE!
-
-var
-	Transition = atom.Transition,
-	Color = atom.Color,
-	EC = {};
-
-/** @returns {atom.Color} */
-EC.getColor = function (color) {
-	return new Color(color || [0,0,0,1]);
-};
-
-EC.getPoints = function (prevPos, pos, width, inverted) {
-	var
-		w    = pos.x-prevPos.x,
-		h    = pos.y-prevPos.y,
-		dist = atom.math.hypotenuse(w, h),
-
-		sin = h / dist,
-		cos = w / dist,
-
-		dx = sin * width,
-		dy = cos * width;
-
-	return [
-		new Point(pos.x + dx, pos.y + dy*inverted),
-		new Point(pos.x - dx, pos.y - dy*inverted)
-	];
-};
-
-EC.getGradientFunction = function (attr) {
-	switch (typeof attr.gradient) {
-		case 'undefined' :
-			return atom.fn.lambda( EC.getColor(attr.color) );
-
-		case 'function' :
-			return attr.gradient;
-
-		default :
-			var gradient = { fn: attr.gradient.fn || 'linear' };
-
-			if (typeof gradient.fn != 'string') {
-				throw new Error('LibCanvas.Context2D.drawCurve -- unexpected type of gradient function');
-			}
-
-			gradient.from = EC.getColor(attr.gradient.from);
-			gradient.to   = EC.getColor(attr.gradient.to  );
-
-			var diff = gradient.from.diff( gradient.to );
-
-			return function (t) {
-				var factor = Transition.get(gradient.fn)(t);
-				return gradient.from.shift( diff.clone().mul(factor) ).toString();
-			};
-	}
-};
-
-// возвращает width(t)
-EC.getWidthFunction = function (attr) {
-	attr.width = attr.width || 1;
-	switch (typeof attr.width) {
-		case 'number'  : return atom.fn.lambda(attr.width);
-		case 'function': return attr.width;
-		case 'object'  : return EC.getWidthFunction.range( attr.width );
-		default: throw new TypeError('LibCanvas.Context2D.drawCurve -- unexpected type of width');
-	}
-};
-
-EC.getWidthFunction.range = function (width) {
-	if(!width.from || !width.to){
-		throw new Error('LibCanvas.Context2D.drawCurve -- width.from or width.to undefined');
-	}
-	var diff = width.to - width.from;
-	return function(t){
-		return width.from + diff * Transition.get(width.fn || 'linear')(t);
-	}
-};
-
-// возвращает точки кривой
-EC.curvesFunctions = [
-	function (p, t) { // linear
-		return {
-			x:p[0].x + (p[1].x - p[0].x) * t,
-			y:p[0].y + (p[1].y - p[0].y) * t
-		};
-	},
-	function (p,t) { // quadratic
-		var i = 1-t;
-		return {
-			x:i*i*p[0].x + 2*t*i*p[1].x + t*t*p[2].x,
-			y:i*i*p[0].y + 2*t*i*p[1].y + t*t*p[2].y
-		};
-	},
-	function (p, t) { // qubic
-		var i = 1-t;
-		return {
-			x:i*i*i*p[0].x + 3*t*i*i*p[1].x + 3*t*t*i*p[2].x + t*t*t*p[3].x,
-			y:i*i*i*p[0].y + 3*t*i*i*p[1].y + 3*t*t*i*p[2].y + t*t*t*p[3].y
-		};
-	}
-];
-
-Context2D.prototype.drawCurve = function (obj) {
-	var points = atom.array.append( [Point(obj.from)], obj.points.map(Point), [Point(obj.to)] );
-
-	var gradientFunction = EC.getGradientFunction(obj),             //Getting gradient function
-		widthFunction    = EC.getWidthFunction(obj),                //Getting width function
-		curveFunction    = EC.curvesFunctions[ obj.points.length ]; //Getting curve function
-
-	if (!curveFunction) throw new Error('LibCanvas.Context2D.drawCurve -- unexpected number of points');
-
-	var step = obj.step || 0.02;
-
-	var invertedMultipler = obj.inverted ? 1 : -1;
-
-	var controlPoint, prevContorolPoint,
-		drawPoints  , prevDrawPoints   ,
-		width , color, prevColor, style;
-
-	prevContorolPoint = curveFunction(points, -step);
-
-	for (var t=-step ; t<1.02 ; t += step) {
-		controlPoint = curveFunction(points, t);
-		color = gradientFunction(t);
-		width = widthFunction(t) / 2;
-
-		drawPoints = EC.getPoints(prevContorolPoint, controlPoint, width, invertedMultipler);
-
-		if (t >= step) {
-			// #todo: reduce is part of array, not color
-			var diff = EC.getColor(prevColor).diff(color);
-
-			if ( (diff.red + diff.green + diff.blue) > 150 ) {
-				style = this.createLinearGradient(prevContorolPoint, controlPoint);
-				style.addColorStop(0, prevColor);
-				style.addColorStop(1,     color);
-			} else {
-				style = color;
-			}
-
-				this
-					.set("lineWidth",1)
-					.beginPath(prevDrawPoints[0])
-					.lineTo   (prevDrawPoints[1])
-					.lineTo   (drawPoints[1])
-					.lineTo   (drawPoints[0])
-					.fill  (style)
-					.stroke(style);
-		}
-		prevDrawPoints    = drawPoints;
-		prevContorolPoint = controlPoint;
-		prevColor         = color;
-	}
-	return this;
-};
-
-};
-var CurveApprox = new Class(Curve, {
-	initialize: function(method, attrs, path, detail){
-		this.super('initialize', arguments);
-		this.attrs.detail = detail;
-	},
-
-	genPoints: function(startPoint){
-		var detail = this.attrs.detail || Curve.detail;
-		var points = [startPoint || this.startAt()];
-		for(var i = 1; i <= detail; i++){
-			points.push(this.pointAt(i / detail, points[0]));
-		}
-		return points;
-	},
-
-	process: function(ctx){
-		if(!this._points){
-			this._points = this.genPoints();
-		}
-
-		this._points.forEach(function(point){
-			ctx.lineTo(point[0], point[1]);
-		});
-	}
-});
-
-Delta.CurveApprox = CurveApprox;
-
-var CurvePolyline = new Class(Curve, {
-	initialize: function(method, attrs, path){
-		this.super('initialize', arguments);
-		this.attrs = {
-			args: attrs
-		};
-	},
-
-	process: function(ctx){
-		this.attrs.args.forEach(function(point){
-			ctx.lineTo(point[0], point[1]);
-		});
-	}
-});
-
-Delta.CurvePolyline = CurvePolyline;
+// {{dont include CurveMath.js}}
+// {{dont include CurveCatmull.js}}
+// {{dont include CurveHermite.js}}
+// {{dont include CurveGeneralBezier.js}}
+// {{dont include CurveLagrange.js}}
+// {{dont include CurveRibbon.js}}
+// {{dont include CurvePolyline.js}}
 
 Path = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -4352,7 +3299,7 @@ Path = new Class(Drawable, {
 			args[1] = args[2] = null;
 		}
 
-		if(args[1] || args[2]){
+		if(args[1] || args[2]){ // how about both = 0?
 			this.attrs.x = args[1] || 0;
 			this.attrs.y = args[2] || 0;
 		}
@@ -4616,623 +3563,14 @@ Delta.path = function(){
 };
 
 Delta.Path = Path;
-// requires Curve.Math
-
-// todo: transforms support
-extend(Path.prototype, {
-
-    length: function(){
-        return this.attrs.d.reduce(function(sum, curve){
-            return sum + curve.length();
-        }, 0);
-    },
-
-    startAt: function(){
-        return this.pointAt(0);
-    },
-
-    curveAt: function(t){
-        if(t < 0 || t > 1){
-            return null;
-        }
-        var curves = this.attrs.d;
-        if(t === 1){
-            // must return the last (geometric! not moveTo) curve
-            t = 1 - Number.EPSILON;
-        }
-        var len = this.length();
-        var currentLen = 0;
-        for(var i = 0; i <= curves.length; i++){
-            if(currentLen / len > t){
-                return curves[i - 1];
-            }
-            currentLen += curves[i].length();
-        }
-        return null;
-    },
-
-    _pathToCurveParams: function(t){
-        if(t < 0 || t > 1){
-            // todo: add values < 0 and > 1 for elasticOut animation
-            return null;
-        }
-        var curves = this.attrs.d;
-
-        var len = this.length();
-        var lenStart;
-        var lenEnd = 0;
-        var curve;
-        for(var i = 0; i <= curves.length; i++){
-            if(lenEnd / len > t){
-                curve = curves[i - 1];
-                break;
-            }
-            lenStart = lenEnd;
-            lenEnd += curves[i].length();
-        }
-
-        return {
-            t: (t - lenStart / len) / ((lenEnd - lenStart) / len),
-            curve: curve
-        };
-    },
-
-    pointAt: function(t){
-        if(t === 1){
-            // must return the end of the last geometric (! not moveTo!) curve
-            return this.curveAt(1).endAt();
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.pointAt(curveParams.t);
-    },
-
-    tangentAt: function(t){
-        if(t === 1){
-            t = 1 - Number.EPSILON;
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.tangentAt(curveParams.t);
-    },
-
-    normalAt: function(t){
-        if(t === 1){
-            t = 1 - Number.EPSILON;
-        }
-        var curveParams = this._pathToCurveParams(t);
-        return curveParams.curve.normalAt(curveParams.t);
-    },
-
-    nearest: function(x, y, detail){
-        return this.attrs.d.reduce(function(current, curve){
-            var nearest = curve.nearest(x, y, detail);
-            if(nearest.distance < current.distance){
-                return nearest;
-            }
-            return current;
-        }, {
-            point: null,
-            t: 0,
-            distance: Infinity
-        });
-    }
-
-});
-// todo: redefine Path.draw for passing current last coordinates into process function
-// or add this into Core Path
-// smth like curve.__lastCoordinates = [...]
-// or
-// this.__lastCoordinates = [...]
-// and in curve:
-// this.path.__lastCoordinates[0] + this.x...
-
-// SVG Curves
-extend(Delta.curves, {
-	// todo: add everywhere pointAt and etc
-	// they should be possible to animate
-
-	moveBy: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.moveTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
-		},
-
-		pointAt: function(){
-			return this.endAt();
-		}
-	}),
-
-	lineBy: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [lastPoint[0] + this.attrs.args[0], lastPoint[1] + this.attrs.args[1]];
-		},
-
-		pointAt: function(t, start){
-			;
-		}
-	}),
-
-	horizontalLineTo: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.lineTo(this.attrs.args[0], lastPoint[1]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [this.attrs.args[0], lastPoint[1]];
-		}
-	}),
-
-	horizontalLineBy: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.lineTo(lastPoint[0] + this.attrs.args[0], lastPoint[1]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [lastPoint[0] + this.attrs.args[0], lastPoint[1]];
-		}
-	}),
-
-	verticalLineTo: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.lineTo(lastPoint[0], this.attrs.args[0]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [lastPoint[0], this.attrs.args[0]];
-		}
-	}),
-
-	verticalLineBy: new Class(Curve, {
-		process: function(ctx){
-			var lastPoint = this.startAt();
-			ctx.lineTo(lastPoint[0], lastPoint[1] + this.attrs.args[0]);
-		},
-
-		endAt: function(){
-			var lastPoint = this.startAt();
-			return [lastPoint[0], lastPoint[1] + this.attrs.args[0]];
-		}
-	}),
-
-	quadraticCurveBy: new Class(Curve, {
-		getQuadraticParameters: function(){
-			var lastPoint = this.startAt();
-			return [
-				lastPoint[0] + this.attrs.args[0],
-				lastPoint[1] + this.attrs.args[1],
-				lastPoint[0] + this.attrs.args[2],
-				lastPoint[1] + this.attrs.args[3]
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getQuadraticParameters();
-			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
-		},
-
-		endAt: function(){
-			var p = this.getQuadraticParameters();
-			return [p[2], p[3]];
-		}
-	}),
-
-	shorthandQuadraticCurveTo: new Class(Curve, {
-		getQuadraticParameters: function(){
-			var lastCurve = this.prev();
-			var lastPoint = lastCurve.endAt();
-			var tangentDelta;
-
-			if(lastCurve.method === 'quadraticCurveTo'){
-				lastCurve = lastCurve.attrs.args;
-			} else if(lastCurve.getQuadraticParameters){
-				lastCurve = lastCurve.getQuadraticParameters();
-			} else {
-				lastCurve = null;
-			}
-
-			if(lastCurve){
-				tangentDelta = [
-					lastCurve[2] - lastCurve[0],
-					lastCurve[3] - lastCurve[1],
-				];
-			} else {
-				tangentDelta = [0, 0];
-			}
-
-			return [
-				lastPoint[0] + tangentDelta[0],
-				lastPoint[1] + tangentDelta[1],
-				this.attrs.args[0],
-				this.attrs.args[1],
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getQuadraticParameters();
-			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
-		},
-
-		endAt: function(){
-			var p = this.getQuadraticParameters();
-			return [p[2], p[3]];
-		}
-	}),
-
-	shorthandQuadraticCurveBy: new Class(Curve, {
-		getQuadraticParameters: function(){
-			var lastCurve = this.prev();
-			var lastPoint = lastCurve.endAt();
-			var tangentDelta;
-
-			if(lastCurve.method === 'quadraticCurveTo'){
-				lastCurve = lastCurve.attrs.args;
-			} else if(lastCurve.getQuadraticParameters){
-				lastCurve = lastCurve.getQuadraticParameters();
-			} else {
-				lastCurve = null;
-			}
-
-			if(lastCurve){
-				tangentDelta = [
-					lastCurve[2] - lastCurve[0],
-					lastCurve[3] - lastCurve[1],
-				];
-			} else {
-				tangentDelta = [0, 0];
-			}
-
-			return [
-				lastPoint[0] + tangentDelta[0],
-				lastPoint[1] + tangentDelta[1],
-				lastPoint[0] + this.attrs.args[0],
-				lastPoint[1] + this.attrs.args[1],
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getQuadraticParameters();
-			ctx.quadraticCurveTo(p[0], p[1], p[2], p[3]);
-		},
-
-		endAt: function(){
-			var p = this.getQuadraticParameters();
-			return [p[2], p[3]];
-		}
-	}),
-
-	bezierCurveBy: new Class(Curve, {
-		getBezierParameters: function(){
-			var lastPoint = this.startAt();
-			return [
-				lastPoint[0] + this.attrs.args[0],
-				lastPoint[1] + this.attrs.args[1],
-				lastPoint[0] + this.attrs.args[2],
-				lastPoint[1] + this.attrs.args[3],
-				lastPoint[0] + this.attrs.args[4],
-				lastPoint[1] + this.attrs.args[5]
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getBezierParameters();
-			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
-		},
-
-		endAt: function(){
-			var p = this.getBezierParameters();
-			return [p[4], p[5]];
-		}
-	}),
-
-	shorthandCurveTo: new Class(Curve, {
-		getBezierParameters: function(){
-			var lastCurve = this.prev();
-			var lastPoint = lastCurve.endAt();
-			var tangentDelta;
-			// add quadratic support?
-
-			// possibly this will work will all the functions which can be approximated as bezier
-			if(lastCurve.getBezierParameters){
-				lastCurve = lastCurve.getBezierParameters();
-			} else if(lastCurve.method === 'bezierCurveTo'){
-				lastCurve = lastCurve.attrs.args;
-			} else {
-				lastCurve = null;
-			}
-
-			if(lastCurve){
-				tangentDelta = [
-					lastCurve[4] - lastCurve[2],
-					lastCurve[5] - lastCurve[3]
-				];
-			} else {
-				tangentDelta = [0, 0];
-			}
-
-			return [
-				lastPoint[0] + tangentDelta[0],
-				lastPoint[1] + tangentDelta[1],
-				this.attrs.args[0],
-				this.attrs.args[1],
-				this.attrs.args[2],
-				this.attrs.args[3],
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getBezierParameters();
-			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
-		},
-
-		endAt: function(){
-			var p = this.getBezierParameters();
-			return [p[4], p[5]];
-		}
-	}),
-
-	shorthandCurveBy: new Class(Curve, {
-		getBezierParameters: function(){
-			var lastCurve = this.prev();
-			var lastPoint = lastCurve.endAt();
-			var tangentDelta;
-			if(lastCurve.getBezierParameters){
-				lastCurve = lastCurve.getBezierParameters();
-			} else if(lastCurve.method === 'bezierCurveTo'){
-				lastCurve = lastCurve.attrs.args;
-			} else {
-				lastCurve = null;
-			}
-
-			if(lastCurve){
-				tangentDelta = [
-					lastCurve[4] - lastCurve[2],
-					lastCurve[5] - lastCurve[3]
-				];
-			} else {
-				tangentDelta = [0, 0];
-			}
-
-			return [
-				lastPoint[0] + tangentDelta[0],
-				lastPoint[1] + tangentDelta[1],
-				lastPoint[0] + this.attrs.args[0],
-				lastPoint[1] + this.attrs.args[1],
-				lastPoint[0] + this.attrs.args[2],
-				lastPoint[1] + this.attrs.args[3],
-			];
-		},
-
-		process: function(ctx){
-			var p = this.getBezierParameters();
-			ctx.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]);
-		},
-
-		endAt: function(){
-			var p = this.getBezierParameters();
-			return [p[4], p[5]];
-		}
-	}),
-
-	ellipticalArcTo: new Class(Curve, {
-		process: function(ctx){
-			// rx, ry x-axis-rotation large-arc-flag, sweep-flag, x,y
-			var rx = this.attrs.args[0],
-				ry = this.attrs.args[1],
-				rot = this.attrs.args[2],
-				large = this.attrs.args[3] === 1,
-				sweep = this.attrs.args[4] === 1,
-				x = this.attrs.args[5],
-				y = this.attrs.args[6],
-
-				start = this.startAt();
-
-			var segs = arcToSegments(x, y, rx, ry, large, sweep, rot, start[0], start[1]);
-			segs.forEach(function(segment){
-				segment = segmentToBezier.apply(this, segment);
-				ctx.bezierCurveTo.apply(ctx, segment);
-			});
-
-			// from cakejs from inkscape svgtopdf
-			function arcToSegments(x, y, rx, ry, large, sweep, th, ox, oy) {
-				th = th * (Math.PI/180)
-				var sin_th = Math.sin(th)
-				var cos_th = Math.cos(th)
-				rx = Math.abs(rx)
-				ry = Math.abs(ry)
-				var px = cos_th * (ox - x) * 0.5 + sin_th * (oy - y) * 0.5
-				var py = cos_th * (oy - y) * 0.5 - sin_th * (ox - x) * 0.5
-				var pl = (px*px) / (rx*rx) + (py*py) / (ry*ry)
-				if (pl > 1) {
-				  pl = Math.sqrt(pl)
-				  rx *= pl
-				  ry *= pl
-				}
-
-				var a00 = cos_th / rx
-				var a01 = sin_th / rx
-				var a10 = (-sin_th) / ry
-				var a11 = (cos_th) / ry
-				var x0 = a00 * ox + a01 * oy
-				var y0 = a10 * ox + a11 * oy
-				var x1 = a00 * x + a01 * y
-				var y1 = a10 * x + a11 * y
-
-				var d = (x1-x0) * (x1-x0) + (y1-y0) * (y1-y0)
-				var sfactor_sq = 1 / d - 0.25
-				if (sfactor_sq < 0) sfactor_sq = 0
-				var sfactor = Math.sqrt(sfactor_sq)
-				if (sweep == large) sfactor = -sfactor
-				var xc = 0.5 * (x0 + x1) - sfactor * (y1-y0)
-				var yc = 0.5 * (y0 + y1) + sfactor * (x1-x0)
-
-				var th0 = Math.atan2(y0-yc, x0-xc)
-				var th1 = Math.atan2(y1-yc, x1-xc)
-
-				var th_arc = th1-th0
-				if (th_arc < 0 && sweep == 1){
-				  th_arc += 2*Math.PI
-				} else if (th_arc > 0 && sweep == 0) {
-				  th_arc -= 2 * Math.PI
-				}
-
-				var segments = Math.ceil(Math.abs(th_arc / (Math.PI * 0.5 + 0.001)))
-				var result = []
-				for (var i=0; i<segments; i++) {
-				  var th2 = th0 + i * th_arc / segments
-				  var th3 = th0 + (i+1) * th_arc / segments
-				  result[i] = [xc, yc, th2, th3, rx, ry, sin_th, cos_th]
-				}
-
-				return result
-			}
-
-			function segmentToBezier(cx, cy, th0, th1, rx, ry, sin_th, cos_th) {
-				var a00 = cos_th * rx
-				var a01 = -sin_th * ry
-				var a10 = sin_th * rx
-				var a11 = cos_th * ry
-
-				var th_half = 0.5 * (th1 - th0)
-				var t = (8/3) * Math.sin(th_half * 0.5) * Math.sin(th_half * 0.5) / Math.sin(th_half)
-				var x1 = cx + Math.cos(th0) - t * Math.sin(th0)
-				var y1 = cy + Math.sin(th0) + t * Math.cos(th0)
-				var x3 = cx + Math.cos(th1)
-				var y3 = cy + Math.sin(th1)
-				var x2 = x3 + t * Math.sin(th1)
-				var y2 = y3 - t * Math.cos(th1)
-				return [
-				  a00 * x1 + a01 * y1,      a10 * x1 + a11 * y1,
-				  a00 * x2 + a01 * y2,      a10 * x2 + a11 * y2,
-				  a00 * x3 + a01 * y3,      a10 * x3 + a11 * y3
-				];
-			}
-		},
-
-		endAt: function(){
-			return [
-				this.attrs.args[5],
-				this.attrs.args[6]
-			];
-		}
-	})
-});
-
-// SVG Parsing
-Delta.SVGCurves = {
-	M: 'moveTo',
-	m: 'moveBy',
-	L: 'lineTo',
-	l: 'lineBy',
-	H: 'horizontalLineTo',
-	h: 'horizontalLineBy',
-	V: 'verticalLineTo',
-	v: 'verticalLineBy',
-	C: 'bezierCurveTo',
-	c: 'bezierCurveBy',
-	S: 'shorthandCurveTo',
-	s: 'shorthandCurveBy',
-	Q: 'quadraticCurveTo',
-	q: 'quadraticCurveBy',
-	T: 'shorthandQuadraticCurveTo',
-	t: 'shorthandQuadraticCurveBy',
-	A: 'ellipticalArcTo',
-	a: 'ellipticalArcBy',
-	Z: 'closePath',
-	z: 'closePath'
-};
-
-Delta.SVGCurvesLengths = {
-	M: 2,
-	m: 2,
-	L: 2,
-	l: 2,
-	H: 1,
-	h: 1,
-	V: 1,
-	v: 1,
-	C: 6,
-	c: 6,
-	S: 4,
-	s: 4,
-	Q: 4,
-	q: 4,
-	T: 2,
-	t: 2,
-	A: 7,
-	a: 7,
-	Z: 0,
-	z: 0
-};
-
-var pathParseOld = Path.parse;
-Path.parse = function(data, path, firstIsNotMove){
-	if(data + '' !== data){
-		return pathParseOld(data, path, firstIsNotMove);
-	}
-
-	var result = [];
-	data.match(/[a-zA-Z](\s*-?\d+\,?|\s*-?\d*\.\d+\,?)*/g).forEach(function(curve, index){
-		var command = curve[0];
-		if(!Delta.SVGCurves[command]){
-			throw 'Unknown SVG curve command "' + command + '"';
-		}
-
-		// replacing anything like .7.8 to .7,.8
-		curve = curve.replace(/(\.\d+)\./g, '$1,.');
-
-		var args = curve.match(/-?\d+?\.\d+|-?\d+/g);
-		if(args){
-			args = args.map(Number);
-		} else {
-			args = [];
-		}
-
-		var len = Delta.SVGCurvesLengths[command];
-		while(args.length > len){
-			result.push(
-				Delta.curve(Delta.SVGCurves[command], args.slice(0, len), path)
-			);
-
-			args = args.slice(len);
-		}
-		result.push(
-			Delta.curve(Delta.SVGCurves[command], args, path)
-		);
-	});
-	return result;
-};
-
-Object.keys(Delta.SVGCurves).forEach(function(key){
-	var name = Delta.SVGCurves[key];
-	if(!Path.prototype[name]){
-		Path.prototype[name] = function(){
-			return this.push(name, Array.prototype.slice.call(arguments), this);
-		};
-	}
-});
-
+// {{dont include Path.Math.js}}
+// {{dont include Path.SVG.js}}
 
 Picture = new Class(Drawable, {
 
 	// todo: image format libcanvas-like:
 	// '/files/img/hexes.png [150:100]{0:0}'
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -5325,7 +3663,7 @@ Picture = new Class(Drawable, {
 	remove: function(){
 		this.super('remove');
 		// todo:
-		// what if user want to push the image again?
+		// what if user want to push the ctx.image again?
 		// should be able to restore the link to blob
 		// the blob is still saved in the image.blob, just needs to call domurl.createObjectURL again
 		if(this.attrs.image.blob){
@@ -5421,7 +3759,12 @@ Picture = new Class(Drawable, {
 
 var smoothWithPrefix;
 function smoothPrefix(ctx){
-	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
+	[
+		'mozImageSmoothingEnabled',
+		'webkitImageSmoothingEnabled',
+		'msImageSmoothingEnabled',
+		'imageSmoothingEnabled'
+	].forEach(function(name){
 		if(name in ctx){
 			smoothWithPrefix = name;
 		}
@@ -5463,7 +3806,7 @@ var defaultBaseline = 'top';
 
 Text = new Class(Drawable, {
 
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -5509,7 +3852,7 @@ Text = new Class(Drawable, {
 			}
 
 			if(args[0].text){
-				args[0].string = args[0].text;
+				args[0].text = args[0].text;
 			}
 
 			// todo
@@ -5528,7 +3871,7 @@ Text = new Class(Drawable, {
 
 		this.styles.textBaseline = this.attrs.baseline;
 
-		this.attrs.string = args[0] + '';
+		this.attrs.text = args[0] + '';
 		this.attrs.x = args[1];
 		this.attrs.y = args[2];
 		this.attrs.font = Text.parseFont(args[3] || Text.font);
@@ -5544,7 +3887,7 @@ Text = new Class(Drawable, {
 	},
 
 	attrHooks: new DrawableAttrHooks({
-		string: {
+		text: {
 			set: function(value){
 				this.lines = null;
 				this.update();
@@ -5625,7 +3968,7 @@ Text = new Class(Drawable, {
 	lines: null,
 
 	processLines: function(ctx){
-		var text = this.attrs.string,
+		var text = this.attrs.text,
 			lines = this.lines = [],
 
 			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight,
@@ -5677,10 +4020,10 @@ Text = new Class(Drawable, {
 				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
 
 				if(this.styles.fillStyle){
-					ctx.fillText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
 				}
 				if(this.styles.strokeStyle){
-					ctx.strokeText(this.attrs.string, this.attrs.x, this.attrs.y, width);
+					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
 				}
 			} else {
 				if(!this.lines){
@@ -5737,7 +4080,7 @@ Text = new Class(Drawable, {
 			this.context.renderer.postMeasure();
 		} else {
 			this.context.renderer.preMeasure(this.styles.font);
-			width = this.context.renderer.measure(this.attrs.string);
+			width = this.context.renderer.measure(this.attrs.text);
 			this.context.renderer.postMeasure();
 		}
 		return width;
@@ -5795,7 +4138,7 @@ Text = new Class(Drawable, {
 });
 
 Text.font = '10px sans-serif';
-Text.args = ['string', 'x', 'y', 'font', 'fill', 'stroke'];
+Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
 // 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
 Text.parseFont = function(font){
@@ -5863,7 +4206,7 @@ Gradient = new Class({
 		this.binds = [];
 
 		if(Gradient.types[this.type]){
-			this.attrHooks = extend(
+			this.attrHooks = extend( //  тут надо наследовать через прототипы, а не так
 				extend({}, this.attrHooks),
 				Gradient.types[this.type].attrHooks
 			);
@@ -6051,51 +4394,7 @@ Gradient.types = {
 };
 
 Delta.Gradient = Gradient;
-Gradient.types.diamond = {
-	// todo: parameters like in circle (size, angle, etc)
-	toCanvasStyle: function(ctx, element){
-		// todo: bounds('untransformed');
-		var bounds = element.bounds(),
-			canvas = getTemporaryCanvas(bounds.width, bounds.height),
-			context = canvas.getContext('2d'),
-			w = bounds.width / 2,
-			h = bounds.height / 2,
-			lt = context.createLinearGradient(w, h, 0, 0),
-			rt = context.createLinearGradient(w, h, w * 2, 0),
-			lb = context.createLinearGradient(w, h, 0, h * 2),
-			rb = context.createLinearGradient(w, h, w * 2, h * 2),
-			colors = this.attrs.colors;
-
-		// it's adaptive
-		Object.keys(colors).forEach(function(offset){
-			lt.addColorStop(offset, colors[offset]);
-			rt.addColorStop(offset, colors[offset]);
-			lb.addColorStop(offset, colors[offset]);
-			rb.addColorStop(offset, colors[offset]);
-		});
-
-		context.fillStyle = lt;
-		context.fillRect(0, 0, w, h);
-		context.fillStyle = rt;
-		context.fillRect(w, 0, w, h);
-		context.fillStyle = lb;
-		context.fillRect(0, h, w, h);
-		context.fillStyle = rb;
-		context.fillRect(w, h, w, h);
-
-		var img = new Image;
-		img.src = canvas.toDataURL('image/png');
-
-		return ctx.createPattern(img, 'no-repeat');
-		/* return this.context.renderer.makeGradient(
-			this.context,
-			'linear',
-			element.corner(this.attrs.from),
-			element.corner(this.attrs.to),
-			this.attrs.colors
-		); */
-	}
-};
+// {{dont include GradientDiamond.js}}
 
 Pattern = new Class({
 	initialize: function(image, repeat, context){
@@ -6133,1621 +4432,25 @@ Pattern = new Class({
 
 Delta.Pattern = Pattern;
 
-// {moduleName Animation.Along}
-// {requires Math.Curve}
+// {{dont include Animation.Along.js}}
+// {{dont include Animation.Morph.js}}
 
-Drawable.prototype.attrHooks.along = {
-	preAnim: function(fx, data){
-		var curve = data.curve;
-		if(data instanceof Curve || data instanceof Path){
-			curve = data;
-			data = {};
-		}
-		var corner = data.corner || 'center';
+// {{dont include Context.WebGL.js}}
+// {{dont include Rect.WebGL.js}}
+// {{dont include Path.WebGL.js}}
 
-		corner = this.corner(corner, data.cornerOptions || {
-			transform: 'ignore'
-		});
-		if(data.offset){
-			corner[0] -= data.offset[0];
-			corner[1] -= data.offset[1];
-		}
-		fx.initialCoords = corner;
-		fx.curve = curve;
-		if(!data.dynamic){
-			// true if the curve is changed while animation
-			// and along animation works like dynamic for some curves always
-			fx.startCurvePoint = curve.startAt();
-		}
-		this.attr('rotatePivot', corner);
-		if(+data.rotate === data.rotate){
-			this.attr('rotate', data.rotate);
-		} else if(data.rotate === true){
-			fx.rotate = true;
-		}
-		fx.addRotate = data.addRotate || 0;
-	},
+// {{dont include Editor.js}}
+// {{dont include Editor.Draggable.js}}
+// {{dont include Editor.Transform.js}}
 
-	anim: function(fx){
-		var point = fx.curve.pointAt(fx.pos, fx.startCurvePoint);
-		point[0] -= fx.initialCoords[0];
-		point[1] -= fx.initialCoords[1];
-		this.attr('translate', point);
-		if(fx.rotate === true){
-			this.attr('rotate', fx.curve.tangentAt(fx.pos, null, fx.startCurvePoint) + fx.addRotate);
-		}
-	}
-};
-// {moduleName Animation.Morph}
-// {requires Curve.Math, Curve.Approx}
+// {{dont include SVGExport.js}}
 
-Path.prototype.attrHooks.morph = {
-	preAnim: function(fx, data){
-		var curve = data.curve,
-			to = data.to,
+// {{dont include CurveGradient.js}}
+// {{dont include EnhancedShadows.js}}
 
-			start = curve.startAt(), // иногда кидает ошибку, если несколько анимаций морфа
-			index = curve.path.attr('d').indexOf(curve);
+// {{dont include Intersections.js}}
 
-		// заменяем кривую на её аппроксимацию
-		fx.startCurve = curve;
-		fx.endCurve = Path.parse(to, null, true)[0]; // todo: multiple curves & paths
-		fx.detail = data.detail || Curve.detail || 10;
-
-		fx.startPoints = [start];
-		fx.endPoints = [fx.endCurve.pointAt(0, start)];
-
-		for(var i = 1; i <= fx.detail; i++){
-			fx.startPoints.push(curve.pointAt(i / fx.detail, start));
-			fx.endPoints.push(fx.endCurve.pointAt(i / fx.detail, start));
-		}
-
-		fx.polyline = new CurvePolyline('polyline', fx.startPoints, curve.path);
-		fx.index = index;
-
-		curve.path.curve(index, fx.polyline);
-	},
-
-	anim: function(fx){
-		// noise animation
-		// maybe plugin after
-		/* fx.curve._points = fx.curve._points.map(function(point, i){
-			return [
-				fx.startPoints[i][0],
-				fx.startPoints[i][1] + Math.random() * 10
-			];
-		}); */
-
-		fx.polyline.attr('args', fx.polyline.attr('args').map(function(point, i){
-			return [
-				fx.startPoints[i][0] + (fx.endPoints[i][0] - fx.startPoints[i][0]) * fx.pos,
-				fx.startPoints[i][1] + (fx.endPoints[i][1] - fx.startPoints[i][1]) * fx.pos
-			];
-		}));
-
-		if(fx.pos === 1){
-			fx.startCurve.path.curve(fx.index, fx.endCurve);
-		}
-	}
-};
-
-var GLContext;
-
-// всё, где комментарий "// {{debug}}", нужно убрать из прода (todo: встроить {{debug}} ... {{/debug}} в grunt модуль)
-/*
-Основные оптимизации:
- - Рисовать объекты с одним буфером вместе.
- - Рисовать более ближние объекты первыми.
- */
-
-GLContext = new Class(Context, {
-	initialize: function(canvas){
-		// WebGL
-		this.gl = this._getAndPrepareGLContext(canvas);
-		if(!this.gl){
-			return new Delta.contexts['2d'](canvas);
-		}
-		this.shaders = {};
-		this.buffers = {};
-
-		// Context
-		this.canvas    = canvas;
-		this.elements  = [];
-		this.listeners = {};
-		// array for not yet drawn obs
-		this._missing  = [];
-
-		// todo: this.drawMissing = this.drawMissing.bind(this)
-		this.drawMissingBound = this.drawMissing.bind(this);
-		this.updateNowBounded = this.updateNow.bind(this);
-	},
-
-	_getAndPrepareGLContext: function(canvas){
-		var gl;
-
-		if(gl = canvas.getContext('webgl'));
-		else if(gl = canvas.getContext('experimental-webgl'));
-		else if(gl = canvas.getContext('webkit-3d'));
-		else if(gl = canvas.getContext('moz-webgl'));
-		else {
-			// webgl is not supported
-			return null;
-		}
-
-		// проверить, нужно ли вообще эту функцию вызывать
-		gl.viewport(0, 0, canvas.width, canvas.height);
-		gl.clearColor(1, 0.8, 0.9, 1); // maybe 0,0,0,0?
-		gl.clear(gl.COLOR_BUFFER_BIT);
-		return gl;
-	},
-
-	// Methods
-	push : function(element){
-		element.context = this;
-		this.elements.push(element);
-
-		if(element.shadersRequired){
-			element.shadersRequired.forEach(function(shaderName){
-				this.initShader(shaderName);
-			}.bind(this));
-		}
-
-		if(element.drawGL){
-			this._missing.push(element);
-			if(!this._willDrawMissing){
-				requestAnimationFrame(this.drawMissingBound);
-				this._willDrawMissing = true;
-			}
-			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
-			// а в этом тике надо компилировать все нужные для запушенного объекта шейдеры
-			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
-			// и используется первым :P
-			// element.drawGL(this.gl);
-		}
-
-		return element;
-	},
-
-	initShader: function(name){
-		if(this.shaders[name]){
-			return;
-		}
-
-		if(!GLContext.shadersFactory[name]){
-			throw "The shader \"" + name + "\" is not exist.";
-		}
-
-		this.shaders[name] = GLContext.shadersFactory[name](this.gl, this);
-	},
-
-	drawMissing: function(){
-		this._willDrawMissing = false;
-
-		// Рисовать нужно с depth-буфером и в обратном порядке (чтобы gl-ю приходилось меньше рисовать).
-		// Кроме того, подключенный последним шейдер будет заюзан в таком порядке первым.
-		// Кроме того, нужно группировать объекты по шейдерам / буферам.
-		// Но пока не всё понятно в случае с depthtest с blending mode
-		var gl = this.gl;
-		this._missing.forEach(function(element){
-			element.drawGL(gl);
-		});
-	}
-
-});
-
-GLContext.shadersFactory = {
-	'fragment-common': function(gl){
-		return Delta.createShader(gl, gl.FRAGMENT_SHADER, [
-			'#ifdef GL_ES',
-				'precision highp float;',
-			'#endif',
-
-			'varying vec4 vColor;', // а этот шейдер типа не умеет в униформы?
-			'void main(void){',
-				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
-			'}'
-		].join('\n'));;
-	}
-};
-
-// GL utilities
-Delta.createShader = function(gl, type, source){
-	var shader = gl.createShader(type);
-	gl.shaderSource(shader, source);
-	gl.compileShader(shader);
-	// {{debug}}
-	if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
-		var log = gl.getShaderInfoLog(shader);
-		gl.deleteShader(shader);
-		throw "Shader compilation error: " + log;
-	}
-	// {{/debug}}
-	return shader;
-}
-
-Delta.contexts['gl'] = GLContext;
-GLContext.shadersFactory['vertex-rect'] = function(gl){
-	return Delta.createShader(gl, gl.VERTEX_SHADER, [
-		'attribute vec2 aVertexPosition;',
-		'uniform vec4 rectCoords;',
-		'uniform vec4 uColor;',
-		'varying vec4 vColor;',
-		 'float canvasWidth = ' + gl.canvas.width + '.0;',
-		 'float canvasHeight = ' + gl.canvas.height + '.0;',
-
-		'void main(void){',
-			'vColor = uColor;',
-			'gl_Position = vec4(',
-				// тут можно поделить на canvasWidth всё сразу
-				'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
-				'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
-				'1.0,',
-				'1.0',
-			');',
-		'}'
-	].join('\n'));
-};
-
-GLContext.shadersFactory['program-rect'] = function(gl, delta){
-	var program = gl.createProgram();
-	gl.attachShader(program, delta.shaders['vertex-rect']);
-	gl.attachShader(program, delta.shaders['fragment-common']);
-	gl.linkProgram(program);
-
-	// {{debug}}
-	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
-		throw "Could not initialize shaders";
-	}
-	// {{/debug}}
-
-	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
-	gl.useProgram(program);
-	program.uColor = gl.getUniformLocation(program, 'uColor');
-	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
-	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
-	gl.enableVertexAttribArray(program.v_aVertexPosition);
-	return program;
-}
-
-Rect.prototype.shadersRequired = ['fragment-common', 'vertex-rect', 'program-rect'];
-
-Rect.prototype.drawGL = function(gl){
-	var delta = this.context;
-
-	if(!delta.buffers['rect']){
-		var vertexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-			-1, -1,
-			1, 1,
-			1, -1,
-
-			-1, -1,
-			1, 1,
-			-1, 1
-		]), gl.STATIC_DRAW);
-
-		delta.buffers['rect'] = vertexBuffer;
-	}
-
-	var color = Delta.color(this.styles.fillStyle);
-
-	gl.uniform4f(
-		delta.shaders['program-rect'].uColor,
-		color[0],
-		color[1],
-		color[2],
-		color[3]
-	);
-
-	gl.uniform4f(
-		delta.shaders['program-rect'].rectCoords,
-		this.attrs.x,
-		this.attrs.y,
-		this.attrs.width,
-		this.attrs.height
-	);
-
-	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
-};
-
-GLContext.shadersFactory['vertex-path'] = function(gl){
-	return Delta.createShader(gl, gl.VERTEX_SHADER, [
-		'attribute vec2 aVertexPosition;',
-		'uniform vec4 rectCoords;',
-		'uniform vec4 uColor;',
-		'varying vec4 vColor;',
-		'float canvasWidth = ' + gl.canvas.width + '.0;',
-		'float canvasHeight = ' + gl.canvas.height + '.0;',
-
-		'void main(void){',
-			'vColor = uColor;',
-			'gl_Position = vec4(',
-				'aVertexPosition[0],',
-				'aVertexPosition[1],',
-				'1.0,',
-				'1.0',
-			');',
-		'}'
-	].join('\n'));
-};
-
-GLContext.shadersFactory['program-path'] = function(gl, delta){
-	var program = gl.createProgram();
-	gl.attachShader(program, delta.shaders['vertex-path']);
-	gl.attachShader(program, delta.shaders['fragment-common']);
-	gl.linkProgram(program);
-
-	// {{debug}}
-	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
-		throw "Could not initialize shaders";
-	}
-	// {{/debug}}
-
-	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
-	gl.useProgram(program);
-	program.uColor = gl.getUniformLocation(program, 'uColor');
-	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
-	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
-	gl.enableVertexAttribArray(program.v_aVertexPosition);
-	return program;
-}
-
-Path.prototype.shadersRequired = ['fragment-common', 'vertex-path', 'program-path'];
-
-Path.prototype.drawGL = function(gl){
-	var delta = this.context;
-
-	if(!delta.buffers['rect']){
-		var vertexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-			0.0, 0.0,
-			0.5, 0.5,
-			0.5, 0.0,
-			0.5, -0.5,
-			-1.0, 0.0
-		]), gl.STATIC_DRAW);
-
-		delta.buffers['rect'] = vertexBuffer;
-	}
-
-	var color = Delta.color(this.styles.fillStyle);
-	gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
-	gl.uniform4f(
-		delta.shaders['program-rect'].rectCoords,
-		10,
-		10,
-		200,
-		200
-	);
-
-	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
-	gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
-};
-
-
-
-/* Interface:
- - rect.editor('transform');
- - rect.editor('transform', command); // <- command = enable / disable / rotate / freeze / destroy / etc
- - rect.editor('transform', properties); // sets attrs
- */
-extend(Drawable.prototype, {
-	editor: function(kind, value, params){
-		if(!value){
-			value = 'enable';
-		}
-
-		if(!Delta.editors[kind]){
-			throw 'There\'s no ' + kind + ' editor';
-		}
-
-		if(value + '' === value){
-			return Delta.editors[kind][value](this, params) || this;
-		}
-	}
-});
-
-Delta.editors = {};
-
-// draggable
-var defaultProps = {
-	axis: 'both',
-	inBounds: null,
-	cursor: null,
-	cursorAt: null,
-	moveWith: [],
-	delay: 100,
-	distance: 5,
-	grid: null,
-	helper: null,
-	helperFixPosition: true,
-	helperAttrs: {
-		opacity: 0.5
-	},
-	zIndex: null,
-	zIndexReturn: true
-};
-
-Drawable.prototype.draggable = function(method, options){
-	// если obj.draggable({ ... }), то это мб не enable / init, а set!
-	if(method + '' !== method){
-		options = method;
-		method = 'init';
-	} else if(!method){
-		method = 'init';
-	}
-
-	return this.draggable[method].call(this, options);
-};
-
-Drawable.prototype.draggable.init = function(options){
-	if(!options){
-		options = {};
-	}
-
-	this._draggingOptions = extend(extend({}, defaultProps), options);
-	this.draggable.updateMods.call(this);
-
-	this.on('mousedown', draggableElemMousedown);
-	window.addEventListener('mouseup', windowMouseup.bind(this));
-	window.addEventListener('mousemove', windowMousemove.bind(this));
-
-	// todo: заменить на один обработчик
-	// Delta._dragging = {canvas, object}
-	// и переменную Delta._draggables = (count of draggable obs)
-	// когда она обнуляется, скидываем обработчики событий
-	// такая чистка мусора
-};
-
-Drawable.prototype.draggable.destroy = function(){};
-Drawable.prototype.draggable.enable = function(){};
-Drawable.prototype.draggable.disable = function(){};
-
-Drawable.prototype.draggable.updateMods = function(){
-	var mods = [];
-
-	if(this._draggingOptions.cursorAt !== 'left top' &&
-		this._draggingOptions.cursorAt !== 'lt' &&
-		this._draggingOptions.cursorAt !== 'tl'){
-		mods.push('cursorAt');
-	}
-
-	if(this._draggingOptions.distance){
-		mods.push('distance');
-	}
-
-	if(this._draggingOptions.delay){
-		mods.push('delay');
-	}
-
-	if(this._draggingOptions.inBounds){
-		if(!(this._draggingOptions.inBounds instanceof Bounds) && this._draggingOptions.inBounds.bounds){
-			this._draggingOptions.inBounds = this._draggingOptions.inBounds.bounds();
-		}
-		mods.push('inBounds');
-	}
-
-	if(this._draggingOptions.axis !== 'both'){
-		mods.push('axis');
-	}
-
-	if(this._draggingOptions.grid){
-		if(+this._draggingOptions.grid === this._draggingOptions.grid){
-			this._draggingOptions.grid = [
-				this._draggingOptions.grid,
-				this._draggingOptions.grid
-			];
-		}
-		// just a fix for a common mistake
-		if(this._draggingOptions.grid[0] === 0){
-			this._draggingOptions.grid[0] = 1;
-		}
-		if(this._draggingOptions.grid[1] === 0){
-			this._draggingOptions.grid[1] = 1;
-		}
-		mods.push('grid');
-	}
-
-	if(this._draggingOptions.moveWith){
-		if(!this._draggingOptions.moveWith.length){
-			this._draggingOptions.moveWith = [this._draggingOptions.moveWith];
-		}
-		mods.push('moveWith');
-	}
-
-	if(this._draggingOptions.helper){
-		mods.push('helper');
-	}
-
-	this._draggingOptions.mods = mods;
-};
-
-var mods = {
-	cursorAt: function(x, y, event){
-		var corner = this._draggingOptions.cursorAt;
-
-		if(!corner){
-			var delta = [
-				this._dragging.downCoords[0] - this._dragging.bounds.x,
-				this._dragging.downCoords[1] - this._dragging.bounds.y
-			];
-
-			return [
-				x - delta[0],
-				y - delta[1]
-			];
-		}
-
-		return [
-			x - this._dragging.bounds.width * Delta.corners[corner][0],
-			y - this._dragging.bounds.height * Delta.corners[corner][1],
-		];
-	},
-
-	distance: function(x, y, event){
-		if(this._dragging.doNotCheckDistance){
-			return [x, y];
-		}
-
-		var distance = Math.sqrt(
-			Math.pow(this._dragging.downCoords[0] - event.contextX, 2) +
-			Math.pow(this._dragging.downCoords[1] - event.contextY, 2)
-		);
-
-		if(distance < this._draggingOptions.distance){
-			return [
-				this._dragging.bounds.x - this._dragging.nativeBounds.x,
-				this._dragging.bounds.y - this._dragging.nativeBounds.y
-			];
-		}
-
-		this._dragging.doNotCheckDistance = true;
-		return [x, y];
-	},
-
-	delay: function(x, y, event){
-		if(this._dragging.doNotCheckDelay){
-			return [x, y];
-		}
-
-		var delay = Date.now() - this._dragging.downTime;
-
-		if(delay < this._draggingOptions.delay){
-			return [
-				this._dragging.bounds.x - this._dragging.nativeBounds.x,
-				this._dragging.bounds.y - this._dragging.nativeBounds.y
-			];
-		}
-
-		this._dragging.doNotCheckDelay = true;
-		return [x, y];
-	},
-
-	inBounds: function(x, y, event){
-		// coords of the dragging object
-		var coords = [
-			x + this._dragging.nativeBounds.x,
-			y + this._dragging.nativeBounds.y
-		];
-
-		var value = this._draggingOptions.inBounds;
-		if(coords[0] < value.x){
-			x = value.x - this._dragging.nativeBounds.x;
-		} else if(coords[0] + this._dragging.bounds.width > value.x2){
-			x = value.x2 - this._dragging.nativeBounds.x - this._dragging.bounds.width;
-		}
-
-		if(coords[1] < value.y){
-			y = value.y - this._dragging.nativeBounds.y;
-		} else if(coords[1] + this._dragging.bounds.height > value.y2){
-			y = value.y2 - this._dragging.nativeBounds.y - this._dragging.bounds.height;
-		}
-
-		return [x, y];
-	},
-
-	axis: function(x, y, event){
-		if(this._draggingOptions.axis === 'x'){
-			y = this._dragging.bounds.y - this._dragging.nativeBounds.y;
-		} else if(this._draggingOptions.axis === 'y'){
-			x = this._dragging.bounds.x - this._dragging.nativeBounds.x;
-		}
-		return [x, y];
-	},
-
-	moveWith: function(x, y, event){
-		this._draggingOptions.moveWith.forEach(function(element){
-			;
-		}, this);
-		return [x, y];
-		// проходим по массиву moveWith, всем ставим translate = -bounds + translation;
-	},
-
-	grid: function(x, y, event){
-		var grid = this._draggingOptions.grid;
-		return [
-			x - x % grid[0],
-			y - y % grid[1]
-		];
-	},
-
-	helper: function(x, y, event){
-		if(this._dragging.helper){
-			if(this._dragging.helperTranslation){
-				x += this._dragging.helperTranslation[0];
-				y += this._dragging.helperTranslation[1];
-			}
-			this._dragging.helper.attr('translate', [x, y]);
-		}
-
-		return [
-			this._dragging.bounds.x - this._dragging.nativeBounds.x,
-			this._dragging.bounds.y - this._dragging.nativeBounds.y
-		];
-	}
-};
-
-function draggableElemMousedown(e){
-	this._dragging = {
-		downCoords: [e.contextX, e.contextY],
-		downTime: Date.now(),
-		bounds: this.bounds(),
-		nativeBounds: this.bounds(false),
-		context: this.context
-	};
-
-	if(this._draggingOptions.cursor){
-		this._dragging.oldCursor = this.context.canvas.style.cursor;
-		this.context.canvas.style.cursor = this._draggingOptions.cursor;
-	}
-
-	if(this._draggingOptions.zIndex || this._draggingOptions.zIndex === 0){
-		this._dragging.zIndexOld = this.attr('z');
-		this.attr('z', this._draggingOptions.zIndex);
-	}
-
-	if(this._draggingOptions.helper){
-		if(this._draggingOptions.helper === 'clone'){
-			this._dragging.helper = this.clone();
-		} else {
-			this._dragging.helper = this._draggingOptions.helper.clone();
-			// нужны функции для работы с abstract element place / bounds
-			// ну типа element.placeLTtoPoint(x, y)
-			// работающие с translate и т.п.
-			// они нужны и для лейаутов
-			if(this._draggingOptions.helperFixPosition){
-				// works with bugs
-				var helperBounds = this._dragging.helper.bounds();
-				this._dragging.helperTranslation = [
-					this._dragging.bounds.x - helperBounds.x,
-					this._dragging.bounds.y - helperBounds.y
-				];
-			}
-		}
-
-		if(this._draggingOptions.helperAttrs){
-			this._dragging.helper.attr(this._draggingOptions.helperAttrs);
-		}
-
-		this._dragging.helper['_meta'] = true; // must be at all the meta obs (made by not the user)
-		// todo: make sure it is not spoiled by minimizer
-	}
-
-	this.fire('dragstart', e);
-}
-
-function windowMouseup(e){
-	if(this._dragging){
-		if(this._dragging.oldCursor !== undefined){
-			this.context.canvas.style.cursor = this._dragging.oldCursor;
-			this._dragging.oldCursor = null;
-		}
-
-		if(this._dragging.zIndexOld !== undefined && this._draggingOptions.zIndexReturn){
-			this.attr('z', this._dragging.zIndexOld);
-			this._dragging.zIndexOld = null;
-		}
-
-		if(this._dragging.helper){
-			this.attr('translate', this._dragging.helper.attr('translate'));
-			this._dragging.helper.remove();
-			this._dragging.helper = null;
-			this._dragging.helperTranslation = null;
-		}
-	}
-
-	this._dragging = null;
-	this.fire('dragend', e);
-}
-
-function windowMousemove(e){
-	var dragging = this._dragging;
-
-	if(!dragging){
-		return;
-	}
-
-	var coords = dragging.context.contextCoords(e.clientX, e.clientY);
-	event.contextX = coords[0];
-	event.contextY = coords[1];
-	coords[0] -= dragging.nativeBounds.x;
-	coords[1] -= dragging.nativeBounds.y;
-
-	this._draggingOptions.mods.forEach(function(modName){
-		coords = mods[modName].call(this, coords[0], coords[1], e);
-	}.bind(this));
-
-	this.attr('translate', coords);
-	this.fire('drag', e);
-}
-Delta.editors.__commonControls = {
-	style: {
-		radius: 5,
-		color: '#0af',
-		opacity: 0.3
-	},
-
-	point: function(x, y){
-		return ctx.circle({
-			cx: x,
-			cy: y,
-			radius: this.style.radius,
-			fill: this.style.color,
-			stroke: this.style.stroke,
-			opacity: this.style.opacity
-		});
-	},
-
-	border: function(x, y, width, height){
-		return ctx.rect({
-			x: x,
-			y: y,
-			width: width,
-			height: height,
-			stroke: this.style.color,
-			opacity: this.style.opacity
-		});
-	}
-};
-
-Delta.editors.transform = {
-	enable: function(object){
-		var bounds = object.bounds();
-		if(!object._editorTransform){
-			var controls = this.__controls;
-			var lt, lb, rt, rb, border;
-
-			object._editorTransform = {
-				border: border = controls.border(bounds.x, bounds.y, bounds.width, bounds.height),
-				lt: lt = controls.point(bounds.x1, bounds.y1),
-				lb: lb = controls.point(bounds.x1, bounds.y2),
-				rt: rt = controls.point(bounds.x2, bounds.y1),
-				rb: rb = controls.point(bounds.x2, bounds.y2)
-			};
-
-			var ltDown, lbDown, rtDown, rbDown;
-
-			window.addEventListener('mouseup', function(){
-				ltDown = lbDown = rtDown = rbDown = null;
-			});
-
-			window.addEventListener('mousemove', function(e){
-				var coords = object.context.contextCoords(e.clientX, e.clientY);
-				if(ltDown){
-					lt.attr({
-						cx: coords[0],
-						cy: coords[1]
-					});
-
-					lb.attr('cx', coords[0]);
-					rt.attr('cy', coords[1]);
-
-					border.attr({
-						x1: coords[0],
-						y1: coords[1]
-					});
-
-					object.transform(null);
-					// attr scale?
-					object.scale(
-						border.attr('width') / ltDown.width,
-						border.attr('height') / ltDown.height,
-						'rb'
-					);
-				} else if(lbDown){
-					lb.attr({
-						cx: coords[0],
-						cy: coords[1]
-					});
-
-					lt.attr('cx', coords[0]);
-					rb.attr('cy', coords[1]);
-
-					border.attr({
-						x1: coords[0],
-						y2: coords[1]
-					});
-
-					object.transform(null);
-					// attr scale?
-					object.scale(
-						border.attr('width') / lbDown.width,
-						border.attr('height') / lbDown.height,
-						'rt'
-					);
-				} else if(rtDown){
-					;
-				} else if(rbDown){
-					;
-				}
-			});
-
-			// todo: add and use editor.draggable
-			lt.on('mousedown', function(){
-				ltDown = object.bounds();
-			});
-			lb.on('mousedown', function(){
-				lbDown = object.bounds();
-			});
-			rt.on('mousedown', function(){
-				rtDown = object.bounds();
-			});
-			rb.on('mousedown', function(){
-				rbDown = object.bounds();
-			});
-
-		} else {
-			object._editorTransform.border.attr('visible', true);
-			object._editorTransform.lt.attr('visible', true);
-			object._editorTransform.lb.attr('visible', true);
-			object._editorTransform.rt.attr('visible', true);
-			object._editorTransform.rb.attr('visible', true);
-			// fix bounds
-			// the object could change
-		}
-	},
-
-	disable: function(object){
-		;
-	},
-
-	attr: function(name, value){
-		// for rect.editor('transform', properties);
-	},
-
-	__controls: Delta.editors.__commonControls
-};
-
-// Context
-Context.prototype.toSVG = function(options){
-	options = options || {};
-
-	var svg = {
-		root: {
-			xmlns: 'http://www.w3.org/2000/svg',
-			width: this.canvas.width,
-			height: this.canvas.height
-		},
-		elements: []
-	};
-
-	this.elements.forEach(function(element){
-		if(element.toSVG){
-			svg.elements.push(element.toSVG(svg));
-		}
-	});
-
-	if(options.format === 'string' || !options.format){
-		// how about options.viewBox?
-		var svgTag = '<svg xmlns="' + svg.root.xmlns + '" width="' +
-				svg.root.width + '" height="' + svg.root.height +
-				'" viewBox="0 0 ' + svg.root.width + ' ' + svg.root.height + '">';
-		// <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-		return [
-			svgTag,
-			svg.elements.join('\n'),
-			'</svg>'
-		].join('\n');
-	} else if(options.format === '...'){ // англ. слово "сырой" забыл
-		return svg;
-	} else if(options.format === 'dom'){
-		// var elem = document.createElement('svg');
-		;// dom node
-	} else if(options.format === 'file'){
-		// blob? dataurl?
-	} else {
-		throw 'Unknown SVG format "' + options.format + '"';
-	}
-};
-
-// Drawable
-var directSVGAttribute = function(value, name){
-	return name + '="' + value + '"';
-}
-
-// градиенты должны храниться в атрибутах, зачем эта конверсия?
-var styleToAttrConversion = {
-	fillStyle: 'fill'
-};
-
-function rgbToHex(rgb){
-	var r = rgb[0].toString(16),
-		g = rgb[1].toString(16),
-		b = rgb[2].toString(16);
-
-	if(r.length === 1){
-		r += r;
-	}
-	if(g.length === 1){
-		g += g;
-	}
-	if(b.length === 1){
-		b += b;
-	}
-
-	return '#' + r + g + b;
-}
-
-Drawable.prototype.attrHooks.fill.toSVG = function(value, name, svg){
-	var fill = this.styles.fillStyle;
-	if(fill){
-		if(fill + '' === fill){
-			fill = Delta.color(fill);
-			return 'fill="' + (fill[3] === 1 ? rgbToHex(fill) : ('rgba(' + fill.join(',') + ')')) + '"';
-		} else {
-			// ...
-			// svg.head.push({blablabla})
-			// fill.toSVG()
-		}
-	} else {
-		return 'fill="none"';
-	}
-};
-
-Drawable.prototype.attrHooks.stroke.toSVG = function(value, name, svg){
-	var stroke = this.styles.strokeStyle;
-	if(!stroke){
-		return '';
-	}
-
-	var result = '';
-	if(stroke + '' === stroke){
-		stroke = Delta.color(stroke);
-		result = 'stroke="' + (stroke[3] === 1 ? rgbToHex(stroke) : ('rgba(' + stroke.join(',') + ')')) + '"'
-	} else {
-		// gradients
-	}
-
-	if(this.styles.lineWidth){
-		result += ' stroke-width="' + this.styles.lineWidth + '"';
-	}
-
-	return result;
-};
-
-Drawable.prototype.toSVG = function(svg){
-	if(!this.svgTagName){
-		return '';
-	}
-	var attrs = Object.keys(this.attrs).reduce(function(result, attrName){
-		if(this.attrHooks[attrName] && this.attrHooks[attrName].toSVG){
-			return result + ' ' + this.attrHooks[attrName].toSVG.call(this, this.attrs[attrName], attrName, svg);
-		}
-		return result;
-	}.bind(this), '');
-
-	attrs = Object.keys(this.styles).reduce(function(result, attrName){
-		attrName = styleToAttrConversion[attrName];
-		if(attrName && this.attrHooks[attrName] && this.attrHooks[attrName].toSVG){
-			return result + ' ' + this.attrHooks[attrName].toSVG.call(this, this.attrs[attrName], attrName, svg);
-		}
-		return result;
-	}.bind(this), attrs);
-	// если fill нет, то нужно поставить fill="none", иначе некоторые элементы заливаются автоматически
-
-	return '<' + this.svgTagName + attrs + '/>';
-};
-
-// Rect
-Rect.prototype.svgTagName = 'rect';
-
-['x', 'y', 'width', 'height'].forEach(function(paramName){
-	Rect.prototype.attrHooks[paramName].toSVG = directSVGAttribute;
-});
-/*
-
-а теперь будет if(svgDoc.options.quickCalls)
-
-Rect.prototype.toSVG = function(quickCalls, svgContext){
-	// svgContext.style.push(...)
-	// svgContext.head.push(...)
-	// для фильтров и етс
-	return (
-		'<rect x="' + this.attrs.x + '" y="' + this.attrs.y +
-		'" width="' + this.attrs.width + '" height="' + this.attrs.height + '"' +
-		this.toSVGGetStyle() + '/>'
-	);
-}; */
-
-// Circle
-Circle.prototype.svgTagName = 'circle';
-
-['cx', 'cy'].forEach(function(paramName){
-	Circle.prototype.attrHooks[paramName].toSVG = directSVGAttribute;
-});
-
-Circle.prototype.attrHooks.radius.toSVG = function(value){
-	return 'r="' + value + '"';
-};
-
-
-// Path
-Path.prototype.svgTagName = 'path';
-Path.prototype.attrHooks.d.toSVG = function(value, name, svg){
-	var result = [];
-	this.attrs.d.forEach(function(curve, i){
-		result.push(curve.toSVG());
-	}, this);
-	return 'd="' + result.join(' ') + '"';
-};
-
-// Curve
-Delta.curvesSVGNames = {
-	moveTo: 'M',
-	moveBy: 'm',
-	lineTo: 'L',
-	lineBy: 'l',
-	horizontalLineTo: 'H',
-	horizontalLineBy: 'h',
-	verticalLineTo: 'V',
-	verticalLineBy: 'v',
-	bezierCurveTo: 'C',
-	bezierCurveBy: 'c',
-	shorthandCurveTo: 'S',
-	shorthandCurveBy: 's',
-	quadraticCurveTo: 'Q',
-	quadraticCurveBy: 'q',
-	shorthandQuadraticCurveTo: 'T',
-	shorthandQuadraticCurveBy: 't',
-	ellipticalArcTo: 'A',
-	ellipticalArcBy: 'a',
-	closePath: 'Z'
-};
-
-// todo: check about conversion between boolean and 1 / 0
-Curve.prototype.toSVG = function(){
-	return Delta.curvesSVGNames[this.method] ?
-		Delta.curvesSVGNames[this.method] + this.attrs.args.join(',') :
-		Curve.canvasFunctions[this.method].toSVG(this);
-};
-
-Curve.canvasFunctions.arc.toSVG = function(curve){
-	// into ellipticalArcTo
-};
-
-Curve.canvasFunctions.arcTo.toSVG = function(curve){
-	// into ellipticalArcTo
-};
-
-// Image
-// toSVG(document){
-// 	if(document.options.imagesToDataURL) <- 'all' / 'possible' (loaded not with data url but from rasterize, document Image, etc)
-// }
-// Text
-// Gradient
-// Pattern
-
-
-
-
-
-
-
-
-
-
-
-
-
-Delta.drawGradientCurve = function(curve, ctx){
-	var point, lastPoint;
-
-	lastPoint = curve.curve(0);
-	for(var i = 1; i < curve.detail; i++){
-		point = curve.curve(i / curve.detail);
-		ctx.beginPath();
-		ctx.moveTo(lastPoint[0], lastPoint[1]);
-		ctx.lineTo(point[0], point[1]);
-		ctx.lineWidth = curve.width(i / curve.detail);
-		ctx.stroke();
-		lastPoint = point;
-	}
-};
-Drawable.prototype.attrHooks.shadow = {
-	set: function(value){
-		this._useEnhancedShadow = !(value + '' === value || (
-			value.length === undefined &&
-			value.opacityDependence !== false &&
-			+value.opacity !== value.opacity &&
-			+value.size !== value.size));
-
-		if(!this._useEnhancedShadow){
-			Drawable.processShadow(value, this.styles);
-		} else {
-			// todo: make up a good way to delete items
-			// without delete
-			delete this.styles.shadowOffsetX;
-			delete this.styles.shadowOffsetY;
-			delete this.styles.shadowBlur;
-			delete this.styles.shadowColor;
-
-			if(!value.length){
-				value = [value];
-			}
-		//	this.attrs.shadow = value;
-		}
-
-		this.update();
-	}
-};
-
-var offsetForShadow = 1000;
-
-var pre = Circle.prototype.draw;
-Circle.prototype.draw = function(ctx){
-	// вполне умещается в переопределение Renderer.pre
-	if(this._useEnhancedShadow){
-		ctx.save();
-		ctx.translate(-offsetForShadow, -offsetForShadow);
-
-		var thisContext = {
-			attrs: {
-				visible: true
-			},
-			context: {
-				renderer: {
-					pre: function(){},
-					post: function(){}
-				}
-			}
-		};
-		// нам нужны только трансформации на самом деле
-		// this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-		this.attrs.shadow.forEach(function(shadowElem){
-			// нужно бы, чтобы offsetForShadow зависел ещё и от трансформаций самого канваса сейчас
-			ctx.shadowOffsetX = (shadowElem.x || 0) + offsetForShadow;
-			ctx.shadowOffsetY = (shadowElem.y || 0) + offsetForShadow;
-			ctx.shadowColor = shadowElem.color;
-			ctx.shadowBlur = shadowElem.blur || 0;
-			if(shadowElem.size && shadowElem.size !== 1){
-				;
-			}
-			pre.call(this, ctx);
-		}, this);
-		ctx.restore();
-	}
-	pre.call(this, ctx);
-};
-
-
-// boolean
-function evenOddRule(x, y, poly){
-	var c = false;
-	for(var i = 0, j = poly.length - 1; i < poly.length; j = i, i++){
-		if((poly[i][1] > y) !== (poly[j][1] > y) &&
-			(x < (poly[j][0] - poly[i][0]) * (y - poly[i][1]) / (poly[j][1] - poly[i][1]) + poly[i][0])){
-			c = !c;
-		}
-	}
-	return c;
-}
-
-function lineIntersection(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1){
-	var d = (ax0 - ax1) * (by0 - by1) - (ay0 - ay1) * (bx0 - bx1);
-	if(d === 0){
-		return [];
-	}
-
-	var nx = (ax0 * ay1 - ay0 * ax1) * (bx0 - bx1) - (ax0 - ax1) * (bx0 * by1 - by0 * bx1),
-		ny = (ax0 * ay1 - ay0 * ax1) * (by0 - by1) - (ay0 - ay1) * (bx0 * by1 - by0 * bx1);
-
-	return [
-		[nx / d | 0, ny / d | 0]
-	];
-}
-
-function segmentIntersection(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1){
-	var d = (ax1 - ax0) * (by0 - by1) - (ay1 - ay0) * (bx0 - bx1);
-	if(d === 0){
-		return [];
-	}
-
-	var t = (bx0 - ax0) * (by0 - by1) - (by0 - ay0) * (bx0 - bx1);
-	var w = (ax1 - ax0) * (by0 - ay0) - (bx0 - ax0) * (ay1 - ay0);
-
-	t /= d;
-	w /= d;
-
-	if(t < 0 || t > 1 || w < 0 || w > 1){
-		return [];
-	}
-
-	return [
-		[
-			ax0 + (ax1 - ax0) * t,
-			ay0 + (ay1 - ay0) * t,
-			t, w
-		]
-	];
-}
-
-function segmentQuadIntersection(ax0, ay0, ax1, ay1, ax2, ay2, bx0, by0, bx1, by1){
-	var lineAngle = Math.atan2(by1 - by0, bx1 - bx0);
-}
-
-function pointInRect(x, y, x1, y1, x2, y2){
-	return (
-		x > x1 && y > y1 && x < x2 && y < y2
-	);
-}
-
-function rectIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2){
-	/* return (
-		((ax1 < bx1 && ay1 < by1) && (ax2 > bx1 && ay2 > by1))
-		||
-		((bx1 < ax1 && by1 < ay1) && (bx2 > ax1 && by2 > ay1))
-	); */
-/*
-	return (
-		pointInRect(ax1, ay1, bx1, by1, bx2, by2)
-		||
-		pointInRect(ax1, ay2, bx1, by1, bx2, by2)
-		||
-		pointInRect(ax2, ay1, bx1, by1, bx2, by2)
-		||
-		pointInRect(ax2, ay2, bx1, by1, bx2, by2)
-		||
-		// второй не нужно проверять!
-		// точка одного во втором => точка второго в 1ом
-		// нужно только понять, почему это не всегда работает, и пофиксить
-		pointInRect(bx1, by1, ax1, ay1, ax2, ay2)
-		||
-		pointInRect(bx2, by1, ax1, ay1, ax2, ay2)
-		||
-		pointInRect(bx1, by2, ax1, ay1, ax2, ay2)
-		||
-		pointInRect(bx2, by2, ax1, ay1, ax2, ay2)
-	); */
-
-	// todo: check about normalizing coords (bx1 should be less than bx2, y analogously)
-
-	// нужно проверять пересечение проекций на оси
-	// кажется, как-то так
-	return (
-		(
-			// intersection on x
-			(ax1 > bx1 && ax1 < bx2) || (ax2 > bx1 && ax2 < bx2) // wrong? point doesn't have to lay inside projection... or not?
-		) && (
-			// intersection on y
-			(ay1 > by1 && ay1 < by2) || (ay2 > by1 && ay2 < by2)
-		)
-	);
-}
-
-// http://noonat.github.io/intersect/
-
-function polyIntersections(poly1, poly2){
-	var intersection;
-	return poly1.reduce(function(results, point1, i){
-		if(i === 0){
-			return results;
-		}
-
-		poly2.forEach(function(point2, j){
-			if(j === 0){
-				return;
-			}
-
-			intersection = segmentIntersection(
-				poly1[i - 1][0], poly1[i - 1][1], point1[0], point1[1],
-				poly2[j - 1][0], poly2[j - 1][1], point2[0], point2[1]
-			);
-
-			if(intersection.length !== 0){
-				results.push(intersection);
-			}
-		});
-		return results;
-	}, []);
-}
-/*
-function polyUnion(poly1, poly2){
-	poly1 = poly1.slice();
-	poly2 = poly2.slice();
-	if(polyOrientArea(poly1) > 0){
-		poly1.reverse();
-	}
-	if(polyOrientArea(poly2) > 0){
-		poly2.reverse();
-	}
-
-	// note: if there are no intersections should return them both
-
-	var intersection;
-	var additions;
-	var entry = !evenOddRule(poly1[0][0], poly1[0][1], poly2);
-	var i, j;
-
-	var breaker = 0;
-	for(i = 1; i < poly1.length; i++){
-		if(breaker++ > 50){
-			throw 'too much of cicle';
-		}
-
-		additions = [];
-		for(j = 1; j < poly2.length; j++){
-			intersection = segmentIntersection(
-				poly1[i - 1][0], poly1[i - 1][1], poly1[i][0], poly1[i][1],
-				poly2[j - 1][0], poly2[j - 1][1], poly2[j][0], poly2[j][1]
-			);
-
-			if(intersection.length !== 0){
-				intersection[0][4] = j;
-				additions.push(intersection[0]);
-			}
-		}
-
-		if(additions.length !== 0){
-			// intersections has 't' param in the [2]
-			// we should sort them by it bcs intersections must be added in right order
-			additions.sort(function(a, b){
-				return a[2] > b[2];
-			});
-
-			additions.forEach(function(addition){
-				addition[5] = entry;
-				entry = !entry;
-			});
-
-			poly1.splice.apply(poly1, [i, 0].concat(additions));
-			i += additions.length;
-		}
-	}
-
-	var result = [];
-	var breaker = 0;
-	for(i = 0; i < poly1.length; i++){
-		if(breaker++ > 50){
-			throw 'too much of cicle';
-		}
-
-		result.push(poly1[i]);
-
-		if(poly1[i].length !== 2 && poly1[i][5]){
-
-			// entry is here
-			// if(i !== 2) continue;
-
-			var cur = poly1[i],
-				next = poly1[i + 1];
-
-			for(j = cur[4]; j !== next[4]; j = j + 1 % poly2.length){
-				if(breaker++ > 50){
-					throw 'too much of cicle';
-				}
-
-				// console.log(j);
-				// result.push(poly2[j]);
-			}
-		}
-	}
-	console.log(poly2);
-
-	return result;
-}
-/* In the third phase, the result is generated. The algorithm starts
- * at an unprocessed intersection and picks the direction of traversal
- * based on the entry/exit flag: for an entry intersection it traverses
- * forward, and for an exit intersection it traverses in reverse.
- * Vertices are added to the result until the next intersection is found;
- * the algorithm then switches to the corresponding intersection vertex
- * in the other polygon and picks the traversal direction again using
- * the same rule. If the next intersection has already been processed,
- * the algorithm finishes the current component of the output and starts
- * again from an unprocessed intersection. The output is complete when
- * there are no more unprocessed intersections.
- */
-
-// в greiner-hormann algo нужны полигоны с правильной ориентацией
-// поэтому righthandrule
-function polyOrientArea(poly){
-	var area = 0;
-	for(var i = 1; i < poly.length; i++){
-		area += (poly[i - 1][0] * poly[i][1] - poly[i - 1][1] * poly[i][0]) / 2;
-	}
-	return area;
-}
-
-
-Delta.intersections = {};
-Delta.intersections.lineIntersection = lineIntersection;
-Delta.intersections.segmentIntersection = segmentIntersection;
-Delta.intersections.segmentQuadIntersection = segmentQuadIntersection;
-Delta.intersections.pointInRect = pointInRect;
-Delta.intersections.evenOddRule = evenOddRule;
-Delta.intersections.rectIntersect = rectIntersect;
-Delta.intersections.polyIntersections = polyIntersections;
-// Delta.intersections.polyUnion = polyUnion;
-
-extend(Context.prototype.eventsHooks, {
-	// TODO: touch support
-	mousedrag: function(){
-		var self = this,
-
-			startObject = null,
-			lastX = null,
-			lastY = null,
-			path = null;
-
-		this.on('mousedown', function(e){
-			path = [];
-			startObject = e.targetObject;
-		});
-
-		window.addEventListener('mouseup', function(e){
-			if(!path){
-				return;
-			}
-
-			processEventObject(e, 'mousedragend');
-
-			startObject = null;
-			lastX = null;
-			lastY = null;
-			path = null;
-		});
-
-		window.addEventListener('mousemove', function(e){
-			if(path === null){
-				return;
-			}
-
-			e = processEventObject(e, 'mousedrag');
-			path.push([e.contextX, e.contextY]);
-
-			lastX = e.contextX;
-			lastY = e.contextY;
-		});
-
-		function processEventObject(e, eventName){
-			e = new MouseDragEvent(e, eventName);
-
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			e.dragPath = path;
-			e.lastX = lastX;
-			e.lastY = lastY;
-			if(path.length){
-				e.startX = path[0][0];
-				e.startY = path[0][1];
-			} else {
-				e.startX = lastX;
-				e.startY = lastY;
-			}
-			e.startObject = startObject;
-
-			// add contextX, contextY
-			var coords = self.contextCoords(e.clientX, e.clientY);
-			e.contextX = coords[0];
-			e.contextY = coords[1];
-
-			// add deltas
-			e.deltaX = lastX ? coords[0] - lastX : 0;
-			e.deltaY = lastY ? coords[1] - lastY : 0;
-			e.delta = Math.sqrt(e.deltaX * e.deltaX + e.deltaY * e.deltaY);
-
-			e.startDeltaX = coords[0] - e.startX;
-			e.startDeltaY = coords[1] - e.startY;
-			e.startDelta = Math.sqrt(e.startDeltaX * e.startDeltaX + e.startDeltaY * e.startDeltaY);
-
-			var checker = function(listener){
-				var options = listener.options;
-				if(!options){
-					return true;
-				}
-
-				if(options.max){
-					if(e.delta < options.max){
-						return true;
-					} else {
-						var coefficient = e.delta / options.max;
-						var i = 1;
-						var delta = e.delta;
-						while(delta > options.max){
-							delta -= options.max;
-							var evt = MouseDragEvent.clone(e);
-							evt.contextX = lastX + (e.deltaX / coefficient) * i;
-							evt.contextY = lastY + (e.deltaY / coefficient) * i;
-							listener.call(null, evt);
-							i++;
-						}
-					}
-				}
-				//return true;
-				//if(options && options.min && e.delta < options.min){
-				//	return false;
-				//}
-				//return true;
-				return false;
-			};
-			/* 	if(d < delta){
-		return;
-	} else if(d > delta){
-		var coef = d / delta;
-		var i = 1;
-		while(d > delta){
-			d -= delta;
-			var k = dy/dx;
-			draw(
-				last[0] + (dx / coef) * i,
-				last[1] + (dy / coef) * i,
-				getColor(e.clientX, e.clientY)
-			);
-			i++;
-		}
-	} else draw(e.clientX, e.clientY, getColor(e.clientX, e.clientY));
- */
-
-			// call the event on the targetObject
-			e.targetObject = self.getObjectInPoint(e.contextX, e.contextY, true);
-			if(e.targetObject && e.targetObject.fire){
-				if(!e.targetObject.fire(eventName, e, checker)){
-					event.stopPropagation();
-					event.preventDefault();
-				}
-			}
-
-			if(propagation && !self.fire(eventName, e, checker)){
-				e.stopPropagation();
-				e.preventDefault();
-			}
-			return e;
-		}
-	}
-});
-
-Context.prototype.eventsHooks.mousedragend = Context.prototype.eventsHooks.mousedrag;
-
-function MouseDragEvent(originalEvent, eventName){
-	MouseDragEvent.propsToClone.forEach(function(prop){
-		this[prop] = originalEvent[prop];
-	}, this);
-
-	this.originalEvent = originalEvent;
-	this.type = eventName;
-}
-
-MouseDragEvent.propsToClone = [
-	'altKey', 'ctrlKey', 'shiftKey', 'metaKey',
-	'button', 'buttons', 'which',
-	'clientX', 'clientY', 'layerX', 'layerY', 'pageX', 'pageY',
-	'screenX', 'screenY', 'movementX', 'movementY', 'x', 'y',
-	'target', 'view', 'timeStamp',
-	'mozInputSource', 'mozPressure'
-];
-
-MouseDragEvent.clone = function(event){
-	return Delta.extend(new MouseDragEvent(event.originalEvent, event.type), event);
-};
-
-Delta.MouseDragEvent = MouseDragEvent;
+// {{dont include MouseEvents.js}}
 
 Delta.version = "1.9.0";
 
@@ -7768,8 +4471,15 @@ if(typeof module === 'object' && typeof module.exports === 'object'){
 	define('Delta', [], function(){
 		return Delta;
 	});
-} else {
+} else if(window) {
 	window.Delta = Delta;
+	// if (typeof global === 'object') global.Delta = Delta;
+} else {
+	/* try {
+		export default Delta;
+	} catch(e){
+		;
+	} */
 }
 
 })(typeof window !== 'undefined' ? window : this);

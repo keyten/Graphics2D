@@ -13,9 +13,11 @@ function DrawableAttrHooks(attrs){
 	extend(this, attrs); // todo: deepExtend neccessary?
 }
 
+// todo: Drawable не наследуется ни от чего, мб его тоже сделать не Class? как Context?
 Drawable = new Class({
 	initialize: function(args){
 		this.listeners = {};
+		// todo: попробовать заменить styles на массив
 		this.styles = {};
 		this.cache = {};
 		this.attrs = {
@@ -24,6 +26,9 @@ Drawable = new Class({
 			transform: 'attributes'
 		};
 	},
+
+	// mixin: [Class.AttrMixin, Class.EventMixin]
+	// to gradients & patterns: [Class.LinkMixin]
 
 	// actual update function
 	updateFunction: function(){
@@ -38,7 +43,15 @@ Drawable = new Class({
 		return this;
 	},
 
+	/*
+		default: {
+			attrs: true,
+			styles: true,
+			fills: true // clone gradients, patterns?
+		}
+	  */
 	clone : function(attrs, styles, events){
+		// todo: replace arguments to one config {styles: false, matrix: true}
 		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
 		// todo: необходим deepClone везде
@@ -67,6 +80,7 @@ Drawable = new Class({
 			clone.listeners = extend({}, this.listeners);
 		}
 
+		// if this.context:
 		return this.context.push(clone);
 	},
 
@@ -106,6 +120,7 @@ Drawable = new Class({
 
 		fill: {
 			get: function(){
+				// а градиенты?
 				return this.styles.fillStyle;
 			},
 			set: function(value){
@@ -115,6 +130,8 @@ Drawable = new Class({
 			}
 		},
 
+		// fillRule?
+
 		stroke: {
 			set: function(value){
 				Drawable.processStroke(value, this.styles);
@@ -122,6 +139,7 @@ Drawable = new Class({
 			}
 		},
 
+// todo: запихнуть всё относящееся к stroke в strokeMode
 		strokeMode: {
 			get: function(){
 				return this.attrs.strokeMode || 'over';
@@ -240,7 +258,9 @@ Drawable = new Class({
 		return matrix;
 	},
 
+// Object -> ArgumentObject?
 	processObject: function(object, arglist){
+		// todo: вынести в отдельный объект
 		['opacity', 'composite', 'clip', 'visible', 'interaction',
 		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
 			if(object[prop] !== undefined){
@@ -253,6 +273,7 @@ Drawable = new Class({
 		});
 	},
 
+	// Before -> Pre
 	isPointInBefore : function(x, y, options){
 		if(options){
 			if(options.transform !== false){
@@ -268,12 +289,15 @@ Drawable = new Class({
 	},
 
 	// Bounds
+	// -> boundsPost
+	// или не, должно вызывать this.roughBounds
+	// нужен массив функций, которые последовательно изменяют bounds
 	bounds: function(rect, transform, around){
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
 		// 'clip-exclude'
-		// 'self' / 'transformed' / 'tight'
+		// 'none' / 'self' / 'transformed' / 'tight'
 		// self - only self transforms
 		// transformed - self & context
 
@@ -321,7 +345,8 @@ Drawable = new Class({
 			return corner;
 		}
 
-		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
+		// todo: transformed state
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
 			bounds.y + bounds.h * Delta.corners[corner][1]
@@ -342,7 +367,6 @@ Drawable = new Class({
 		} else if(options + '' === options){
 			Array.prototype.splice.call(arguments, 1, 0, null);
 		}
-
 
 		if(callback + '' === callback){
 			callback = wrap(arguments, 2);

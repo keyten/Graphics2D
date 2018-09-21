@@ -1,6 +1,6 @@
 Circle = new Class(Drawable, {
-
-	initialize : function(args, context){
+	initialize : function(args){
+		// todo: replace to [args]?
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){

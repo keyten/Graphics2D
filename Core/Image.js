@@ -2,7 +2,7 @@ Picture = new Class(Drawable, {
 
 	// todo: image format libcanvas-like:
 	// '/files/img/hexes.png [150:100]{0:0}'
-	initialize : function(args, context){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
@@ -95,7 +95,7 @@ Picture = new Class(Drawable, {
 	remove: function(){
 		this.super('remove');
 		// todo:
-		// what if user want to push the image again?
+		// what if user want to push the ctx.image again?
 		// should be able to restore the link to blob
 		// the blob is still saved in the image.blob, just needs to call domurl.createObjectURL again
 		if(this.attrs.image.blob){
@@ -191,7 +191,12 @@ Picture = new Class(Drawable, {
 
 var smoothWithPrefix;
 function smoothPrefix(ctx){
-	['mozImageSmoothingEnabled', 'webkitImageSmoothingEnabled', 'msImageSmoothingEnabled', 'imageSmoothingEnabled'].forEach(function(name){
+	[
+		'mozImageSmoothingEnabled',
+		'webkitImageSmoothingEnabled',
+		'msImageSmoothingEnabled',
+		'imageSmoothingEnabled'
+	].forEach(function(name){
 		if(name in ctx){
 			smoothWithPrefix = name;
 		}

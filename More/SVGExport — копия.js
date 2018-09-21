@@ -6,7 +6,8 @@ Context.prototype.toSVG = function(options){
 		root: {
 			xmlns: 'http://www.w3.org/2000/svg',
 			width: this.canvas.width,
-			height: this.canvas.height
+			height: this.canvas.height,
+			viewBox: options.viewBox || [0, 0, this.canvas.width, this.canvas.height]
 		},
 		elements: []
 	};
@@ -17,21 +18,28 @@ Context.prototype.toSVG = function(options){
 		}
 	});
 
+
 	if(options.format === 'string' || !options.format){
-		// how about options.viewBox?
-		var svgTag = '<svg xmlns="' + svg.root.xmlns + '" width="' +
-				svg.root.width + '" height="' + svg.root.height +
-				'" viewBox="0 0 ' + svg.root.width + ' ' + svg.root.height + '">';
+		var svgTag = [
+			'<svg',
+			' xmlns="', svg.root.xmlns, '"',
+			' width="', svg.root.width, '"',
+			' height="', svg.root.height, '"',
+			' viewBox="', svg.root.viewBox.join(' '), '"',
+			'>'
+		].join('');
 		// <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+
 		return [
 			svgTag,
 			svg.elements.join('\n'),
 			'</svg>'
 		].join('\n');
-	} else if(options.format === '...'){ // англ. слово "сырой" забыл
+	} else if(options.format === 'config'){
 		return svg;
 	} else if(options.format === 'dom'){
 		// var elem = document.createElement('svg');
+		// elem.innerHTML = ...?
 		;// dom node
 	} else if(options.format === 'file'){
 		// blob? dataurl?
@@ -109,6 +117,7 @@ Drawable.prototype.toSVG = function(svg){
 	if(!this.svgTagName){
 		return '';
 	}
+
 	var attrs = Object.keys(this.attrs).reduce(function(result, attrName){
 		if(this.attrHooks[attrName] && this.attrHooks[attrName].toSVG){
 			return result + ' ' + this.attrHooks[attrName].toSVG.call(this, this.attrs[attrName], attrName, svg);

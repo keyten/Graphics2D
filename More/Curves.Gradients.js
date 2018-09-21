@@ -51,7 +51,7 @@ Path.prototype.processPath = function(ctx){
 		curves = this._curves,
 		special = [],
 		i = 0;
-	
+
 	ctx.beginPath();
 	for(; i < curves.length; i++){
 		if(curves[i].visible && !curves[i]._special){

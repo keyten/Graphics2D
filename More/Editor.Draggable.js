@@ -1,34 +1,196 @@
-// draggable
-var defaultProps = {
-	axis: 'both',
-	inBounds: null,
-	cursor: null,
-	cursorAt: null,
-	moveWith: [],
-	delay: 100,
-	distance: 5,
-	grid: null,
-	helper: null,
-	helperFixPosition: true,
-	helperAttrs: {
-		opacity: 0.5
+Delta.draggable = {
+	defaultProps: {
+		axis: 'both',
+		inBounds: null,
+		cursor: null,
+		cursorAt: null,
+		moveWith: [],
+		delay: 100,
+		distance: 5,
+		grid: null,
+		helper: null,
+		helperFixPosition: true,
+		helperAttrs: {
+			opacity: 0.5
+		},
+		originalAttrs: {},
+		zIndex: null,
+		zIndexReturn: true
 	},
-	zIndex: null,
-	zIndexReturn: true
+
+	methods: {
+		enable: function(element, options){
+			if(!element.attr('draggable')){
+				element.attr('draggable', extend({}, Delta.draggable.defaultProps));
+			}
+			this.updateMods(element, extend(element.attr('draggable'), options || {}));
+
+			element.context.on('mousedown', Delta.draggable.listeners.canvasMouseDown);
+			if(!Delta.draggable.listeners._windowSet){
+				window.addEventListener('mousemove', Delta.draggable.listeners.windowMouseMove);
+				window.addEventListener('mouseup', Delta.draggable.listeners.windowMouseUp);
+				Delta.draggable.listeners._windowSet = true;
+			}
+		},
+
+		updateMods: function(element, options){
+			var mods = element.attr('draggable').mods = [];
+
+			if(['lt', 'tl', 'left top'].indexOf(options.cursorAt) === -1){
+				mods.push('cursorAt');
+			}
+			;
+		},
+
+		hold: function(element, event){
+			if(Delta.dragElement && Delta.dragElement !== element){
+				// var oldElement = Delta.dragElement; // hoiting
+				Delta.dragElement.draggable('release');
+			}
+
+			Delta.dragElement = element;
+
+			element._drag = {
+				downCoords: [event.contextX, event.contextY],
+				downTime: Date.now(),
+				bounds: element.bounds(),
+				nativeBounds: element.bounds(false)
+			};
+
+			/* element.context.fire('dragElementChange', extend(event, {
+				oldElem: oldElement,
+				newElem: element
+			})); */
+
+			var options = element.attr('draggable');
+
+			if(options.cursor){
+				element._drag.initialCursor = element.context.canvas.style.cursor;
+				element.context.canvas.style.cursor = options.cursor;
+			}
+
+			if(options.zIndex !== null){
+				element._drag.initialZ = element.attr('z');
+				element.attr('z', options.zIndex);
+			}
+
+			if(options.helper){
+				if(options.helper === 'clone'){
+					element._drag.helper = element.clone();
+				} else {
+					element._drag.helper = options.helper.clone();
+					// нужны функции для работы с abstract element place / bounds
+					// ну типа element.placeLTtoPoint(x, y)
+					// работающие с translate и т.п.
+					// они нужны и для лейаутов
+					if(options.helperFixPosition){
+						// works with bugs
+						var helperBounds = element._drag.helper.bounds();
+						element._drag.helperTranslation = [
+							element._drag.bounds.x - helperBounds.x,
+							element._drag.bounds.y - helperBounds.y
+						];
+					}
+				}
+
+				if(options.helperAttrs){
+					element._drag.helper.attr(options.helperAttrs);
+				}
+
+				element._drag.helper['_meta'] = true; // must be at all the meta obs (not made by user)
+				// todo: make sure it is not spoiled by minimizer
+			}
+		},
+
+		release: function(element){
+			if(Delta.dragElement === element){
+				Delta.dragElement._drag = null;
+				Delta.dragElement = null;
+			}
+		}
+	},
+
+	listeners: {
+		canvasMouseDown: function(event){
+			var draggable = event.targetObject && event.targetObject.attr('draggable');
+			if(!draggable){
+				return;
+			}
+
+			var elem = event.targetObject;
+
+			Delta.draggable.methods.hold(elem, event);
+		},
+
+		_windowSet: false,
+
+		windowMouseMove: function(event){
+			var element = Delta.dragElement;
+			if(!element || !element._drag){
+				return;
+			}
+
+			var coords = element.context.contextCoords(event.clientX, event.clientY);
+			event.contextX = coords[0];
+			event.contextY = coords[1];
+			coords[0] -= element._drag.nativeBounds.x;
+			coords[1] -= element._drag.nativeBounds.y;
+
+			var mods = element.attr('draggable').mods;
+			mods.forEach(function(modName){
+				coords = Delta.draggable.mods[modName].call(element, coords[0], coords[1], event);
+			});
+
+			element.attr('translate', coords);
+			element.fire('drag', event);
+		},
+
+		windowMouseUp: function(event){
+			if(Delta.dragElement){
+				Delta.draggable.methods.release(Delta.dragElement);
+			}
+		}
+	},
+
+	mods: {
+		cursorAt: function(x, y, event){
+			var corner = this.attr('draggable').cursorAt;
+
+			if(!corner){
+				var delta = [
+					this._drag.downCoords[0] - this._drag.bounds.x,
+					this._drag.downCoords[1] - this._drag.bounds.y
+				];
+
+				return [
+					x - delta[0],
+					y - delta[1]
+				];
+			}
+
+			return [
+				x - this._drag.bounds.width * Delta.corners[corner][0],
+				y - this._drag.bounds.height * Delta.corners[corner][1],
+			];
+		},
+	}
 };
 
 Drawable.prototype.draggable = function(method, options){
-	// если obj.draggable({ ... }), то это мб не enable / init, а set!
+	// мб set, а не enable
 	if(method + '' !== method){
 		options = method;
-		method = 'init';
+		method = 'enable';
 	} else if(!method){
-		method = 'init';
+		method = 'enable';
 	}
 
-	return this.draggable[method].call(this, options);
+	return Delta.draggable.methods[method](this, options); //this.draggable[method].call(this, options);
 };
 
+//
+// ---
+//
 Drawable.prototype.draggable.init = function(options){
 	if(!options){
 		options = {};
@@ -49,7 +211,11 @@ Drawable.prototype.draggable.init = function(options){
 };
 
 Drawable.prototype.draggable.destroy = function(){};
-Drawable.prototype.draggable.enable = function(){};
+Drawable.prototype.draggable.enable = function(options){
+	if(!this._draggingOptions){
+		this._draggingOptions = extend(extend({}, defaultProps), options);
+	}
+};
 Drawable.prototype.draggable.disable = function(){};
 
 Drawable.prototype.draggable.updateMods = function(){

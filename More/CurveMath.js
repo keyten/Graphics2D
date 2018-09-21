@@ -1,12 +1,8 @@
 Curve.epsilon = 0.0001;
 Curve.detail = 10;
-		// слишком многословно
-		// надо сделать во всём модуле локальную переменную для canvasFunctions
-		// а мб и для отдельных её элементов
 
 // Curve utilities
 extend(Curve.prototype, {
-	// renamed from before
 	prev: function(){
 		if(!this.path){
 			return null;
@@ -36,14 +32,16 @@ extend(Curve.prototype, {
 	}
 });
 
+var curves = Curve.canvasFunctions;
 // General Curve methods
 extend(Curve.prototype, {
-	tangentAt: function(t, epsilon, startPoint){
+	tangentAt: function(t, epsilon, _start){
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].tangentAt){
-			return Curve.canvasFunctions[this.method].tangentAt(this, startPoint);
+		if(curves[this.method] && curves[this.method].tangentAt){
+			return curves[this.method].tangentAt(this, _start);
 		}
 
+		// approx way
 		if(!epsilon){
 			epsilon = Curve.epsilon;
 		}
@@ -58,26 +56,26 @@ extend(Curve.prototype, {
 			t2 = 1;
 		}
 
-		var point1 = this.pointAt(t1, startPoint),
-			point2 = this.pointAt(t2, startPoint);
+		var point1 = this.pointAt(t1, _start),
+			point2 = this.pointAt(t2, _start);
 
 		return Math.atan2(point2[1] - point1[1], point2[0] - point1[0]) * 180 / Math.PI;
 	},
 
-	normalAt: function(t, epsilon, startPoint){
-		return this.tangentAt(t, epsilon, startPoint) - 90;
+	normalAt: function(t, epsilon, _start){
+		return this.tangentAt(t, epsilon, _start) - 90;
 	},
 
-	flatten: function(detail, start){
-		if(!start){
-			start = this.startAt();
+	flatten: function(detail, _start){
+		if(!_start){
+			_start = this.startAt();
 		}
 
 		var lines = [];
 
 		for(var i = 1; i <= detail; i++){
 			lines.push(
-				Delta.curve('lineTo', this.pointAt(i / detail, start), this.path)
+				Delta.curve('lineTo', this.pointAt(i / detail, _start), this.path)
 			);
 		}
 
@@ -98,10 +96,10 @@ extend(Curve.prototype, {
 		return value;
 	},
 
-	length: function(detail, startPoint){
+	length: function(detail, _start){
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].length){
-			return Curve.canvasFunctions[this.method].length(this, startPoint);
+		if(curves[this.method] && curves[this.method].length){
+			return curves[this.method].length(this, _start);
 		}
 
 		if(!detail){
@@ -109,47 +107,46 @@ extend(Curve.prototype, {
 		}
 
 		// http://pomax.github.io/bezierinfo/legendre-gauss.html#n2
-		var lengthIntegrate = this.lengthIntegrate || (Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].lengthIntegrate);
+		var lengthIntegrate = this.lengthIntegrate || (curves[this.method] && curves[this.method].lengthIntegrate);
 		if(lengthIntegrate){
 			// We use legendre-gauss approximation
 			return integrate(lengthIntegrate, 0, 1, detail);
 		} else {
 			// We just approximate the curve with lines
+			var length = 0,
+				lastPoint = _start || this.startAt(),
+				point;
+			for(var i = 1; i <= detail; i++){
+				point = this.pointAt(i / detail);
+				length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
+				lastPoint = point;
+			}
+			return length;
 		}
-
-		var length = 0,
-			lastPoint = startPoint || this.startAt(),
-			point;
-		for(var i = 1; i <= detail; i++){
-			point = this.pointAt(i / detail);
-			length += Math.sqrt(Math.pow(point[1] - lastPoint[1], 2) + Math.pow(point[0] - lastPoint[0], 2));
-			lastPoint = point;
-		}
-		return length;
 	},
 
-	nearest: function(x, y, detail, startPoint){
+	nearest: function(x, y, detail, _start){
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method] && Curve.canvasFunctions[this.method].nearest){
-			return Curve.canvasFunctions[this.method].nearest(this, startPoint);
+		if(curves[this.method] && curves[this.method].nearest){
+			return curves[this.method].nearest(this, _start);
 		}
 
 		if(!detail){
 			detail = Curve.detail;
 		}
 
-		if(!startPoint){
-			startPoint = this.startAt();
+		if(!_start){
+			_start = this.startAt();
 		}
 
-		// todo: gradient descent
+		// todo: gradient descent?
 		var point,
 			min = Infinity,
 			minPoint,
 			minI,
 			distance;
 		for(var i = 0; i <= detail; i++){
-			point = this.pointAt(i / detail, startPoint);
+			point = this.pointAt(i / detail, _start);
 			distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
 			if(distance < min){
 				minPoint = point;
@@ -165,14 +162,14 @@ extend(Curve.prototype, {
 		};
 	},
 
-	bounds: function(startPoint, detail){
-		if(!startPoint){
-			startPoint = this.startAt();
+	bounds: function(_start, detail){
+		if(!_start){
+			_start = this.startAt();
 		}
 
 		// supports canvas curves
-		if(Curve.canvasFunctions[this.method].bounds){
-			return Curve.canvasFunctions[this.method].bounds(startPoint, this.attrs.args);
+		if(curves[this.method].bounds){
+			return curves[this.method].bounds(_start, this.attrs.args);
 		}
 
 		if(!detail){
@@ -189,7 +186,7 @@ extend(Curve.prototype, {
 			maxY = -Infinity;
 
 		for(var t = 0; t <= detail; t++){
-			point = this.pointAt(t / detail, startPoint);
+			point = this.pointAt(t / detail, _start);
 			if(minX > point[0]){
 				minX = point[0];
 			}
@@ -207,37 +204,55 @@ extend(Curve.prototype, {
 		return [minX, minY, maxX, maxY];
 	},
 
+	// requires bounds and splitAt
 	intersections: function(curve){
-		;
+		function intersectBounds(aabb1, aabb2){
+			var intersection = [
+				Math.max(aabb1[0], aabb2[0]),
+				Math.max(aabb1[1], aabb2[1]),
+				Math.min(aabb1[2], aabb2[2]),
+				Math.min(aabb1[3], aabb2[3])
+			];
+
+			if(intersection[2] < intersection[0] || intersection[3] < intersection[1]){
+				return null;
+			}
+
+			return intersection;
+		}
+
+		// curve = curve.getTransformed(); - применяет все трансформации и всё остальное
 	}
 });
 
 // Canvas Curve methods
 extend(Curve.prototype, {
-	pointAt: function(t, startPoint){
+	pointAt: function(t, _start){
 		var fn = Curve.canvasFunctions[this.method];
 
 		if(fn && fn.pointAt){
-			return fn.pointAt(this, t, startPoint);
+			return fn.pointAt(this, t, _start);
 		}
 
 		throw "The method \"pointAt\" is not supported for \"" + this.method + "\" curves";
 	},
 
-	splitAt: function(t, startPoint){
+	splitAt: function(t, _start){
 		var fn = Curve.canvasFunctions[this.method];
 
 		if(fn && fn.splitAt){
-			return fn.splitAt(this, t, startPoint);
+			return fn.splitAt(this, t, _start);
 		}
 
 		throw "The method \"splitAt\" is not supported for \"" + this.method + "\" curves";
-	}
+	},
+
+	transform: function(matrix){}
 });
 
 // MoveTo
-extend(Curve.canvasFunctions.moveTo, {
-	pointAt: function(curve, t, startPoint){
+extend(curves.moveTo, {
+	pointAt: function(curve){
 		return curve.attrs.args;
 	},
 
@@ -247,35 +262,35 @@ extend(Curve.canvasFunctions.moveTo, {
 });
 
 // LineTo
-extend(Curve.canvasFunctions.lineTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+extend(curves.lineTo, {
+	pointAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 		return [
-			startPoint[0] + t * (curve.attrs.args[0] - startPoint[0]),
-			startPoint[1] + t * (curve.attrs.args[1] - startPoint[1]),
+			start[0] + t * (curve.attrs.args[0] - start[0]),
+			start[1] + t * (curve.attrs.args[1] - start[1]),
 		];
 	},
 
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	tangentAt: function(curve, start){
+		if(!start){
+			start = curve.startAt();
 		}
 		// x = x0 + (x1 - x0)t
 		// y = y0 + (y1 - y0)t
-		return Math.atan2(curve.attrs.args[1] - startPoint[1], curve.attrs.args[0] - startPoint[0]) / Math.PI * 180;
+		return Math.atan2(curve.attrs.args[1] - start[1], curve.attrs.args[0] - start[0]) / Math.PI * 180;
 	},
 
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	splitAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 
-		var point = Curve.canvasFunctions.lineTo.pointAt(curve, t, startPoint);
+		var point = curves.lineTo.pointAt(curve, t, start);
 		return {
 			start: [
-				startPoint,
+				start,
 				point
 			],
 			end: [
@@ -285,50 +300,54 @@ extend(Curve.canvasFunctions.lineTo, {
 		};
 	},
 
-	length: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	bounds: function(){},
+
+	length: function(curve, start){
+		if(!start){
+			start = curve.startAt();
 		}
 
-		var dx = curve.attrs.args[0] - startPoint[0],
-			dy = curve.attrs.args[1] - startPoint[1];
+		var dx = curve.attrs.args[0] - start[0],
+			dy = curve.attrs.args[1] - start[1];
 
 		return Math.sqrt(dx * dx + dy * dy);
-	}
+	},
+
+	intersections: function(curve){}
 });
 
 // QuadraticCurveTo
-extend(Curve.canvasFunctions.quadraticCurveTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+extend(curves.quadraticCurveTo, {
+	pointAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 		var i = 1 - t;
 		return [
-			i * i * startPoint[0] + 2 * t * i * curve.attrs.args[0] + t * t * curve.attrs.args[2],
-			i * i * startPoint[1] + 2 * t * i * curve.attrs.args[1] + t * t * curve.attrs.args[3],
+			i * i * start[0] + 2 * t * i * curve.attrs.args[0] + t * t * curve.attrs.args[2],
+			i * i * start[1] + 2 * t * i * curve.attrs.args[1] + t * t * curve.attrs.args[3],
 		];
 	},
 
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	tangentAt: function(curve, start){
+		if(!start){
+			start = curve.startAt();
 		}
 	},
 
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	splitAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 
 		var i = 1 - t;
-		var point = Curve.canvasFunctions.quadraticCurveTo.pointAt(curve, t, startPoint);
+		var point = curves.quadraticCurveTo.pointAt(curve, t, start);
 		return {
 			start: [
-				startPoint,
+				start,
 				[
-					t * p[0] + i * startPoint[0],
-					t * p[1] + i * startPoint[1]
+					t * p[0] + i * start[0],
+					t * p[1] + i * start[1]
 				],
 				point
 			],
@@ -347,13 +366,13 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 	},
 
 	// note: check a curve ([x, y, x, y, x, y])
-	length: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	length: function(curve, start){
+		if(!start){
+			start = curve.startAt();
 		}
 
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
+		var x0 = start[0],
+			y0 = start[1],
 			x1 = curve.attrs.args[0],
 			y1 = curve.attrs.args[1],
 			x2 = curve.attrs.args[2],
@@ -387,9 +406,9 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 		return integral(1) - integral(0);
 	},
 
-	bounds: function(startPoint, attrs){
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
+	bounds: function(start, attrs){
+		var x0 = start[0],
+			y0 = start[1],
 			hx = attrs[0],
 			hy = attrs[1],
 			x2 = attrs[2],
@@ -418,45 +437,49 @@ extend(Curve.canvasFunctions.quadraticCurveTo, {
 			Math.max(x0, x2, extrX ? extrX[0] : -Infinity, extrY ? extrY[0] : -Infinity),
 			Math.max(y0, y2, extrX ? extrX[1] : -Infinity, extrY ? extrY[1] : -Infinity)
 		];
+	},
+
+	intersections: function(curve){
+		;
 	}
 });
 
 // BezierCurveTo
 extend(Curve.canvasFunctions.bezierCurveTo, {
-	pointAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	pointAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 		var i = 1 - t;
 		return [
-			i * i * i * startPoint[0] + 3 * t * i * i * curve.attrs.args[0] + 3 * t * t * i * curve.attrs.args[2] + t * t * t * curve.attrs.args[4],
-			i * i * i * startPoint[1] + 3 * t * i * i * curve.attrs.args[1] + 3 * t * t * i * curve.attrs.args[3] + t * t * t * curve.attrs.args[5]
+			i * i * i * start[0] + 3 * t * i * i * curve.attrs.args[0] + 3 * t * t * i * curve.attrs.args[2] + t * t * t * curve.attrs.args[4],
+			i * i * i * start[1] + 3 * t * i * i * curve.attrs.args[1] + 3 * t * t * i * curve.attrs.args[3] + t * t * t * curve.attrs.args[5]
 		];
 	},
 
-	tangentAt: function(curve, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	tangentAt: function(curve, start){
+		if(!start){
+			start = curve.startAt();
 		}
 	},
 
-	splitAt: function(curve, t, startPoint){
-		if(!startPoint){
-			startPoint = curve.startAt();
+	splitAt: function(curve, t, start){
+		if(!start){
+			start = curve.startAt();
 		}
 
 		var i = 1 - t;
-		var point = Curve.canvasFunctions.bezierCurveTo.pointAt(curve, t, startPoint);
+		var point = curves.bezierCurveTo.pointAt(curve, t, start);
 		return {
 			start: [
-				startPoint,
+				start,
 				[
-					t * p[0] + i * startPoint[0],
-					t * p[1] + i * startPoint[1]
+					t * p[0] + i * start[0],
+					t * p[1] + i * start[1]
 				],
 				[
-					t * t * p[2] + 2 * t * i * p[0] + i * i * startPoint[0],
-					t * t * p[3] + 2 * t * i * p[1] + i * i * startPoint[1]
+					t * t * p[2] + 2 * t * i * p[0] + i * i * start[0],
+					t * t * p[3] + 2 * t * i * p[1] + i * i * start[1]
 				],
 				point
 			],
@@ -478,13 +501,13 @@ extend(Curve.canvasFunctions.bezierCurveTo, {
 		};
 	},
 
-	lengthIntegrate: function(t, startPoint){
+	lengthIntegrate: function(t, start){
 		;
 	},
 
-	bounds: function(startPoint, attrs){
-		var x0 = startPoint[0],
-			y0 = startPoint[1],
+	bounds: function(start, attrs){
+		var x0 = start[0],
+			y0 = start[1],
 			x1 = attrs[0],
 			y1 = attrs[1],
 			x2 = attrs[2],
@@ -526,6 +549,10 @@ extend(Curve.canvasFunctions.bezierCurveTo, {
 			Math.max(y0, y3, extrX1 ? extrX1[1] : -Infinity, extrX2 ? extrX2[1] : -Infinity,
 				extrY1 ? extrY1[1] : -Infinity, extrY2 ? extrY2[1] : -Infinity)
 		];
+	},
+
+	intersections: function(curve){
+		;
 	}
 });
 
