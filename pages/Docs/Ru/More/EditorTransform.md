@@ -18,10 +18,10 @@ rect.editor('transform', {
 	rotate: true,
 	translate: true,
 	scale: true,
-	proportionalScale: true, // works with shift if true. works always if scale false
+	proportionalScale: 'shift', // works with shift if 'shift'. works always if 'always'
+	fromCenter: 'alt',
 	skew: false,
 	proportionalSkew: true,
-	proportionalModifier: 'shift',
 	minScale, minRotate, etc
 	stepScale, stepRotate,
 
@@ -36,7 +36,7 @@ rect.editor('transform', {
 rect.editor('transform', 'getLayout'); // -> { border: controlObj, lt: ..., ... }
 ```
 
-Sends events:
- - transformstart (mousedown on control) { type: 'translate', control: 'object' / 'lt', pivot: null / 'lt' / [array with coords] }
+Fires events:
+ - transformstart (mousedown on control) { type: 'translate', control: 'object' / 'lt', controlOb, pivot: null / 'lt' / [array with coords] }
  - transformend
  - transform

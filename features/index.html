@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -52,58 +52,77 @@
 	<content>
 		<h1 id="features">Features</h1>
 <h3 id="object-oriented">Object-oriented</h3>
-<p>Use objects instead of redraw loop:
-    var rect = context.rect(10, 10, 200, 200, &#39;black&#39;);
-    rect.x(40); // new coordinates
-    rect.y(30);
-    rect.stroke(&#39;3px blue&#39;);</p>
-<h3 id="events">Events</h3>
-<pre><code>rect.on(&#39;click&#39;, function(e){
-    rect.x1(e.contextX);
+<p>Use objects instead of redraw loop:</p>
+<pre><code>var rect = ctx.rect({
+    x: 10,
+    y: 10,
+    width: 200,
+    height: 200,
+    fill: &#39;black&#39;
 });
-</code></pre><h3 id="caching">Caching</h3>
-<p>Rasterization:
-    var object = ctx.rect(100, 100, 100, 100, {
-        colors: [&#39;red&#39;, &#39;green&#39;, &#39;blue&#39;],
-        from: &#39;top&#39;,
-        to: &#39;bottom&#39;
-    }, &#39;4px blue&#39;).rotate(45);
-    var raster = object.rasterize();
-    // and you can use raster instead of object:
-    // raster is image, it&#39;s lighter to draw</p>
-<h3 id="animation">Animation</h3>
-<p>Animation...</p>
-<h3 id="touch-devices-support">Touch devices support</h3>
-<p>Touch events; ...</p>
-<h3 id="hdpi-devices">HDPI devices</h3>
-<p>Just use relative css units:
-    var rect = context.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;2em&#39;, &#39;2em&#39;, {
-        // gradient
-        from: &#39;top left&#39;,
-        to: &#39;bottom right&#39;,
-        colors: [&#39;green&#39;, &#39;blue&#39;]
-    });</p>
-<h3 id="api-style">API style</h3>
-<p>jQuery-style:
-    var value = rect.x(); // getter
-    rect.x( value + 5 ); // setter
-    // setters call context redraw</p>
-<p>Quick calls:
-    rect.click(&#39;fill&#39;, &#39;red&#39;);
-    // instead of:
-    rect.click(function(){
-        this.fill(&#39;red&#39;);
-    });</p>
-<h3 id="shapes-creating-your-shapes-classes">Shapes, creating your shapes &amp; classes</h3>
-<p>XX basic shapes: rect, circle, in Core; ellipse, round rect, polygon, star in More.
-And you can make new shapes:
-    ...</p>
-<h3 id="serialization-deserialization">Serialization, deserialization</h3>
-<pre><code>// serialize
-var els = JSON.stringify( ctx.elements );
 
-// deserialize
-ctx.elements = JSON.parse( els );
+// setting width to 100
+rect.attr(&#39;width&#39;, 100);
+
+// adding a stroke
+rect.attr(&#39;stroke&#39;, &#39;3px blue&#39;);
+</code></pre><p>Delta&#39;s API is pretty much like jQuery, it&#39;s like jQuery for canvas:</p>
+<pre><code>var value = rect.attr(); // getter
+rect.attr(&#39;x&#39;, value + 5); // setter
+</code></pre><h3 id="mouse-events">Mouse events</h3>
+<p>You don&#39;t have to compute whether the mouse coords are in your shape. Just process events as you usually do.</p>
+<pre><code>rect.on(&#39;click&#39;, e =&gt; {
+    rect.attr(&#39;opacity&#39;, Math.random());
+});
+</code></pre><p>You also can use quick calls:</p>
+<pre><code>rect.click(&#39;fill&#39;, &#39;red&#39;);
+
+// same as:
+rect.click(function(){
+    this.fill(&#39;red&#39;);
+});
+</code></pre><h3 id="animation">Animation</h3>
+<p>Built-in animation support:</p>
+<pre><code>var rect = ctx.rect(0, 0, 50, 50, &#39;blue&#39;);
+ctx.on(&#39;click&#39;, e =&gt; {
+    rect.animate({
+        x: e.contextX
+    });
+});
+</code></pre><h3 id="paths-and-curves">Paths and curves</h3>
+<p>Standart canvas curves support. Plugins also add support of Catmull-Rom, Lagrange curves, B-Spline and etc.</p>
+<pre><code>var path = ctx.path([
+    [10, 10], // same as [&#39;moveTo&#39;, 10, 10]
+    [200, 200], // same as [&#39;lineTo&#39;, 200, 200]
+    [100, 300, 10, 200], // same as [&#39;quadraticCurveTo&#39;, 100, 300, 10, 200]
+    [&#39;closePath&#39;]
+], null, &#39;2px green&#39;);
+</code></pre><p>You also can manipulate curves of the path:</p>
+<pre><code>var curve = path.curve(2); // quadraticCurveTo
+
+ctx.on(&#39;mousemove&#39;, e =&gt; {
+    curve.attr({
+        x: e.contextX,
+        y: e.contextY
+    });
+});
+</code></pre><h3 id="touch-devices-support">Touch devices support</h3>
+<p>Touch events:</p>
+<pre><code>ctx.on(&#39;touchmove&#39;, e =&gt; {
+    e.touches.forEach(touch =&gt; {
+        ctx.circle({
+            cx: touch.contextX,
+            cy: touch.contextY,
+            radius: 20,
+            fill: &#39;red&#39;
+        });
+    });
+});
+</code></pre><h3 id="hdpi-devices">HDPI devices</h3>
+<p>Use relative css units:</p>
+<pre><code>var rect = context.rect(&#39;10pt&#39;, &#39;10pt&#39;, &#39;2em&#39;, &#39;2em&#39;, &#39;green&#39;);
+</code></pre><p>Or just change your context dpi:</p>
+<pre><code>ctx.attr(&#39;dpi&#39;, 1.5);
 </code></pre>
 	</content>
 

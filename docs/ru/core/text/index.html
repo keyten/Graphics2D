@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -64,17 +64,20 @@ Delta.text(...);
 <li><code>string</code></li>
 <li><code>x</code></li>
 <li><code>y</code></li>
-<li><code>font</code></li>
-<li><code>align</code></li>
-<li><code>baseline</code></li>
-<li><code>breaklines</code></li>
-<li><code>lineHeight</code></li>
+<li><code>font</code> (Text.font = &#39;10px sans-serif&#39;)</li>
+<li><code>align</code> (&#39;left&#39;)</li>
+<li><code>baseline</code> (&#39;top&#39;)</li>
+<li><code>breaklines</code> (true)</li>
+<li><code>lineHeight</code> (&#39;auto&#39;)</li>
 <li><code>maxStringWidth</code> - при breaklines = false</li>
-<li><code>blockWidth</code> - при условии breaklines = true. По умолчанию Infinity.</li>
+<li><p><code>blockWidth</code> - при условии breaklines = true. По умолчанию Infinity.</p>
+</li>
+<li><p><code>boundsMode</code> - <code>inline</code> or <code>block</code> (возвращать в bounds &amp; isPointIn - blockWidth / maxStringWidth или через measure).</p>
+</li>
 </ul>
 <h2 id="-">Методы</h2>
 <ul>
-<li><code>measure()</code> — возвращает длину строки</li>
+<li><code>measure()</code> — возвращает длину строки (для breaklines = true возвращает длину наибольшей)</li>
 </ul>
 
 	</content>

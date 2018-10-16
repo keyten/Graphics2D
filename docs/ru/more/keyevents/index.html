@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -50,7 +50,32 @@
 </style>
 
 	<content>
-		
+		<p><strong>Концепт (пока не реализовано):</strong></p>
+<p>События:</p>
+<ul>
+<li>keyholdon</li>
+<li>keyholdoff</li>
+</ul>
+<p>Фильтры событий:</p>
+<ul>
+<li>Клавиши и сочетания клавиш</li>
+<li>Связки клавиш (X &gt; Enter &gt; X (0.5)). Число в скобках - макс время в секундах между нажатиями</li>
+</ul>
+<p>.on(&#39;keydown(X &gt; Enter &gt; X (5))&#39;)</p>
+<p>/*
+    Using:</p>
+<pre><code>    - .on(&#39;keydown(Shift+K, 5, Delete)#anyid&#39;, func);
+    - .changeEvent(&#39;anyid&#39;, &#39;delete&#39;, &#39;Shift+L&#39;);
+    - .changeEvent(&#39;anyid&#39;, &#39;add&#39;, &#39;8&#39;);
+    - .changeEvent(&#39;anyid&#39;, &#39;off&#39;);
+    - .changeEvent(&#39;anyid&#39;, &#39;on&#39;);
+
+    - .on(&#39;mousedown(x: 0 10, y: 0 50)#anyid&#39;, func); -- coordinates on object or ctx
+    - .on(&#39;mousemove(minDelta: 5, maxDelta: 8)&#39;, func);
+    - .on(&#39;mousedrag&#39;, func);
+    - .changeEvent(&#39;anyid&#39;, &#39;minDelta&#39;, 0);
+</code></pre><p> */</p>
+
 	</content>
 
 	<footer>

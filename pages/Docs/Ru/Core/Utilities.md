@@ -46,6 +46,6 @@ catwill.getKind(); // -> 'cat'
 catwill.getFullName(); // -> 'cat Catwill'
 ```
 
-Не стоит вызывать `super` внутри таймаута.
+Не стоит вызывать `super` внутри таймаута при цепочках вызовов нескольких классов.
 
 ### Delta.bounds

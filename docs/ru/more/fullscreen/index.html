@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -52,7 +52,7 @@
 	<content>
 		<h1 id="graphics2d-fullscreen">Graphics2D.Fullscreen</h1>
 <p>Содержит несколько функций, позволяющих легко разворачивать canvas на всю страницу / на весь экран.</p>
-<p><code>Graphics2D.Context::fullbody</code> -- развернуть на всю страницу. Один необязательный параметр -- <code>processResize</code>, обрабатывать ли изменение размеров окна браузера.</p>
+<p><code>Graphics2D.Context::fullbody</code> -- развернуть на всю страницу. Один необязательный параметр -- <code>processResize</code>, обрабатывать ли изменение размеров окна браузера. // todo: на самом деле нельзя так, нужно обрабатывать всегда, и ещё событие кидать.</p>
 <pre><code class="lang-js">var ctx = Graphics2D.id(&#39;example&#39;);
 ctx.fullbody();
 </code></pre>
@@ -61,6 +61,15 @@ ctx.fullbody();
 </code></pre>
 <p><code>Graphics2D.Context::minimize</code> -- возвращает всё как было, из обоих функций.</p>
 <p><code>Graphics2D.Context::on(&#39;resize&#39;, fn);</code></p>
+<p>ещё нужен модуль для MouseCapture</p>
+<pre><code class="lang-js">ctx.mouseCapture();
+
+ctx.fullscreen({
+    hideCursor: true,
+    destination: window | &#39;body&#39;,
+    processResize: false // if dest = &#39;body&#39;
+});
+</code></pre>
 
 	</content>
 

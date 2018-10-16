@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -51,8 +51,8 @@
 
 	<content>
 		<h1 id="-delta-drawable">Наследование Delta.Drawable</h1>
-<p>Метод контекста <code>ctx.object</code> позволяет создать объект с произвольной функцией рисования и другими параметрами, унаследовав его при этом от Delta.Drawable. Это более низкоуровневый способ рисовать.</p>
-<p>Чтобы научить объект рисоваться, необходимо определить функцию <code>draw</code>:</p>
+<p>Метод контекста <code>ctx.object</code> позволяет создать объект с произвольной функцией рисования и другими параметрами, унаследовав его при этом от Delta.Drawable. Это более низкоуровневый способ рисовать, чем обычные объекты.</p>
+<p>Давайте создадим простой объект, который умеет рисоваться (для этого нужно определить функцию <code>draw</code>):</p>
 <pre><code class="lang-js">ctx.object({
     draw: function(ctx){
         ctx.beginPath();
@@ -63,12 +63,29 @@
     }
 });
 </code></pre>
+<h2 id="-">Атрибуты</h2>
+<p>У всех унаследованных от <code>Delta.Drawable</code> классов есть метод <code>attr</code>.</p>
+<p>Можно перехватывать его вызовы с помощью объекта attrHooks:</p>
+<pre><code class="lang-js">var cross = ctx.object({
+    attrHooks: {
+        get: function(){
+            ;
+        },
+        set: function(){
+            this.update();
+        }
+    }
+});
+</code></pre>
 <p>О чём рассказать:</p>
 <ul>
 <li>attrHooks</li>
 <li>eventHooks</li>
-<li>isPointIn и обработка событий мыши</li>
+<li>isPointIn и обработка событий мыши
+— bounds, трансформации</li>
 </ul>
+<h2 id="-drawable">Наследство Drawable</h2>
+<p>Перечислить функции, которые работают и упомянуть, что для них нужно.</p>
 
 	</content>
 

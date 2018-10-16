@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -50,7 +50,8 @@
 </style>
 
 	<content>
-		<h1 id="graphics2d-layers">Graphics2D.Layers</h1>
+		<p><strong>Концепт (пока не реализовано):</strong></p>
+<h1 id="graphics2d-layers">Graphics2D.Layers</h1>
 <p>Позволяет создавать многослойные canvas (несколько canvas-ов с прозрачным фоном друг над другом). Кроме того, умеет создавать корректную обработку событий мыши.</p>
 <h3 id="-">Создание</h3>
 <p>Создаётся так же, как и любой другой контекст Graphics2D, только используем не <code>id</code> / <code>query</code>, а <code>app</code>. Указываем размеры. В качестве DOM-элемента используем div (или любой другой).</p>
@@ -75,7 +76,8 @@ var third = app.layer(2);
     e.targetObject.hide();
 });
 </code></pre>
-<p>При этом targetObject ищется по всем canvas-ам сверху вниз (сначала на самом верхнем слое, затем, если не найдётся, далее).<br>Стандартные (подключаемые к canvas-у) обработчики событий на многослойном canvas не работают.</p>
+<p>При этом targetObject ищется по всем canvas-ам сверху вниз (сначала на самом верхнем слое, затем, если не найдётся, далее).
+Стандартные (подключаемые к canvas-у) обработчики событий на многослойном canvas не работают.</p>
 <h4 id="fire">fire</h4>
 <p>Вызывает событие. Полностью аналогично методу контекста.</p>
 <h4 id="width">width</h4>

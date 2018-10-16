@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -57,14 +57,13 @@
 // или
 element.animate(&#39;along&#39;, options);
 </code></pre>
-<p><em>Примечание:</em> устанавливает <code>transformMode</code> в <code>strict</code> (// это когда через attrs; ещё может быть <code>free</code>).</p>
 <h2 id="-">Параметры</h2>
-<p> -</p>
 <ul>
+<li><code>curve</code> — кривая или путь.</li>
 <li><code>corner</code> — точка boundbox объекта, которая лежит на кривой во время движения. По умолчанию <code>center</code>.</li>
-<li><code>boundOptions</code> — опции вычисления boundbox объекта (аргумент функции <code>Drawable.prototype.bounds</code>).</li>
+<li><code>cornerOptions</code> — опции вычисления boundbox объекта (аргумент функции <code>Drawable.prototype.bounds</code>).</li>
 <li><code>offset</code> — отступ от corner (массив с 2 координатами). // по-хорошему, это должна быть возможность внутри corner, нет?</li>
-<li><code>dynamic</code> — нужно поставить в <code>true</code>, если кривая может меняться во время движения.
+<li><code>dynamic</code> — нужно поставить в <code>true</code>, если кривая может меняться во время движения (для оптимизации считается, что кривая постоянна). Для некоторых кривых поддерживается по умолчанию.
 — <code>rotate</code> — <code>true</code>, чтобы объект поворачивался вдоль траектории, либо число (постоянный поворот объекта во время движения).
 — <code>rotateAdd</code> — градусы, прибавляющиеся к повороту.</li>
 </ul>

@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -50,7 +50,47 @@
 </style>
 
 	<content>
-		
+		<p><strong>Концепт (пока не реализовано):</strong></p>
+<pre><code class="lang-js">var hex = Delta.hexProjection({
+    baseLength : 74,
+    chordLength: 37,
+    hexHeight  : 98
+});
+hex.pointToRgb(...);
+hex.rgbToPoint(x, y, optionalPoint = [0, 1, 2, 3, 4, 5]);
+
+// или
+var hex = ctx.hex({
+    bounds: [],
+
+    ...,
+
+    images: {
+        ...
+    } // fills hexes with patterns
+
+    or
+
+    content: ctx.polygon(...),
+    attrs: {
+        &#39;0 0 0&#39;: { fill: &#39;./city.jpg&#39; },
+        &#39;1 0 0&#39;: { opacity: 0.5 }
+    }
+    // тут можно и values, как в tileEngine
+});
+
+hex.on(&#39;click&#39;, e =&gt; {
+    // e.hex - {r, g, b, element}
+});
+
+hex.on(&#39;click&#39;, {r: 3, g: 0, b: 0}, e =&gt; ...);
+
+hex.getPoly(0, 0, 1);
+</code></pre>
+<p>Класс hexPoly, который описывает гекс.</p>
+<pre><code class="lang-js">hex.poly(0, 0, 0); // -&gt; hexPoly
+</code></pre>
+
 	</content>
 
 	<footer>

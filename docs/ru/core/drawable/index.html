@@ -25,7 +25,7 @@
 
 	<header>
 		<div class="menu">
-			<a href="/download/">Download</a>
+			<a href="/download/">Install / Download</a>
 			<a href="/docs/">Core</a>
 			<a href="/docs/">More</a>
 			<!-- The more word is used in 2 meanings: 1) More part 2) All the modules except core (WebGL, SVG, etc). -->
@@ -131,7 +131,7 @@ rect.attr(&#39;x&#39;); // -&gt; 10
 </code></pre>
 <p>Метод <code>attr</code> также позволяет получать и устанавливать свои собственные параметры.</p>
 <hr>
-<p>Можно добавлять геттеры и сеттеры (и аниматоры) в <code>Delta.Drawable.prototype.attrHooks</code>. Этот объект является прототипом для <code>attrHooks</code> в наследниках классов (например, <code>Delta.Rect</code>), поэтому его изменение затронет также <code>attrHooks</code> дочерних классов.</p>
+<p>Можно добавлять геттеры и сеттеры (и аниматоры) в <code>Delta.Drawable.prototype.attrHooks</code>. Этот объект является прототипом для <code>attrHooks</code> в наследниках класса Drawable (например, <code>Delta.Rect</code>), поэтому его изменение затронет также <code>attrHooks</code> дочерних классов. Подробнее — в Custom Objects.</p>
 <h3 id="-remove">Метод remove</h3>
 <p>Удаляет объект с контекста (но не из памяти, так что остаётся возможность добавить его туда вновь методом <code>ctx.push</code>).</p>
 <h3 id="-clone-cloneattrs-clonestyles-cloneevents-">Метод clone([cloneAttrs, [cloneStyles, [cloneEvents]]])</h3>
@@ -142,7 +142,6 @@ rect.attr(&#39;x&#39;); // -&gt; 10
 <li><code>cloneEvents</code> — события.</li>
 </ul>
 <p>По умолчанию все равны <code>true</code> (клонировать всё).</p>
-<p>// todo: необходим deepClone везде</p>
 <h3 id="-bounds-transform-around-">Метод bounds([transform, [around]])</h3>
 <p>Возвращает boundbox объекта.
 transform = true, &#39;tight&#39; or false
@@ -215,25 +214,23 @@ rect.fire(&#39;someCustomEvent&#39;, {
     text: &#39;anytext&#39;
 });
 </code></pre>
-<h3 id="-todataurl-options-bounds-">Метод toDataURL([options, [bounds]])</h3>
+<h3 id="-todataurl-mimetype-quality-bounds-">Метод toDataURL([mimeType, [quality, [bounds]]])</h3>
 <p>Рисует объект на канвасе в памяти и возвращает картинку в формате Data:URL.</p>
 <pre><code class="lang-js">var rect = ctx.rect(10, 10, 200, 200, &#39;blue&#39;);
 
 var image = rect.toDataURL();
 window.open(image);
 </code></pre>
-<p>Первым аргументом можно передать опции рисования, либо просто формат (по умолчанию <code>png</code>):</p>
-<pre><code class="lang-js">rect.toDataURL({
-    type: &#39;png&#39;,
-    quality: 0.9 // по умолчанию 1
-});
-
-rect.toDataURL(&#39;png&#39;); // в короткой форме поддерживаются jpg, png, webp
+<p>Первым аргументом можно передать формат (по умолчанию png), вторым качество (число между 0 и 1, по умолчанию 1).</p>
+<pre><code class="lang-js">rect.toDataURL(&#39;png&#39;, 0.9);
 rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
 </code></pre>
-<p>Вторым аргументом можно передать произвольный boundbox для картинки.</p>
+<p>Третьим аргументом можно передать произвольный boundbox для картинки.</p>
 <h3 id="-toimagedata-bounds-">Метод toImageData([bounds])</h3>
 <p>Рисует объект и возвращает как canvas imageData. Можно передать произвольный boundbox.</p>
+<h3 id="-toblob-type-quality-bounds-callback-">Метод toBlob(type, quality, bounds, callback)</h3>
+<p>// canvas.toBlob(callback, type, quality)</p>
+<p>^ эти 3 метода должны быть у Context</p>
 <h3 id="-rasterize-deleteoriginal-true-">Метод rasterize(deleteOriginal = true)</h3>
 <p>Добавляет вместо объекта картинку из toDataURL()</p>
 <h3 id="-serialize-quickcalls-">Метод serialize([quickCalls])</h3>
@@ -247,7 +244,8 @@ rect.toDataURL(&#39;image/jpeg&#39;); // можно передать mimeType
 rect.serialize(); // -&gt; {}
 </code></pre>
 <p>// если добавить к quickCalls ещё и возможность добавлять контекст, получится совсем мощно
-// при добавлении quickCall через on нужно просто где-нибудь дописывать там &quot;listener.serializeString = &#39;...&#39;;&quot;</p>
+// при добавлении quickCall через on нужно просто где-нибудь дописывать там &quot;listener.serializeString = &#39;...&#39;;&quot;
+К слову, при быстрых вызовах исключена возможность XSS.</p>
 <h2 id="-">Параметры</h2>
 <p>Меняются методом <code>attr</code>.</p>
 <h3 id="z">z</h3>
@@ -324,6 +322,8 @@ rect.attr(&#39;stroke&#39;, &#39;5px rgba(0, 128, 0, 0.5)&#39;);
 <h3 id="transformmode">transformMode</h3>
 <p>strict для attrs + rotatePivot, scalePivot, etc</p>
 <p>и free для функций</p>
+<p>// не
+просто атрибуты сбрасывают всё, что сделано обычными функциями</p>
 <p><a href="https://habrahabr.ru/post/278597/">https://habrahabr.ru/post/278597/</a></p>
 <h3 id="translation">translation</h3>
 <p><a href="http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html">http://labs.hyperandroid.com/static/CAAT-Samples/demos/demo7/anchors.html</a> для размышлений</p>

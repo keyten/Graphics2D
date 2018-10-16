@@ -1,0 +1,298 @@
+<div class="demos">
+	<div class="demos__links">
+		<a href="#">Docs</a>
+		<a href="#" class="selected">Examples</a>
+		<a href="#">Games</a>
+	</div>
+	<div class="demos__list-container">
+		<div class="demos__list"></div>
+	</div>
+	<div class="demos__code-container">
+		<div class="demos__code">
+			<pre><code>abcd</code></pre>
+		</div>
+	</div>
+</div>
+
+<script src="../demos.js"></script>
+<script src="../graphics2d.js"></script>
+<script src="/demos.js"></script>
+<script>
+
+var list = document.getElementsByClassName('demos__list')[0];
+Object.keys(demos).forEach(function(name){
+	var div = document.createElement('div');
+
+	var canvas = document.createElement('canvas');
+	canvas.width = 500;
+	canvas.height = 300;
+	div.appendChild(canvas);
+
+	var label = document.createElement('div');
+	label.className = 'demos__label'
+	label.innerHTML = name;
+	div.appendChild(label);
+
+	var desc = document.createElement('div');
+	desc.className = 'demos__desc';
+	desc.innerHTML = demos[name].description;
+	div.appendChild(desc);
+
+	list.appendChild(div);
+
+	var ctx = Delta.query(canvas);
+	try {
+		demos[name].init(ctx);
+	} catch(e){
+		console.log(e);
+	}
+
+	canvas.addEventListener('click', function(e){
+		document.querySelectorAll('canvas.active')[0].classList.remove('active');
+		canvas.classList.add('active');
+		document.querySelector('.demos__code pre code').innerText = demos[name].init + '';
+		hljs.initHighlightingOnLoad();
+	});
+});
+
+document.querySelector('.demos__list canvas').classList.add('active');
+
+</script>
+
+<style>
+/* Dark theme */
+body {
+	background: #111111;
+	color: #666;
+}
+
+footer {
+	border-top-color: #444;
+}
+
+header .menu a {
+	color: #777;
+	font-weight: 300;
+}
+
+header h1 {
+	color: rgba(255, 255, 255, 0.1);
+}
+
+/* Small header theme */
+header {
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+header h1 {
+	margin: 0;
+}
+
+header h1 .delta {
+	font-size: 25px;
+}
+
+header .menu {
+	margin-top: 31px;
+}
+
+/* Styles */
+content {
+	padding: 0;
+	width: 100%;
+}
+
+.demos {
+	display: grid;
+	grid-template-columns: 230px 500px auto;
+	height: 90vh;
+	overflow: hidden;
+}
+
+.demos__list-container {
+	height: 90vh;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+canvas {
+	cursor: pointer;
+}
+
+canvas.active {
+	background: #222;
+}
+
+.demos__links a {
+    display: block;
+    font-size: 10pt;
+    color: #555;
+    text-decoration: none;
+    text-transform: uppercase;
+    padding: 10px 25px;
+    transition: 0.1s;
+    font-weight: 300;
+}
+
+.demos__links a.selected {
+	color: mediumspringgreen !important;
+}
+
+.demos__links a:hover {
+	color: #ccc;
+}
+
+.demos__label {
+    text-transform: uppercase;
+    font-size: 10pt;
+    margin-top: -290px;
+    margin-left: 15px;
+    font-weight: 300;
+    float: left;
+    color: #888;
+    letter-spacing: 1px;
+}
+
+.demos__desc {
+	float: left;
+    font-size: 10pt;
+    margin-top: -35px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Monokai */
+/*
+Monokai style - ported by Luigi Maselli - http://grigio.org
+*/
+
+pre {
+	background: #272822;
+}
+
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+  background: #272822;
+  -webkit-text-size-adjust: none;
+}
+
+.hljs-tag,
+.hljs-tag .hljs-title,
+.hljs-keyword,
+.hljs-literal,
+.hljs-strong,
+.hljs-change,
+.hljs-winutils,
+.hljs-flow,
+.nginx .hljs-title,
+.tex .hljs-special {
+  color: #f92672;
+}
+
+.hljs {
+  color: #ddd;
+}
+
+.hljs .hljs-constant,
+.asciidoc .hljs-code,
+.markdown .hljs-code {
+	color: #66d9ef;
+}
+
+.hljs-code,
+.hljs-class .hljs-title,
+.hljs-header {
+	color: white;
+}
+
+.hljs-link_label,
+.hljs-attribute,
+.hljs-symbol,
+.hljs-symbol .hljs-string,
+.hljs-value,
+.hljs-regexp {
+	color: #bf79db;
+}
+
+.hljs-link_url,
+.hljs-tag .hljs-value,
+.hljs-string,
+.hljs-bullet,
+.hljs-subst,
+.hljs-title,
+.hljs-emphasis,
+.hljs-type,
+.hljs-preprocessor,
+.hljs-pragma,
+.ruby .hljs-class .hljs-parent,
+.hljs-built_in,
+.django .hljs-template_tag,
+.django .hljs-variable,
+.smalltalk .hljs-class,
+.hljs-javadoc,
+.django .hljs-filter .hljs-argument,
+.smalltalk .hljs-localvars,
+.smalltalk .hljs-array,
+.hljs-attr_selector,
+.hljs-pseudo,
+.hljs-addition,
+.hljs-stream,
+.hljs-envvar,
+.apache .hljs-tag,
+.apache .hljs-cbracket,
+.tex .hljs-command,
+.hljs-prompt {
+  color: #a6e22e;
+}
+
+.hljs-comment,
+.hljs-annotation,
+.smartquote,
+.hljs-blockquote,
+.hljs-horizontal_rule,
+.hljs-decorator,
+.hljs-pi,
+.hljs-doctype,
+.hljs-deletion,
+.hljs-shebang,
+.apache .hljs-sqbracket,
+.tex .hljs-formula {
+  color: #75715e;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.css .hljs-id,
+.hljs-phpdoc,
+.hljs-dartdoc,
+.hljs-title,
+.hljs-header,
+.hljs-type,
+.vbscript .hljs-built_in,
+.rsl .hljs-built_in,
+.smalltalk .hljs-class,
+.diff .hljs-header,
+.hljs-chunk,
+.hljs-winutils,
+.bash .hljs-variable,
+.apache .hljs-tag,
+.tex .hljs-special,
+.hljs-request,
+.hljs-status {
+  font-weight: bold;
+}
+
+.coffeescript .javascript,
+.javascript .xml,
+.tex .hljs-formula,
+.xml .javascript,
+.xml .vbscript,
+.xml .css,
+.xml .hljs-cdata {
+  opacity: 0.5;
+}
+
+</style>

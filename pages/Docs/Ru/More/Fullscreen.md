@@ -17,3 +17,15 @@ ctx.fullscreen(true);
 `Graphics2D.Context::minimize` -- возвращает всё как было, из обоих функций.
 
 `Graphics2D.Context::on('resize', fn);`
+
+ещё нужен модуль для MouseCapture
+
+```js
+ctx.mouseCapture();
+
+ctx.fullscreen({
+	hideCursor: true,
+	destination: window | 'body',
+	processResize: false // if dest = 'body'
+});
+```
