@@ -45,7 +45,7 @@ Context.prototype.on = function(event, keys, fn){
 				keys[e.which] = false;
 			});
 		}
-		
+
 		// mousedrag event
 		if(event == 'mousedrag'){
 			var drag = false,
@@ -55,13 +55,13 @@ Context.prototype.on = function(event, keys, fn){
 
 				min = parameters ? parameters.minDelta === undefined ? 0 : parameters.minDelta : 0,
 				max = parameters ? parameters.maxDelta === undefined ? Infinity : parameters.maxDelta : Infinity;
-			
+
 			listeners[0] = function(e){
 				drag = true;
 				startPoint = lastPoint = [e.contextX, e.contextY];
 			};
 			this.on('mousedown', listeners[0]);
-			
+
 			listeners[1] = function(e){
 				drag = false;
 				e.startX = startPoint[0];
@@ -78,7 +78,7 @@ Context.prototype.on = function(event, keys, fn){
 			}.bind(this);
 			// ??? 	document.body.addEventListener('mouseup', listeners[1] ); !!!
 			document.body.addEventListener('mouseup', listeners[2]);
-			
+
 			listeners[3] = function(e){
 				if(!drag) return;
 				e.lastX = lastPoint[0];
@@ -102,7 +102,7 @@ Context.prototype.on = function(event, keys, fn){
 						object.contextX = e.contextX - stepX*i;
 						object.contextY = e.contextY - stepY*i;
 						func.call(this, object);
-					}					
+					}
 				}
 				func.call(this, e);
 				lastPoint = [e.contextX, e.contextY];
@@ -137,7 +137,7 @@ Context.prototype.on = function(event, keys, fn){
 					e.key = $.keyMap[e.which];
 				else
 					e.key = String.fromCharCode(e.which);
-				
+
 				if(keys.indexOf(e.key) &&
 					(!keys.indexOf('shift') || e.shiftKey) &&
 					(!keys.indexOf('alt') || e.altKey) &&

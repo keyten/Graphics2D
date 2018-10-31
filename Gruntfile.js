@@ -1,6 +1,4 @@
 module.exports = function (grunt) {
-	grunt.loadNpmTasks('grunt-express-server');
-
 	var core = {
 		source: 'Core/core.js',
 		dest: ['graphics2d.js', 'src/static/graphics2d.js'],

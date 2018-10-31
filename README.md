@@ -3,8 +3,6 @@
 
 **Graphics2D** is a javascript library available under the [MIT](http://opensource.org/licenses/mit-license.php) License.
 
-*Some modules are released under the [LGPL](http://www.gnu.org/copyleft/lgpl.html) License.*
-
 ### Install with bower
 ```js
 bower install graphics2d
@@ -18,7 +16,7 @@ Just download [graphics2d.min.js](https://raw.githubusercontent.com/keyten/Graph
 
 ### Then use
 ```html
-<canvas id="cnv" width="600" height="400"></canvas> 
+<canvas id="cnv" width="600" height="400"></canvas>
 ```
 ```js
 var ctx = Delta.query('#cnv');

@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 28.10.2018
+ *  Last edit: 31.10.2018
  *  License: MIT / LGPL
  */
 
