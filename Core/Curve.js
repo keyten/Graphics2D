@@ -30,6 +30,8 @@ Curve = new Class({
 		return clone;
 	},
 
+	// Path specific functions:
+
 	startAt: function(){
 		var index = this.path.attrs.d.indexOf(this);
 		return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();

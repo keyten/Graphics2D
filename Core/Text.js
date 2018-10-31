@@ -1,11 +1,13 @@
 var defaultBaseline = 'top';
 
 Text = new Class(Drawable, {
-
-	initialize : function(args){
+/*	initialize : function(args){
 		this.super('initialize', arguments);
 
 		if(isObject(args[0])){
+			// надо просто расширять в прототипе какой-то объект со свойствами,
+			// к которому обращается processObject
+			// чтобы это всё шло в attr
 			if(args[0].align){
 				this.attrs.align = args[0].align;
 				this.styles.textAlign = args[0].align;
@@ -76,11 +78,15 @@ Text = new Class(Drawable, {
 			this.styles.fillStyle = args[4];
 		}
 		if(args[5]){
-			this.styles.stroke = args[5];
-			Drawable.processStroke(args[5], this.styles);
+			this.attr('stroke', args[5]);
+			// this.styles.stroke = args[5];
+			// Drawable.processStroke(args[5], this.styles);
 		}
 
-	},
+	}, */
+	argsOrder: ['text', 'x', 'y', 'font', 'fill', 'stroke'],
+
+	// Context2D specific stuff:
 
 	attrHooks: new DrawableAttrHooks({
 		text: {
@@ -91,24 +97,15 @@ Text = new Class(Drawable, {
 			}
 		},
 
-		x: {
-			set: function(value){
-				this.update();
-			}
-		},
-
-		y: {
-			set: function(value){
-				this.update();
-			}
-		},
+		x: {set: updateSetter},
+		y: {set: updateSetter},
 
 		font: {
 			set: function(value){
-				extend(this.attrs.font, Text.parseFont(value));
+				/* extend(this.attrs.font, Text.parseFont(value));
 				this.styles.font = Text.genFont(this.attrs.font);
 				this.update();
-				return null;
+				return null;*/
 			}
 		},
 
@@ -209,7 +206,7 @@ Text = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this.attrs.visible){
+		/* if(this.attrs.visible){
 			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
 
 			if(!this.attrs.breaklines){
@@ -245,7 +242,7 @@ Text = new Class(Drawable, {
 				}
 			}
 			ctx.restore();
-		}
+		} */
 	},
 
 	isPointIn : function(x, y, options){

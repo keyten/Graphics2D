@@ -1,46 +1,11 @@
 Rect = new Class(Drawable, {
-
-	initialize : function(args){
-		this.super('initialize', arguments);
-
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Rect.args);
-		}
-
-		this.attrs.x = args[0];
-		this.attrs.y = args[1];
-		this.attrs.width = args[2];
-		this.attrs.height = args[3];
-		if(args[4]){
-			this.styles.fillStyle = args[4];
-		}
-		if(args[5]){
-			this.attrs.stroke = args[5];
-			Drawable.processStroke(args[5], this.styles);
-		}
-	},
+	argsOrder: ['x', 'y', 'width', 'height', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		x: {
-			set: function(value){
-				this.update();
-			}
-		},
-		y: {
-			set: function(value){
-				this.update();
-			}
-		},
-		width: {
-			set: function(value){
-				this.update();
-			}
-		},
-		height: {
-			set: function(value){
-				this.update();
-			}
-		},
+		x: {set: updateSetter},
+		y: {set: updateSetter},
+		width: {set: updateSetter},
+		height: {set: updateSetter},
 
 		x1: {
 			get: function(){
@@ -146,7 +111,6 @@ Rect = new Class(Drawable, {
 
 });
 
-Rect.args = ['x', 'y', 'width', 'height', 'fill', 'stroke'];
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
 	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
 	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;

@@ -5,10 +5,10 @@ Context = function(canvas){
 	this.context   = canvas.getContext('2d');
 	this.elements  = [];
 	this.listeners = {};
-	this.attrs = {
+	this.attrs     = {
 		transform: 'attributes'
 	};
-	this.cache = {};
+	this.cache     = {};
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -16,6 +16,9 @@ Context = function(canvas){
 Context.prototype = {
 	// Elements
 	object : function(object){
+		if(object.constructor === Function){
+			object = {draw: object};
+		}
 		return this.push(extend(new Drawable(), object));
 	},
 
@@ -348,7 +351,10 @@ Context.prototype = {
 			},
 			set: function(value){
 				this.canvas.width = value;
+				// if dpi != 1 && !canvas.style.width
+				// or simpler: if this.attrs.dpi !== undefined
 				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
+				// if (newWidth > width):
 				this.update();
 			}
 		},
@@ -360,6 +366,7 @@ Context.prototype = {
 			set: function(value){
 				this.canvas.height = value;
 				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
+				// if (newHeight > height):
 				this.update();
 			}
 		},
@@ -378,7 +385,15 @@ Context.prototype = {
 			}
 		},
 
-		// smooth: changing image-rendering css property
+		smooth: {
+			get: function(value){
+				var ir = this.canvas.style.imageRendering;
+				return ir !== 'pixelated' && ir !== 'crisp-edges';
+			},
+			set: function(value){
+				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
+			}
+		},
 
 		transform: {
 			set: function(value){
@@ -461,26 +476,13 @@ Object.assign(Context.prototype, Class.mixins['EventMixin'], {
 	focusElement : null,
 
 	listeners: {},
-	eventHooks: {},
-/*
-	_processPointerEvent: function(pointObj, eventName, eventObj){
-		var coords = this.contextCoords(pointObj.clientX, pointObj.clientY);
-		pointObj.contextX = coords[0];
-		pointObj.contextY = coords[1];
-
-		pointObj.targetObject = this.getObjectInPoint(pointObj.contextX, pointObj.contextY, true);
-		if(pointObj.targetObject && pointObj.targetObject.fire){
-			// fixme: the event will be fired before eventObj got processed
-			if(!pointObj.targetObject.fire(eventName, eventObj)){
-				eventObj.stopPropagation();
-				eventObj.preventDefault();
-			}
-		}
-	} */
+	eventHooks: {}
 });
 
 Delta.browserCommonEvent = {
 	init : function(event){
+		// not neccessary, Context is for browser canvas 2d
+		// only canvas objects can be abstract
 		if(!this.canvas){
 			return;
 		}
@@ -523,7 +525,7 @@ Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 		var coords = this.contextCoords(e.clientX, e.clientY);
 		e.contextX = coords[0];
 		e.contextY = coords[1];
-		e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
+		this.hoverElement = e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
 
 		if(e.targetObject && e.targetObject.fire){
 			e.targetObject.fire(e.type, e);
@@ -590,135 +592,43 @@ Object.keys(browserEvents).forEach(function(eventsKind){
 	});
 });
 
-
-
-/*
-// todo: make this all more general:
-// are they really divided cause of difference in 2 ifs?
-Delta.browserCommonEvent = {
-	init : function(event){
-		if(!this.canvas){
-			return;
-		}
-/*
-		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			// if(this.eventHooks[event].canvas(e))
-
-			if(propagation && !this.fire(event, e)){
-				e.stopPropagation();
-				e.preventDefault();
-			}
-		}.bind(this)); *//*
-		this.canvas.addEventListener(event, this.eventHooks[event].canvasListener);
+Context.prototype.eventHooks.mouseout = Object.assign({}, Delta.browserCommonEvent, {
+	init : function(){
+		Delta.browserCommonEvent.init.call(this, 'mouseout');
+		Delta.browserCommonEvent.init.call(this, 'mousemove');
 	},
 
-	teardown : function(event){
-		if(!this.canvas){
-			return;
+	canvas : function(e){
+		var propagation = true;
+
+		e.cancelContextPropagation = function(){
+			propagation = false;
+		};
+
+		// is that only for mouseout?
+		e.targetObject = this.hoverElement;
+		this.hoverElement = null;
+
+		// negative contextX / contextY possible when canvas has a border
+		// not a bug, it's a feature :)
+		var coords = this.contextCoords(e.clientX, e.clientY);
+		e.contextX = coords[0];
+		e.contextY = coords[1];
+
+		if(e.targetObject && e.targetObject.fire){
+			e.targetObject.fire('mouseout', e);
 		}
 
-		requestAnimationFrame(function(){
-			if(!this.listeners[event]){
-				this.canvas.removeEventListener(event, this.listeners[event + '_canvasListener']);
-			}
-		}.bind(this));
-	}
-};
-
-Delta.browserPointerEvent = {
-	init : function(event){
-		if(!this.canvas){
-			return;
+		if(propagation){
+			this.fire('mouseout', e);
 		}
-
-		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			// negative contextX / contextY when canvas has a border
-			// not a bug, it's a feature :)
-			if(e.clientX.constructor === Number){
-				this._processPointerEvent(e, event, e);
-			}
-			['touches', 'changedTouches', 'targetTouches'].forEach(function(prop){
-				if(e[prop]){
-					Array.prototype.forEach.call(e[prop], function(touch){
-						this._processPointerEvent(touch, event, e);
-					}, this);
-				}
-			}, this);
-
-			if(propagation && !this.fire(event, e)){
-				e.stopPropagation();
-				e.preventDefault();
-			}
-		}.bind(this));
 	},
 
-	teardown : Delta.browserCommonEvent.teardown
-};
-
-eventsToInteract.concat(pointerEvents).forEach(function(eventName){
-	if(!Context.prototype.eventHooks[eventName]){ // && window.document
-		// be careful with extending existing eventHooks
-		Context.prototype.eventHooks[eventName] = (
-			pointerEvents.indexOf(eventName) > -1 ? Delta.browserPointerEvent : Delta.browserCommonEvent
-		);
+	teardown : function(){
+		Delta.browserCommonEvent.teardown.call(this, 'mouseout');
+		// it won't be torn down if there are mousemove listeners
+		Delta.browserCommonEvent.teardown.call(this, 'mousemove');
 	}
-
-	Context.prototype[eventName] = function(callback){
-		return (
-			callback.constructor === Function
-		) ? this.on(eventName, callback) : (
-			callback.constructor === String
-		) ? this.on.apply(this, [eventName].concat(slice.call(arguments))) : this.fire(callback);
-	};
 });
-
-Context.prototype.eventHooks.mouseout = {
-	init : function(event){
-		if (!this.canvas) {
-			return;
-		}
-
-		this.canvas.addEventListener(event, this.listeners[event + '_canvasListener'] = function(e){
-			var propagation = true;
-
-			e.cancelContextPropagation = function(){
-				propagation = false;
-			};
-
-			e.targetObject = this.hoverElement;
-			this.hoverElement = null;
-
-			var coords = this.contextCoords(e.clientX, e.clientY);
-			e.contextX = coords[0];
-			e.contextY = coords[1];
-
-			if(e.targetObject && e.targetObject.fire){
-				if(!e.targetObject.fire('mouseout', e)){
-					e.stopPropagation();
-					e.preventDefault();
-				}
-			}
-
-			if(propagation && !this.fire(event, e)){
-				e.stopPropagation();
-				e.preventDefault();
-			}
-		}.bind(this));
-	},
-
-	teardown : Delta.browserCommonEvent.teardown
-}; */
 
 Delta.Context = Context;

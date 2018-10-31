@@ -1,55 +1,22 @@
 Path = new Class(Drawable, {
-
 	initialize : function(args){
+		if(args[0].constructor !== Object){
+			if(args[1].constructor !== Number){
+				args[3] = args[1];
+				args[4] = args[2];
+				args[1] = args[2] = undefined;
+			}
+		}
+
 		this.super('initialize', arguments);
-
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Path.args);
-		}
-
-		this.attrs.d = Path.parse(args[0], this);
-
-		// parseInt is neccessary bcs isNaN('30px') -> true
-		if(isNaN(parseInt(args[1]))){
-			// todo: distances (and in attrHooks too)
-			args[3] = args[1];
-			args[4] = args[2];
-			args[1] = args[2] = null;
-		}
-
-		if(args[1] || args[2]){ // how about both = 0?
-			this.attrs.x = args[1] || 0;
-			this.attrs.y = args[2] || 0;
-		}
-
-		if(args[3]){
-			this.styles.fillStyle = args[3];
-		}
-		if(args[4]){
-			this.attrs.stroke = args[4];
-			Drawable.processStroke(args[4], this.styles);
-		}
 	},
 
+	argsOrder: ['d', 'x', 'y', 'fill', 'stroke'],
+
 	attrHooks: new DrawableAttrHooks({
-		d: {
-			set: function(value){
-				this.update();
-				return value;
-			}
-		},
-
-		x: {
-			set: function(value){
-				this.update();
-			}
-		},
-
-		y: {
-			set: function(value){
-				this.update();
-			}
-		}
+		d: {set: updateSetter},
+		x: {set: updateSetter},
+		y: {set: updateSetter}
 	}),
 
 	// Curves
@@ -68,6 +35,7 @@ Path = new Class(Drawable, {
 		return this.update();
 	},
 
+	// todo: move to attrs?
 	curves: function(value){
 		if(value === undefined){
 			return this.attrs.d;
@@ -214,7 +182,7 @@ Path = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this.attrs.visible){
+/*		if(this.attrs.visible){
 			this.preDraw(ctx);
 
 			if(this.attrs.x || this.attrs.y){
@@ -225,7 +193,7 @@ Path = new Class(Drawable, {
 			this.process(ctx);
 
 			this.postDraw(ctx);
-		}
+		} */
 	}
 
 } );

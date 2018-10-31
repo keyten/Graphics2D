@@ -1,3 +1,4 @@
+// todo: move into utils
 var temporaryCanvas;
 
 function getTemporaryCanvas(width, height){
@@ -10,23 +11,35 @@ function getTemporaryCanvas(width, height){
 }
 
 function DrawableAttrHooks(attrs){
-	extend(this, attrs); // todo: deepExtend neccessary?
+	// it seems deepExtend is not neccessary
+	extend(this, attrs);
 }
 
-// todo: Drawable не наследуется ни от чего, мб его тоже сделать не Class? как Context?
-Drawable = new Class({
-	initialize: function(args){
-		this.listeners = {};
-		// todo: попробовать заменить styles на массив
-		this.styles = {};
-		this.cache = {};
-		this.attrs = {
-			interaction: true,
-			visible: true,
-			transform: 'attributes'
-		};
-	},
+function updateSetter(){
+	this.update();
+}
 
+function Drawable(args){
+	this.listeners = {};
+	// todo: попробовать заменить styles на массив
+	// проходить по нему приходится гораздо чаще, чем изменять
+	// (потенциально)
+	// или просто кэшировать Object.keys
+	this.styles = {};
+	this.cache = {};
+	this.attrs = {
+		interaction: true,
+		visible: true,
+		transform: 'attributes'
+	};
+
+	if(this.argsOrder){
+		this.processArguments(args, this.argsOrder);
+	}
+}
+
+Drawable.prototype = {
+	initialize: Drawable,
 	// mixin: [Class.AttrMixin, Class.EventMixin]
 	// to gradients & patterns: [Class.LinkMixin]
 
@@ -139,7 +152,7 @@ Drawable = new Class({
 			}
 		},
 
-// todo: запихнуть всё относящееся к stroke в strokeMode
+// todo: запихнуть всё относящееся к stroke в stroke
 		strokeMode: {
 			get: function(){
 				return this.attrs.strokeMode || 'over';
@@ -261,7 +274,7 @@ Drawable = new Class({
 // Object -> ArgumentObject?
 	processObject: function(object, arglist){
 		// todo: вынести в отдельный объект
-		['opacity', 'composite', 'clip', 'visible', 'interaction',
+		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
 		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
 			if(object[prop] !== undefined){
 				this.attr(prop, object[prop]);
@@ -271,6 +284,20 @@ Drawable = new Class({
 		return arglist.map(function(name){
 			return object[name];
 		});
+	},
+
+	processArguments: function(args, arglist){
+		if(args[0].constructor === Object){
+			this.attr(args);
+		} else {
+			var object = {};
+			arglist.forEach(function(argName, i){
+				if (args[i] !== undefined) {
+					object[argName] = args[i];
+				}
+			}, this);
+			this.attr(object);
+		}
 	},
 
 	// Before -> Pre
@@ -418,8 +445,8 @@ Drawable = new Class({
 		// styles
 		// note1: we might cache Object.keys
 		// note2: we should hold gradients / patterns in attrs not in styles
-		Object.keys(style).forEach(function(key){
-			ctx[key] = style[key];
+		Object.keys(style).forEach(function(key){ // it is created each redraw!
+			ctx[key] = style[key]; // and replace it to for
 		});
 
 		if(style.fillStyle && style.fillStyle.toCanvasStyle){
@@ -652,8 +679,7 @@ Drawable = new Class({
 
 		return this;
 	}
-
-});
+};
 
 Drawable.AttrHooks = DrawableAttrHooks;
 

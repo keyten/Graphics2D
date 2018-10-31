@@ -1,40 +1,10 @@
 Circle = new Class(Drawable, {
-	initialize : function(args){
-		// todo: replace to [args]?
-		this.super('initialize', arguments);
-
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Circle.args);
-		}
-
-		this.attrs.cx = args[0];
-		this.attrs.cy = args[1];
-		this.attrs.radius = args[2];
-		if(args[3]){
-			this.styles.fillStyle = args[3];
-		}
-		if(args[4]){
-			this.attrs.stroke = args[4];
-			Drawable.processStroke(args[4], this.styles);
-		}
-	},
+	argsOrder: ['cx', 'cy', 'radius', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		cx: {
-			set: function(value){
-				this.update();
-			}
-		},
-		cy: {
-			set: function(value){
-				this.update();
-			}
-		},
-		radius: {
-			set: function(value){
-				this.update();
-			}
-		}
+		cx: {set: updateSetter},
+		cy: {set: updateSetter},
+		radius: {set: updateSetter}
 	}),
 
 	isPointIn : function(x, y, options){

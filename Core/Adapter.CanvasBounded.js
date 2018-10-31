@@ -33,7 +33,7 @@ function doBoundsIntersect(aabb1, aabb2){
 // 1. Get the bounds.
 // 2. Are the bounds in canvas? Yes — add into list.
 // 3. Add everything intersected with.
-// 4. Count the sum of bounds, clear it and draw all of 'em.
+// 4. Count the sum of bounds, clear it and draw all of them.
 
 // don't forget about canvas transforms
 
