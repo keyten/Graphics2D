@@ -1,8 +1,8 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 31.10.2018
- *  License: MIT / LGPL
+ *  Last edit: 04.11.2018
+ *  License: MIT
  */
 
 (function(window, undefined){
@@ -34,7 +34,8 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
-	deepExtend = function(){},
+	// todo: remove polyfill
+	deepExtend = extend, // todo: check whether it is neccessary, maybe move to utils
 
 // DOM
 	browserEvents = {
@@ -77,44 +78,6 @@ var Delta = {},
 			'keyup'
 		]
 	},
-	pointerEvents = [
-		// mouse
-		'click',
-		'dblclick',
-		'mousedown',
-		'mouseup',
-		'mousemove',
-		'mouseover',
-		'mouseout',
-		'mouseenter',
-		'mouseleave',
-		'mousewheel',
-		'blur',
-		'focus',
-		// touch
-		'touchstart',
-		'touchmove',
-		'touchend',
-		'touchcancel',
-		// pointer
-		'pointerover',
-		'pointerenter',
-		'pointerdown',
-		'pointermove',
-		'pointerup',
-		'pointercancel',
-		'pointerout',
-		'pointerleave',
-		// check:
-		'gotpointercapture',
-		'lostpointercapture'
-	],
-	eventsToInteract = [ // restEvents
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup'
-	],
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -842,6 +805,7 @@ Delta.distance = distance;
  * Class.EventMixin
  * Class.LinkMixin?
  */
+// todo: move everything to utils
 
 // Class
 function Class(parent, properties){
@@ -898,12 +862,12 @@ Class.mixins = {
 			if(name.constructor === Array){
 				// Array.isArray is too slow in V8
 				return name.map(function(attr){
-					return this.attrs[attr];
+					return this.attr(attr);
 				}, this);
 			}
 
 			// if name is obj then forEach
-			if(typeof name !== 'string'){
+			if(name.constructor !== String){
 				Object.keys(name).forEach(function(attrName){
 					this.attr(attrName, name[attrName]);
 				}, this);
@@ -911,14 +875,24 @@ Class.mixins = {
 			}
 
 			// if value is not defined then get
-			if(arguments.length === 1){
+			if(value === undefined){ // if arguments.length === 1
+				if(this.attrHooks[name] && this.attrHooks[name].get){
+					return this.attrHooks[name].get.call(this);
+				}
 				return this.attrs[name];
 			}
 
 			// else set
-			this.attrs[name] = val;
+			this.attrs[name] = value;
+			if(this.attrHooks[name] && this.attrHooks[name].set){
+				this.attrHooks[name].set.call(this, value);
+			}
 			return this;
 		}
+	},
+
+	TransformableMixin : {
+		attrHooks : {}
 	},
 
 	// todo: AnimatableMixin depending on the AttrMixin
@@ -1050,6 +1024,15 @@ function wrapQuickCall(args){
 	return function(){
 		return this[name].apply(this, Array.prototype.slice.call(args, 3));
 	};
+}
+
+function Transform2D(m11, m21, m12, m22, m13, m23){
+	this.m11 = m11;
+	this.m21 = m21;
+	this.m12 = m12;
+	this.m22 = m22;
+	this.m13 = m13;
+	this.m23 = m23;
 }
 
 Class.attr = function(name, value){
@@ -1436,7 +1419,7 @@ Context.prototype = {
 	},
 
 	// Attrs
-	attr: Class.attr,
+/*	attr: Class.attr,
 	attrHooks: {
 		width: {
 			get: function(){
@@ -1542,7 +1525,7 @@ Context.prototype = {
 				}
 			}
 		}
-	},
+	}, */
 
 	// Transforms
 	getTransform: function(){
@@ -1566,34 +1549,21 @@ Context.prototype = {
 // Events
 Object.assign(Context.prototype, Class.mixins['EventMixin'], {
 	hoverElement : null,
-	focusElement : null,
-
-	listeners: {},
 	eventHooks: {}
 });
 
 Delta.browserCommonEvent = {
 	init : function(event){
-		// not neccessary, Context is for browser canvas 2d
-		// only canvas objects can be abstract
-		if(!this.canvas){
-			return;
-		}
-
 		if(this.eventHooks[event].canvas){
 			this.canvas.addEventListener(event,
-				this.listeners[event + '__canvasListener'] = this.eventHooks[event].canvas.bind(this));
+				this.listeners['_canvasListener_' + event] = this.eventHooks[event].canvas.bind(this));
 		}
 	},
 
 	teardown : function(event){
-		if(!this.canvas){
-			return;
-		}
-
 		requestAnimationFrame(function(){
 			if(!this.listeners[event]){
-				this.canvas.removeEventListener(event, this.listeners[event + '__canvasListener']);
+				this.canvas.removeEventListener(event, this.listeners['_canvasListener_' + event]);
 			}
 		}.bind(this));
 	},
@@ -1604,7 +1574,7 @@ Delta.browserCommonEvent = {
 	}
 };
 
-// todo: check if there's event.touches at mobiles in mouse events (click and etc)
+// todo: check if there's event.touches at phones in mouse events (click and etc)
 Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 	canvas : function(e){
 		var propagation = true;
@@ -1618,7 +1588,9 @@ Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 		var coords = this.contextCoords(e.clientX, e.clientY);
 		e.contextX = coords[0];
 		e.contextY = coords[1];
-		this.hoverElement = e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
+		// bug:
+		// if e.type === 'mouseout' => targetObject is current hoverElement
+		e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
 
 		if(e.targetObject && e.targetObject.fire){
 			e.targetObject.fire(e.type, e);
@@ -1685,42 +1657,58 @@ Object.keys(browserEvents).forEach(function(eventsKind){
 	});
 });
 
-Context.prototype.eventHooks.mouseout = Object.assign({}, Delta.browserCommonEvent, {
-	init : function(){
-		Delta.browserCommonEvent.init.call(this, 'mouseout');
-		Delta.browserCommonEvent.init.call(this, 'mousemove');
-	},
+// Attrs
+Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : {
+		width : {
+			get : function(){
+				return this.canvas.width;
+			},
+			set : function(value){
+				this.canvas.width = value;
+				// if dpi != 1 && !canvas.style.width
+				// or simpler: if this.attrs.dpi !== undefined
+				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
+				// if (newWidth > width):
+				this.update();
+			}
+		},
 
-	canvas : function(e){
-		var propagation = true;
+		height : {
+			get : function(){
+				return this.canvas.height;
+			},
+			set : function(value){
+				this.canvas.height = value;
+				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
+				// if (newHeight > height):
+				this.update();
+			}
+		},
 
-		e.cancelContextPropagation = function(){
-			propagation = false;
-		};
+		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
+		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
+		// http://www.html5gamedevs.com/topic/732-retina-support/
+		dpi : {
+			get : function(){
+				return this.attrs.dpi || 1;
+			},
+			set : function(value){
+				this.canvas.style.width = this.canvas.width / value + 'px';
+				this.canvas.style.height = this.canvas.height / value + 'px';
+				this.update();
+			}
+		},
 
-		// is that only for mouseout?
-		e.targetObject = this.hoverElement;
-		this.hoverElement = null;
-
-		// negative contextX / contextY possible when canvas has a border
-		// not a bug, it's a feature :)
-		var coords = this.contextCoords(e.clientX, e.clientY);
-		e.contextX = coords[0];
-		e.contextY = coords[1];
-
-		if(e.targetObject && e.targetObject.fire){
-			e.targetObject.fire('mouseout', e);
+		smooth : {
+			get : function(value){
+				var ir = this.canvas.style.imageRendering;
+				return ir !== 'pixelated' && ir !== 'crisp-edges';
+			},
+			set : function(value){
+				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
+			}
 		}
-
-		if(propagation){
-			this.fire('mouseout', e);
-		}
-	},
-
-	teardown : function(){
-		Delta.browserCommonEvent.teardown.call(this, 'mouseout');
-		// it won't be torn down if there are mousemove listeners
-		Delta.browserCommonEvent.teardown.call(this, 'mousemove');
 	}
 });
 
@@ -1757,7 +1745,8 @@ function Drawable(args){
 	// проходить по нему приходится гораздо чаще, чем изменять
 	// (потенциально)
 	// или просто кэшировать Object.keys
-	this.styles = {};
+	//this.styles = {};
+	this.styles = [];
 	this.cache = {};
 	this.attrs = {
 		interaction: true,
@@ -1775,23 +1764,53 @@ Drawable.prototype = {
 	// mixin: [Class.AttrMixin, Class.EventMixin]
 	// to gradients & patterns: [Class.LinkMixin]
 
-	// actual update function
-	updateFunction: function(){
-		if(this.context){
-			this.context.update();
+	style : function(name, value){
+		var i = this.styles.length;
+		while(i--){
+			if(this.styles[i].name === name){
+				if(value === undefined){
+					return this.styles[i].value;
+				} else if(value === null){
+					this.styles.splice(i, 1);
+					return this;
+				} else {
+					this.styles[i].value = value;
+					return this;
+				}
+			}
+		}
+
+		if(value === undefined){
+			return undefined;
+		} else if(value !== null) {
+			this.styles.push({
+				name: name,
+				value: value
+			});
 		}
 		return this;
 	},
 
+	// actual update function
+	updateFunction : function(){
+		if(this.context){
+			this.context.update();
+		}
+		// if this.onUpdate then this.fire('update')
+		// neccessary for clips and so on
+		return this;
+	},
+
 	// update function for the state before the first draw
-	update: function(){
+	update : function(){
 		return this;
 	},
 
 	/*
 		default: {
-			attrs: true,
-			styles: true,
+			attrs: true, styles: true, // note they re same
+			clip: true,
+			transform: true,
 			fills: true // clone gradients, patterns?
 		}
 	  */
@@ -1838,7 +1857,7 @@ Drawable.prototype = {
 	},
 
 	// Attributes
-	attr: Class.attr,
+/*	attr: Class.attr,
 
 	attrHooks: DrawableAttrHooks.prototype = {
 		z: {
@@ -1990,10 +2009,10 @@ Drawable.prototype = {
 				}
 			}
 		}
-	},
+	}, */
 
 	// Transforms
-	getTransform: function(){
+	getTransform : function(){
 		if(this.cache.transform){
 			return this.cache.transform;
 		}
@@ -2004,7 +2023,7 @@ Drawable.prototype = {
 	},
 
 // Object -> ArgumentObject?
-	processObject: function(object, arglist){
+	processObject : function(object, arglist){
 		// todo: вынести в отдельный объект
 		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
 		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
@@ -2018,9 +2037,9 @@ Drawable.prototype = {
 		});
 	},
 
-	processArguments: function(args, arglist){
+	processArguments : function(args, arglist){
 		if(args[0].constructor === Object){
-			this.attr(args);
+			this.attr(args[0]);
 		} else {
 			var object = {};
 			arglist.forEach(function(argName, i){
@@ -2051,7 +2070,7 @@ Drawable.prototype = {
 	// -> boundsPost
 	// или не, должно вызывать this.roughBounds
 	// нужен массив функций, которые последовательно изменяют bounds
-	bounds: function(rect, transform, around){
+	bounds : function(rect, transform, around){
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
@@ -2111,7 +2130,7 @@ Drawable.prototype = {
 			bounds.y + bounds.h * Delta.corners[corner][1]
 		];
 	},
-
+/*
 	// Events
 	on : function(event, options, callback){
 		if(event + '' !== event){
@@ -2167,12 +2186,19 @@ Drawable.prototype = {
 			callback.call(this, data);
 		}, this);
 		return this;
-	},
+	}, */
 
 	// Drawing (2D Context)
-	preDraw: function(ctx){
+	preDraw : function(ctx){
 		ctx.save();
 
+		this.styles.forEach(function(style){
+			ctx[style.name] = style.value;
+		});
+
+		// если какие-то особые штуки, то пишем их не в styles, а в attrs
+		// и тут их проверяем
+/*
 		var style = this.styles;
 		// styles
 		// note1: we might cache Object.keys
@@ -2214,10 +2240,10 @@ Drawable.prototype = {
 		var transform = this.getTransform();
 		if(!Delta.isIdentityTransform(transform)){
 			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-		}
+		} */
 	},
 
-	postDraw: function(ctx){
+	postDraw : function(ctx){
 		var style = this.styles;
 		/*var strokeMode = this.attrs.strokeMode || 'over';
 		if(strokeMode === 'clipInsideUnder' && style.strokeStyle){
@@ -2244,17 +2270,17 @@ Drawable.prototype = {
 		//	ctx.scale(5, 1.5);
 		//	ctx.stroke();
 		} */
-		if(style.fillStyle){
+		if(this.attrs.fill){
 			ctx.fill(this.attrs.fillRule);
 		}
-		if(style.strokeStyle){
+		if(this.attrs.stroke){
 			ctx.stroke();
 		}
 		ctx.restore();
 	},
 
 	// Rasterization
-	toDataURL: function(type, bounds){
+	toDataURL : function(type, bounds){
 		if(bounds === undefined){
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
@@ -2280,11 +2306,11 @@ Drawable.prototype = {
 		return canvas.toDataURL(type.type || type, type.quality || 1);
 	},
 
-	toBlob: function(type, quality, bounds, callback){
+	toBlob : function(type, quality, bounds, callback){
 		;
 	},
 
-	toImageData: function(bounds){
+	toImageData : function(bounds){
 		if(bounds === undefined){
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
@@ -2302,7 +2328,7 @@ Drawable.prototype = {
 	},
 
 	// Animation
-	animate: function(attr, value, options){
+	animate : function(attr, value, options){
 		// attr, value, duration, easing, callback
 		// attrs, duration, easing, callback
 		// attr, value, options
@@ -2381,7 +2407,7 @@ Drawable.prototype = {
 		return this;
 	},
 
-	pause: function(name){
+	pause : function(name){
 		if(!this._paused){
 			this._paused = [];
 		}
@@ -2397,7 +2423,7 @@ Drawable.prototype = {
 		return this;
 	},
 
-	continue: function(name){
+	continue : function(name){
 		if(!this._paused){
 			return;
 		}
@@ -2524,12 +2550,131 @@ Drawable.processShadow = function(shadow, style){
 	}
 };
 
-Delta.Drawable = Drawable;
+// Events
+Object.assign(Drawable.prototype, Class.mixins['EventMixin'], {
+	eventHooks: {}
+});
 
-// events aliases
-eventsToInteract.forEach(function(eventName){
+Drawable.browserCommonEvent = {
+	init : function(event){
+		if(this.context){
+			this.context.eventHooks[event].init.call(this.context, event);
+		}
+	},
+
+	teardown : function(event){
+		if(this.context){
+			this.context.eventHooks[event].teardown.call(this.context, event);
+		}
+	}
+};
+
+Array.prototype.concat.call(browserEvents.mouse, browserEvents.touch,
+	browserEvents.pointer, browserEvents.keyboard).forEach(function(eventName){
+	Drawable.prototype.eventHooks[eventName] = Drawable.browserCommonEvent;
 	Drawable.prototype[eventName] = Context.prototype[eventName];
 });
+
+Drawable.browserMouseOverOut = function(event){
+	if(this.hoverElement !== event.targetObject){
+		var prev = this.hoverElement;
+		this.hoverElement = event.targetObject;
+
+		if(prev && prev.fire){
+			prev.fire('mouseout', event);
+		}
+		if(event.targetObject && event.targetObject.fire){
+			event.targetObject.fire('mouseover', event);
+		}
+	}
+};
+
+Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout = {
+	init : function(event){
+		if(this.context && !this.context.listeners._specialMouseOverOutHook_){
+			this.context.listeners._specialMouseOverOutHook_ = Drawable.browserMouseOverOut;
+			this.context.on('mousemove', Drawable.browserMouseOverOut);
+		}
+	},
+
+	teardown : function(event){
+		if(this.context){
+			this.context.listeners._specialMouseOverOutHook_ = null;
+			this.context.off('mousemove', Drawable.browserMouseOverOut);
+		}
+	}
+};
+
+// Attrs
+Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : DrawableAttrHooks.prototype = {
+		z : {
+			get : function(){
+				return this.context.elements.indexOf(this);
+			},
+			set : function(value){
+				var elements = this.context.elements;
+				if(value === 'top'){
+					value = elements.length;
+				}
+
+				elements.splice(this.context.elements.indexOf(this), 1);
+				elements.splice(value, 0, this);
+				this.update();
+			}
+		},
+
+		visible : {
+			set : updateSetter
+		},
+
+		clip : {
+			// todo: if value.changeable then value.on('update', this.update)
+			set : updateSetter
+		},
+
+		// note: value = null is an official way to remove styles
+		fill : {
+			set : function(value){
+				// todo: if value.changeable then value.on('change', this.update)
+				this.style('fillStyle', value);
+				this.update();
+			}
+		},
+
+		fillRule : {
+			set : updateSetter
+		},
+
+		stroke : {
+			set : function(value){
+				// parsing stroke is here
+			}
+		},
+
+		opacity : {
+			get : function(){
+				return this.attrs.opacity === undefined ? 1 : this.attrs.opacity;
+			},
+			set : function(value){
+				this.style('globalAlpha', +value);
+				this.update();
+			}
+		},
+
+		composite : {
+			set : function(value){
+				this.style('globalCompositeOperation', value);
+				this.update();
+			}
+		},
+
+
+	}
+});
+
+
+Delta.Drawable = Drawable;
 
 // var anim = Delta.animation(300, 500, options);
 // anim.start(value => dosmth(value));
@@ -2832,7 +2977,7 @@ Rect = new Class(Drawable, {
 		if(this.attrs.visible){
 			this.preDraw(ctx);
 
-			if(this.styles.fillStyle){
+			if(this.attrs.fill){
 				ctx.fillRect(
 					this.attrs.x,
 					this.attrs.y,
@@ -2840,7 +2985,7 @@ Rect = new Class(Drawable, {
 					this.attrs.height
 				);
 			}
-			if(this.styles.strokeStyle){
+			if(this.attrs.stroke){
 				ctx.strokeRect(
 					this.attrs.x,
 					this.attrs.y,
@@ -4288,6 +4433,102 @@ Delta.Pattern = Pattern;
 // {{dont include Intersections.js}}
 
 // {{dont include MouseEvents.js}}
+
+/* Context.prototype.push = function(element){
+	element.context = this;
+	this.elements.push(element);
+
+	if(element.draw){
+		// может, this.draw(element) ?
+		var ctx = this.context;
+		ctx.save();
+		if(this.matrix){
+			ctx.setTransform(
+				this.matrix[0],
+				this.matrix[1],
+				this.matrix[2],
+				this.matrix[3],
+				this.matrix[4],
+				this.matrix[5]
+			);
+		} else {
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+		}
+		element.draw(ctx);
+		ctx.restore();
+	}
+
+	element.update = element.updateFunction;
+
+	return element;
+};
+
+// clip inside:
+
+/* ctx.fillStyle = 'red';
+ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+ctx.lineWidth = 50;
+
+ctx.beginPath();
+ctx.moveTo(280, 200);
+ctx.arc(200, 200, 80, 0, 6.29);
+ctx.fill();
+
+if(1){
+ctx.beginPath();
+ctx.moveTo(280, 200);
+ctx.arc(200, 200, 80, 0, 6.29);
+ctx.lineTo(500, 200);
+ctx.lineTo(500, 0);
+ctx.lineTo(0, 0);
+ctx.lineTo(0, 500);
+ctx.lineTo(0, 500);
+ctx.lineTo(500, 500);
+ctx.lineTo(500, 200);
+	ctx.clip();
+}
+ctx.beginPath();
+ctx.moveTo(280, 200);
+ctx.arc(200, 200, 80, 0, 6.29);
+ctx.stroke();
+ */
+
+// shadow inside (works only with paths):
+
+/* ctx.fillStyle = 'blue';
+ctx.fillRect(10, 10, 200, 200);
+
+ctx.fillStyle = 'red';
+ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+ctx.lineWidth = 50;
+
+ctx.beginPath();
+ctx.moveTo(280, 200);
+ctx.arc(200, 200, 80, 0, 6.29);
+ctx.fill();
+ctx.clip();
+
+if(1){
+var coef = 1000;
+ctx.translate(0, -coef);
+ctx.shadowOffsetX = 0;
+ctx.shadowOffsetY = 5 + coef;
+ctx.shadowBlur = 10;
+ctx.shadowColor = 'black';
+ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+ctx.beginPath();
+ctx.moveTo(280, 200);
+ctx.arc(200, 200, 80, 0, 6.29);
+ctx.lineTo(500, 200);
+ctx.lineTo(500, 0);
+ctx.lineTo(0, 0);
+ctx.lineTo(0, 500);
+ctx.lineTo(0, 500);
+ctx.lineTo(500, 500);
+ctx.lineTo(500, 200);
+ctx.fill();
+} */
+
 
 Delta.version = "1.9.0";
 

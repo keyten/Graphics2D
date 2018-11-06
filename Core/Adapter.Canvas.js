@@ -1,4 +1,4 @@
-Context.prototype.push = function(element){
+/* Context.prototype.push = function(element){
 	element.context = this;
 	this.elements.push(element);
 

@@ -34,7 +34,8 @@ var Delta = {},
 		}
 		return dest;
 	}, // Object.assign is not deep as well as the polyfill
-	deepExtend = function(){},
+	// todo: remove polyfill
+	deepExtend = extend, // todo: check whether it is neccessary, maybe move to utils
 
 // DOM
 	browserEvents = {
@@ -77,44 +78,6 @@ var Delta = {},
 			'keyup'
 		]
 	},
-	pointerEvents = [
-		// mouse
-		'click',
-		'dblclick',
-		'mousedown',
-		'mouseup',
-		'mousemove',
-		'mouseover',
-		'mouseout',
-		'mouseenter',
-		'mouseleave',
-		'mousewheel',
-		'blur',
-		'focus',
-		// touch
-		'touchstart',
-		'touchmove',
-		'touchend',
-		'touchcancel',
-		// pointer
-		'pointerover',
-		'pointerenter',
-		'pointerdown',
-		'pointermove',
-		'pointerup',
-		'pointercancel',
-		'pointerout',
-		'pointerleave',
-		// check:
-		'gotpointercapture',
-		'lostpointercapture'
-	],
-	eventsToInteract = [ // restEvents
-		// keyboard
-		'keypress',
-		'keydown',
-		'keyup'
-	],
 
 	_ = {},
 	requestAnimationFrame = window.requestAnimationFrame		||
@@ -201,6 +164,8 @@ Delta.contexts = {
 // {{dont include Intersections.js}}
 
 // {{dont include MouseEvents.js}}
+
+// {{include Adapter.Canvas.js}}
 
 Delta.version = "{{version}}";
 

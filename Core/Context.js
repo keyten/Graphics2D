@@ -343,7 +343,7 @@ Context.prototype = {
 	},
 
 	// Attrs
-	attr: Class.attr,
+/*	attr: Class.attr,
 	attrHooks: {
 		width: {
 			get: function(){
@@ -449,7 +449,7 @@ Context.prototype = {
 				}
 			}
 		}
-	},
+	}, */
 
 	// Transforms
 	getTransform: function(){
@@ -473,34 +473,21 @@ Context.prototype = {
 // Events
 Object.assign(Context.prototype, Class.mixins['EventMixin'], {
 	hoverElement : null,
-	focusElement : null,
-
-	listeners: {},
 	eventHooks: {}
 });
 
 Delta.browserCommonEvent = {
 	init : function(event){
-		// not neccessary, Context is for browser canvas 2d
-		// only canvas objects can be abstract
-		if(!this.canvas){
-			return;
-		}
-
 		if(this.eventHooks[event].canvas){
 			this.canvas.addEventListener(event,
-				this.listeners[event + '__canvasListener'] = this.eventHooks[event].canvas.bind(this));
+				this.listeners['_canvasListener_' + event] = this.eventHooks[event].canvas.bind(this));
 		}
 	},
 
 	teardown : function(event){
-		if(!this.canvas){
-			return;
-		}
-
 		requestAnimationFrame(function(){
 			if(!this.listeners[event]){
-				this.canvas.removeEventListener(event, this.listeners[event + '__canvasListener']);
+				this.canvas.removeEventListener(event, this.listeners['_canvasListener_' + event]);
 			}
 		}.bind(this));
 	},
@@ -511,7 +498,7 @@ Delta.browserCommonEvent = {
 	}
 };
 
-// todo: check if there's event.touches at mobiles in mouse events (click and etc)
+// todo: check if there's event.touches at phones in mouse events (click and etc)
 Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 	canvas : function(e){
 		var propagation = true;
@@ -525,7 +512,9 @@ Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 		var coords = this.contextCoords(e.clientX, e.clientY);
 		e.contextX = coords[0];
 		e.contextY = coords[1];
-		this.hoverElement = e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
+		// bug:
+		// if e.type === 'mouseout' => targetObject is current hoverElement
+		e.targetObject = this.getObjectInPoint(e.contextX, e.contextY, true);
 
 		if(e.targetObject && e.targetObject.fire){
 			e.targetObject.fire(e.type, e);
@@ -592,42 +581,58 @@ Object.keys(browserEvents).forEach(function(eventsKind){
 	});
 });
 
-Context.prototype.eventHooks.mouseout = Object.assign({}, Delta.browserCommonEvent, {
-	init : function(){
-		Delta.browserCommonEvent.init.call(this, 'mouseout');
-		Delta.browserCommonEvent.init.call(this, 'mousemove');
-	},
+// Attrs
+Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : {
+		width : {
+			get : function(){
+				return this.canvas.width;
+			},
+			set : function(value){
+				this.canvas.width = value;
+				// if dpi != 1 && !canvas.style.width
+				// or simpler: if this.attrs.dpi !== undefined
+				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
+				// if (newWidth > width):
+				this.update();
+			}
+		},
 
-	canvas : function(e){
-		var propagation = true;
+		height : {
+			get : function(){
+				return this.canvas.height;
+			},
+			set : function(value){
+				this.canvas.height = value;
+				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
+				// if (newHeight > height):
+				this.update();
+			}
+		},
 
-		e.cancelContextPropagation = function(){
-			propagation = false;
-		};
+		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
+		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
+		// http://www.html5gamedevs.com/topic/732-retina-support/
+		dpi : {
+			get : function(){
+				return this.attrs.dpi || 1;
+			},
+			set : function(value){
+				this.canvas.style.width = this.canvas.width / value + 'px';
+				this.canvas.style.height = this.canvas.height / value + 'px';
+				this.update();
+			}
+		},
 
-		// is that only for mouseout?
-		e.targetObject = this.hoverElement;
-		this.hoverElement = null;
-
-		// negative contextX / contextY possible when canvas has a border
-		// not a bug, it's a feature :)
-		var coords = this.contextCoords(e.clientX, e.clientY);
-		e.contextX = coords[0];
-		e.contextY = coords[1];
-
-		if(e.targetObject && e.targetObject.fire){
-			e.targetObject.fire('mouseout', e);
+		smooth : {
+			get : function(value){
+				var ir = this.canvas.style.imageRendering;
+				return ir !== 'pixelated' && ir !== 'crisp-edges';
+			},
+			set : function(value){
+				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
+			}
 		}
-
-		if(propagation){
-			this.fire('mouseout', e);
-		}
-	},
-
-	teardown : function(){
-		Delta.browserCommonEvent.teardown.call(this, 'mouseout');
-		// it won't be torn down if there are mousemove listeners
-		Delta.browserCommonEvent.teardown.call(this, 'mousemove');
 	}
 });
 

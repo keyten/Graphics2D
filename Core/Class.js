@@ -4,6 +4,7 @@
  * Class.EventMixin
  * Class.LinkMixin?
  */
+// todo: move everything to utils
 
 // Class
 function Class(parent, properties){
@@ -60,12 +61,12 @@ Class.mixins = {
 			if(name.constructor === Array){
 				// Array.isArray is too slow in V8
 				return name.map(function(attr){
-					return this.attrs[attr];
+					return this.attr(attr);
 				}, this);
 			}
 
 			// if name is obj then forEach
-			if(typeof name !== 'string'){
+			if(name.constructor !== String){
 				Object.keys(name).forEach(function(attrName){
 					this.attr(attrName, name[attrName]);
 				}, this);
@@ -73,13 +74,53 @@ Class.mixins = {
 			}
 
 			// if value is not defined then get
-			if(arguments.length === 1){
+			if(value === undefined){ // if arguments.length === 1
+				if(this.attrHooks[name] && this.attrHooks[name].get){
+					return this.attrHooks[name].get.call(this);
+				}
 				return this.attrs[name];
 			}
 
 			// else set
-			this.attrs[name] = val;
+			this.attrs[name] = value;
+			if(this.attrHooks[name] && this.attrHooks[name].set){
+				this.attrHooks[name].set.call(this, value);
+			}
 			return this;
+		}
+	},
+
+	TransformableMixin : {
+		attrHooks : {
+			// transform = [1, 0, 0, 1, 0, 0]
+			// transform = 'attributes'
+			// transform = 'translate(1,1) rotate(45)'
+			transform : {
+				set : function(value){
+					this.calcTransform();
+					this.update();
+				}
+			},
+
+			translate : {
+				get : function(){
+					return this.attrs.translate || [1, 1];
+				},
+
+				set : updateTransformSetter
+			},
+
+			rotate : {}
+		},
+
+		calcTransform : function(){
+			// maybe:
+			// this.values.matrix = ...?
+			// cause the same is necc for stroke, shadow, etc... it seems
+
+			// this.attrs.matrix = new Transform2D();
+			// matrix is the read-only attr
+			// if this.attrs.matrix === identity then this.attrs.matrix = null;
 		}
 	},
 
@@ -200,6 +241,7 @@ Class.mixins = {
 	},
 
 // gradients, patterns, clip
+// todo: not neccessary
 	LinkMixin : {
 		links : [],
 		pushLink : function(){},
@@ -212,6 +254,22 @@ function wrapQuickCall(args){
 	return function(){
 		return this[name].apply(this, Array.prototype.slice.call(args, 3));
 	};
+}
+
+function updateTransformSetter(value){
+	if(this.attrs.transform === 'attributes'){
+		this.calcTransform();
+		this.update();
+	}
+}
+
+function Transform2D(m11, m21, m12, m22, m13, m23){
+	this.m11 = m11;
+	this.m21 = m21;
+	this.m12 = m12;
+	this.m22 = m22;
+	this.m13 = m13;
+	this.m23 = m23;
 }
 
 Class.attr = function(name, value){

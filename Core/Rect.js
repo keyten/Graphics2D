@@ -83,7 +83,7 @@ Rect = new Class(Drawable, {
 		if(this.attrs.visible){
 			this.preDraw(ctx);
 
-			if(this.styles.fillStyle){
+			if(this.attrs.fill){
 				ctx.fillRect(
 					this.attrs.x,
 					this.attrs.y,
@@ -91,7 +91,7 @@ Rect = new Class(Drawable, {
 					this.attrs.height
 				);
 			}
-			if(this.styles.strokeStyle){
+			if(this.attrs.stroke){
 				ctx.strokeRect(
 					this.attrs.x,
 					this.attrs.y,

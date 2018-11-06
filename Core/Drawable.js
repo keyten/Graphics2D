@@ -25,7 +25,8 @@ function Drawable(args){
 	// проходить по нему приходится гораздо чаще, чем изменять
 	// (потенциально)
 	// или просто кэшировать Object.keys
-	this.styles = {};
+	//this.styles = {};
+	this.styles = [];
 	this.cache = {};
 	this.attrs = {
 		interaction: true,
@@ -43,23 +44,53 @@ Drawable.prototype = {
 	// mixin: [Class.AttrMixin, Class.EventMixin]
 	// to gradients & patterns: [Class.LinkMixin]
 
-	// actual update function
-	updateFunction: function(){
-		if(this.context){
-			this.context.update();
+	style : function(name, value){
+		var i = this.styles.length;
+		while(i--){
+			if(this.styles[i].name === name){
+				if(value === undefined){
+					return this.styles[i].value;
+				} else if(value === null){
+					this.styles.splice(i, 1);
+					return this;
+				} else {
+					this.styles[i].value = value;
+					return this;
+				}
+			}
+		}
+
+		if(value === undefined){
+			return undefined;
+		} else if(value !== null) {
+			this.styles.push({
+				name: name,
+				value: value
+			});
 		}
 		return this;
 	},
 
+	// actual update function
+	updateFunction : function(){
+		if(this.context){
+			this.context.update();
+		}
+		// if this.onUpdate then this.fire('update')
+		// neccessary for clips and so on
+		return this;
+	},
+
 	// update function for the state before the first draw
-	update: function(){
+	update : function(){
 		return this;
 	},
 
 	/*
 		default: {
-			attrs: true,
-			styles: true,
+			attrs: true, styles: true, // note they re same
+			clip: true,
+			transform: true,
 			fills: true // clone gradients, patterns?
 		}
 	  */
@@ -106,7 +137,7 @@ Drawable.prototype = {
 	},
 
 	// Attributes
-	attr: Class.attr,
+/*	attr: Class.attr,
 
 	attrHooks: DrawableAttrHooks.prototype = {
 		z: {
@@ -258,10 +289,10 @@ Drawable.prototype = {
 				}
 			}
 		}
-	},
+	}, */
 
 	// Transforms
-	getTransform: function(){
+	getTransform : function(){
 		if(this.cache.transform){
 			return this.cache.transform;
 		}
@@ -272,7 +303,7 @@ Drawable.prototype = {
 	},
 
 // Object -> ArgumentObject?
-	processObject: function(object, arglist){
+	processObject : function(object, arglist){
 		// todo: вынести в отдельный объект
 		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
 		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
@@ -286,9 +317,9 @@ Drawable.prototype = {
 		});
 	},
 
-	processArguments: function(args, arglist){
+	processArguments : function(args, arglist){
 		if(args[0].constructor === Object){
-			this.attr(args);
+			this.attr(args[0]);
 		} else {
 			var object = {};
 			arglist.forEach(function(argName, i){
@@ -319,7 +350,7 @@ Drawable.prototype = {
 	// -> boundsPost
 	// или не, должно вызывать this.roughBounds
 	// нужен массив функций, которые последовательно изменяют bounds
-	bounds: function(rect, transform, around){
+	bounds : function(rect, transform, around){
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
@@ -379,7 +410,7 @@ Drawable.prototype = {
 			bounds.y + bounds.h * Delta.corners[corner][1]
 		];
 	},
-
+/*
 	// Events
 	on : function(event, options, callback){
 		if(event + '' !== event){
@@ -435,12 +466,23 @@ Drawable.prototype = {
 			callback.call(this, data);
 		}, this);
 		return this;
-	},
+	}, */
 
 	// Drawing (2D Context)
-	preDraw: function(ctx){
+	preDraw : function(ctx){
 		ctx.save();
 
+		this.styles.forEach(function(style){
+			ctx[style.name] = style.value;
+		});
+
+		if(this.attrs.matrix){
+			;
+		}
+
+		// если какие-то особые штуки, то пишем их не в styles, а в attrs
+		// и тут их проверяем
+/*
 		var style = this.styles;
 		// styles
 		// note1: we might cache Object.keys
@@ -482,10 +524,10 @@ Drawable.prototype = {
 		var transform = this.getTransform();
 		if(!Delta.isIdentityTransform(transform)){
 			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-		}
+		} */
 	},
 
-	postDraw: function(ctx){
+	postDraw : function(ctx){
 		var style = this.styles;
 		/*var strokeMode = this.attrs.strokeMode || 'over';
 		if(strokeMode === 'clipInsideUnder' && style.strokeStyle){
@@ -512,17 +554,17 @@ Drawable.prototype = {
 		//	ctx.scale(5, 1.5);
 		//	ctx.stroke();
 		} */
-		if(style.fillStyle){
+		if(this.attrs.fill){
 			ctx.fill(this.attrs.fillRule);
 		}
-		if(style.strokeStyle){
+		if(this.attrs.stroke){
 			ctx.stroke();
 		}
 		ctx.restore();
 	},
 
 	// Rasterization
-	toDataURL: function(type, bounds){
+	toDataURL : function(type, bounds){
 		if(bounds === undefined){
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
@@ -548,11 +590,11 @@ Drawable.prototype = {
 		return canvas.toDataURL(type.type || type, type.quality || 1);
 	},
 
-	toBlob: function(type, quality, bounds, callback){
+	toBlob : function(type, quality, bounds, callback){
 		;
 	},
 
-	toImageData: function(bounds){
+	toImageData : function(bounds){
 		if(bounds === undefined){
 			if(typeof this.bounds === 'function'){
 				bounds = this.bounds();
@@ -570,7 +612,7 @@ Drawable.prototype = {
 	},
 
 	// Animation
-	animate: function(attr, value, options){
+	animate : function(attr, value, options){
 		// attr, value, duration, easing, callback
 		// attrs, duration, easing, callback
 		// attr, value, options
@@ -649,7 +691,7 @@ Drawable.prototype = {
 		return this;
 	},
 
-	pause: function(name){
+	pause : function(name){
 		if(!this._paused){
 			this._paused = [];
 		}
@@ -665,7 +707,7 @@ Drawable.prototype = {
 		return this;
 	},
 
-	continue: function(name){
+	continue : function(name){
 		if(!this._paused){
 			return;
 		}
@@ -792,9 +834,128 @@ Drawable.processShadow = function(shadow, style){
 	}
 };
 
-Delta.Drawable = Drawable;
+// Events
+Object.assign(Drawable.prototype, Class.mixins['EventMixin'], {
+	eventHooks: {}
+});
 
-// events aliases
-eventsToInteract.forEach(function(eventName){
+Drawable.browserCommonEvent = {
+	init : function(event){
+		if(this.context){
+			this.context.eventHooks[event].init.call(this.context, event);
+		}
+	},
+
+	teardown : function(event){
+		if(this.context){
+			this.context.eventHooks[event].teardown.call(this.context, event);
+		}
+	}
+};
+
+Array.prototype.concat.call(browserEvents.mouse, browserEvents.touch,
+	browserEvents.pointer, browserEvents.keyboard).forEach(function(eventName){
+	Drawable.prototype.eventHooks[eventName] = Drawable.browserCommonEvent;
 	Drawable.prototype[eventName] = Context.prototype[eventName];
 });
+
+Drawable.browserMouseOverOut = function(event){
+	if(this.hoverElement !== event.targetObject){
+		var prev = this.hoverElement;
+		this.hoverElement = event.targetObject;
+
+		if(prev && prev.fire){
+			prev.fire('mouseout', event);
+		}
+		if(event.targetObject && event.targetObject.fire){
+			event.targetObject.fire('mouseover', event);
+		}
+	}
+};
+
+Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout = {
+	init : function(event){
+		if(this.context && !this.context.listeners._specialMouseOverOutHook_){
+			this.context.listeners._specialMouseOverOutHook_ = Drawable.browserMouseOverOut;
+			this.context.on('mousemove', Drawable.browserMouseOverOut);
+		}
+	},
+
+	teardown : function(event){
+		if(this.context){
+			this.context.listeners._specialMouseOverOutHook_ = null;
+			this.context.off('mousemove', Drawable.browserMouseOverOut);
+		}
+	}
+};
+
+// Attrs
+Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : DrawableAttrHooks.prototype = {
+		z : {
+			get : function(){
+				return this.context.elements.indexOf(this);
+			},
+			set : function(value){
+				var elements = this.context.elements;
+				if(value === 'top'){
+					value = elements.length;
+				}
+
+				elements.splice(this.context.elements.indexOf(this), 1);
+				elements.splice(value, 0, this);
+				this.update();
+			}
+		},
+
+		visible : {
+			set : updateSetter
+		},
+
+		clip : {
+			// todo: if value.changeable then value.on('update', this.update)
+			set : updateSetter
+		},
+
+		// note: value = null is an official way to remove styles
+		fill : {
+			set : function(value){
+				// todo: if value.changeable then value.on('change', this.update)
+				this.style('fillStyle', value);
+				this.update();
+			}
+		},
+
+		fillRule : {
+			set : updateSetter
+		},
+
+		stroke : {
+			set : function(value){
+				// parsing stroke is here
+			}
+		},
+
+		opacity : {
+			get : function(){
+				return this.attrs.opacity === undefined ? 1 : this.attrs.opacity;
+			},
+			set : function(value){
+				this.style('globalAlpha', +value);
+				this.update();
+			}
+		},
+
+		composite : {
+			set : function(value){
+				this.style('globalCompositeOperation', value);
+				this.update();
+			}
+		},
+
+
+	}
+});
+
+
+Delta.Drawable = Drawable;
