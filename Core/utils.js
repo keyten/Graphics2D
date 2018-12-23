@@ -429,6 +429,27 @@ Delta.clone = function(object){
 	return result;
 };
 
+Delta.strParse = {
+	functions : function(str){
+		var result = [];
+		str = str.split(')');
+		str.forEach(function(part){
+			part = part.trim();
+			if(part === ''){
+				return;
+			}
+
+			result.push({
+				args: part.split('(')[1].split(',').map(function(arg){
+					return arg.trim();
+				}),
+				method: part.match(/[a-z]+/)[0]
+			});
+		});
+		return result;
+	}
+};
+
 // Matrices
 Delta.parseTransform = function(attrs, element){
 	// todo: check about speed and think how to raise it

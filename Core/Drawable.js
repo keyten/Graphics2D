@@ -25,8 +25,7 @@ function Drawable(args){
 	// проходить по нему приходится гораздо чаще, чем изменять
 	// (потенциально)
 	// или просто кэшировать Object.keys
-	//this.styles = {};
-	this.styles = [];
+	this.styles = {};
 	this.cache = {};
 	this.attrs = {
 		interaction: true,
@@ -43,33 +42,6 @@ Drawable.prototype = {
 	initialize: Drawable,
 	// mixin: [Class.AttrMixin, Class.EventMixin]
 	// to gradients & patterns: [Class.LinkMixin]
-
-	style : function(name, value){
-		var i = this.styles.length;
-		while(i--){
-			if(this.styles[i].name === name){
-				if(value === undefined){
-					return this.styles[i].value;
-				} else if(value === null){
-					this.styles.splice(i, 1);
-					return this;
-				} else {
-					this.styles[i].value = value;
-					return this;
-				}
-			}
-		}
-
-		if(value === undefined){
-			return undefined;
-		} else if(value !== null) {
-			this.styles.push({
-				name: name,
-				value: value
-			});
-		}
-		return this;
-	},
 
 	// actual update function
 	updateFunction : function(){
@@ -347,10 +319,113 @@ Drawable.prototype = {
 	},
 
 	// Bounds
-	// -> boundsPost
-	// или не, должно вызывать this.roughBounds
-	// нужен массив функций, которые последовательно изменяют bounds
-	bounds : function(rect, transform, around){
+	boundsReducers : {
+		order : 'accuracy transform stroke tight',
+		accuracy : function(value){
+			// todo: fix
+			if(value === 'precise'){
+				return (this.preciseBounds || this.roughBounds).call(this);
+			}
+			if(value === 'rough'){
+				return (this.roughBounds || this.preciseBounds).call(this);
+			}
+		},
+
+		stroke : function(value, bounds){
+			var lineWidthHalf = this.styles.lineWidth;
+			if(!lineWidthHalf || value === 'ignore'){
+				return bounds;
+			}
+
+			lineWidthHalf /= 2;
+			if(value === '-'){
+				lineWidthHalf = -lineWidthHalf;
+			}
+
+			bounds.lt[0] -= lineWidthHalf;
+			bounds.lt[1] -= lineWidthHalf;
+			bounds.lb[0] -= lineWidthHalf;
+			bounds.lb[1] += lineWidthHalf;
+			bounds.rt[0] += lineWidthHalf;
+			bounds.rt[1] -= lineWidthHalf;
+			bounds.rb[0] += lineWidthHalf;
+			bounds.rb[1] += lineWidthHalf;
+
+			return bounds;
+		},
+
+		transform : function(value, bounds){
+			var matrix;
+			if(value === 'full'){
+				matrix = this.attrs.matrix;
+			}
+
+			if(value === 'none' || !matrix){
+				return {
+					lt: [bounds.x1, bounds.y1],
+					lb: [bounds.x1, bounds.y2],
+					rt: [bounds.x2, bounds.y1],
+					rb: [bounds.x2, bounds.y2]
+				};
+			}
+
+			var lt = matrix.transformPoint(bounds.x1, bounds.y1),
+				lb = matrix.transformPoint(bounds.x1, bounds.y2),
+				rt = matrix.transformPoint(bounds.x2, bounds.y1),
+				rb = matrix.transformPoint(bounds.x2, bounds.y2);
+
+			return {
+				lt: lt,
+				lb: lb,
+				rt: rt,
+				rb: rb
+			};
+			/*if(value === 'self'){
+				matrix = this.attrs.matrix;
+			} else if(value === 'context'){
+				matrix = this.context.attrs.matrix;
+				if(!matrix){
+					return bounds;
+				}
+			} else {
+				if(!this.context || !this.context.attrs.matrix){
+					matrix = this.attrs.matrix;
+				} else if(!this.attrs.matrix) {
+					;
+				}
+			} */
+		},
+
+		tight : function(value, tight){
+			if(value){
+				return tight;
+			}
+
+			var minx = Math.min(tight.lt[0], tight.lb[0], tight.rt[0], tight.rb[0]),
+				miny = Math.min(tight.lt[1], tight.lb[1], tight.rt[1], tight.rb[1]),
+				maxx = Math.max(tight.lt[0], tight.lb[0], tight.rt[0], tight.rb[0]),
+				maxy = Math.max(tight.lt[1], tight.lb[1], tight.rt[1], tight.rb[1]);
+			return new Bounds(minx, miny, maxx - minx, maxy - miny);
+		}
+	},
+
+	bounds : function(options){
+		options = Object.assign({
+			accuracy : 'precise', // precise, rough, available (precise if it is)
+			transform : 'full', // full, context, self, none
+			stroke : 'ignore', // +, -, ignore
+			tight: false // if true returns tight box from transform, if false then modifies it to non-tight
+			// additions: clip, ...
+		}, options);
+
+		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+			if(options[caller] === undefined){
+				return result;
+			}
+
+			return this.boundsReducers[caller].call(this, options[caller], result, options);
+		}.bind(this), null);
+/*
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
@@ -360,7 +435,7 @@ Drawable.prototype = {
 		// transformed - self & context
 
 		// example: 'rough tight'
-
+/*
 		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
 			if(around === 'strokeExclude'){
@@ -394,7 +469,7 @@ Drawable.prototype = {
 			rect[3] = Math.max(tight[0][1], tight[1][1], tight[2][1], tight[3][1]) - rect[1];
 		}
 
-		return new Bounds(rect[0], rect[1], rect[2], rect[3]);
+		return new Bounds(rect[0], rect[1], rect[2], rect[3]); */
 	},
 
 	corner : function(corner, bounds){
@@ -472,12 +547,14 @@ Drawable.prototype = {
 	preDraw : function(ctx){
 		ctx.save();
 
-		this.styles.forEach(function(style){
-			ctx[style.name] = style.value;
-		});
+		Object.keys(this.styles).forEach(function(key){
+			ctx[key] = this.styles[key];
+		}, this);
 
 		if(this.attrs.matrix){
-			;
+			var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+			ctx.transform(matrix[0], matrix[1], matrix[2],
+				matrix[3], matrix[4], matrix[5]);
 		}
 
 		// если какие-то особые штуки, то пишем их не в styles, а в attrs
@@ -890,8 +967,8 @@ Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout
 };
 
 // Attrs
-Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
-	attrHooks : DrawableAttrHooks.prototype = {
+Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+	attrHooks : DrawableAttrHooks.prototype = Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		z : {
 			get : function(){
 				return this.context.elements.indexOf(this);
@@ -921,7 +998,7 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 		fill : {
 			set : function(value){
 				// todo: if value.changeable then value.on('change', this.update)
-				this.style('fillStyle', value);
+				this.styles.fillStyle = value;
 				this.update();
 			}
 		},
@@ -932,7 +1009,144 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 
 		stroke : {
 			set : function(value){
-				// parsing stroke is here
+				// todo: it must annihilate previous stroke params first
+				if(value.constructor === String){
+					// remove spaces between commas
+					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+
+					var opacity,
+						l = value.length,
+						joinSet = false,
+						capSet = false,
+						color;
+
+					while(l--){
+						if(reFloat.test(value[l])){
+							opacity = parseFloat(value[l]);
+						} else if(isNumberLike(value[l])){
+							this.styles.lineWidth = Delta.distance(value[l]);
+						} else if(value[l] === 'round'){
+							if(!joinSet){
+								this.styles.lineJoin = 'round';
+							}
+							if(!capSet){
+								this.styles.lineCap = 'round';
+							}
+						} else if(value[l] === 'miter' || value[l] === 'bevel'){
+							joinSet = true;
+							this.styles.lineJoin = value[l];
+						} else if(value[l] === 'butt' || value[l] === 'square'){
+							capSet = true;
+							this.styles.lineCap = value[l];
+						} else if(value[l][0] === '['){
+							;
+				//style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
+						} else if(Delta.dashes[value[l]]){
+							;
+						} else if(value[l].lastIndexOf('ml') === value[l].length - 2){
+							;
+						} else if(value[l].lastIndexOf('do') === value[l].length - 2){
+							// todo: check about cross-browser support
+							// mozDashOffset
+							// webkitLineDashOffset
+							//style.lineDashOffset = Delta.distance(stroke[l].slice(2));
+							this.styles.lineDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
+						} else {
+							color = value[l];
+							// this.style('strokeStyle', value[l]);
+						}
+					}
+
+					if(color){
+						if(opacity){
+							color = Delta.color(color);
+							color[3] = opacity;
+							color = 'rgba(' + color.join(',') + ')';
+						}
+						this.styles.strokeStyle = color;
+					}
+				} else {
+					;
+				}
+				/*
+	if(stroke + '' === stroke){
+		// remove spaces between commas
+		stroke = stroke.replace(/(\s*\,\s*)/g, ',').split(' '); // without braces regexp
+
+		var opacity, l = stroke.length,
+			joinSet = false,
+			capSet = false;
+
+		while(l--){
+			if(reFloat.test(stroke[l])){
+				opacity = parseFloat(stroke[l]);
+			} else if(isNumberLike(stroke[l])){
+				style.lineWidth = Delta.distance(stroke[l]);
+			} else if(stroke[l] === 'round'){
+				if(!joinSet){
+					style.lineJoin = 'round';
+				}
+				if(!capSet){
+					style.lineCap = style.lineCap || 'round';
+				}
+			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
+				joinSet = true;
+				style.lineJoin = stroke[l];
+			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
+				capSet = true;
+				style.lineCap = stroke[l];
+			} else if(stroke[l][0] === '['){
+				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
+			} else if(stroke[l] in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke[l]];
+			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
+				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
+			} else if(stroke[l].indexOf('do') === 0){
+				// todo: check about cross-browser support
+				// mozDashOffset
+				// webkitLineDashOffset
+				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
+			} else {
+				style.strokeStyle = stroke[l];
+			}
+		}
+		if(opacity){
+			stroke = Delta.color(style.strokeStyle);
+			stroke[3] = opacity;
+			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
+		}
+	} else {
+		if(stroke.color !== undefined){
+			style.strokeStyle = stroke.color;
+		}
+		if(stroke.opacity !== undefined && style.strokeStyle){
+			var parsed = Delta.color(style.strokeStyle);
+			parsed[3] = stroke.opacity;
+			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+		}
+		if(stroke.width !== undefined){
+			style.lineWidth = Delta.distance(stroke.width);
+		}
+		if(stroke.join !== undefined){
+			style.lineJoin = stroke.join;
+		}
+		if(stroke.cap !== undefined){
+			style.lineCap = stroke.cap;
+		}
+		if(stroke.miterLimit !== undefined){
+			style.miterLimit = stroke.miterLimit;
+		}
+		if(stroke.dash !== undefined){
+			if(stroke.dash in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke.dash];
+			} else {
+				style.lineDash = stroke.dash;
+			}
+		}
+		if(stroke.dashOffset !== undefined){
+			style.lineDashOffset = Delta.distance(stroke.dashOffset);
+		}
+	} */
 			}
 		},
 
@@ -941,20 +1155,20 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 				return this.attrs.opacity === undefined ? 1 : this.attrs.opacity;
 			},
 			set : function(value){
-				this.style('globalAlpha', +value);
+				this.styles.globalAlpha = +value;
 				this.update();
 			}
 		},
 
 		composite : {
 			set : function(value){
-				this.style('globalCompositeOperation', value);
+				this.styles.globalCompositeOperation = value;
 				this.update();
 			}
 		},
 
 
-	}
+	})
 });
 
 

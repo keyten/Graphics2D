@@ -97,37 +97,166 @@ Class.mixins = {
 			// transform = 'translate(1,1) rotate(45)'
 			transform : {
 				set : function(value){
-					this.calcTransform();
+					if(value === null){
+						this.attrs.matrix = null;
+					} else {
+						this.attrs.matrix = 'dirty';
+					}
 					this.update();
 				}
 			},
 
+			transformOrder: {set: updateTransformSetter},
+			pivot: {set: updateTransformSetter},
+
 			translate : {
 				get : function(){
-					return this.attrs.translate || [1, 1];
+					return this.attrs.translate || [0, 0];
 				},
-
 				set : updateTransformSetter
 			},
 
-			rotate : {}
+			rotate : {
+				get : function(){
+					return this.attrs.rotate || 0;
+				},
+				set : updateTransformSetter
+			},
+
+			scale : {
+				get : function(){
+					return this.attrs.scale || [1, 1];
+				},
+				set : updateTransformSetter
+			},
+
+			skew : {
+				get : function(){
+					return this.attrs.skew || [0, 0];
+				},
+				set : updateTransformSetter
+			}
 		},
 
-		calcTransform : function(){
-			// maybe:
-			// this.values.matrix = ...?
-			// cause the same is necc for stroke, shadow, etc... it seems
+		calcMatrix : function(){
+			var matrix, transform = this.attrs.transform;
 
-			// this.attrs.matrix = new Transform2D();
-			// matrix is the read-only attr
-			// if this.attrs.matrix === identity then this.attrs.matrix = null;
+			if(transform.constructor === Array){
+				matrix = new Float32Array(transform); //new Transform2D(transform[0], transform[1], transform[2],
+					//transform[3], transform[4], transform[5]);
+			} else if(transform === 'attributes'){
+				matrix = new Float32Array([1, 0, 0, 1, 0, 0]);
+				(this.attrs.transformOrder || Delta.transformOrder).split(' ').forEach(function(tr){
+					var attr = this.attrs[tr];
+					if(!attr){
+						return;
+					}
+					this.transformFunctions[tr].call(this, matrix, attr.constructor === Array ? attr : [attr]);
+				}, this);
+			} else {
+				matrix = new Float32Array([1, 0, 0, 1, 0, 0]);
+				Delta.strParse.functions(transform).forEach(function(func){
+					this.transformFunctions[func.method].call(this, matrix, func.args);
+				}, this);
+			}
+
+			return this.attrs.matrix = matrix;
+		},
+
+		transformFunctions : {
+			pivot : function(pivot){
+				if(pivot.indexOf(';') > -1){
+					pivot = pivot.split(';');
+					// todo: distance
+					return [
+						Number(pivot[0].trim()),
+						Number(pivot[1].trim())
+					];
+				}
+
+				return this.corner(pivot, {
+					transform: 'none'
+				});
+			},
+
+			translate : function(matrix, args){
+				var x = Number(args[0]),
+					y = Number(args[1]);
+				if(args[2]){
+					// args[2] is called 'independent'
+					matrix[4] += x;
+					matrix[5] += y;
+				} else {
+					matrix[4] = matrix[0] * x + matrix[2] * y + matrix[4];
+					matrix[5] = matrix[1] * x + matrix[3] * y + matrix[5];
+				}
+			},
+
+			matrix : function(matrix, matrix2){
+				var a = matrix[0],
+					b = matrix[1],
+					c = matrix[2],
+					d = matrix[3],
+					e = matrix[4],
+					f = matrix[5];
+				matrix[0] = a * matrix2[0] + c * matrix2[1];
+				matrix[1] = b * matrix2[0] + d * matrix2[1];
+				matrix[2] = a * matrix2[2] + c * matrix2[3];
+				matrix[3] = b * matrix2[2] + d * matrix2[3];
+				matrix[4] = a * matrix2[4] + c * matrix2[5] + e;
+				matrix[5] = b * matrix2[4] + d * matrix2[5] + f;
+			},
+
+			lmatrix : function(matrix, matrix2){
+				this.transformFunctions.matrix.call(this, matrix2, matrix);
+			},
+
+			rotate : function(matrix, args){
+				var pivot = this.transformFunctions.pivot.call(this, args[1]),
+					angle = Number(args[0]) * Math.PI / 180,
+					cos = Math.cos(angle),
+					sin = Math.sin(angle);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					cos, sin, -sin, cos,
+					-pivot[0] * cos + pivot[1] * sin + pivot[0],
+					-pivot[0] * sin - pivot[1] * cos + pivot[1]]);
+			},
+
+			scale : function(matrix, args, x, y, pivot){
+				if(isNaN(args[1])){
+					args[2] = args[1];
+					args[1] = args[0];
+				}
+				var x = Number(args[0]),
+					y = Number(args[1]),
+					pivot = this.transformFunctions.pivot.call(this, args[2]);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					x, 0, 0, y,
+					-pivot[0] * x + pivot[0],
+					-pivot[1] * y + pivot[1]]);
+			},
+
+			skew : function(matrix, x, y, pivot){
+				if(isNaN(args[1])){
+					args[2] = args[1];
+					args[1] = args[0];
+				}
+				var x = Math.tan(Number(args[0]) * Math.PI / 180),
+					y = Math.tan(Number(args[1]) * Math.PI / 180),
+					pivot = this.transformFunctions.pivot.call(this, args[2]);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					1, y, x, 1,
+					-pivot[0] * 1 - pivot[1] * y + pivot[0],
+					-pivot[0] * x - pivot[1] * 1 + pivot[1]]);
+			}
 		}
 	},
 
 	// todo: AnimatableMixin depending on the AttrMixin
 	// must be defined at Animation.js
-
-	// todo: TransformableMixin depending on the AttrMixin too
 
 	EventMixin : {
 		listeners : {},
@@ -249,6 +378,8 @@ Class.mixins = {
 	}
 };
 
+Delta.transformOrder = 'translate rotate scale skew';
+
 function wrapQuickCall(args){
 	var name = args[2];
 	return function(){
@@ -257,19 +388,8 @@ function wrapQuickCall(args){
 }
 
 function updateTransformSetter(value){
-	if(this.attrs.transform === 'attributes'){
-		this.calcTransform();
-		this.update();
-	}
-}
-
-function Transform2D(m11, m21, m12, m22, m13, m23){
-	this.m11 = m11;
-	this.m21 = m21;
-	this.m12 = m12;
-	this.m22 = m22;
-	this.m13 = m13;
-	this.m23 = m23;
+	this.attrs.matrix = 'dirty';
+	this.update();
 }
 
 Class.attr = function(name, value){

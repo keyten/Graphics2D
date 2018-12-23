@@ -6,7 +6,8 @@ Context = function(canvas){
 	this.elements  = [];
 	this.listeners = {};
 	this.attrs     = {
-		transform: 'attributes'
+		transform: 'attributes',
+		pivot: 'center'
 	};
 	this.cache     = {};
 
@@ -77,15 +78,11 @@ Context.prototype = {
 		if(element.draw){
 			var ctx = this.context;
 			ctx.save();
-			if(this.matrix){
-				ctx.setTransform(
-					this.matrix[0],
-					this.matrix[1],
-					this.matrix[2],
-					this.matrix[3],
-					this.matrix[4],
-					this.matrix[5]
-				);
+			// todo: dpi
+			if(this.attrs.matrix){
+				var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+				ctx.setTransform(matrix[0], matrix[1], matrix[2],
+					matrix[3], matrix[4], matrix[5]);
 			} else {
 				ctx.setTransform(1, 0, 0, 1, 0, 0);
 			}
@@ -99,7 +96,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate){
+		if(this._willUpdate || this.elements.length === 0){
 			return;
 		}
 
@@ -110,14 +107,18 @@ Context.prototype = {
 	updateNow : function(){
 		var ctx = this.context;
 		ctx.save();
+		// todo: check out what way to clear canvas is faster
+		// maybe just this.canvas.width = this.canvas.width;
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		var transform = this.getTransform();
-		var dpi = this.attrs.dpi || 1;
-		if(!Delta.isIdentityTransform(transform)){
-			ctx.setTransform(transform[0] / dpi, transform[1], transform[2], transform[3] / dpi, transform[4], transform[5]);
-		} else if(dpi !== 1){
-			ctx.setTransform(dpi, 0, 0, dpi, 0, 0);
+
+		// todo: dpi
+		if(this.attrs.matrix){
+			// if transform then m11 /= dpi, m22 /= dpi
+			// if not then setTransform(1 / dpi, 0, 0, 1 / dpi, 0, 0)
+			var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+			ctx.setTransform(matrix[0], matrix[1], matrix[2],
+				matrix[3], matrix[4], matrix[5]);
 		}
 
 		this.elements.forEach(function(element){
@@ -582,8 +583,8 @@ Object.keys(browserEvents).forEach(function(eventsKind){
 });
 
 // Attrs
-Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
-	attrHooks : {
+Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+	attrHooks : Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		width : {
 			get : function(){
 				return this.canvas.width;
@@ -633,7 +634,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
 				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
 			}
 		}
-	}
+	})
 });
 
 Delta.Context = Context;

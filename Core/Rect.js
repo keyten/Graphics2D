@@ -72,12 +72,21 @@ Rect = new Class(Drawable, {
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},
 
+	preciseBounds : function(){
+		return new Bounds(
+			this.attrs.x,
+			this.attrs.y,
+			this.attrs.width,
+			this.attrs.height
+		);
+	},
+/*
 	bounds: function(transform, around){
 		return this.super('bounds', [
 			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 			transform, around
 		]);
-	},
+	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){

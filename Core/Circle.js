@@ -19,12 +19,21 @@ Circle = new Class(Drawable, {
 		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius + stroke, 2);
 	},
 
+	preciseBounds : function(){
+		return new Bounds(
+			this.attrs.cx - this.attrs.radius,
+			this.attrs.cy - this.attrs.radius,
+			this.attrs.radius * 2,
+			this.attrs.radius * 2
+		);
+	},
+/*
 	bounds: function(transform, around){
 		return this.super('bounds', [
 			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
 			transform, around
 		]);
-	},
+	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -48,6 +57,8 @@ Circle = new Class(Drawable, {
 	}
 
 });
+
+Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 

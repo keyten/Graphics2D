@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 04.11.2018
+ *  Last edit: 23.12.2018
  *  License: MIT
  */
 
@@ -535,6 +535,27 @@ Delta.clone = function(object){
 	return result;
 };
 
+Delta.strParse = {
+	functions : function(str){
+		var result = [];
+		str = str.split(')');
+		str.forEach(function(part){
+			part = part.trim();
+			if(part === ''){
+				return;
+			}
+
+			result.push({
+				args: part.split('(')[1].split(',').map(function(arg){
+					return arg.trim();
+				}),
+				method: part.match(/[a-z]+/)[0]
+			});
+		});
+		return result;
+	}
+};
+
 // Matrices
 Delta.parseTransform = function(attrs, element){
 	// todo: check about speed and think how to raise it
@@ -892,13 +913,172 @@ Class.mixins = {
 	},
 
 	TransformableMixin : {
-		attrHooks : {}
+		attrHooks : {
+			// transform = [1, 0, 0, 1, 0, 0]
+			// transform = 'attributes'
+			// transform = 'translate(1,1) rotate(45)'
+			transform : {
+				set : function(value){
+					if(value === null){
+						this.attrs.matrix = null;
+					} else {
+						this.attrs.matrix = 'dirty';
+					}
+					this.update();
+				}
+			},
+
+			transformOrder: {set: updateTransformSetter},
+			pivot: {set: updateTransformSetter},
+
+			translate : {
+				get : function(){
+					return this.attrs.translate || [0, 0];
+				},
+				set : updateTransformSetter
+			},
+
+			rotate : {
+				get : function(){
+					return this.attrs.rotate || 0;
+				},
+				set : updateTransformSetter
+			},
+
+			scale : {
+				get : function(){
+					return this.attrs.scale || [1, 1];
+				},
+				set : updateTransformSetter
+			},
+
+			skew : {
+				get : function(){
+					return this.attrs.skew || [0, 0];
+				},
+				set : updateTransformSetter
+			}
+		},
+
+		calcMatrix : function(){
+			var matrix, transform = this.attrs.transform;
+
+			if(transform.constructor === Array){
+				matrix = new Float32Array(transform); //new Transform2D(transform[0], transform[1], transform[2],
+					//transform[3], transform[4], transform[5]);
+			} else if(transform === 'attributes'){
+				matrix = new Float32Array([1, 0, 0, 1, 0, 0]);
+				(this.attrs.transformOrder || Delta.transformOrder).split(' ').forEach(function(tr){
+					var attr = this.attrs[tr];
+					if(!attr){
+						return;
+					}
+					this.transformFunctions[tr].call(this, matrix, attr.constructor === Array ? attr : [attr]);
+				}, this);
+			} else {
+				matrix = new Float32Array([1, 0, 0, 1, 0, 0]);
+				Delta.strParse.functions(transform).forEach(function(func){
+					this.transformFunctions[func.method].call(this, matrix, func.args);
+				}, this);
+			}
+
+			return this.attrs.matrix = matrix;
+		},
+
+		transformFunctions : {
+			pivot : function(pivot){
+				if(pivot.indexOf(';') > -1){
+					pivot = pivot.split(';');
+					// todo: distance
+					return [
+						Number(pivot[0].trim()),
+						Number(pivot[1].trim())
+					];
+				}
+
+				return this.corner(pivot, {
+					transform: 'none'
+				});
+			},
+
+			translate : function(matrix, args){
+				var x = Number(args[0]),
+					y = Number(args[1]);
+				if(args[2]){
+					// args[2] is called 'independent'
+					matrix[4] += x;
+					matrix[5] += y;
+				} else {
+					matrix[4] = matrix[0] * x + matrix[2] * y + matrix[4];
+					matrix[5] = matrix[1] * x + matrix[3] * y + matrix[5];
+				}
+			},
+
+			matrix : function(matrix, matrix2){
+				var a = matrix[0],
+					b = matrix[1],
+					c = matrix[2],
+					d = matrix[3],
+					e = matrix[4],
+					f = matrix[5];
+				matrix[0] = a * matrix2[0] + c * matrix2[1];
+				matrix[1] = b * matrix2[0] + d * matrix2[1];
+				matrix[2] = a * matrix2[2] + c * matrix2[3];
+				matrix[3] = b * matrix2[2] + d * matrix2[3];
+				matrix[4] = a * matrix2[4] + c * matrix2[5] + e;
+				matrix[5] = b * matrix2[4] + d * matrix2[5] + f;
+			},
+
+			lmatrix : function(matrix, matrix2){
+				this.transformFunctions.matrix.call(this, matrix2, matrix);
+			},
+
+			rotate : function(matrix, args){
+				var pivot = this.transformFunctions.pivot.call(this, args[1]),
+					angle = Number(args[0]) * Math.PI / 180,
+					cos = Math.cos(angle),
+					sin = Math.sin(angle);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					cos, sin, -sin, cos,
+					-pivot[0] * cos + pivot[1] * sin + pivot[0],
+					-pivot[0] * sin - pivot[1] * cos + pivot[1]]);
+			},
+
+			scale : function(matrix, args, x, y, pivot){
+				if(isNaN(args[1])){
+					args[2] = args[1];
+					args[1] = args[0];
+				}
+				var x = Number(args[0]),
+					y = Number(args[1]),
+					pivot = this.transformFunctions.pivot.call(this, args[2]);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					x, 0, 0, y,
+					-pivot[0] * x + pivot[0],
+					-pivot[1] * y + pivot[1]]);
+			},
+
+			skew : function(matrix, x, y, pivot){
+				if(isNaN(args[1])){
+					args[2] = args[1];
+					args[1] = args[0];
+				}
+				var x = Math.tan(Number(args[0]) * Math.PI / 180),
+					y = Math.tan(Number(args[1]) * Math.PI / 180),
+					pivot = this.transformFunctions.pivot.call(this, args[2]);
+
+				this.transformFunctions.matrix.call(this, matrix, [
+					1, y, x, 1,
+					-pivot[0] * 1 - pivot[1] * y + pivot[0],
+					-pivot[0] * x - pivot[1] * 1 + pivot[1]]);
+			}
+		}
 	},
 
 	// todo: AnimatableMixin depending on the AttrMixin
 	// must be defined at Animation.js
-
-	// todo: TransformableMixin depending on the AttrMixin too
 
 	EventMixin : {
 		listeners : {},
@@ -1012,12 +1192,15 @@ Class.mixins = {
 	},
 
 // gradients, patterns, clip
+// todo: not neccessary
 	LinkMixin : {
 		links : [],
 		pushLink : function(){},
 		callLinks : function(funcName){}
 	}
 };
+
+Delta.transformOrder = 'translate rotate scale skew';
 
 function wrapQuickCall(args){
 	var name = args[2];
@@ -1026,13 +1209,9 @@ function wrapQuickCall(args){
 	};
 }
 
-function Transform2D(m11, m21, m12, m22, m13, m23){
-	this.m11 = m11;
-	this.m21 = m21;
-	this.m12 = m12;
-	this.m22 = m22;
-	this.m13 = m13;
-	this.m23 = m23;
+function updateTransformSetter(value){
+	this.attrs.matrix = 'dirty';
+	this.update();
 }
 
 Class.attr = function(name, value){
@@ -1082,7 +1261,8 @@ Context = function(canvas){
 	this.elements  = [];
 	this.listeners = {};
 	this.attrs     = {
-		transform: 'attributes'
+		transform: 'attributes',
+		pivot: 'center'
 	};
 	this.cache     = {};
 
@@ -1153,15 +1333,11 @@ Context.prototype = {
 		if(element.draw){
 			var ctx = this.context;
 			ctx.save();
-			if(this.matrix){
-				ctx.setTransform(
-					this.matrix[0],
-					this.matrix[1],
-					this.matrix[2],
-					this.matrix[3],
-					this.matrix[4],
-					this.matrix[5]
-				);
+			// todo: dpi
+			if(this.attrs.matrix){
+				var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+				ctx.setTransform(matrix[0], matrix[1], matrix[2],
+					matrix[3], matrix[4], matrix[5]);
 			} else {
 				ctx.setTransform(1, 0, 0, 1, 0, 0);
 			}
@@ -1175,7 +1351,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate){
+		if(this._willUpdate || this.elements.length === 0){
 			return;
 		}
 
@@ -1186,14 +1362,18 @@ Context.prototype = {
 	updateNow : function(){
 		var ctx = this.context;
 		ctx.save();
+		// todo: check out what way to clear canvas is faster
+		// maybe just this.canvas.width = this.canvas.width;
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		var transform = this.getTransform();
-		var dpi = this.attrs.dpi || 1;
-		if(!Delta.isIdentityTransform(transform)){
-			ctx.setTransform(transform[0] / dpi, transform[1], transform[2], transform[3] / dpi, transform[4], transform[5]);
-		} else if(dpi !== 1){
-			ctx.setTransform(dpi, 0, 0, dpi, 0, 0);
+
+		// todo: dpi
+		if(this.attrs.matrix){
+			// if transform then m11 /= dpi, m22 /= dpi
+			// if not then setTransform(1 / dpi, 0, 0, 1 / dpi, 0, 0)
+			var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+			ctx.setTransform(matrix[0], matrix[1], matrix[2],
+				matrix[3], matrix[4], matrix[5]);
 		}
 
 		this.elements.forEach(function(element){
@@ -1658,8 +1838,8 @@ Object.keys(browserEvents).forEach(function(eventsKind){
 });
 
 // Attrs
-Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
-	attrHooks : {
+Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+	attrHooks : Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		width : {
 			get : function(){
 				return this.canvas.width;
@@ -1709,7 +1889,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], {
 				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
 			}
 		}
-	}
+	})
 });
 
 Delta.Context = Context;
@@ -1745,8 +1925,7 @@ function Drawable(args){
 	// проходить по нему приходится гораздо чаще, чем изменять
 	// (потенциально)
 	// или просто кэшировать Object.keys
-	//this.styles = {};
-	this.styles = [];
+	this.styles = {};
 	this.cache = {};
 	this.attrs = {
 		interaction: true,
@@ -1763,33 +1942,6 @@ Drawable.prototype = {
 	initialize: Drawable,
 	// mixin: [Class.AttrMixin, Class.EventMixin]
 	// to gradients & patterns: [Class.LinkMixin]
-
-	style : function(name, value){
-		var i = this.styles.length;
-		while(i--){
-			if(this.styles[i].name === name){
-				if(value === undefined){
-					return this.styles[i].value;
-				} else if(value === null){
-					this.styles.splice(i, 1);
-					return this;
-				} else {
-					this.styles[i].value = value;
-					return this;
-				}
-			}
-		}
-
-		if(value === undefined){
-			return undefined;
-		} else if(value !== null) {
-			this.styles.push({
-				name: name,
-				value: value
-			});
-		}
-		return this;
-	},
 
 	// actual update function
 	updateFunction : function(){
@@ -2067,10 +2219,113 @@ Drawable.prototype = {
 	},
 
 	// Bounds
-	// -> boundsPost
-	// или не, должно вызывать this.roughBounds
-	// нужен массив функций, которые последовательно изменяют bounds
-	bounds : function(rect, transform, around){
+	boundsReducers : {
+		order : 'accuracy transform stroke tight',
+		accuracy : function(value){
+			// todo: fix
+			if(value === 'precise'){
+				return (this.preciseBounds || this.roughBounds).call(this);
+			}
+			if(value === 'rough'){
+				return (this.roughBounds || this.preciseBounds).call(this);
+			}
+		},
+
+		stroke : function(value, bounds){
+			var lineWidthHalf = this.styles.lineWidth;
+			if(!lineWidthHalf || value === 'ignore'){
+				return bounds;
+			}
+
+			lineWidthHalf /= 2;
+			if(value === '-'){
+				lineWidthHalf = -lineWidthHalf;
+			}
+
+			bounds.lt[0] -= lineWidthHalf;
+			bounds.lt[1] -= lineWidthHalf;
+			bounds.lb[0] -= lineWidthHalf;
+			bounds.lb[1] += lineWidthHalf;
+			bounds.rt[0] += lineWidthHalf;
+			bounds.rt[1] -= lineWidthHalf;
+			bounds.rb[0] += lineWidthHalf;
+			bounds.rb[1] += lineWidthHalf;
+
+			return bounds;
+		},
+
+		transform : function(value, bounds){
+			var matrix;
+			if(value === 'full'){
+				matrix = this.attrs.matrix;
+			}
+
+			if(value === 'none' || !matrix){
+				return {
+					lt: [bounds.x1, bounds.y1],
+					lb: [bounds.x1, bounds.y2],
+					rt: [bounds.x2, bounds.y1],
+					rb: [bounds.x2, bounds.y2]
+				};
+			}
+
+			var lt = matrix.transformPoint(bounds.x1, bounds.y1),
+				lb = matrix.transformPoint(bounds.x1, bounds.y2),
+				rt = matrix.transformPoint(bounds.x2, bounds.y1),
+				rb = matrix.transformPoint(bounds.x2, bounds.y2);
+
+			return {
+				lt: lt,
+				lb: lb,
+				rt: rt,
+				rb: rb
+			};
+			/*if(value === 'self'){
+				matrix = this.attrs.matrix;
+			} else if(value === 'context'){
+				matrix = this.context.attrs.matrix;
+				if(!matrix){
+					return bounds;
+				}
+			} else {
+				if(!this.context || !this.context.attrs.matrix){
+					matrix = this.attrs.matrix;
+				} else if(!this.attrs.matrix) {
+					;
+				}
+			} */
+		},
+
+		tight : function(value, tight){
+			if(value){
+				return tight;
+			}
+
+			var minx = Math.min(tight.lt[0], tight.lb[0], tight.rt[0], tight.rb[0]),
+				miny = Math.min(tight.lt[1], tight.lb[1], tight.rt[1], tight.rb[1]),
+				maxx = Math.max(tight.lt[0], tight.lb[0], tight.rt[0], tight.rb[0]),
+				maxy = Math.max(tight.lt[1], tight.lb[1], tight.rt[1], tight.rb[1]);
+			return new Bounds(minx, miny, maxx - minx, maxy - miny);
+		}
+	},
+
+	bounds : function(options){
+		options = Object.assign({
+			accuracy : 'precise', // precise, rough, available (precise if it is)
+			transform : 'full', // full, context, self, none
+			stroke : 'ignore', // +, -, ignore
+			tight: false // if true returns tight box from transform, if false then modifies it to non-tight
+			// additions: clip, ...
+		}, options);
+
+		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+			if(options[caller] === undefined){
+				return result;
+			}
+
+			return this.boundsReducers[caller].call(this, options[caller], result, options);
+		}.bind(this), null);
+/*
 		// todo:
 		// 'rough' / 'precise'
 		// 'stroke-with' / 'stroke-out'
@@ -2080,7 +2335,7 @@ Drawable.prototype = {
 		// transformed - self & context
 
 		// example: 'rough tight'
-
+/*
 		if((around === 'fill' || !around) && this.styles.strokeStyle){
 			var weight = (this.styles.lineWidth || 1) / 2;
 			if(around === 'strokeExclude'){
@@ -2114,7 +2369,7 @@ Drawable.prototype = {
 			rect[3] = Math.max(tight[0][1], tight[1][1], tight[2][1], tight[3][1]) - rect[1];
 		}
 
-		return new Bounds(rect[0], rect[1], rect[2], rect[3]);
+		return new Bounds(rect[0], rect[1], rect[2], rect[3]); */
 	},
 
 	corner : function(corner, bounds){
@@ -2192,9 +2447,15 @@ Drawable.prototype = {
 	preDraw : function(ctx){
 		ctx.save();
 
-		this.styles.forEach(function(style){
-			ctx[style.name] = style.value;
-		});
+		Object.keys(this.styles).forEach(function(key){
+			ctx[key] = this.styles[key];
+		}, this);
+
+		if(this.attrs.matrix){
+			var matrix = this.attrs.matrix !== 'dirty' ? this.attrs.matrix : this.calcMatrix();
+			ctx.transform(matrix[0], matrix[1], matrix[2],
+				matrix[3], matrix[4], matrix[5]);
+		}
 
 		// если какие-то особые штуки, то пишем их не в styles, а в attrs
 		// и тут их проверяем
@@ -2606,8 +2867,8 @@ Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout
 };
 
 // Attrs
-Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
-	attrHooks : DrawableAttrHooks.prototype = {
+Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+	attrHooks : DrawableAttrHooks.prototype = Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		z : {
 			get : function(){
 				return this.context.elements.indexOf(this);
@@ -2637,7 +2898,7 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 		fill : {
 			set : function(value){
 				// todo: if value.changeable then value.on('change', this.update)
-				this.style('fillStyle', value);
+				this.styles.fillStyle = value;
 				this.update();
 			}
 		},
@@ -2648,7 +2909,144 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 
 		stroke : {
 			set : function(value){
-				// parsing stroke is here
+				// todo: it must annihilate previous stroke params first
+				if(value.constructor === String){
+					// remove spaces between commas
+					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+
+					var opacity,
+						l = value.length,
+						joinSet = false,
+						capSet = false,
+						color;
+
+					while(l--){
+						if(reFloat.test(value[l])){
+							opacity = parseFloat(value[l]);
+						} else if(isNumberLike(value[l])){
+							this.styles.lineWidth = Delta.distance(value[l]);
+						} else if(value[l] === 'round'){
+							if(!joinSet){
+								this.styles.lineJoin = 'round';
+							}
+							if(!capSet){
+								this.styles.lineCap = 'round';
+							}
+						} else if(value[l] === 'miter' || value[l] === 'bevel'){
+							joinSet = true;
+							this.styles.lineJoin = value[l];
+						} else if(value[l] === 'butt' || value[l] === 'square'){
+							capSet = true;
+							this.styles.lineCap = value[l];
+						} else if(value[l][0] === '['){
+							;
+				//style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
+						} else if(Delta.dashes[value[l]]){
+							;
+						} else if(value[l].lastIndexOf('ml') === value[l].length - 2){
+							;
+						} else if(value[l].lastIndexOf('do') === value[l].length - 2){
+							// todo: check about cross-browser support
+							// mozDashOffset
+							// webkitLineDashOffset
+							//style.lineDashOffset = Delta.distance(stroke[l].slice(2));
+							this.styles.lineDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
+						} else {
+							color = value[l];
+							// this.style('strokeStyle', value[l]);
+						}
+					}
+
+					if(color){
+						if(opacity){
+							color = Delta.color(color);
+							color[3] = opacity;
+							color = 'rgba(' + color.join(',') + ')';
+						}
+						this.styles.strokeStyle = color;
+					}
+				} else {
+					;
+				}
+				/*
+	if(stroke + '' === stroke){
+		// remove spaces between commas
+		stroke = stroke.replace(/(\s*\,\s*)/g, ',').split(' '); // without braces regexp
+
+		var opacity, l = stroke.length,
+			joinSet = false,
+			capSet = false;
+
+		while(l--){
+			if(reFloat.test(stroke[l])){
+				opacity = parseFloat(stroke[l]);
+			} else if(isNumberLike(stroke[l])){
+				style.lineWidth = Delta.distance(stroke[l]);
+			} else if(stroke[l] === 'round'){
+				if(!joinSet){
+					style.lineJoin = 'round';
+				}
+				if(!capSet){
+					style.lineCap = style.lineCap || 'round';
+				}
+			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
+				joinSet = true;
+				style.lineJoin = stroke[l];
+			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
+				capSet = true;
+				style.lineCap = stroke[l];
+			} else if(stroke[l][0] === '['){
+				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
+			} else if(stroke[l] in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke[l]];
+			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
+				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
+			} else if(stroke[l].indexOf('do') === 0){
+				// todo: check about cross-browser support
+				// mozDashOffset
+				// webkitLineDashOffset
+				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
+			} else {
+				style.strokeStyle = stroke[l];
+			}
+		}
+		if(opacity){
+			stroke = Delta.color(style.strokeStyle);
+			stroke[3] = opacity;
+			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
+		}
+	} else {
+		if(stroke.color !== undefined){
+			style.strokeStyle = stroke.color;
+		}
+		if(stroke.opacity !== undefined && style.strokeStyle){
+			var parsed = Delta.color(style.strokeStyle);
+			parsed[3] = stroke.opacity;
+			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+		}
+		if(stroke.width !== undefined){
+			style.lineWidth = Delta.distance(stroke.width);
+		}
+		if(stroke.join !== undefined){
+			style.lineJoin = stroke.join;
+		}
+		if(stroke.cap !== undefined){
+			style.lineCap = stroke.cap;
+		}
+		if(stroke.miterLimit !== undefined){
+			style.miterLimit = stroke.miterLimit;
+		}
+		if(stroke.dash !== undefined){
+			if(stroke.dash in Delta.dashes){
+				style.lineDash = Delta.dashes[stroke.dash];
+			} else {
+				style.lineDash = stroke.dash;
+			}
+		}
+		if(stroke.dashOffset !== undefined){
+			style.lineDashOffset = Delta.distance(stroke.dashOffset);
+		}
+	} */
 			}
 		},
 
@@ -2657,20 +3055,20 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], {
 				return this.attrs.opacity === undefined ? 1 : this.attrs.opacity;
 			},
 			set : function(value){
-				this.style('globalAlpha', +value);
+				this.styles.globalAlpha = +value;
 				this.update();
 			}
 		},
 
 		composite : {
 			set : function(value){
-				this.style('globalCompositeOperation', value);
+				this.styles.globalCompositeOperation = value;
 				this.update();
 			}
 		},
 
 
-	}
+	})
 });
 
 
@@ -2966,12 +3364,21 @@ Rect = new Class(Drawable, {
 		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
 	},
 
+	preciseBounds : function(){
+		return new Bounds(
+			this.attrs.x,
+			this.attrs.y,
+			this.attrs.width,
+			this.attrs.height
+		);
+	},
+/*
 	bounds: function(transform, around){
 		return this.super('bounds', [
 			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
 			transform, around
 		]);
-	},
+	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -3038,12 +3445,21 @@ Circle = new Class(Drawable, {
 		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius + stroke, 2);
 	},
 
+	preciseBounds : function(){
+		return new Bounds(
+			this.attrs.cx - this.attrs.radius,
+			this.attrs.cy - this.attrs.radius,
+			this.attrs.radius * 2,
+			this.attrs.radius * 2
+		);
+	},
+/*
 	bounds: function(transform, around){
 		return this.super('bounds', [
 			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
 			transform, around
 		]);
-	},
+	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -3067,6 +3483,8 @@ Circle = new Class(Drawable, {
 	}
 
 });
+
+Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
 
