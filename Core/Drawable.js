@@ -30,7 +30,8 @@ function Drawable(args){
 	this.attrs = {
 		interaction: true,
 		visible: true,
-		transform: 'attributes'
+		transform: 'attributes',
+		pivot: 'center'
 	};
 
 	if(this.argsOrder){
@@ -345,9 +346,9 @@ Drawable.prototype = {
 			bounds.lt[0] -= lineWidthHalf;
 			bounds.lt[1] -= lineWidthHalf;
 			bounds.lb[0] -= lineWidthHalf;
+			bounds.rt[1] -= lineWidthHalf;
 			bounds.lb[1] += lineWidthHalf;
 			bounds.rt[0] += lineWidthHalf;
-			bounds.rt[1] -= lineWidthHalf;
 			bounds.rb[0] += lineWidthHalf;
 			bounds.rb[1] += lineWidthHalf;
 
@@ -355,9 +356,21 @@ Drawable.prototype = {
 		},
 
 		transform : function(value, bounds){
-			var matrix;
-			if(value === 'full'){
-				matrix = this.attrs.matrix;
+			var contextMatrix = this.context && this.context.attrs.matrix,
+				selfMatrix = this.attrs.matrix,
+				matrix;
+			if(value === 'full' && contextMatrix && selfMatrix){
+				if(contextMatrix === 'dirty'){
+					contextMatrix = this.context.calcMatrix();
+				}
+				if(selfMatrix === 'dirty'){
+					selfMatrix = this.calcMatrix();
+				}
+				matrix = Delta.transform(contextMatrix, selfMatrix);
+			} else if((value === 'context' || value === 'full') && contextMatrix){
+				matrix = contextMatrix === 'dirty' ? this.context.calcMatrix() : contextMatrix;
+			} else if((value === 'self' || value === 'full') && selfMatrix){
+				matrix = selfMatrix === 'dirty' ? this.calcMatrix() : selfMatrix;
 			}
 
 			if(value === 'none' || !matrix){
@@ -369,10 +382,10 @@ Drawable.prototype = {
 				};
 			}
 
-			var lt = matrix.transformPoint(bounds.x1, bounds.y1),
-				lb = matrix.transformPoint(bounds.x1, bounds.y2),
-				rt = matrix.transformPoint(bounds.x2, bounds.y1),
-				rb = matrix.transformPoint(bounds.x2, bounds.y2);
+			var lt = Delta.transformPoint(matrix, [bounds.x1, bounds.y1]),
+				lb = Delta.transformPoint(matrix, [bounds.x1, bounds.y2]),
+				rt = Delta.transformPoint(matrix, [bounds.x2, bounds.y1]),
+				rb = Delta.transformPoint(matrix, [bounds.x2, bounds.y2]);
 
 			return {
 				lt: lt,
@@ -380,20 +393,6 @@ Drawable.prototype = {
 				rt: rt,
 				rb: rb
 			};
-			/*if(value === 'self'){
-				matrix = this.attrs.matrix;
-			} else if(value === 'context'){
-				matrix = this.context.attrs.matrix;
-				if(!matrix){
-					return bounds;
-				}
-			} else {
-				if(!this.context || !this.context.attrs.matrix){
-					matrix = this.attrs.matrix;
-				} else if(!this.attrs.matrix) {
-					;
-				}
-			} */
 		},
 
 		tight : function(value, tight){
@@ -425,51 +424,6 @@ Drawable.prototype = {
 
 			return this.boundsReducers[caller].call(this, options[caller], result, options);
 		}.bind(this), null);
-/*
-		// todo:
-		// 'rough' / 'precise'
-		// 'stroke-with' / 'stroke-out'
-		// 'clip-exclude'
-		// 'none' / 'self' / 'transformed' / 'tight'
-		// self - only self transforms
-		// transformed - self & context
-
-		// example: 'rough tight'
-/*
-		if((around === 'fill' || !around) && this.styles.strokeStyle){
-			var weight = (this.styles.lineWidth || 1) / 2;
-			if(around === 'strokeExclude'){
-				weight = -weight;
-			}
-			rect[0] -= weight;
-			rect[1] -= weight;
-			rect[2] += weight * 2;
-			rect[3] += weight * 2;
-		}
-
-		if(transform !== false && this.matrix){
-			var tight = [
-				// left top
-				Delta.transformPoint(this.matrix, [rect[0], rect[1]]),
-				// right top
-				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1]]),
-				// left bottom
-				Delta.transformPoint(this.matrix, [rect[0], rect[1] + rect[3]]),
-				// right bottom
-				Delta.transformPoint(this.matrix, [rect[0] + rect[2], rect[1] + rect[3]])
-			];
-
-			if(transform === 'tight'){
-				return tight;
-			}
-
-			rect[0] = Math.min(tight[0][0], tight[1][0], tight[2][0], tight[3][0]);
-			rect[1] = Math.min(tight[0][1], tight[1][1], tight[2][1], tight[3][1]);
-			rect[2] = Math.max(tight[0][0], tight[1][0], tight[2][0], tight[3][0]) - rect[0];
-			rect[3] = Math.max(tight[0][1], tight[1][1], tight[2][1], tight[3][1]) - rect[1];
-		}
-
-		return new Bounds(rect[0], rect[1], rect[2], rect[3]); */
 	},
 
 	corner : function(corner, bounds){

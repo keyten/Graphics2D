@@ -152,6 +152,13 @@ Animation.easing = {
 		return Math.pow(v || 2, 8 * t - 8);
 	},
 
+	sigmoid : function(t, v){
+		// return 1 / (1 + Math.exp(v * (t - 0.5))) / (1 / (1 + Math.exp(v / 2)));
+
+		v = -(v || 5);
+		return (1 + Math.exp(v / 2)) / (1 + Math.exp(v * (t - 0.5)));
+	},
+
 	circ: function(t){
 		return 1 - Math.sin(Math.acos(t));
 	},

@@ -165,7 +165,7 @@ Class.mixins = {
 
 		transformFunctions : {
 			pivot : function(pivot){
-				if(pivot.indexOf(';') > -1){
+				if(pivot && pivot.indexOf(';') > -1){
 					pivot = pivot.split(';');
 					// todo: distance
 					return [
@@ -174,7 +174,7 @@ Class.mixins = {
 					];
 				}
 
-				return this.corner(pivot, {
+				return this.corner(pivot || this.attrs.pivot, {
 					transform: 'none'
 				});
 			},
@@ -223,7 +223,7 @@ Class.mixins = {
 					-pivot[0] * sin - pivot[1] * cos + pivot[1]]);
 			},
 
-			scale : function(matrix, args, x, y, pivot){
+			scale : function(matrix, args){
 				if(isNaN(args[1])){
 					args[2] = args[1];
 					args[1] = args[0];
@@ -238,7 +238,7 @@ Class.mixins = {
 					-pivot[1] * y + pivot[1]]);
 			},
 
-			skew : function(matrix, x, y, pivot){
+			skew : function(matrix, args){
 				if(isNaN(args[1])){
 					args[2] = args[1];
 					args[1] = args[0];
@@ -249,9 +249,12 @@ Class.mixins = {
 
 				this.transformFunctions.matrix.call(this, matrix, [
 					1, y, x, 1,
-					-pivot[0] * 1 - pivot[1] * y + pivot[0],
-					-pivot[0] * x - pivot[1] * 1 + pivot[1]]);
+					-pivot[1] * x,
+					-pivot[0] * y]);
 			}
+
+			// reflect(alpha) -- reflects the plain by the line with angle = alpha
+			// [cos 2a, sin 2a, sin 2a, -cos 2a]
 		}
 	},
 
