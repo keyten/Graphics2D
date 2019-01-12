@@ -1,7 +1,7 @@
 /*  DeltaJS More 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 18.12.2018
+ *  Last edit: 09.01.2019
  *  License: MIT
  */
 

@@ -664,6 +664,7 @@ var defaultUnits = {
 };
 
 Delta.snapToPixels = 1;
+Delta.lastDistanceObject = null;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
@@ -673,9 +674,9 @@ function distance(value, dontsnap){
 		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}
 
-	if(+value === value){
+	if(value.constructor === Number){
 		if(Delta.unit !== 'px'){
-			return Delta.distance( value + '' + Delta.unit );
+			return Delta.distance(value + '' + Delta.unit);
 		}
 
 		return value;
@@ -684,6 +685,17 @@ function distance(value, dontsnap){
 	value += '';
 	if(value.indexOf('px') === value.length-2){
 		return parseInt(value);
+	}
+
+	if(value.constructor !== String){
+		Delta.lastDistanceObject = value;
+		return value;
+	}
+
+	var unit = value.replace(/[\d\.]+?/g, '');
+	value = value.replace(/[^\d\.]+?/g, '');
+	if(unit === ''){
+		return value;
 	}
 
 	if(!Delta.units){
@@ -699,12 +711,6 @@ function distance(value, dontsnap){
 			});
 			document.body.removeChild(div);
 		}
-	}
-
-	var unit = value.replace(/[\d\.]+?/g, '');
-	value = value.replace(/[^\d\.]+?/g, '');
-	if(unit === ''){
-		return value;
 	}
 
 	if(Delta.snapToPixels === 1){

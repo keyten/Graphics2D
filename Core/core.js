@@ -106,6 +106,7 @@ var Delta = {},
 Delta.renderers = {};
 // {{include utils.js}}
 // {{include Class.js}}
+// {{include Animation.js}}
 
 // {{dont include Renderer.js}}
 
@@ -116,8 +117,6 @@ Delta.contexts = {
 };
 
 // {{include Drawable.js}}
-
-// {{include Animation.js}}
 
 // {{include Rect.js}}
 

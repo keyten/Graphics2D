@@ -428,12 +428,13 @@ Drawable.prototype = {
 
 	corner : function(corner, bounds){
 		// todo: remove
-		if(Array.isArray(corner)){
-			return corner;
-		}
+//		if(Array.isArray(corner)){
+//			return corner;
+//		}
 
 		// todo: transformed state
 		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
+		// todo: bounds.tight = true support (return bounds.lt if corner.lt)
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
 			bounds.y + bounds.h * Delta.corners[corner][1]
@@ -641,7 +642,7 @@ Drawable.prototype = {
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
 	},
-
+/*
 	// Animation
 	animate : function(attr, value, options){
 		// attr, value, duration, easing, callback
@@ -751,7 +752,7 @@ Drawable.prototype = {
 		}, this);
 
 		return this;
-	}
+	} */
 };
 
 Drawable.AttrHooks = DrawableAttrHooks;
@@ -921,7 +922,10 @@ Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout
 };
 
 // Attrs
-Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+Object.assign(Drawable.prototype,
+	Class.mixins['AttrMixin'],
+	Class.mixins['TransformableMixin'],
+	Class.mixins['AnimatableMixin'], {
 	attrHooks : DrawableAttrHooks.prototype = Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		z : {
 			get : function(){

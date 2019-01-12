@@ -61,11 +61,11 @@ Circle = new Class(Drawable, {
 Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
-
+/*
 ['cx', 'cy', 'radius'].forEach(function(propName){
 	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
 	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
-});
+}); */
 
 Delta.circle = function(){
 	return new Circle(arguments);

@@ -6,14 +6,15 @@ Animation = new Class({
 
 	initialize: function(duration, easing, callback){
 		this.duration = duration || Animation.default.duration;
-		if(easing + '' === easing){
-			if(easing.indexOf('(') > -1){
-				this.easingParam = +easing.split('(')[1].split(')')[0];
-				easing = easing.split('(')[0];
+		if(easing.constructor === String){
+			var index = easing.indexOf('(');
+			if(index !== -1){
+				this.easingParam = easing.substring(index + 1, easing.length - 1);
+				easing = easing.substring(0, index);
 			}
 			this.easing = Animation.easing[easing];
 		} else {
-			this.easing = easing || Animation.easing.default;
+			this.easing = easing || Animation.default.easing;
 		}
 		this.callback = callback;
 	},
@@ -84,13 +85,13 @@ Animation.do = function(){
 				fx.callback.call(fx.tickContext, fx);
 			}
 
-			if(fx.queue){
+			/*if(fx.queue){
 				fx.queue.shift();
 				if(fx.queue.length){
 					// init the next anim in the que
 					fx.queue[0].play();
 				}
-			}
+			} */
 			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
 		}
 	}
@@ -100,6 +101,205 @@ Animation.do = function(){
 	}
 };
 
+// extends AttrMixin
+Class.mixins.AnimatableMixin = {
+	animate : function(attr, value, options, easing, callback){
+		// attr, value, duration, easing, callback
+		// attrs, duration, easing, callback
+		// attr, value, options
+		// attrs, options
+		// fx, options (fx is pushed to the queue)
+/*		if(attr.constructor !== String){
+			// todo:
+			// the fx ob will not represent others
+			// object.fx.stop() will stop only one anim
+			if(+value === value || !value){
+				options = {duration: value, easing: options, callback: arguments[3]};
+			} else if(typeof value === 'function'){
+				options = {callback: value};
+			} else {
+				options = value;
+			}
+
+			Object.keys(attr).forEach(function(key, i){
+				this.animate(key, attr[key], options);
+				if(i === 0){
+					options.queue = false;
+					options.callback = null;
+				}
+			}, this);
+			return this;
+		}
+
+		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+			throw 'Animation for "' + attr + '" is not supported';
+		} */
+
+		if(attr.constructor !== String){
+			callback = easing;
+			easing = options;
+			options = value;
+			value = null;
+		}
+
+		if(!options || options.constructor !== Object){
+			if(options && options.constructor === Function){
+				callback = options;
+				options = null;
+			}
+			options = {
+				duration: options || Animation.default.duration,
+				easing: easing || Animation.default.easing,
+				callback: callback
+			};
+		}
+
+		var fx;
+		if(attr instanceof Animation){
+			fx = attr;
+			// not sure if this works
+			Object.assign(fx, options);
+		} else {
+			fx = new Animation(
+				options.duration,
+				options.easing,
+				options.callback
+			);
+
+			if(attr.constructor === String){
+				// attr, value
+				fx.prop = attr;
+				fx.tick = this.attrHooks[attr].anim;
+				fx.prePlay = function(){
+					this.attrHooks[attr].preAnim.call(this, fx, value);
+					this.attrs.animation = fx;
+				}.bind(this);
+			} else {
+				// attrs
+				fx.prop = Object.keys(attr).map(function(prop){
+					var anim = new Animation();
+					anim.prop = prop;
+					anim.tick = this.attrHooks[prop].anim;
+					anim.tickContext = this;
+					return anim;
+				}, this);
+				fx.tick = function(fx){
+					fx.prop.forEach(function(anim){
+						anim.now = fx.now;
+						anim.pos = fx.pos;
+						this.attrHooks[anim.prop].anim.call(this, anim);
+					}, this);
+				};
+				fx.tickContext = this;
+				fx.prePlay = function(){
+					fx.prop.forEach(function(anim){
+						this.attrHooks[anim.prop].preAnim.call(this, anim, attr[anim.prop]);
+					});
+					this.attrs.animation = fx;
+				}.bind(this);
+			}
+
+			fx.tickContext = this;
+		}
+
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+		// todo: fx.onFInish = this.attrs.animation = null;
+/*
+		if(options.queue === false || !this.attrs.animation){
+			fx.play();
+		} else {
+			this.attrs.animation.queue = fx;
+		}
+		/*
+
+		if(attr instanceof Animation){
+			// fx is given
+		} else if(attr.constructor === String){
+			// attr, value
+		} else {
+			// attrs
+		}
+/*
+		var fx = new Animation(
+			options.duration,
+			options.easing,
+			options.callback
+		);
+
+		fx.prop = attr;
+		fx.tick = this.attrHooks[attr].anim;
+		fx.tickContext = this;
+		fx.prePlay = function(){
+			this.fx = fx;
+			this.attrHooks[attr].preAnim.call(this, fx, value);
+			this.attrs.animation = fx;
+		}.bind(this);
+
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+/*
+		var queue = options.queue;
+		if(queue !== false){
+			if(queue === true || queue === undefined){
+				if(!this._queue){
+					this._queue = [];
+				}
+				queue = this._queue;
+			} else if(queue instanceof Drawable){
+				queue = queue._queue;
+			}
+			fx.queue = queue;
+			queue.push(fx);
+			if(queue.length > 1){
+				return this;
+			}
+		}
+
+		fx.play(); */
+
+		return this;
+	},
+
+	// stop(clearQueue, jumpToEnd)
+	pause : function(name){
+		if(!this._paused){
+			this._paused = [];
+		}
+
+		// pause changes the original array
+		// so we need slice
+		Animation.queue.slice().forEach(function(anim){
+			if(anim.elem === this && (anim.name === name || !name)){
+				anim.pause();
+				this._paused.push(anim);
+			}
+		}, this);
+		return this;
+	},
+
+	continue : function(name){
+		if(!this._paused){
+			return;
+		}
+
+		this._paused.slice().forEach(function(anim, index){
+			if(!name || anim.name === name){
+				anim.continue();
+				this._paused.splice(index, 1);
+			}
+		}, this);
+
+		return this;
+	}
+};
+/*
 // Some tick functions
 Drawable.prototype.attrHooks['_num'] = {
 	preAnim: function(fx, endValue){
@@ -127,7 +327,7 @@ Drawable.prototype.attrHooks['_numAttr'] = {
 	anim: function(fx){
 		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
 	}
-};
+}; */
 
 // Easing functions
 Animation.easing = {
@@ -214,7 +414,8 @@ Object.keys(Animation.easing).forEach(function(ease){
 });
 
 Animation.default = {
-	duration: 500
+	duration: 500,
+	easing: 'swing'
 };
 
 Delta.animation = function(duration, easing, callback){

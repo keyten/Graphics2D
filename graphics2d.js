@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 27.12.2018
+ *  Last edit: 09.01.2019
  *  License: MIT
  */
 
@@ -770,6 +770,7 @@ var defaultUnits = {
 };
 
 Delta.snapToPixels = 1;
+Delta.lastDistanceObject = null;
 
 function distance(value, dontsnap){
 	if(value === undefined) return;
@@ -779,9 +780,9 @@ function distance(value, dontsnap){
 		return Math.round(Delta.distance(value, true) / Delta.snapToPixels) * Delta.snapToPixels;
 	}
 
-	if(+value === value){
+	if(value.constructor === Number){
 		if(Delta.unit !== 'px'){
-			return Delta.distance( value + '' + Delta.unit );
+			return Delta.distance(value + '' + Delta.unit);
 		}
 
 		return value;
@@ -790,6 +791,17 @@ function distance(value, dontsnap){
 	value += '';
 	if(value.indexOf('px') === value.length-2){
 		return parseInt(value);
+	}
+
+	if(value.constructor !== String){
+		Delta.lastDistanceObject = value;
+		return value;
+	}
+
+	var unit = value.replace(/[\d\.]+?/g, '');
+	value = value.replace(/[^\d\.]+?/g, '');
+	if(unit === ''){
+		return value;
 	}
 
 	if(!Delta.units){
@@ -805,12 +817,6 @@ function distance(value, dontsnap){
 			});
 			document.body.removeChild(div);
 		}
-	}
-
-	var unit = value.replace(/[\d\.]+?/g, '');
-	value = value.replace(/[^\d\.]+?/g, '');
-	if(unit === ''){
-		return value;
 	}
 
 	if(Delta.snapToPixels === 1){
@@ -1252,6 +1258,429 @@ Class.attr = function(name, value){
 	}
 
 	return this;
+};
+// var anim = Delta.animation(300, 500, options);
+// anim.start(value => dosmth(value));
+
+// https://mootools.net/core/docs/1.6.0/Fx/Fx
+Animation = new Class({
+
+	initialize: function(duration, easing, callback){
+		this.duration = duration || Animation.default.duration;
+		if(easing.constructor === String){
+			var index = easing.indexOf('(');
+			if(index !== -1){
+				this.easingParam = easing.substring(index + 1, easing.length - 1);
+				easing = easing.substring(0, index);
+			}
+			this.easing = Animation.easing[easing];
+		} else {
+			this.easing = easing || Animation.default.easing;
+		}
+		this.callback = callback;
+	},
+
+	play: function(tick, context){
+		if(this.prePlay){
+			this.prePlay();
+		}
+		if(tick){
+			this.tick = tick;
+		}
+		if(context){
+			this.tickContext = context;
+		}
+
+		this.startTime = Date.now();
+		this.endTime = this.startTime + this.duration;
+		if(!Animation.queue.length){
+			requestAnimationFrame(Animation.do);
+		}
+		Animation.queue.push(this);
+	},
+
+	pause: function(){
+		this.pauseTime = Date.now();
+		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+	},
+
+	continue: function(){
+		var delta = this.pauseTime - this.startTime;
+		this.startTime = Date.now() - delta;
+		this.endTime = this.startTime + this.duration;
+
+		if(!Animation.queue.length){
+			requestAnimationFrame(Animation.do);
+		}
+		Animation.queue.push(this);
+	}
+
+});
+
+Animation.queue = [];
+
+Animation.do = function(){
+	var fx, t,
+		now = Date.now();
+
+	for(var i = 0; i < Animation.queue.length; i++){
+		fx = Animation.queue[i];
+		t = (now - fx.startTime) / fx.duration;
+
+		if(t < 0){
+			continue;
+		}
+
+		if(t > 1){
+			t = 1;
+		}
+
+		fx.now = now;
+		fx.pos = fx.easing(t, fx.easingParam);
+		fx.tick.call(fx.tickContext, fx);
+
+		if(t === 1){
+			if(fx.callback){
+				// call him in requestAnimFrame?
+				// it must be called after the last update, i think
+				fx.callback.call(fx.tickContext, fx);
+			}
+
+			/*if(fx.queue){
+				fx.queue.shift();
+				if(fx.queue.length){
+					// init the next anim in the que
+					fx.queue[0].play();
+				}
+			} */
+			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
+		}
+	}
+
+	if(Animation.queue.length){
+		requestAnimationFrame(Animation.do);
+	}
+};
+
+// extends AttrMixin
+Class.mixins.AnimatableMixin = {
+	animate : function(attr, value, options, easing, callback){
+		// attr, value, duration, easing, callback
+		// attrs, duration, easing, callback
+		// attr, value, options
+		// attrs, options
+		// fx, options (fx is pushed to the queue)
+/*		if(attr.constructor !== String){
+			// todo:
+			// the fx ob will not represent others
+			// object.fx.stop() will stop only one anim
+			if(+value === value || !value){
+				options = {duration: value, easing: options, callback: arguments[3]};
+			} else if(typeof value === 'function'){
+				options = {callback: value};
+			} else {
+				options = value;
+			}
+
+			Object.keys(attr).forEach(function(key, i){
+				this.animate(key, attr[key], options);
+				if(i === 0){
+					options.queue = false;
+					options.callback = null;
+				}
+			}, this);
+			return this;
+		}
+
+		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+			throw 'Animation for "' + attr + '" is not supported';
+		} */
+
+		if(attr.constructor !== String){
+			callback = easing;
+			easing = options;
+			options = value;
+			value = null;
+		}
+
+		if(!options || options.constructor !== Object){
+			if(options && options.constructor === Function){
+				callback = options;
+				options = null;
+			}
+			options = {
+				duration: options || Animation.default.duration,
+				easing: easing || Animation.default.easing,
+				callback: callback
+			};
+		}
+
+		var fx;
+		if(attr instanceof Animation){
+			fx = attr;
+			// not sure if this works
+			Object.assign(fx, options);
+		} else {
+			fx = new Animation(
+				options.duration,
+				options.easing,
+				options.callback
+			);
+
+			if(attr.constructor === String){
+				// attr, value
+				fx.prop = attr;
+				fx.tick = this.attrHooks[attr].anim;
+				fx.prePlay = function(){
+					this.attrHooks[attr].preAnim.call(this, fx, value);
+					this.attrs.animation = fx;
+				}.bind(this);
+			} else {
+				// attrs
+				fx.prop = Object.keys(attr).map(function(prop){
+					var anim = new Animation();
+					anim.prop = prop;
+					anim.tick = this.attrHooks[prop].anim;
+					anim.tickContext = this;
+					return anim;
+				}, this);
+				fx.tick = function(fx){
+					fx.prop.forEach(function(anim){
+						anim.now = fx.now;
+						anim.pos = fx.pos;
+						this.attrHooks[anim.prop].anim.call(this, anim);
+					}, this);
+				};
+				fx.tickContext = this;
+				fx.prePlay = function(){
+					fx.prop.forEach(function(anim){
+						this.attrHooks[anim.prop].preAnim.call(this, anim, attr[anim.prop]);
+					});
+					this.attrs.animation = fx;
+				}.bind(this);
+			}
+
+			fx.tickContext = this;
+		}
+
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+		// todo: fx.onFInish = this.attrs.animation = null;
+/*
+		if(options.queue === false || !this.attrs.animation){
+			fx.play();
+		} else {
+			this.attrs.animation.queue = fx;
+		}
+		/*
+
+		if(attr instanceof Animation){
+			// fx is given
+		} else if(attr.constructor === String){
+			// attr, value
+		} else {
+			// attrs
+		}
+/*
+		var fx = new Animation(
+			options.duration,
+			options.easing,
+			options.callback
+		);
+
+		fx.prop = attr;
+		fx.tick = this.attrHooks[attr].anim;
+		fx.tickContext = this;
+		fx.prePlay = function(){
+			this.fx = fx;
+			this.attrHooks[attr].preAnim.call(this, fx, value);
+			this.attrs.animation = fx;
+		}.bind(this);
+
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+/*
+		var queue = options.queue;
+		if(queue !== false){
+			if(queue === true || queue === undefined){
+				if(!this._queue){
+					this._queue = [];
+				}
+				queue = this._queue;
+			} else if(queue instanceof Drawable){
+				queue = queue._queue;
+			}
+			fx.queue = queue;
+			queue.push(fx);
+			if(queue.length > 1){
+				return this;
+			}
+		}
+
+		fx.play(); */
+
+		return this;
+	},
+
+	// stop(clearQueue, jumpToEnd)
+	pause : function(name){
+		if(!this._paused){
+			this._paused = [];
+		}
+
+		// pause changes the original array
+		// so we need slice
+		Animation.queue.slice().forEach(function(anim){
+			if(anim.elem === this && (anim.name === name || !name)){
+				anim.pause();
+				this._paused.push(anim);
+			}
+		}, this);
+		return this;
+	},
+
+	continue : function(name){
+		if(!this._paused){
+			return;
+		}
+
+		this._paused.slice().forEach(function(anim, index){
+			if(!name || anim.name === name){
+				anim.continue();
+				this._paused.splice(index, 1);
+			}
+		}, this);
+
+		return this;
+	}
+};
+/*
+// Some tick functions
+Drawable.prototype.attrHooks['_num'] = {
+	preAnim: function(fx, endValue){
+		fx.startValue = this.attr(fx.prop);
+		fx.delta = endValue - fx.startValue;
+
+		if(endValue + '' === endValue){
+			if(endValue.indexOf('+=') === 0){
+				fx.delta = +endValue.substr(2);
+			} else if(endValue.indexOf('-=') === 0){
+				fx.delta = -endValue.substr(2);
+			}
+		}
+	},
+
+	anim: function(fx){
+		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+		this.update();
+	}
+};
+
+Drawable.prototype.attrHooks['_numAttr'] = {
+	preAnim: Drawable.prototype.attrHooks._num.preAnim,
+
+	anim: function(fx){
+		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
+	}
+}; */
+
+// Easing functions
+Animation.easing = {
+
+	linear: function(x){
+		return x;
+	},
+
+	swing: function(x){
+		return 0.5 - Math.cos(x * Math.PI) / 2;
+	},
+
+	sqrt: function(x){
+		return Math.sqrt(x);
+	},
+
+	pow: function(t, v){
+		return Math.pow(t, v || 6);
+	},
+
+	expo: function(t, v){
+		return Math.pow(v || 2, 8 * t - 8);
+	},
+
+	sigmoid : function(t, v){
+		// return 1 / (1 + Math.exp(v * (t - 0.5))) / (1 / (1 + Math.exp(v / 2)));
+
+		v = -(v || 5);
+		return (1 + Math.exp(v / 2)) / (1 + Math.exp(v * (t - 0.5)));
+	},
+
+	circ: function(t){
+		return 1 - Math.sin(Math.acos(t));
+	},
+
+	sine: function(t){
+		return 1 - Math.cos(t * Math.PI / 2);
+	},
+
+	back: function(t, v){
+		return Math.pow(t, 2) * ((v || 1.618) * (t - 1) + t);
+	},
+
+	bounce: function(t){
+		for(var a = 0, b = 1; 1; a += b, b /= 2){
+			if(t >= (7 - 4 * a) / 11){
+				return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
+			}
+		}
+	},
+
+	elastic: function(t, v){
+		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
+	},
+
+	bezier: function(t, v){
+		// todo
+	},
+
+	// [tension, elastic]
+
+};
+
+Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
+
+['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
+	Animation.easing[name] = function(t){
+		return Math.pow(t, i + 2);
+	};
+});
+
+Object.keys(Animation.easing).forEach(function(ease){
+	Animation.easing[ease + 'In'] = Animation.easing[ease];
+	Animation.easing[ease + 'Out'] = function(t, v){
+		return 1 - Animation.easing[ease](1 - t, v);
+	};
+	Animation.easing[ease + 'InOut'] = function(t, v){
+		if(t >= 0.5){
+			return Animation.easing[ease](2 * t, v) / 2;
+		} else {
+			return (2 - Animation.easing[ease](2 * (1 - t), v)) / 2;
+		}
+	};
+});
+
+Animation.default = {
+	duration: 500,
+	easing: 'swing'
+};
+
+Delta.animation = function(duration, easing, callback){
+	return new Animation(duration, easing, callback);
 };
 
 // {{dont include Renderer.js}}
@@ -2331,12 +2760,13 @@ Drawable.prototype = {
 
 	corner : function(corner, bounds){
 		// todo: remove
-		if(Array.isArray(corner)){
-			return corner;
-		}
+//		if(Array.isArray(corner)){
+//			return corner;
+//		}
 
 		// todo: transformed state
 		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
+		// todo: bounds.tight = true support (return bounds.lt if corner.lt)
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
 			bounds.y + bounds.h * Delta.corners[corner][1]
@@ -2544,7 +2974,7 @@ Drawable.prototype = {
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
 	},
-
+/*
 	// Animation
 	animate : function(attr, value, options){
 		// attr, value, duration, easing, callback
@@ -2654,7 +3084,7 @@ Drawable.prototype = {
 		}, this);
 
 		return this;
-	}
+	} */
 };
 
 Drawable.AttrHooks = DrawableAttrHooks;
@@ -2824,7 +3254,10 @@ Drawable.prototype.eventHooks.mouseover = Drawable.prototype.eventHooks.mouseout
 };
 
 // Attrs
-Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], Class.mixins['TransformableMixin'], {
+Object.assign(Drawable.prototype,
+	Class.mixins['AttrMixin'],
+	Class.mixins['TransformableMixin'],
+	Class.mixins['AnimatableMixin'], {
 	attrHooks : DrawableAttrHooks.prototype = Object.assign({}, Class.mixins['TransformableMixin'].attrHooks, {
 		z : {
 			get : function(){
@@ -3031,229 +3464,6 @@ Object.assign(Drawable.prototype, Class.mixins['AttrMixin'], Class.mixins['Trans
 
 Delta.Drawable = Drawable;
 
-// var anim = Delta.animation(300, 500, options);
-// anim.start(value => dosmth(value));
-
-// https://mootools.net/core/docs/1.6.0/Fx/Fx
-Animation = new Class({
-
-	initialize: function(duration, easing, callback){
-		this.duration = duration || Animation.default.duration;
-		if(easing + '' === easing){
-			if(easing.indexOf('(') > -1){
-				this.easingParam = +easing.split('(')[1].split(')')[0];
-				easing = easing.split('(')[0];
-			}
-			this.easing = Animation.easing[easing];
-		} else {
-			this.easing = easing || Animation.easing.default;
-		}
-		this.callback = callback;
-	},
-
-	play: function(tick, context){
-		if(this.prePlay){
-			this.prePlay();
-		}
-		if(tick){
-			this.tick = tick;
-		}
-		if(context){
-			this.tickContext = context;
-		}
-
-		this.startTime = Date.now();
-		this.endTime = this.startTime + this.duration;
-		if(!Animation.queue.length){
-			requestAnimationFrame(Animation.do);
-		}
-		Animation.queue.push(this);
-	},
-
-	pause: function(){
-		this.pauseTime = Date.now();
-		Animation.queue.splice(Animation.queue.indexOf(this), 1);
-	},
-
-	continue: function(){
-		var delta = this.pauseTime - this.startTime;
-		this.startTime = Date.now() - delta;
-		this.endTime = this.startTime + this.duration;
-
-		if(!Animation.queue.length){
-			requestAnimationFrame(Animation.do);
-		}
-		Animation.queue.push(this);
-	}
-
-});
-
-Animation.queue = [];
-
-Animation.do = function(){
-	var fx, t,
-		now = Date.now();
-
-	for(var i = 0; i < Animation.queue.length; i++){
-		fx = Animation.queue[i];
-		t = (now - fx.startTime) / fx.duration;
-
-		if(t < 0){
-			continue;
-		}
-
-		if(t > 1){
-			t = 1;
-		}
-
-		fx.now = now;
-		fx.pos = fx.easing(t, fx.easingParam);
-		fx.tick.call(fx.tickContext, fx);
-
-		if(t === 1){
-			if(fx.callback){
-				// call him in requestAnimFrame?
-				// it must be called after the last update, i think
-				fx.callback.call(fx.tickContext, fx);
-			}
-
-			if(fx.queue){
-				fx.queue.shift();
-				if(fx.queue.length){
-					// init the next anim in the que
-					fx.queue[0].play();
-				}
-			}
-			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
-		}
-	}
-
-	if(Animation.queue.length){
-		requestAnimationFrame(Animation.do);
-	}
-};
-
-// Some tick functions
-Drawable.prototype.attrHooks['_num'] = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
-
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
-			}
-		}
-	},
-
-	anim: function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
-	}
-};
-
-Drawable.prototype.attrHooks['_numAttr'] = {
-	preAnim: Drawable.prototype.attrHooks._num.preAnim,
-
-	anim: function(fx){
-		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
-	}
-};
-
-// Easing functions
-Animation.easing = {
-
-	linear: function(x){
-		return x;
-	},
-
-	swing: function(x){
-		return 0.5 - Math.cos(x * Math.PI) / 2;
-	},
-
-	sqrt: function(x){
-		return Math.sqrt(x);
-	},
-
-	pow: function(t, v){
-		return Math.pow(t, v || 6);
-	},
-
-	expo: function(t, v){
-		return Math.pow(v || 2, 8 * t - 8);
-	},
-
-	sigmoid : function(t, v){
-		// return 1 / (1 + Math.exp(v * (t - 0.5))) / (1 / (1 + Math.exp(v / 2)));
-
-		v = -(v || 5);
-		return (1 + Math.exp(v / 2)) / (1 + Math.exp(v * (t - 0.5)));
-	},
-
-	circ: function(t){
-		return 1 - Math.sin(Math.acos(t));
-	},
-
-	sine: function(t){
-		return 1 - Math.cos(t * Math.PI / 2);
-	},
-
-	back: function(t, v){
-		return Math.pow(t, 2) * ((v || 1.618) * (t - 1) + t);
-	},
-
-	bounce: function(t){
-		for(var a = 0, b = 1; 1; a += b, b /= 2){
-			if(t >= (7 - 4 * a) / 11){
-				return b * b - Math.pow((11 - 6 * a - 11 * t) / 4, 2);
-			}
-		}
-	},
-
-	elastic: function(t, v){
-		return Math.pow(2, 10 * --t) * Math.cos(20 * t * Math.PI * (v || 1) / 3);
-	},
-
-	bezier: function(t, v){
-		// todo
-	},
-
-	// [tension, elastic]
-
-};
-
-Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
-
-['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
-	Animation.easing[name] = function(t){
-		return Math.pow(t, i + 2);
-	};
-});
-
-Object.keys(Animation.easing).forEach(function(ease){
-	Animation.easing[ease + 'In'] = Animation.easing[ease];
-	Animation.easing[ease + 'Out'] = function(t, v){
-		return 1 - Animation.easing[ease](1 - t, v);
-	};
-	Animation.easing[ease + 'InOut'] = function(t, v){
-		if(t >= 0.5){
-			return Animation.easing[ease](2 * t, v) / 2;
-		} else {
-			return (2 - Animation.easing[ease](2 * (1 - t), v)) / 2;
-		}
-	};
-});
-
-Animation.default = {
-	duration: 500
-};
-
-Delta.animation = function(duration, easing, callback){
-	return new Animation(duration, easing, callback);
-};
-
 Rect = new Class(Drawable, {
 	argsOrder: ['x', 'y', 'width', 'height', 'fill', 'stroke'],
 
@@ -3376,11 +3586,29 @@ Rect = new Class(Drawable, {
 
 });
 
+Rect.prototype.attrHooks.x.preAnim = function(fx, endValue){
+		fx.startValue = this.attr(fx.prop);
+		fx.delta = endValue - fx.startValue;
+
+		if(endValue + '' === endValue){
+			if(endValue.indexOf('+=') === 0){
+				fx.delta = +endValue.substr(2);
+			} else if(endValue.indexOf('-=') === 0){
+				fx.delta = -endValue.substr(2);
+			}
+		}
+	};
+Rect.prototype.attrHooks.x.anim = function(fx){
+		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+		this.update();
+	};
+
+/*
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
 	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
 	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;
 	Rect.prototype.attrHooks[propName].anim = attr.anim;
-});
+}); */
 
 Delta.rect = function(){
 	return new Rect(arguments);
@@ -3451,11 +3679,11 @@ Circle = new Class(Drawable, {
 Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
 Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
-
+/*
 ['cx', 'cy', 'radius'].forEach(function(propName){
 	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
 	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
-});
+}); */
 
 Delta.circle = function(){
 	return new Circle(arguments);
