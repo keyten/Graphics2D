@@ -1,6 +1,7 @@
 Path = new Class(Drawable, {
 	initialize : function(args){
 		if(args[0].constructor !== Object){
+			// todo: distance (not number)
 			if(args[1].constructor !== Number){
 				args[3] = args[1];
 				args[4] = args[2];
@@ -8,15 +9,20 @@ Path = new Class(Drawable, {
 			}
 		}
 
-		this.super('initialize', arguments);
+		this.super('initialize', [args]);
 	},
 
 	argsOrder: ['d', 'x', 'y', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		d: {set: updateSetter},
-		x: {set: updateSetter},
-		y: {set: updateSetter}
+		d : {
+			set : function(value){
+				this.attrs.curves = Path.parse(value, this);
+				this.update();
+			}
+		},
+		x : {set : updateSetter},
+		y : {set : updateSetter}
 	}),
 
 	// Curves
@@ -146,7 +152,7 @@ Path = new Class(Drawable, {
 		return result;
 	},
 
-	bounds: function(transform, around){
+	roughBounds: function(transform, around){
 		var minX =  Infinity,
 			minY =  Infinity,
 			maxX = -Infinity,
@@ -176,13 +182,13 @@ Path = new Class(Drawable, {
 
 	process : function(ctx){
 		ctx.beginPath();
-		this.attrs.d.forEach(function(curve){
+		this.attrs.curves.forEach(function(curve){
 			curve.process(ctx);
 		});
 	},
 
 	draw : function(ctx){
-/*		if(this.attrs.visible){
+		if(this.attrs.visible){
 			this.preDraw(ctx);
 
 			if(this.attrs.x || this.attrs.y){
@@ -193,7 +199,7 @@ Path = new Class(Drawable, {
 			this.process(ctx);
 
 			this.postDraw(ctx);
-		} */
+		} 
 	}
 
 } );
@@ -204,10 +210,10 @@ Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
 	}
-/*
-	if(data + '' === data){
-		return Path.parseSVG(data, path, firstIsNotMove);
-	} */
+
+	if(data.constructor === String){
+		return Path.parseString(data, path, firstIsNotMove);
+	}
 
 	if(data instanceof Curve){
 		data.path = path;
@@ -240,9 +246,9 @@ Path.parse = function(data, path, firstIsNotMove){
 	return curves;
 };
 
-/* Path.parseSVG = function(data, path, firstIsNotMove){
-	return [];
-}; */
+Path.parseString = function(data, path, firstIsNotMove){
+	throw "String path data is not supported";
+};
 
 Delta.path = function(){
 	return new Path(arguments);

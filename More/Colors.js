@@ -1,5 +1,5 @@
 //# Colors
-
+/* 
 var _color = $.color;
 $.color = function(color, from, to){
 
@@ -159,4 +159,4 @@ $.colorSpaces = {
 			}
 		}
 	}
-};
+}; */

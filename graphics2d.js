@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 09.01.2019
+ *  Last edit: 16.01.2019
  *  License: MIT
  */
 
@@ -1263,11 +1263,11 @@ Class.attr = function(name, value){
 // anim.start(value => dosmth(value));
 
 // https://mootools.net/core/docs/1.6.0/Fx/Fx
+// сделать функцией, а не классом
 Animation = new Class({
-
 	initialize: function(duration, easing, callback){
 		this.duration = duration || Animation.default.duration;
-		if(easing.constructor === String){
+		if(easing && easing.constructor === String){
 			var index = easing.indexOf('(');
 			if(index !== -1){
 				this.easingParam = easing.substring(index + 1, easing.length - 1);
@@ -1370,32 +1370,6 @@ Class.mixins.AnimatableMixin = {
 		// attr, value, options
 		// attrs, options
 		// fx, options (fx is pushed to the queue)
-/*		if(attr.constructor !== String){
-			// todo:
-			// the fx ob will not represent others
-			// object.fx.stop() will stop only one anim
-			if(+value === value || !value){
-				options = {duration: value, easing: options, callback: arguments[3]};
-			} else if(typeof value === 'function'){
-				options = {callback: value};
-			} else {
-				options = value;
-			}
-
-			Object.keys(attr).forEach(function(key, i){
-				this.animate(key, attr[key], options);
-				if(i === 0){
-					options.queue = false;
-					options.callback = null;
-				}
-			}, this);
-			return this;
-		}
-
-		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-			throw 'Animation for "' + attr + '" is not supported';
-		} */
-
 		if(attr.constructor !== String){
 			callback = easing;
 			easing = options;
@@ -1427,6 +1401,9 @@ Class.mixins.AnimatableMixin = {
 				options.callback
 			);
 
+			/* if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+				throw 'Animation for "' + attr + '" is not supported';
+			} */
 			if(attr.constructor === String){
 				// attr, value
 				fx.prop = attr;
@@ -1451,12 +1428,11 @@ Class.mixins.AnimatableMixin = {
 						this.attrHooks[anim.prop].anim.call(this, anim);
 					}, this);
 				};
-				fx.tickContext = this;
 				fx.prePlay = function(){
 					fx.prop.forEach(function(anim){
 						this.attrHooks[anim.prop].preAnim.call(this, anim, attr[anim.prop]);
-					});
-					this.attrs.animation = fx;
+					}, this);
+					// if queue this.attrs.animation = fx;
 				}.bind(this);
 			}
 
@@ -1468,46 +1444,11 @@ Class.mixins.AnimatableMixin = {
 		if(options.name){
 			fx.name = options.name;
 		}
-		// todo: fx.onFInish = this.attrs.animation = null;
-/*
-		if(options.queue === false || !this.attrs.animation){
-			fx.play();
-		} else {
-			this.attrs.animation.queue = fx;
-		}
-		/*
 
-		if(attr instanceof Animation){
-			// fx is given
-		} else if(attr.constructor === String){
-			// attr, value
-		} else {
-			// attrs
-		}
-/*
-		var fx = new Animation(
-			options.duration,
-			options.easing,
-			options.callback
-		);
+		fx.play();
 
-		fx.prop = attr;
-		fx.tick = this.attrHooks[attr].anim;
-		fx.tickContext = this;
-		fx.prePlay = function(){
-			this.fx = fx;
-			this.attrHooks[attr].preAnim.call(this, fx, value);
-			this.attrs.animation = fx;
-		}.bind(this);
-
-		// is used to pause / cancel anims
-		fx.elem = this;
-		if(options.name){
-			fx.name = options.name;
-		}
-/*
-		var queue = options.queue;
-		if(queue !== false){
+		// var queue = options.queue;
+		/* if(queue !== false){
 			if(queue === true || queue === undefined){
 				if(!this._queue){
 					this._queue = [];
@@ -1521,9 +1462,8 @@ Class.mixins.AnimatableMixin = {
 			if(queue.length > 1){
 				return this;
 			}
-		}
-
-		fx.play(); */
+		} */
+		// todo: fx.onFinish = this.attrs.animation = null;
 
 		return this;
 	},
@@ -1533,6 +1473,7 @@ Class.mixins.AnimatableMixin = {
 		if(!this._paused){
 			this._paused = [];
 		}
+		// this.attrs.animation = null;
 
 		// pause changes the original array
 		// so we need slice
@@ -1560,39 +1501,40 @@ Class.mixins.AnimatableMixin = {
 		return this;
 	}
 };
-/*
-// Some tick functions
-Drawable.prototype.attrHooks['_num'] = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
 
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
+// Some tick functions
+Animation.tick = {
+	num: {
+		preAnim: function(fx, endValue){
+			fx.startValue = this.attr(fx.prop);
+			fx.delta = endValue - fx.startValue;
+
+			if(endValue.constructor === String){
+				if(endValue.indexOf('+=') === 0){
+					fx.delta = +endValue.substr(2);
+				} else if(endValue.indexOf('-=') === 0){
+					fx.delta = -endValue.substr(2);
+				}
 			}
+		},
+
+		anim: function(fx){
+			this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+			this.update();
 		}
 	},
 
-	anim: function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
+	numAttr: {
+		anim: function(fx){
+			this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
+		}
 	}
 };
 
-Drawable.prototype.attrHooks['_numAttr'] = {
-	preAnim: Drawable.prototype.attrHooks._num.preAnim,
-
-	anim: function(fx){
-		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
-	}
-}; */
+Animation.tick.numAttr.preAnim = Animation.tick.num.preAnim;
 
 // Easing functions
 Animation.easing = {
-
 	linear: function(x){
 		return x;
 	},
@@ -1652,7 +1594,7 @@ Animation.easing = {
 
 };
 
-Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
+// Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
 
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
@@ -2399,10 +2341,30 @@ Drawable.prototype = {
 			fills: true // clone gradients, patterns?
 		}
 	  */
-	clone : function(attrs, styles, events){
+	cloneReducers : {
+		order : 'clone'
+	},
+
+	clone : function(options){
+		options = Object.assign({
+			clone : true,
+			attrs : true,
+
+		}, options);
+
+		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+			if(options[caller] === undefined){
+				return result;
+			}
+
+			return this.cloneReducers[caller].call(this, options[caller], result, options);
+		}.bind(this), null);
+
+		/*
 		// todo: replace arguments to one config {styles: false, matrix: true}
 		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
+		// можно заюзать this.argsOrder
 		// todo: необходим deepClone везде
 
 		if(attrs === false){
@@ -2430,7 +2392,7 @@ Drawable.prototype = {
 		}
 
 		// if this.context:
-		return this.context.push(clone);
+		return this.context.push(clone); */
 	},
 
 	remove : function(){
@@ -3203,6 +3165,9 @@ Object.assign(Drawable.prototype, Class.mixins['EventMixin'], {
 	eventHooks: {}
 });
 
+// todo: любой вызов teardown отключит этот обработчик, например, добавить и удалить обработчик на событие к самому канвасу
+// нужно, чтобы context ориентировался не только на listeners, но и на какие-то счётчики
+
 Drawable.browserCommonEvent = {
 	init : function(event){
 		if(this.context){
@@ -3586,29 +3551,12 @@ Rect = new Class(Drawable, {
 
 });
 
-Rect.prototype.attrHooks.x.preAnim = function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
 
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
-			}
-		}
-	};
-Rect.prototype.attrHooks.x.anim = function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
-	};
-
-/*
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
-	var attr = Drawable.prototype.attrHooks[i > 3 ? '_numAttr' : '_num'];
-	Rect.prototype.attrHooks[propName].preAnim = attr.preAnim;
-	Rect.prototype.attrHooks[propName].anim = attr.anim;
-}); */
+	var tick = i > 3 ? Animation.tick.numAttr : Animation.tick.num;
+	Rect.prototype.attrHooks[propName].preAnim = tick.preAnim;
+	Rect.prototype.attrHooks[propName].anim = tick.anim;
+}); 
 
 Delta.rect = function(){
 	return new Rect(arguments);
@@ -3910,6 +3858,7 @@ Delta.curve = function(method, attrs, path){
 Path = new Class(Drawable, {
 	initialize : function(args){
 		if(args[0].constructor !== Object){
+			// todo: distance (not number)
 			if(args[1].constructor !== Number){
 				args[3] = args[1];
 				args[4] = args[2];
@@ -3917,15 +3866,20 @@ Path = new Class(Drawable, {
 			}
 		}
 
-		this.super('initialize', arguments);
+		this.super('initialize', [args]);
 	},
 
 	argsOrder: ['d', 'x', 'y', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		d: {set: updateSetter},
-		x: {set: updateSetter},
-		y: {set: updateSetter}
+		d : {
+			set : function(value){
+				this.attrs.curves = Path.parse(value, this);
+				this.update();
+			}
+		},
+		x : {set : updateSetter},
+		y : {set : updateSetter}
 	}),
 
 	// Curves
@@ -4055,7 +4009,7 @@ Path = new Class(Drawable, {
 		return result;
 	},
 
-	bounds: function(transform, around){
+	roughBounds: function(transform, around){
 		var minX =  Infinity,
 			minY =  Infinity,
 			maxX = -Infinity,
@@ -4085,13 +4039,13 @@ Path = new Class(Drawable, {
 
 	process : function(ctx){
 		ctx.beginPath();
-		this.attrs.d.forEach(function(curve){
+		this.attrs.curves.forEach(function(curve){
 			curve.process(ctx);
 		});
 	},
 
 	draw : function(ctx){
-/*		if(this.attrs.visible){
+		if(this.attrs.visible){
 			this.preDraw(ctx);
 
 			if(this.attrs.x || this.attrs.y){
@@ -4102,7 +4056,7 @@ Path = new Class(Drawable, {
 			this.process(ctx);
 
 			this.postDraw(ctx);
-		} */
+		} 
 	}
 
 } );
@@ -4113,10 +4067,10 @@ Path.parse = function(data, path, firstIsNotMove){
 	if(!data){
 		return [];
 	}
-/*
-	if(data + '' === data){
-		return Path.parseSVG(data, path, firstIsNotMove);
-	} */
+
+	if(data.constructor === String){
+		return Path.parseString(data, path, firstIsNotMove);
+	}
 
 	if(data instanceof Curve){
 		data.path = path;
@@ -4149,9 +4103,9 @@ Path.parse = function(data, path, firstIsNotMove){
 	return curves;
 };
 
-/* Path.parseSVG = function(data, path, firstIsNotMove){
-	return [];
-}; */
+Path.parseString = function(data, path, firstIsNotMove){
+	throw "String path data is not supported";
+};
 
 Delta.path = function(){
 	return new Path(arguments);

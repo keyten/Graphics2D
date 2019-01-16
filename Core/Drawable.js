@@ -67,10 +67,30 @@ Drawable.prototype = {
 			fills: true // clone gradients, patterns?
 		}
 	  */
-	clone : function(attrs, styles, events){
+	cloneReducers : {
+		order : 'clone'
+	},
+
+	clone : function(options){
+		options = Object.assign({
+			clone : true,
+			attrs : true,
+
+		}, options);
+
+		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+			if(options[caller] === undefined){
+				return result;
+			}
+
+			return this.cloneReducers[caller].call(this, options[caller], result, options);
+		}.bind(this), null);
+
+		/*
 		// todo: replace arguments to one config {styles: false, matrix: true}
 		// todo: test on all obs
 		var clone = new this.constructor([], this.context);
+		// можно заюзать this.argsOrder
 		// todo: необходим deepClone везде
 
 		if(attrs === false){
@@ -98,7 +118,7 @@ Drawable.prototype = {
 		}
 
 		// if this.context:
-		return this.context.push(clone);
+		return this.context.push(clone); */
 	},
 
 	remove : function(){
@@ -870,6 +890,9 @@ Drawable.processShadow = function(shadow, style){
 Object.assign(Drawable.prototype, Class.mixins['EventMixin'], {
 	eventHooks: {}
 });
+
+// todo: любой вызов teardown отключит этот обработчик, например, добавить и удалить обработчик на событие к самому канвасу
+// нужно, чтобы context ориентировался не только на listeners, но и на какие-то счётчики
 
 Drawable.browserCommonEvent = {
 	init : function(event){

@@ -2,11 +2,11 @@
 // anim.start(value => dosmth(value));
 
 // https://mootools.net/core/docs/1.6.0/Fx/Fx
+// сделать функцией, а не классом
 Animation = new Class({
-
 	initialize: function(duration, easing, callback){
 		this.duration = duration || Animation.default.duration;
-		if(easing.constructor === String){
+		if(easing && easing.constructor === String){
 			var index = easing.indexOf('(');
 			if(index !== -1){
 				this.easingParam = easing.substring(index + 1, easing.length - 1);
@@ -109,32 +109,6 @@ Class.mixins.AnimatableMixin = {
 		// attr, value, options
 		// attrs, options
 		// fx, options (fx is pushed to the queue)
-/*		if(attr.constructor !== String){
-			// todo:
-			// the fx ob will not represent others
-			// object.fx.stop() will stop only one anim
-			if(+value === value || !value){
-				options = {duration: value, easing: options, callback: arguments[3]};
-			} else if(typeof value === 'function'){
-				options = {callback: value};
-			} else {
-				options = value;
-			}
-
-			Object.keys(attr).forEach(function(key, i){
-				this.animate(key, attr[key], options);
-				if(i === 0){
-					options.queue = false;
-					options.callback = null;
-				}
-			}, this);
-			return this;
-		}
-
-		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-			throw 'Animation for "' + attr + '" is not supported';
-		} */
-
 		if(attr.constructor !== String){
 			callback = easing;
 			easing = options;
@@ -166,6 +140,9 @@ Class.mixins.AnimatableMixin = {
 				options.callback
 			);
 
+			/* if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+				throw 'Animation for "' + attr + '" is not supported';
+			} */
 			if(attr.constructor === String){
 				// attr, value
 				fx.prop = attr;
@@ -190,12 +167,11 @@ Class.mixins.AnimatableMixin = {
 						this.attrHooks[anim.prop].anim.call(this, anim);
 					}, this);
 				};
-				fx.tickContext = this;
 				fx.prePlay = function(){
 					fx.prop.forEach(function(anim){
 						this.attrHooks[anim.prop].preAnim.call(this, anim, attr[anim.prop]);
-					});
-					this.attrs.animation = fx;
+					}, this);
+					// if queue this.attrs.animation = fx;
 				}.bind(this);
 			}
 
@@ -207,46 +183,11 @@ Class.mixins.AnimatableMixin = {
 		if(options.name){
 			fx.name = options.name;
 		}
-		// todo: fx.onFInish = this.attrs.animation = null;
-/*
-		if(options.queue === false || !this.attrs.animation){
-			fx.play();
-		} else {
-			this.attrs.animation.queue = fx;
-		}
-		/*
 
-		if(attr instanceof Animation){
-			// fx is given
-		} else if(attr.constructor === String){
-			// attr, value
-		} else {
-			// attrs
-		}
-/*
-		var fx = new Animation(
-			options.duration,
-			options.easing,
-			options.callback
-		);
+		fx.play();
 
-		fx.prop = attr;
-		fx.tick = this.attrHooks[attr].anim;
-		fx.tickContext = this;
-		fx.prePlay = function(){
-			this.fx = fx;
-			this.attrHooks[attr].preAnim.call(this, fx, value);
-			this.attrs.animation = fx;
-		}.bind(this);
-
-		// is used to pause / cancel anims
-		fx.elem = this;
-		if(options.name){
-			fx.name = options.name;
-		}
-/*
-		var queue = options.queue;
-		if(queue !== false){
+		// var queue = options.queue;
+		/* if(queue !== false){
 			if(queue === true || queue === undefined){
 				if(!this._queue){
 					this._queue = [];
@@ -260,9 +201,8 @@ Class.mixins.AnimatableMixin = {
 			if(queue.length > 1){
 				return this;
 			}
-		}
-
-		fx.play(); */
+		} */
+		// todo: fx.onFinish = this.attrs.animation = null;
 
 		return this;
 	},
@@ -272,6 +212,7 @@ Class.mixins.AnimatableMixin = {
 		if(!this._paused){
 			this._paused = [];
 		}
+		// this.attrs.animation = null;
 
 		// pause changes the original array
 		// so we need slice
@@ -299,39 +240,40 @@ Class.mixins.AnimatableMixin = {
 		return this;
 	}
 };
-/*
-// Some tick functions
-Drawable.prototype.attrHooks['_num'] = {
-	preAnim: function(fx, endValue){
-		fx.startValue = this.attr(fx.prop);
-		fx.delta = endValue - fx.startValue;
 
-		if(endValue + '' === endValue){
-			if(endValue.indexOf('+=') === 0){
-				fx.delta = +endValue.substr(2);
-			} else if(endValue.indexOf('-=') === 0){
-				fx.delta = -endValue.substr(2);
+// Some tick functions
+Animation.tick = {
+	num: {
+		preAnim: function(fx, endValue){
+			fx.startValue = this.attr(fx.prop);
+			fx.delta = endValue - fx.startValue;
+
+			if(endValue.constructor === String){
+				if(endValue.indexOf('+=') === 0){
+					fx.delta = +endValue.substr(2);
+				} else if(endValue.indexOf('-=') === 0){
+					fx.delta = -endValue.substr(2);
+				}
 			}
+		},
+
+		anim: function(fx){
+			this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
+			this.update();
 		}
 	},
 
-	anim: function(fx){
-		this.attrs[fx.prop] = fx.startValue + fx.delta * fx.pos;
-		this.update();
+	numAttr: {
+		anim: function(fx){
+			this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
+		}
 	}
 };
 
-Drawable.prototype.attrHooks['_numAttr'] = {
-	preAnim: Drawable.prototype.attrHooks._num.preAnim,
-
-	anim: function(fx){
-		this.attr(fx.prop, fx.startValue + fx.delta * fx.pos);
-	}
-}; */
+Animation.tick.numAttr.preAnim = Animation.tick.num.preAnim;
 
 // Easing functions
 Animation.easing = {
-
 	linear: function(x){
 		return x;
 	},
@@ -391,7 +333,7 @@ Animation.easing = {
 
 };
 
-Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
+// Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
 
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
