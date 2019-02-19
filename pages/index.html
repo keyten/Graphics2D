@@ -37,37 +37,47 @@ Serialization, deserialization ( ctx.load('./objects.json'); )
 
 (вообще запилить бы большую страницу с демками по каждой теме)
 -->
-		<h2>Features</h2>
-		<div class="column1">
-			<h3>Easy working with objects</h3>
-			<p>Object-oriented API</p>
-<a href="#">Run</a>
-			<!-- по маусоверу должен слева (или справа в зависимости от колонки) открываться балун с примером -->
-			<pre><code>// getting the context
+
+<h2>Features</h2>
+<div class="cols-2">
+	<div class="col-2">
+
+<h3>Easy working with objects</h3>
+<p>Object-oriented API</p>
+<canvas id="example1"></canvas>
+<pre data-canvas="example1"><code>// getting the context
 var ctx = Delta.query('#example1');
 
 // making two circles
-var first = ctx.circle(200, 200, 50, '#0af');
-var second = ctx.circle(250, 250, 70, '#a0f');
+var first = ctx.circle(100, 70, 50, '#0af');
+var second = ctx.circle(300, 80, 70, '#a0f');
 
 // adding a stroke to the 1st circle
 first.attr('stroke', '2px black');</code></pre>
-			<h3>Transforms</h3>
-			<p>Add and rotate a rect</p>
-			<pre><code>// making a rect
-var rect = ctx.rect(100, 100, 50, 50, 'red');
+
+<h3>Transforms</h3>
+<p>Add and rotate rect</p>
+<canvas id="rotate-example"></canvas>
+<pre data-canvas="rotate-example"><code>// making a rect
+var rect = ctx.rect(200, 50, 50, 50, 'red');
 
 // rotate it on 45 degree
-rect.rotate(45);</code></pre>
-			<p style="margin-top: 15px">Rotate on 1 degree each millisecond</p>
-			<pre><code>setInterval(function(){
-    rect.rotate(1);
-});</code></pre>
-		</div>
-		<div class="column2">
-			<h3>Mouse events</h3>
-			<p>An object changing its color on hover.</p>
-			<pre><code>// making a triangle as a path
+rect.attr('rotate', 45);</code></pre>
+<p style="margin-top: 15px">Rotate on 1 degree each 10 ms</p>
+<canvas id="rotate-anim-example"></canvas>
+<pre data-canvas="rotate-anim-example"><code>var rect = ctx.rect(200, 50, 50, 50, 'red');
+
+var i = 0;
+setInterval(function(){
+    rect.attr('rotate', i++);
+}, 10);</code></pre>
+
+	</div>
+	<div class="col-2">
+
+<h3>Mouse events</h3>
+<p>An object changing its color on hover.</p>
+<pre><code>// making a triangle as a path
 var triangle = ctx.path([
     [100, 10],
     [10, 90],
@@ -76,13 +86,14 @@ var triangle = ctx.path([
 
 // adding event listeners
 triangle.on('mouseover', function(){
-	this.attr('fill', 'blue');
+    this.attr('fill', 'blue');
 }).on('mouseout', function(){
-	this.attr('fill', 'red');
+    this.attr('fill', 'red');
 });</code></pre>
-			<h3>Animation</h3>
-			<p>Add and animate a rect</p>
-			<pre><code>// making a rect
+
+<h3>Animation</h3>
+<p>Add and animate rect</p>
+<pre><code>// making a rect
 var rect = ctx.rect(10, 100, 80, 50, 'red');
 
 // animate
@@ -91,9 +102,68 @@ rect.animate({
     width: 40,
     fill: 'blue'
 }, 1000);</code></pre>
-		</div>
+
+	</div>
+</div>
+
+<script src="./graphics2d.js"></script>
+<script>
+
+window.onload = function(){
+
+var codes = [
+	new CanvasCode('example1', true),
+	new CanvasCode('rotate-example'),
+	new CanvasCode('rotate-anim-example')
+];
+
+function CanvasCode(id, noInit){
+	this.canvas = document.getElementById(id);
+	this.pre = document.querySelector('pre[data-canvas="' + id + '"]');
+	if(!noInit){
+		this.delta = Delta.query(this.canvas);
+
+		with({ctx: this.delta}){
+			eval(this.pre.textContent);
+		}
+	} else {
+		eval(this.pre.textContent);
+		if(typeof ctx === 'object'){
+			this.delta = ctx;
+		}
+	}
+}
+
+CanvasCode.prototype.resize = function(){
+	this.delta.attr('width', Number(getComputedStyle(this.pre).width.replace(/[^\d\.]/g, '')) | 0 + 10);
+}
+
+function resize(){
+	codes.forEach(function(code){
+		code.resize();
+	});
+}
+
+resize();
+window.addEventListener('resize', resize);
+
+};
+
+</script>
 
 <style>
+canvas {
+	border: solid 1px #eee;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+}
+
+pre {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	margin-top: -5px;
+}
+
 .index-page-description {
 	background: #eee;
 	box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.1);
@@ -111,7 +181,7 @@ rect.animate({
 .index-page-description b {
 	font-weight: 300;
 }
-
+/*
 content > .column1,
 content > .column2 {
 	display: inline-block;
@@ -125,7 +195,16 @@ content > .column1 {
 	margin-right: 2%;
 }
 
-content > .column2 {}
+content > .column2 {} */
+content .cols-2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+
+content .cols-2 .col-2 {
+	padding-left: 15px;
+	padding-right: 15px;
+}
 
 content p {
 	font-weight: 300;
