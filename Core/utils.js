@@ -1,79 +1,10 @@
-/*// Class
-function Class(parent, properties){
-	if(!properties){
-		properties = parent;
-		parent = null;
-	}
-
-	var init = function(){
-		return this.initialize && this.initialize.apply(this, arguments);
-	};
-
-	if(parent){
-		// prototype inheriting
-		var sklass = function(){};
-		sklass.prototype = parent.prototype;
-		init.prototype = new sklass();
-		init.prototype.superclass = parent.prototype;
-		init.prototype.constructor = init;
-
-		init.prototype.super = function(name, args){
-			// при вызове super внутри таймаута получим бесконечный цикл
-			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
-			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
-			if(!this.superclass.superclass || !this.superclass.superclass[name]){
-				return this.superclass[name].apply(this, args);
-			}
-
-			var superclass = this.superclass;
-			this.superclass = this.superclass.superclass;
-			var result = superclass[name].apply(this, args);
-			this.superclass = parent.prototype;
-			return result;
-		};
-	}
-
-	extend(init.prototype, properties);
-
-	return init;
-}
-
-Class.attr = function(name, value){
-	if(Array.isArray(name)){
-		// getter attr(['attr1', 'attr2'])
-		return name.map(function(name){
-			return this.attr(name);
-		}, this);
-	} else if(name + '' !== name){
-		// setter attr({ attr1: val1, attr2: val2 });
-		Object.keys(name).forEach(function(key){
-			this.attr(key, name[key]);
-		}, this);
-		return this;
-	}
-
-	// afaik its not good to use arguments?
-	if(arguments.length === 1){
-		// getter attr('attr1')
-		if(this.attrHooks[name] && this.attrHooks[name].get){
-			return this.attrHooks[name].get.call(this);
-		}
-		return this.attrs[name];
-	}
-
-	// setter attr('attr1', 'val1')
-	if(this.attrHooks[name] && this.attrHooks[name].set){
-		var result = this.attrHooks[name].set.call(this, value);
-		if(result !== null){ // replace to result !== Delta._doNotSetProperty;
-			// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
-			this.attrs[name] = result === undefined ? value : result;
-		}
-	} else {
-		this.attrs[name] = value;
-	}
-
-	return this;
-}; */
+// Macroses
+function isNumber(v){ return v.constructor === Number; }
+function isString(v){ return v.constructor === String; }
+function isBoolean(v){ return v.constructor === Boolean; }
+function isObject(v){ return v.constructor === Object; }
+function isArray(v){ return Array.isArray(v); }
+// /Macroses
 
 // Bounds class
 function Bounds(x, y, w, h){

@@ -1,4 +1,161 @@
-Gradient = new Class({
+function Gradient(type, colors, from, to, context){
+	if(!isString(type)){
+		to = from;
+		from = colors
+		colors = type;
+		type = 'linear';
+	}
+
+	if(!Gradient.types[type]){
+		throw 'Unknown gradient type "' + type + '"';
+	}
+
+	this.attrs = {
+		type: type,
+		from: from,
+		to: to,
+		colors: Gradient.parseColors(colors)
+	};
+	this.updateList = [];
+	this.context = context;
+
+	if(Gradient.types[type]){
+		extend(this, Gradient.types[type]);
+		if(this.init){
+			this.init();
+		}
+	}
+}
+
+function GradientAttrHooks(attrs){
+	// it seems deepExtend is not neccessary
+	extend(this, attrs);
+}
+
+extend(Gradient.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : GradientAttrHooks.prototype = {
+		type : {set : updateSetter},
+
+		colors : {
+			set : function(value){
+				if(this.cached){
+					this.cached = null;
+				}
+				this.attrs.colors = Gradient.parseColors(colors);
+				this.update();
+			}
+		}
+	},
+
+	update : function(){
+		this.updateList.forEach(function(elem){
+			elem.update();
+		});
+		return this;
+	},
+
+	// t, mixColors
+	// t, value
+	color : function(t, value){
+		// if !mix then do not mix them
+		if(value !== undefined && !isBoolean(value)){
+			this.attrs.colors.push([t, value]);
+			return this.update();
+		}
+
+		var colors = this.attrs.colors = this.attrs.colors.sort(function(pair1, pair2){
+			return pair1[0] > pair2[0] ? 1 : -1;
+		});
+		// todo: support mixColor argument
+
+		if(t < colors[0][0]){
+			return Delta.color(colors[0][1]);
+		} else if(t > colors[colors.length - 1][0]){
+			return Delta.color(colors[colors.length - 1][1]);
+		}
+
+		for(var i = 0; i < colors.length; i++){
+			if(colors[i][0] === t){
+				return Delta.color(colors[i][1]);
+			}
+
+			if(keys[i] > t){
+				var c1 = Delta.color(colors[i - 1][1]),
+					c2 = Delta.color(colors[i][1]);
+				t = (t - colors[i - 1][0]) / (colors[i][0] - colors[i - 1][0]);
+				return [
+					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
+					c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
+					c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
+					+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
+				];
+			}
+		}
+	}
+});
+
+Gradient.types = {
+	linear : {
+		attrHooks : new GradientAttrHooks({
+			from : {set : updateSetter},
+			to : {set : updateSetter}
+		}),
+
+		toCanvasStyle : function(ctx, element){
+			var from = isString(this.attrs.from) ?
+				element.corner(this.attrs.from, this.attrs.boundsOptions) : this.attrs.from;
+			var to = isString(this.attrs.to) ?
+				element.corner(this.attrs.to, this.attrs.boundsOptions) : this.attrs.to;
+			var colors = this.attrs.colors;
+
+			var key = [from, to].join(' ');
+			if(this.cached && this.cached.key === key){
+				return this.cached.grad;
+			}
+
+			var grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
+			colors.forEach(function(pair){
+				grad.addColorStop(pair[0], pair[1]);
+			});
+
+			this.cached = {
+				grad : grad,
+				key : [from, to].join(' ')
+			};
+
+			return grad;
+		}
+	},
+	radial : {
+		attrHooks : new GradientAttrHooks({
+			from : {},
+			to : {},
+			radius : {},
+			startRadius : {}
+		}),
+
+		toCanvasStyle : function(ctx, element){}
+	}
+};
+
+// todo: array is faster
+Gradient.parseColors = function(colors){
+	var result = [];
+	if(isArray(colors)){
+		var step = 1 / (colors.length - 1);
+		colors.forEach(function(color, i){
+			result.push([step * i, color]);
+		});
+	} else {
+		Object.keys(colors).forEach(function(pos){
+			result.push([pos, colors[pos]]);
+		});
+	}
+	return result;
+};
+
+
+/* Gradient = new Class({
 	initialize: function(type, colors, from, to, context){
 		this.context = context;
 
@@ -209,4 +366,4 @@ Gradient.types = {
 	}
 };
 
-Delta.Gradient = Gradient;
+Delta.Gradient = Gradient; */

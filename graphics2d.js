@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 16.01.2019
+ *  Last edit: 19.02.2019
  *  License: MIT
  */
 
@@ -104,82 +104,13 @@ var Delta = {},
 						   window.clearTimeout;
 
 Delta.renderers = {};
-/*// Class
-function Class(parent, properties){
-	if(!properties){
-		properties = parent;
-		parent = null;
-	}
-
-	var init = function(){
-		return this.initialize && this.initialize.apply(this, arguments);
-	};
-
-	if(parent){
-		// prototype inheriting
-		var sklass = function(){};
-		sklass.prototype = parent.prototype;
-		init.prototype = new sklass();
-		init.prototype.superclass = parent.prototype;
-		init.prototype.constructor = init;
-
-		init.prototype.super = function(name, args){
-			// при вызове super внутри таймаута получим бесконечный цикл
-			// по-хорошему, проверять бы arguments.callee.caller === arguments.callee
-			// по-плохому, не стоит: это вроде как плохо, и вообще use strict
-			if(!this.superclass.superclass || !this.superclass.superclass[name]){
-				return this.superclass[name].apply(this, args);
-			}
-
-			var superclass = this.superclass;
-			this.superclass = this.superclass.superclass;
-			var result = superclass[name].apply(this, args);
-			this.superclass = parent.prototype;
-			return result;
-		};
-	}
-
-	extend(init.prototype, properties);
-
-	return init;
-}
-
-Class.attr = function(name, value){
-	if(Array.isArray(name)){
-		// getter attr(['attr1', 'attr2'])
-		return name.map(function(name){
-			return this.attr(name);
-		}, this);
-	} else if(name + '' !== name){
-		// setter attr({ attr1: val1, attr2: val2 });
-		Object.keys(name).forEach(function(key){
-			this.attr(key, name[key]);
-		}, this);
-		return this;
-	}
-
-	// afaik its not good to use arguments?
-	if(arguments.length === 1){
-		// getter attr('attr1')
-		if(this.attrHooks[name] && this.attrHooks[name].get){
-			return this.attrHooks[name].get.call(this);
-		}
-		return this.attrs[name];
-	}
-
-	// setter attr('attr1', 'val1')
-	if(this.attrHooks[name] && this.attrHooks[name].set){
-		var result = this.attrHooks[name].set.call(this, value);
-		if(result !== null){ // replace to result !== Delta._doNotSetProperty;
-			// сжатие _-свойств минимизатором можно обойти через Delta['_doNot...'] = ...
-			this.attrs[name] = result === undefined ? value : result;
-		}
-	} else {
-		this.attrs[name] = value;
-	}
-
-	return this;
-}; */
+// Macroses
+function isNumber(v){ return v.constructor === Number; }
+function isString(v){ return v.constructor === String; }
+function isBoolean(v){ return v.constructor === Boolean; }
+function isObject(v){ return v.constructor === Object; }
+function isArray(v){ return Array.isArray(v); }
+// /Macroses
 
 // Bounds class
 function Bounds(x, y, w, h){
@@ -1690,7 +1621,6 @@ Context.prototype = {
 	},
 
 	// Fills
-	useCache : false,
 	gradient : function(type, colors, from, to){
 		return new Gradient(type, colors, from, to, this);
 	},
@@ -1734,6 +1664,7 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
+		console.time('drawing');
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -1756,6 +1687,7 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
+		console.timeEnd('drawing');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -2274,7 +2206,6 @@ Delta.contexts = {
 
 // todo: move into utils
 var temporaryCanvas;
-
 function getTemporaryCanvas(width, height){
 	if(!temporaryCanvas){
 		temporaryCanvas = document.createElement('canvas');
@@ -2282,6 +2213,20 @@ function getTemporaryCanvas(width, height){
 	temporaryCanvas.width = width;
 	temporaryCanvas.height = height;
 	return temporaryCanvas;
+}
+
+var svgNS = 'http://www.w3.org/2000/svg';
+var filterSVG;
+function getSVGFilter(){
+	if(!filterSVG){
+		filterSVG = document.createElement('svg');
+		filterSVG.setAttribute('xmlns', svgNS);
+		filterSVG.setAttribute('version', '1.1');
+		filterSVG.defs = document.createElementNS(svgNS, 'defs');
+		filterSVG.appendChild(filterSVG.defs);
+		document.body.appendChild(filterSVG);
+	}
+	return filterSVG;
 }
 
 function DrawableAttrHooks(attrs){
@@ -2806,6 +2751,10 @@ Drawable.prototype = {
 				matrix[3], matrix[4], matrix[5]);
 		}
 
+		if(this.attrs.fill && this.attrs.fill.toCanvasStyle){
+			ctx.fillStyle = this.attrs.fill.toCanvasStyle(ctx, this);
+		}
+
 		// если какие-то особые штуки, то пишем их не в styles, а в attrs
 		// и тут их проверяем
 /*
@@ -3253,7 +3202,11 @@ Object.assign(Drawable.prototype,
 		fill : {
 			set : function(value){
 				// todo: if value.changeable then value.on('change', this.update)
-				this.styles.fillStyle = value;
+				if (value.toCanvasStyle) {
+					delete this.styles.fillStyle;
+				} else {
+					this.styles.fillStyle = value;
+				}
 				this.update();
 			}
 		},
@@ -3422,7 +3375,41 @@ Object.assign(Drawable.prototype,
 			}
 		},
 
+		filter : {
+			set : function(value){
+				if(Array.isArray(value)){
+					value = value.map(function(filter){
+						if(isString(filter)){
+							return filter;
+						}
 
+						if(isObject(filter)){
+							filter = [filter];
+						}
+
+						var defs = getSVGFilter().defs;
+						var id = Date.now() + '_' + String(Math.random()).substr(2);
+						var filterElem = document.createElementNS(svgNS, 'filter');
+						filterElem.setAttribute('id', id);
+						filter.forEach(function(filterEffect){
+							var effectElem = document.createElementNS(svgNS, filterEffect.effect);
+							Object.keys(filterEffect).forEach(function(param){
+								if(param !== 'effect'){
+									effectElem.setAttribute(param, filterEffect[param]);
+								}
+							});
+							filterElem.appendChild(effectElem);
+						});
+						defs.appendChild(filterElem);
+
+						return 'url(#' + id + ')';
+					}).join(' ');
+				}
+
+				this.styles.filter = value;
+				this.update();
+			}
+		}
 	})
 });
 
@@ -4047,14 +4034,11 @@ Path = new Class(Drawable, {
 	draw : function(ctx){
 		if(this.attrs.visible){
 			this.preDraw(ctx);
-
 			if(this.attrs.x || this.attrs.y){
 				// todo: will it be affected by previous transformations (the path itself, the canvas)?
 				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 			}
-
 			this.process(ctx);
-
 			this.postDraw(ctx);
 		} 
 	}
@@ -4728,7 +4712,164 @@ Delta.text = function(){
 
 Delta.Text = Text;
 
-Gradient = new Class({
+function Gradient(type, colors, from, to, context){
+	if(!isString(type)){
+		to = from;
+		from = colors
+		colors = type;
+		type = 'linear';
+	}
+
+	if(!Gradient.types[type]){
+		throw 'Unknown gradient type "' + type + '"';
+	}
+
+	this.attrs = {
+		type: type,
+		from: from,
+		to: to,
+		colors: Gradient.parseColors(colors)
+	};
+	this.updateList = [];
+	this.context = context;
+
+	if(Gradient.types[type]){
+		extend(this, Gradient.types[type]);
+		if(this.init){
+			this.init();
+		}
+	}
+}
+
+function GradientAttrHooks(attrs){
+	// it seems deepExtend is not neccessary
+	extend(this, attrs);
+}
+
+extend(Gradient.prototype, Class.mixins['AttrMixin'], {
+	attrHooks : GradientAttrHooks.prototype = {
+		type : {set : updateSetter},
+
+		colors : {
+			set : function(value){
+				if(this.cached){
+					this.cached = null;
+				}
+				this.attrs.colors = Gradient.parseColors(colors);
+				this.update();
+			}
+		}
+	},
+
+	update : function(){
+		this.updateList.forEach(function(elem){
+			elem.update();
+		});
+		return this;
+	},
+
+	// t, mixColors
+	// t, value
+	color : function(t, value){
+		// if !mix then do not mix them
+		if(value !== undefined && !isBoolean(value)){
+			this.attrs.colors.push([t, value]);
+			return this.update();
+		}
+
+		var colors = this.attrs.colors = this.attrs.colors.sort(function(pair1, pair2){
+			return pair1[0] > pair2[0] ? 1 : -1;
+		});
+		// todo: support mixColor argument
+
+		if(t < colors[0][0]){
+			return Delta.color(colors[0][1]);
+		} else if(t > colors[colors.length - 1][0]){
+			return Delta.color(colors[colors.length - 1][1]);
+		}
+
+		for(var i = 0; i < colors.length; i++){
+			if(colors[i][0] === t){
+				return Delta.color(colors[i][1]);
+			}
+
+			if(keys[i] > t){
+				var c1 = Delta.color(colors[i - 1][1]),
+					c2 = Delta.color(colors[i][1]);
+				t = (t - colors[i - 1][0]) / (colors[i][0] - colors[i - 1][0]);
+				return [
+					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
+					c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
+					c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
+					+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
+				];
+			}
+		}
+	}
+});
+
+Gradient.types = {
+	linear : {
+		attrHooks : new GradientAttrHooks({
+			from : {set : updateSetter},
+			to : {set : updateSetter}
+		}),
+
+		toCanvasStyle : function(ctx, element){
+			var from = isString(this.attrs.from) ?
+				element.corner(this.attrs.from, this.attrs.boundsOptions) : this.attrs.from;
+			var to = isString(this.attrs.to) ?
+				element.corner(this.attrs.to, this.attrs.boundsOptions) : this.attrs.to;
+			var colors = this.attrs.colors;
+
+			var key = [from, to].join(' ');
+			if(this.cached && this.cached.key === key){
+				return this.cached.grad;
+			}
+
+			var grad = ctx.createLinearGradient(from[0], from[1], to[0], to[1]);
+			colors.forEach(function(pair){
+				grad.addColorStop(pair[0], pair[1]);
+			});
+
+			this.cached = {
+				grad : grad,
+				key : [from, to].join(' ')
+			};
+
+			return grad;
+		}
+	},
+	radial : {
+		attrHooks : new GradientAttrHooks({
+			from : {},
+			to : {},
+			radius : {},
+			startRadius : {}
+		}),
+
+		toCanvasStyle : function(ctx, element){}
+	}
+};
+
+// todo: array is faster
+Gradient.parseColors = function(colors){
+	var result = [];
+	if(isArray(colors)){
+		var step = 1 / (colors.length - 1);
+		colors.forEach(function(color, i){
+			result.push([step * i, color]);
+		});
+	} else {
+		Object.keys(colors).forEach(function(pos){
+			result.push([pos, colors[pos]]);
+		});
+	}
+	return result;
+};
+
+
+/* Gradient = new Class({
 	initialize: function(type, colors, from, to, context){
 		this.context = context;
 
@@ -4939,7 +5080,7 @@ Gradient.types = {
 	}
 };
 
-Delta.Gradient = Gradient;
+Delta.Gradient = Gradient; */
 // {{dont include GradientDiamond.js}}
 
 Pattern = new Class({

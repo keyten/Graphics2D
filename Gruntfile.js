@@ -67,6 +67,8 @@ module.exports = function (grunt) {
 		});
 
 		// macro processing
+
+		// macro processing
 		//		var macroRegGlobal = /\/?\/?\s*\{\{macro\s([a-zA-Z]+)\((([a-zA-Z]+,?\s*)*)\):\s*/g,
 		//			macroReg = /\/?\/?\s*\{\{macro\s([a-zA-Z]+)\((([a-zA-Z]+,?\s*)*)\):\s*/,
 		/*

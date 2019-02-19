@@ -1,6 +1,5 @@
 // todo: move into utils
 var temporaryCanvas;
-
 function getTemporaryCanvas(width, height){
 	if(!temporaryCanvas){
 		temporaryCanvas = document.createElement('canvas');
@@ -8,6 +7,20 @@ function getTemporaryCanvas(width, height){
 	temporaryCanvas.width = width;
 	temporaryCanvas.height = height;
 	return temporaryCanvas;
+}
+
+var svgNS = 'http://www.w3.org/2000/svg';
+var filterSVG;
+function getSVGFilter(){
+	if(!filterSVG){
+		filterSVG = document.createElement('svg');
+		filterSVG.setAttribute('xmlns', svgNS);
+		filterSVG.setAttribute('version', '1.1');
+		filterSVG.defs = document.createElementNS(svgNS, 'defs');
+		filterSVG.appendChild(filterSVG.defs);
+		document.body.appendChild(filterSVG);
+	}
+	return filterSVG;
 }
 
 function DrawableAttrHooks(attrs){
@@ -532,6 +545,10 @@ Drawable.prototype = {
 				matrix[3], matrix[4], matrix[5]);
 		}
 
+		if(this.attrs.fill && this.attrs.fill.toCanvasStyle){
+			ctx.fillStyle = this.attrs.fill.toCanvasStyle(ctx, this);
+		}
+
 		// если какие-то особые штуки, то пишем их не в styles, а в attrs
 		// и тут их проверяем
 /*
@@ -979,7 +996,11 @@ Object.assign(Drawable.prototype,
 		fill : {
 			set : function(value){
 				// todo: if value.changeable then value.on('change', this.update)
-				this.styles.fillStyle = value;
+				if (value.toCanvasStyle) {
+					delete this.styles.fillStyle;
+				} else {
+					this.styles.fillStyle = value;
+				}
 				this.update();
 			}
 		},
@@ -1148,7 +1169,41 @@ Object.assign(Drawable.prototype,
 			}
 		},
 
+		filter : {
+			set : function(value){
+				if(Array.isArray(value)){
+					value = value.map(function(filter){
+						if(isString(filter)){
+							return filter;
+						}
 
+						if(isObject(filter)){
+							filter = [filter];
+						}
+
+						var defs = getSVGFilter().defs;
+						var id = Date.now() + '_' + String(Math.random()).substr(2);
+						var filterElem = document.createElementNS(svgNS, 'filter');
+						filterElem.setAttribute('id', id);
+						filter.forEach(function(filterEffect){
+							var effectElem = document.createElementNS(svgNS, filterEffect.effect);
+							Object.keys(filterEffect).forEach(function(param){
+								if(param !== 'effect'){
+									effectElem.setAttribute(param, filterEffect[param]);
+								}
+							});
+							filterElem.appendChild(effectElem);
+						});
+						defs.appendChild(filterElem);
+
+						return 'url(#' + id + ')';
+					}).join(' ');
+				}
+
+				this.styles.filter = value;
+				this.update();
+			}
+		}
 	})
 });
 

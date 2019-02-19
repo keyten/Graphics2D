@@ -190,14 +190,11 @@ Path = new Class(Drawable, {
 	draw : function(ctx){
 		if(this.attrs.visible){
 			this.preDraw(ctx);
-
 			if(this.attrs.x || this.attrs.y){
 				// todo: will it be affected by previous transformations (the path itself, the canvas)?
 				ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 			}
-
 			this.process(ctx);
-
 			this.postDraw(ctx);
 		} 
 	}
