@@ -77,7 +77,8 @@ setInterval(function(){
 
 <h3>Mouse events</h3>
 <p>An object changing its color on hover.</p>
-<pre><code>// making a triangle as a path
+<canvas id="mouse-example"></canvas>
+<pre data-canvas="mouse-example"><code>// making a triangle as a path
 var triangle = ctx.path([
     [100, 10],
     [10, 90],
@@ -114,7 +115,8 @@ window.onload = function(){
 var codes = [
 	new CanvasCode('example1', true),
 	new CanvasCode('rotate-example'),
-	new CanvasCode('rotate-anim-example')
+	new CanvasCode('rotate-anim-example'),
+	new CanvasCode('mouse-example')
 ];
 
 function CanvasCode(id, noInit){

@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 08.02.2019
+ *  Last edit: 21.02.2019
  *  License: MIT
  */
 
@@ -1655,7 +1655,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate || this.elements.length === 0){
+		if(this._willUpdate/* || this.elements.length === 0*/){ // doesnt work with Drawable::remove
 			return;
 		}
 
@@ -2206,7 +2206,6 @@ Delta.contexts = {
 
 // todo: move into utils
 var temporaryCanvas;
-
 function getTemporaryCanvas(width, height){
 	if(!temporaryCanvas){
 		temporaryCanvas = document.createElement('canvas');
@@ -2214,6 +2213,20 @@ function getTemporaryCanvas(width, height){
 	temporaryCanvas.width = width;
 	temporaryCanvas.height = height;
 	return temporaryCanvas;
+}
+
+var svgNS = 'http://www.w3.org/2000/svg';
+var filterSVG;
+function getSVGFilter(){
+	if(!filterSVG){
+		filterSVG = document.createElement('svg');
+		filterSVG.setAttribute('xmlns', svgNS);
+		filterSVG.setAttribute('version', '1.1');
+		filterSVG.defs = document.createElementNS(svgNS, 'defs');
+		filterSVG.appendChild(filterSVG.defs);
+		document.body.appendChild(filterSVG);
+	}
+	return filterSVG;
 }
 
 function DrawableAttrHooks(attrs){
@@ -2274,7 +2287,8 @@ Drawable.prototype = {
 		}
 	  */
 	cloneReducers : {
-		order : 'clone'
+		order : 'clone',
+		clone : function(){}
 	},
 
 	clone : function(options){
@@ -3364,6 +3378,37 @@ Object.assign(Drawable.prototype,
 
 		filter : {
 			set : function(value){
+				// this.oldFilters.forEach(remove)
+				if(Array.isArray(value)){
+					value = value.map(function(filter){
+						if(isString(filter)){
+							return filter;
+						}
+
+						if(isObject(filter)){
+							filter = [filter];
+						}
+
+						// todo: интересно, влияют ли фильтры на isPointInPath
+						var defs = getSVGFilter().defs;
+						var id = Date.now() + '_' + String(Math.random()).substr(2);
+						var filterElem = document.createElementNS(svgNS, 'filter');
+						filterElem.setAttribute('id', id);
+						filter.forEach(function(filterEffect){
+							var effectElem = document.createElementNS(svgNS, filterEffect.effect);
+							Object.keys(filterEffect).forEach(function(param){
+								if(param !== 'effect'){
+									effectElem.setAttribute(param, filterEffect[param]);
+								}
+							});
+							filterElem.appendChild(effectElem);
+						});
+						defs.appendChild(filterElem);
+
+						return 'url(#' + id + ')';
+					}).join(' ');
+				}
+
 				this.styles.filter = value;
 				this.update();
 			}
@@ -3814,9 +3859,9 @@ Path = new Class(Drawable, {
 		this.super('initialize', [args]);
 	},
 
-	argsOrder: ['d', 'x', 'y', 'fill', 'stroke'],
+	argsOrder : ['d', 'x', 'y', 'fill', 'stroke'],
 
-	attrHooks: new DrawableAttrHooks({
+	attrHooks : new DrawableAttrHooks({
 		d : {
 			set : function(value){
 				this.attrs.curves = Path.parse(value, this);
@@ -3828,80 +3873,74 @@ Path = new Class(Drawable, {
 	}),
 
 	// Curves
-	curve: function(index, value){
+	curve : function(index, value){
 		if(value === undefined){
-			return this.attrs.d[index];
+			return this.attrs.curves[index];
 		}
 
 		if(!isNaN(value[0])){
 			value = [value];
 		}
 
-		value = Path.parse(value, this, index !== 0);
+		Array.prototype.splice.apply(this.attrs.d, [index, 1].concat(value));
 		// todo: when removing curve unbind it from path
-		this.attrs.d.splice.apply(this.attrs.d, [index, 1].concat(value));
+		Array.prototype.splice.apply(this.attrs.curves, [index, 1].concat(Path.parse(value, this, index !== 0)));
 		return this.update();
 	},
 
-	// todo: move to attrs?
-	curves: function(value){
-		if(value === undefined){
-			return this.attrs.d;
-		}
-
-		this.attrs.d = Path.parse(value, this, true);
-		return this.update();
-	},
-
-	before: function(index, value, turnMoveToLine){
+	before : function(index, value, turnMoveToLine){
 		// if index == 0 && turnMoveToLine, then the current first moveTo will be turned to lineTo
-		if(index === 0 && turnToLine !== false){
-			this.attrs.d[0].method = 'lineTo';
+		if(index === 0 && turnMoveToLine){
+			this.attrs.curves[0].method = 'lineTo';
 		}
 
 		if(!isNaN(value[0])){
 			value = [value];
 		}
 
-		value = Path.parse(value, this, index !== 0);
-		this.attrs.d.splice.apply(this.attrs.d, [index, 0].concat(value));
+		Array.prototype.splice.apply(this.attrs.d, [index, 0].concat(value));
+		Array.prototype.splice.apply(this.attrs.curves, [index, 0].concat(Path.parse(value, this, index !== 0)));
 		return this.update();
 	},
 
-	after: function(index, value){
+	after : function(index, value){
 		return this.before(index + 1, value);
 	},
 
-	remove: function(index){
+	remove : function(index){
 		if(index === undefined){
 			return this.super('remove');
 		}
-		this.attrs.d[index].path = null;
+
+		this.attrs.curves[index].path = null;
+		this.attrs.curves.splice(index, 1);
 		this.attrs.d.splice(index, 1);
 		return this.update();
 	},
 
 	// Array species
-	push: function(method, attrs){
+	push : function(method, attrs){
 		if(attrs){
-			this.attrs.d.push(Delta.curve(method, attrs, this));
+			this.attrs.d.push([method].concat(attrs));
+			this.attrs.curves.push(Delta.curve(method, attrs, this));
 		} else {
-			this.attrs.d = this.attrs.d.concat(Path.parse(method, this, this.attrs.d.length !== 0));
+			this.attrs.d = this.attrs.d.concat(method);
+			this.attrs.curves = this.attrs.curves.concat(Path.parse(method, this, this.attrs.d.length !== 0));
 		}
 		return this.update();
 	},
 
-	each: function(){
-		this.attrs.d.forEach.apply(this.attrs.d, arguments);
+	each : function(){
+		Array.prototype.forEach.apply(this.attrs.curves, arguments);
 		return this;
 	},
 
-	map: function(){
-		return this.attrs.d.map.apply(this.attrs.d, arguments);
+	map : function(){
+		return Array.prototype.map.apply(this.attrs.d, arguments);
 	},
 
 	// Curves addition
-	moveTo: function(x, y){
+	moveTo : function(x, y){
 		return this.push('moveTo', [x, y]);
 	},
 
@@ -3937,19 +3976,15 @@ Path = new Class(Drawable, {
 
 		var ctx = this.context.context;
 		ctx.save();
-
-		var transform = this.getTransform();
-		if(!Delta.isIdentityTransform(transform)){
-			ctx.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-		}
-
 		if(this.attrs.x || this.attrs.y){
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
-		this.attrs.d.forEach(function(curve){
+
+		this.attrs.curves.forEach(function(curve){
 			curve.process(ctx);
 		});
 		var result = ctx.isPointInPath(x, y);
+
 		ctx.restore();
 		return result;
 	},
@@ -3962,9 +3997,9 @@ Path = new Class(Drawable, {
 
 			currentBounds,
 			currentPoint = [0, 0];
-		for(var i = 0; i < this.attrs.d.length; i++){
-			currentBounds = this.attrs.d[i].bounds(currentPoint);
-			currentPoint = this.attrs.d[i].endAt() || currentPoint;
+		for(var i = 0; i < this.attrs.curves.length; i++){
+			currentBounds = this.attrs.curves[i].bounds(currentPoint);
+			currentPoint = this.attrs.curves[i].endAt() || currentPoint;
 
 			if(!currentBounds){
 				continue;
@@ -3976,10 +4011,7 @@ Path = new Class(Drawable, {
 			maxY = Math.max(maxY, currentBounds[1], currentBounds[3]);
 		}
 
-		return this.super('bounds', [
-			[minX, minY, maxX - minX, maxY - minY],
-			transform, around
-		]);
+		return new Bounds(minX + (this.attrs.x || 0), minY + (this.attrs.y || 0), maxX - minX, maxY - minY);
 	},
 
 	process : function(ctx){
@@ -4293,9 +4325,14 @@ Delta.image = function(){
 
 Delta.Image = Picture;
 
-var defaultBaseline = 'top';
-
 Text = new Class(Drawable, {
+	initialize : function(args){
+		this.super('initialize', arguments);
+
+		if(!this.attrs.baseline){
+			this.styles.textBaseline = this.attrs.baseline = Text.baseline;
+		}
+	},
 /*	initialize : function(args){
 		this.super('initialize', arguments);
 
@@ -4379,83 +4416,94 @@ Text = new Class(Drawable, {
 		}
 
 	}, */
-	argsOrder: ['text', 'x', 'y', 'font', 'fill', 'stroke'],
+	argsOrder : ['text', 'x', 'y', 'font', 'fill', 'stroke'],
 
 	// Context2D specific stuff:
 
-	attrHooks: new DrawableAttrHooks({
-		text: {
-			set: function(value){
+	attrHooks : new DrawableAttrHooks({
+		text : {
+			set : function(value){
 				this.lines = null;
 				this.update();
 				return value + '';
 			}
 		},
 
-		x: {set: updateSetter},
-		y: {set: updateSetter},
+		x : {set : updateSetter},
+		y : {set : updateSetter},
 
-		font: {
+		font : {
 			set: function(value){
-				/* extend(this.attrs.font, Text.parseFont(value));
-				this.styles.font = Text.genFont(this.attrs.font);
+				this.attrs.parsedFont = Text.parseFont(value);
+				this.styles.font = Text.genFont(this.attrs.parsedFont);
 				this.update();
-				return null;*/
 			}
 		},
 
-		align: {
-			get: function(){
+		align : {
+			get : function(){
 				return this.styles.textAlign || 'left';
 			},
-			set: function(value){
+			set : function(value){
 				this.styles.textAlign = value;
 				this.update();
-				return null;
 			}
 		},
 
-		baseline: {
-			get: function(){
+		baseline : {
+			get : function(){
 				return this.styles.textBaseline;
 			},
-			set: function(value){
+			set : function(value){
 				this.styles.textBaseline = value;
 				this.update();
-				return null;
 			}
 		},
 
-		breaklines: {
-			set: function(){
+		// 'string' or 'block'
+		// before: breaklines
+		mode : {
+			get : function(){
+				return this.attrs.mode || 'string';
+			},
+			set : function(){
 				this.update();
 			}
 		},
 
-		lineHeight: {
-			set: function(){
+		maxStringWidth : {
+			get : function(){
+				return this.attrs.maxStringWidth || Infinity;
+			},
+			set : function(){
+				this.update();
+			}
+		},
+
+		lineHeight : {
+			get : function(){
+				return this.attrs.lineHeight || 'auto';
+			},
+			set : function(){
 				this.lines = null;
 				this.update();
 			}
 		},
 
-		maxStringWidth: {
-			set: function(){
-				this.update();
-			}
-		},
-
-		blockWidth: {
-			set: function(){
+		blockWidth : {
+			get : function(){
+				return this.attrs.blockWidth || Infinity;
+			},
+			set : function(){
 				this.lines = null;
 				this.update();
 			}
 		}
 	}),
 
-	lines: null,
+	lines : null,
 
-	processLines: function(ctx){
+	processLines : function(ctx){
 		var text = this.attrs.text,
 			lines = this.lines = [],
 
@@ -4501,6 +4549,24 @@ Text = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
+		if(this.attrs.visible){
+			this.preDraw(ctx);
+
+			if(this.attrs.mode === 'block'){
+
+			} else {
+				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
+
+				if(this.styles.fillStyle){
+					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
+				}
+				if(this.styles.strokeStyle){
+					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
+				}
+			}
+
+			ctx.restore();
+		}
 		/* if(this.attrs.visible){
 			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
 
@@ -4549,32 +4615,28 @@ Text = new Class(Drawable, {
 		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
 	},
 
-	measure: function(){
+	measure : function(){
+		var ctx = this.context ? this.context.context : getTemporaryCanvas(0, 0).getContext('2d');
 		var width;
-		// todo: if(this.context is 2d) measure through it else make new 2d context
-		if(this.attrs.breaklines){
+		ctx.save();
+		ctx.font = this.styles.font;
+		if(this.attrs.mode === 'block'){
 			if(!this.lines){
-				this.processLines(this.context.context);
+				this.processLines();
 			}
 
-			this.context.renderer.preMeasure(this.styles.font);
-			width = this.lines.reduce(function(prev, cur){
-				cur = this.context.renderer.measure(cur.text);
-				if(prev < cur){
-					return cur;
-				}
-				return prev;
-			}.bind(this), 0);
-			this.context.renderer.postMeasure();
+			width = this.lines.reduce(function(maxWidth, cur){
+				cur = ctx.measureText(cur.text).width;
+				return Math.max(cur, maxWidth);
+			}, 0);
 		} else {
-			this.context.renderer.preMeasure(this.styles.font);
-			width = this.context.renderer.measure(this.attrs.text);
-			this.context.renderer.postMeasure();
+			width = ctx.measureText(this.attrs.text).width;
 		}
+		ctx.restore();
 		return width;
 	},
 
-	bounds: function(transform, around){
+	bounds : function(transform, around){
 		var bounds,
 			blockX = this.attrs.x,
 			blockY = this.attrs.y,
@@ -4625,6 +4687,7 @@ Text = new Class(Drawable, {
 
 });
 
+Text.baseline = 'top';
 Text.font = '10px sans-serif';
 Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
@@ -4661,6 +4724,7 @@ Text.genFont = function(font){
 	if(font.bold){
 		string += 'bold ';
 	}
+	// todo: use values from Text.font
 	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 };
 
@@ -4799,7 +4863,12 @@ Gradient.types = {
 		}
 	},
 	radial : {
-		attrHooks : new GradientAttrHooks({}),
+		attrHooks : new GradientAttrHooks({
+			from : {},
+			to : {},
+			radius : {},
+			startRadius : {}
+		}),
 
 		toCanvasStyle : function(ctx, element){}
 	}
