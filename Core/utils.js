@@ -6,6 +6,10 @@ function isObject(v){ return v.constructor === Object; }
 function isArray(v){ return Array.isArray(v); }
 // /Macroses
 
+Delta.xtypes = {
+	gradient: Delta.Gradient
+};
+
 // Bounds class
 function Bounds(x, y, w, h){
 	if(w < 0){
@@ -128,7 +132,6 @@ function parsePoint(point){
 
 Delta.Class = Class;
 Delta.Bounds = Bounds;
-Delta.extend = extend;
 Delta.argument = argument;
 Delta.wrap = wrap;
 Delta.isObject = isObject;
@@ -377,6 +380,27 @@ Delta.strParse = {
 				method: part.match(/[a-z]+/)[0]
 			});
 		});
+		return result;
+	},
+
+	// partition('a b c-d', [' ', '-']) -> ['a', ' ', 'b', ' ', 'c',  '-', 'd']
+	partition : function(str, separators){
+		var result = [],
+			curline = '';
+		for(var i = 0; i < str.length; i++){
+			if(separators.indexOf(str[i]) === -1){
+				curline += str[i];
+			} else {
+				if(curline !== ''){
+					result.push(curline);
+					curline = '';
+				}
+				result.push(str[i]);
+			}
+		}
+		if(curline !== ''){
+			result.push(curline);
+		}
 		return result;
 	}
 };

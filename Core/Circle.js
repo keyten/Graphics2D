@@ -8,7 +8,6 @@ Circle = new Class(Drawable, {
 	}),
 
 	isPointIn : function(x, y, options){
-		options = (options === 'mouse' ? this.attrs.interactionProps : options) || {};
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];

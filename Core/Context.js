@@ -20,7 +20,7 @@ Context.prototype = {
 		if(object.constructor === Function){
 			object = {draw: object};
 		}
-		return this.push(extend(new Drawable(), object));
+		return this.push(Object.assign(new Drawable(), object));
 	},
 
 	rect : function(){
@@ -95,7 +95,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate || this.elements.length === 0){
+		if(this._willUpdate/* || this.elements.length === 0*/){ // doesnt work with Drawable::remove
 			return;
 		}
 
@@ -612,6 +612,8 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 			}
 		},
 
+		// note: two things below may not work if we rewrite canvas' itself styles
+
 		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
 		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
 		// http://www.html5gamedevs.com/topic/732-retina-support/
@@ -627,6 +629,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 		},
 
 		smooth : {
+			// todo: use crisp-edges instead? ff doesn't know pixelated
 			get : function(value){
 				var ir = this.canvas.style.imageRendering;
 				return ir !== 'pixelated' && ir !== 'crisp-edges';

@@ -1,5 +1,5 @@
 function CurveAttrHooks(attrs){
-	extend(this, attrs); // todo: deepExtend neccessary?
+	Object.assign(this, attrs);
 }
 
 Curve = new Class({
@@ -26,7 +26,7 @@ Curve = new Class({
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);
-		extend(clone.attrs, this.attrs); // todo: deepExtend
+		Object.assign(clone.attrs, this.attrs); // todo: deepExtend
 		return clone;
 	},
 

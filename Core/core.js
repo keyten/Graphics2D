@@ -25,17 +25,6 @@ var Delta = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
-	// todo: move to utils
-	extend = Object.assign ? Object.assign : function(dest, source){
-		var keys = Object.keys(source),
-			l = keys.length;
-		while(l--){
-			dest[keys[l]] = source[keys[l]];
-		}
-		return dest;
-	}, // Object.assign is not deep as well as the polyfill
-	// todo: remove polyfill
-	deepExtend = extend, // todo: check whether it is neccessary, maybe move to utils
 
 // DOM
 	browserEvents = {
@@ -68,7 +57,6 @@ var Delta = {},
 			'pointercancel',
 			'pointerout',
 			'pointerleave',
-			// check:
 			'gotpointercapture',
 			'lostpointercapture'
 		],
@@ -164,7 +152,7 @@ Delta.contexts = {
 
 // {{dont include MouseEvents.js}}
 
-// {{include Adapter.Canvas.js}}
+// {{dont include Adapter.Canvas.js}}
 
 Delta.version = "{{version}}";
 

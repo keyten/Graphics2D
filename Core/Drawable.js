@@ -24,8 +24,7 @@ function getSVGFilter(){
 }
 
 function DrawableAttrHooks(attrs){
-	// it seems deepExtend is not neccessary
-	extend(this, attrs);
+	Object.assign(this, attrs);
 }
 
 function updateSetter(){
@@ -54,16 +53,12 @@ function Drawable(args){
 
 Drawable.prototype = {
 	initialize: Drawable,
-	// mixin: [Class.AttrMixin, Class.EventMixin]
-	// to gradients & patterns: [Class.LinkMixin]
 
 	// actual update function
 	updateFunction : function(){
 		if(this.context){
 			this.context.update();
 		}
-		// if this.onUpdate then this.fire('update')
-		// neccessary for clips and so on
 		return this;
 	},
 
@@ -72,66 +67,48 @@ Drawable.prototype = {
 		return this;
 	},
 
-	/*
-		default: {
-			attrs: true, styles: true, // note they re same
-			clip: true,
-			transform: true,
-			fills: true // clone gradients, patterns?
-		}
-	  */
 	cloneReducers : {
-		order : 'clone'
+		order : 'clone',
+		clone : function(value, nothing, options){
+			var clone = new this.constructor([this.attrs]);
+			if(options.attrs === false){
+				clone.attrs = this.attrs;
+			}
+			if(options.events !== 'no-copy'){
+				if(options.events === false){
+					clone.listeners = this.listeners;
+				} else {
+					clone.listeners = {};
+					Object.keys(this.listeners).forEach(function(event){
+						clone.listeners[event] = this.listeners[event].slice();
+					}, this);
+				}
+			}
+			if(options.fills){
+				if(this.attrs.fill && this.attrs.fill.clone){
+					clone.attr('fill', this.attrs.fill.clone(options.fillOptions));
+				}
+				// todo: stroke
+			}
+			if(options.put !== false && this.context){
+				this.context.push(clone);
+			}
+			return clone;
+		},
 	},
 
 	clone : function(options){
 		options = Object.assign({
-			clone : true,
-			attrs : true,
-
+			clone : true
 		}, options);
 
-		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+		return this.cloneReducers.order.split(' ').reduce(function(result, caller){
 			if(options[caller] === undefined){
 				return result;
 			}
 
 			return this.cloneReducers[caller].call(this, options[caller], result, options);
 		}.bind(this), null);
-
-		/*
-		// todo: replace arguments to one config {styles: false, matrix: true}
-		// todo: test on all obs
-		var clone = new this.constructor([], this.context);
-		// можно заюзать this.argsOrder
-		// todo: необходим deepClone везде
-
-		if(attrs === false){
-			clone.attrs = this.attrs;
-		} else {
-			clone.attrs = extend({}, this.attrs);
-		}
-
-		if(styles === false){
-			clone.styles = this.styles;
-			clone.matrix = this.matrix;
-		} else {
-			clone.styles = extend({}, this.styles);
-			// must gradients be cloned?
-			// yep, they should
-			if(this.matrix){
-				clone.matrix = this.matrix.slice();
-			}
-		}
-
-		if(events === false){
-			clone.listeners = this.listeners;
-		} else {
-			clone.listeners = extend({}, this.listeners);
-		}
-
-		// if this.context:
-		return this.context.push(clone); */
 	},
 
 	remove : function(){
@@ -323,29 +300,14 @@ Drawable.prototype = {
 		});
 	},
 
-	processArguments : function(args, arglist){
-		if(args[0].constructor === Object){
-			this.attr(args[0]);
-		} else {
-			var object = {};
-			arglist.forEach(function(argName, i){
-				if (args[i] !== undefined) {
-					object[argName] = args[i];
-				}
-			}, this);
-			this.attr(object);
-		}
-	},
-
 	// Before -> Pre
 	isPointInBefore : function(x, y, options){
-		if(options){
-			if(options.transform !== false){
-				var transform = this.getTransform();
-				if(!Delta.isIdentityTransform(transform)){
-					var inverse = Delta.inverseTransform(transform);
-					return Delta.transformPoint(inverse, [x, y]);
-				}
+		options = options === 'mouse' ? this.attrs.interactionProps : options;
+		if(options && options.transform !== false){
+			var transform = this.getTransform();
+			if(!Delta.isIdentityTransform(transform)){
+				var inverse = Delta.inverseTransform(transform);
+				return Delta.transformPoint(inverse, [x, y]);
 			}
 		}
 
@@ -355,13 +317,12 @@ Drawable.prototype = {
 	// Bounds
 	boundsReducers : {
 		order : 'accuracy transform stroke tight',
-		accuracy : function(value){
-			// todo: fix
+		accuracy : function(value, result, options){
 			if(value === 'precise'){
-				return (this.preciseBounds || this.roughBounds).call(this);
+				return (this.preciseBounds || this.roughBounds).call(this, options);
 			}
 			if(value === 'rough'){
-				return (this.roughBounds || this.preciseBounds).call(this);
+				return (this.roughBounds || this.preciseBounds).call(this, options);
 			}
 		},
 
@@ -443,7 +404,7 @@ Drawable.prototype = {
 
 	bounds : function(options){
 		options = Object.assign({
-			accuracy : 'precise', // precise, rough, available (precise if it is)
+			accuracy : 'precise', // precise, rough
 			transform : 'full', // full, context, self, none
 			stroke : 'ignore', // +, -, ignore
 			tight: false // if true returns tight box from transform, if false then modifies it to non-tight
@@ -995,8 +956,18 @@ Object.assign(Drawable.prototype,
 		// note: value = null is an official way to remove styles
 		fill : {
 			set : function(value){
-				// todo: if value.changeable then value.on('change', this.update)
+				if(this.attrs.fillLink && this.attrs.fillLink !== value){
+					var index = this.attrs.fillLink.updateList.indexOf(this);
+					if(index !== -1){
+						this.attrs.fillLink.updateList.splice(index, 1);
+					}
+				}
+
 				if (value.toCanvasStyle) {
+					if(value.updateList){
+						this.attrs.fillLink = value;
+						value.updateList.push(this);
+					}
 					delete this.styles.fillStyle;
 				} else {
 					this.styles.fillStyle = value;
@@ -1171,6 +1142,7 @@ Object.assign(Drawable.prototype,
 
 		filter : {
 			set : function(value){
+				// this.oldFilters.forEach(remove)
 				if(Array.isArray(value)){
 					value = value.map(function(filter){
 						if(isString(filter)){
@@ -1181,6 +1153,7 @@ Object.assign(Drawable.prototype,
 							filter = [filter];
 						}
 
+						// todo: интересно, влияют ли фильтры на isPointInPath
 						var defs = getSVGFilter().defs;
 						var id = Date.now() + '_' + String(Math.random()).substr(2);
 						var filterElem = document.createElementNS(svgNS, 'filter');

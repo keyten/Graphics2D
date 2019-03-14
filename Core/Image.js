@@ -1,92 +1,42 @@
 Picture = new Class(Drawable, {
-
 	// todo: image format libcanvas-like:
 	// '/files/img/hexes.png [150:100]{0:0}'
-	initialize : function(args){
-		this.super('initialize', arguments);
+	argsOrder : ['image', 'x', 'y', 'width', 'height', 'crop'],
 
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Picture.args);
-		}
-
-		this.attrs.image = Picture.parse(args[0]);
-		this.attrs.x = args[1];
-		this.attrs.y = args[2];
-		this.attrs.width = args[3] === undefined ? 'auto' : args[3];
-		this.attrs.height = args[4] === undefined ? 'auto' : args[4];
-		if(args[5]){
-			this.attrs.crop = args[5];
-		}
-
-		this.attrs.image.addEventListener('load', function(event){
-			this.update();
-			this.fire('load', event);
-		}.bind(this));
-
-		this.attrs.image.addEventListener('error', function(e){
-			this.fire('error', event);
-		}.bind(this));
-	},
-
-	attrHooks: new DrawableAttrHooks({
-		image: {
-			set: function(value){
-				value = Picture.parse(value);
+	attrHooks : new DrawableAttrHooks({
+		image : {
+			set : function(value){
+				value = this.attrs.image = Picture.parse(value);
 
 				if(value.complete){
 					this.update();
 				}
 
-				value.addEventListener('load', function(event){
-					this.update();
-					this.fire('load', event);
-				}.bind(this));
+				value.addEventListener('load', Picture.onImageLoadedCallback.bind(this));
+				value.addEventListener('error', Picture.onImageErrorCallback.bind(this));
 
 				return value;
 			}
 		},
 
-		x: {
-			set: function(value){
-				this.attrs.x = value;
-				this.update();
-			}
-		},
+		x : {set : updateSetter},
+		y : {set : updateSetter},
+		width : {set : updateSetter},
+		height : {set : updateSetter},
+		x1 : Rect.prototype.attrHooks.x1,
+		y1 : Rect.prototype.attrHooks.y1,
+		x2 : Rect.prototype.attrHooks.x2,
+		y2 : Rect.prototype.attrHooks.y2,
 
-		y: {
-			set: function(value){
-				this.attrs.y = value;
-				this.update();
-			}
-		},
+		crop: {set : updateSetter},
 
-		width: {
-			set: function(value){
-				this.attrs.width = value;
-				this.update();
-			}
-		},
-
-		height: {
-			set: function(value){
-				this.attrs.height = value;
-				this.update();
-			}
-		},
-
-		crop: {
-			set: function(value){
-				this.attrs.crop = value;
-				this.update();
-			}
-		},
-
-		smooth: {
-			get: function(){
-				return this.styles[smoothPrefix(this.context.context)] || this.context.context[smoothPrefix(this.context.context)];
+		smooth : {
+			get : function(){
+				return this.attrs.smooth || true;
 			},
-			set: function(value){
-				this.styles[smoothPrefix(this.context.context)] = !!value;
+			set : function(value){
+				// this.styles[smoothPrefix(this.context.context)] = !!value;
+				this.styles.imageSmoothingEnabled = !!value;
 				this.update();
 			}
 		}
@@ -104,8 +54,8 @@ Picture = new Class(Drawable, {
 	},
 
 	getRealSize: function(){
-		var w = this.attrs.width,
-			h = this.attrs.height;
+		var w = this.attrs.width === undefined ? 'auto' : this.attrs.width,
+			h = this.attrs.height === undefined ? 'auto' : this.attrs.height;
 
 		// they both are auto by default because saving proportions is by default true
 		if(w === 'auto' && h === 'auto'){
@@ -127,12 +77,9 @@ Picture = new Class(Drawable, {
 		return [w, h];
 	},
 
-	bounds: function(transform, around){
+	preciseBounds : function(){
 		var size = this.getRealSize();
-		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, size[0], size[1]],
-			transform, around
-		]);
+		return new Bounds(this.attrs.x, this.attrs.y, size[0], size[1]);
 	},
 
 	isPointIn : function(x, y){
@@ -145,10 +92,9 @@ Picture = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this.attrs.visible && this.attrs.image.complete){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-
-			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
+		if(this.attrs.visible){
+			this.preDraw(ctx);
+/*			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
 			var width = this.attrs.width,
 				height = this.attrs.height,
 				crop = this.attrs.crop;
@@ -158,7 +104,9 @@ Picture = new Class(Drawable, {
 				var size = this.getRealSize();
 				width  = size[0];
 				height = size[1];
-			}
+			} */
+			var size = this.getRealSize();
+			var crop = this.attrs.crop;
 
 			if(crop){
 				ctx.drawImage(
@@ -167,28 +115,30 @@ Picture = new Class(Drawable, {
 					crop[2], crop[3],
 
 					this.attrs.x, this.attrs.y,
-					width, height
+					size[0], size[1]
 				);
-			} else if(
+			} else {
+				ctx.drawImage(
+					this.attrs.image,
+
+					this.attrs.x, this.attrs.y,
+					size[0], size[1]
+				);
+			}/* else if(
 				(this.attrs.width === 'auto' || this.attrs.width === 'native') &&
 				(this.attrs.height === 'auto' || this.attrs.height === 'native')) {
 				ctx.drawImage(
 					this.attrs.image,
 					this.attrs.x, this.attrs.y
 				);
-			} else {
-				ctx.drawImage(
-					this.attrs.image,
-					this.attrs.x, this.attrs.y,
-					width, height
-				);
-			}
+			}  */
+
 			ctx.restore();
 		}
 	}
 
 });
-
+/*
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	[
@@ -202,16 +152,17 @@ function smoothPrefix(ctx){
 		}
 	});
 
-	smoothPrefix = function(){
-		return smoothWithPrefix;
-	};
+	smoothPrefix = smoothPrefix2;
 	return smoothWithPrefix;
 }
+function smoothPrefix2(){
+	return smoothWithPrefix;
+} */
 
 Picture.args = ['image', 'x', 'y', 'width', 'height', 'crop'];
 
 Picture.parse = function(image){
-	if(image + '' === image){
+	if(isString(image)){
 		if(image[0] === '#'){
 			return document.getElementById(image.substr(1));
 		} else if(image[0] === '<svg'){
@@ -226,6 +177,15 @@ Picture.parse = function(image){
 		}
 	}
 	return image;
+};
+
+Picture.onImageLoadedCallback = function(event){
+	this.update();
+	this.fire('load', event);
+};
+
+Picture.onImageErrorCallback = function(event){
+	this.fire('error', event);
 };
 
 Delta.image = function(){

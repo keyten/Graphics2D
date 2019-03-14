@@ -43,11 +43,11 @@ function Class(parent, properties){
 
 	if(properties.mixins){
 		properties.mixins.forEach(function(mixinName){
-			extend(init.prototype, Class.mixins[mixinName]);
+			Object.assign(init.prototype, Class.mixins[mixinName]);
 		});
 	}
 
-	extend(init.prototype, properties);
+	Object.assign(init.prototype, properties);
 
 	return init;
 }
@@ -87,6 +87,20 @@ Class.mixins = {
 				this.attrHooks[name].set.call(this, value);
 			}
 			return this;
+		},
+
+		processArguments: function(args, arglist){
+			if(args[0].constructor === Object){
+				this.attr(args[0]);
+			} else {
+				var object = {};
+				arglist.forEach(function(argName, i){
+					if (args[i] !== undefined) {
+						object[argName] = args[i];
+					}
+				}, this);
+				this.attr(object);
+			}
 		}
 	},
 

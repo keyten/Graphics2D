@@ -15,7 +15,7 @@ Rect = new Class(Drawable, {
 				this.attrs.width += (this.attrs.x - value);
 				this.attrs.x = value;
 				this.update();
-				return null;
+				delete this.attrs.x1;
 			}
 		},
 		y1: {
@@ -26,7 +26,7 @@ Rect = new Class(Drawable, {
 				this.attrs.height += (this.attrs.y - value);
 				this.attrs.y = value;
 				this.update();
-				return null;
+				delete this.attrs.y1;
 			}
 		},
 		x2: {
@@ -36,7 +36,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.width = value - this.attrs.x;
 				this.update();
-				return null;
+				delete this.attrs.x2;
 			}
 		},
 		y2: {
@@ -46,7 +46,7 @@ Rect = new Class(Drawable, {
 			set: function(value){
 				this.attrs.height = value - this.attrs.y;
 				this.update();
-				return null;
+				delete this.attrs.y2;
 			}
 		}
 	}),
@@ -80,13 +80,6 @@ Rect = new Class(Drawable, {
 			this.attrs.height
 		);
 	},
-/*
-	bounds: function(transform, around){
-		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
-			transform, around
-		]);
-	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -125,7 +118,7 @@ Rect = new Class(Drawable, {
 	var tick = i > 3 ? Animation.tick.numAttr : Animation.tick.num;
 	Rect.prototype.attrHooks[propName].preAnim = tick.preAnim;
 	Rect.prototype.attrHooks[propName].anim = tick.anim;
-}); 
+});
 
 Delta.rect = function(){
 	return new Rect(arguments);

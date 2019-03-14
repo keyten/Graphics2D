@@ -1,224 +1,155 @@
-var defaultBaseline = 'top';
-
 Text = new Class(Drawable, {
-/*	initialize : function(args){
+	initialize : function(args){
 		this.super('initialize', arguments);
 
-		if(isObject(args[0])){
-			// надо просто расширять в прототипе какой-то объект со свойствами,
-			// к которому обращается processObject
-			// чтобы это всё шло в attr
-			if(args[0].align){
-				this.attrs.align = args[0].align;
-				this.styles.textAlign = args[0].align;
-			}
-
-			if(args[0].baseline){
-				this.attrs.baseline = args[0].baseline;
-			} else {
-				this.attrs.baseline = defaultBaseline;
-			}
-
-			if(args[0].breaklines !== undefined){
-				this.attrs.breaklines = args[0].breaklines;
-			} else {
-				this.attrs.breaklines = true;
-			}
-
-			if(args[0].lineHeight !== undefined){
-				this.attrs.lineHeight = args[0].lineHeight;
-			} else {
-				this.attrs.lineHeight = 'auto';
-			}
-
-			if(args[0].maxStringWidth !== undefined){
-				this.attrs.maxStringWidth = args[0].maxStringWidth;
-			} else {
-				this.attrs.maxStringWidth = Infinity;
-			}
-
-			if(args[0].blockWidth !== undefined){
-				this.attrs.blockWidth = args[0].blockWidth;
-			} else {
-				this.attrs.blockWidth = Infinity;
-			}
-
-			if(args[0].boundsMode){
-				this.attrs.boundsMode = args[0].boundsMode;
-			} else {
-				this.attrs.boundsMode = 'inline';
-			}
-
-			if(args[0].text){
-				args[0].text = args[0].text;
-			}
-
-			// todo
-			// change to: this.attrs.boundsMode = args[0].boundsMode || 'inline';
-			// and so on
-
-			args = this.processObject(args[0], Text.args);
-		} else {
-			this.attrs.baseline = defaultBaseline;
-			this.attrs.breaklines = true;
-			this.attrs.lineHeight = 'auto';
-			this.attrs.maxStringWidth = Infinity; // in the draw: if this.attrs.maxStringWidth < Infinity then ...
-			this.attrs.blockWidth = Infinity;
-			this.attrs.boundsMode = 'inline';
+		if(!this.attrs.baseline){
+			this.styles.textBaseline = this.attrs.baseline = Text.baseline;
 		}
-
-		this.styles.textBaseline = this.attrs.baseline;
-
-		this.attrs.text = args[0] + '';
-		this.attrs.x = args[1];
-		this.attrs.y = args[2];
-		this.attrs.font = Text.parseFont(args[3] || Text.font);
-		this.styles.font = Text.genFont(this.attrs.font);
-		if(args[4]){
-			this.styles.fillStyle = args[4];
-		}
-		if(args[5]){
-			this.attr('stroke', args[5]);
-			// this.styles.stroke = args[5];
-			// Drawable.processStroke(args[5], this.styles);
-		}
-
-	}, */
-	argsOrder: ['text', 'x', 'y', 'font', 'fill', 'stroke'],
+	},
+	argsOrder : ['text', 'x', 'y', 'font', 'fill', 'stroke'],
 
 	// Context2D specific stuff:
 
-	attrHooks: new DrawableAttrHooks({
-		text: {
-			set: function(value){
+	attrHooks : new DrawableAttrHooks({
+		text : {
+			set : function(value){
 				this.lines = null;
 				this.update();
 				return value + '';
 			}
 		},
 
-		x: {set: updateSetter},
-		y: {set: updateSetter},
+		x : {set : updateSetter},
+		y : {set : updateSetter},
 
-		font: {
+		font : {
 			set: function(value){
-				/* extend(this.attrs.font, Text.parseFont(value));
-				this.styles.font = Text.genFont(this.attrs.font);
+				this.attrs.parsedFont = Text.parseFont(value);
+				this.styles.font = Text.genFont(this.attrs.parsedFont);
 				this.update();
-				return null;*/
 			}
 		},
 
-		align: {
-			get: function(){
+		align : {
+			get : function(){
 				return this.styles.textAlign || 'left';
 			},
-			set: function(value){
+			set : function(value){
 				this.styles.textAlign = value;
 				this.update();
-				return null;
 			}
 		},
 
-		baseline: {
-			get: function(){
+		baseline : {
+			get : function(){
 				return this.styles.textBaseline;
 			},
-			set: function(value){
+			set : function(value){
 				this.styles.textBaseline = value;
 				this.update();
-				return null;
 			}
 		},
 
-		breaklines: {
-			set: function(){
-				this.update();
-			}
+		// 'string' or 'block'
+		mode : {
+			get : function(){
+				return this.attrs.mode || 'string';
+			},
+			set : updateSetter
 		},
 
-		lineHeight: {
-			set: function(){
+		maxStringWidth : {
+			get : function(){
+				return this.attrs.maxStringWidth || Infinity;
+			},
+			set : updateSetter
+		},
+
+		trimLines : {
+			get : function(){
+				return this.attrs.trimLines !== false;
+			},
+			set : function(){
 				this.lines = null;
 				this.update();
 			}
 		},
 
-		maxStringWidth: {
-			set: function(){
+		lineHeight : {
+			get : function(){
+				return this.attrs.lineHeight || 'auto';
+			},
+			set : function(){
+				this.lines = null;
 				this.update();
 			}
 		},
 
-		blockWidth: {
-			set: function(){
+		blockWidth : {
+			get : function(){
+				return this.attrs.blockWidth || Infinity;
+			},
+			set : function(){
 				this.lines = null;
 				this.update();
 			}
 		}
 	}),
 
-	lines: null,
+	lines : null,
 
-	processLines: function(ctx){
+	processLines : function(ctx){
 		var text = this.attrs.text,
 			lines = this.lines = [],
 
-			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight,
-			maxWidth = this.attrs.blockWidth,
-			x = maxWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0),
+			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : this.attrs.parsedFont.size,
+			blockWidth = this.attrs.blockWidth || Infinity,
+			x = blockWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0);
 
-			rend = this.context.renderer;
-
-		rend.preMeasure(this.styles.font);
+		ctx.save();
+		ctx.font = this.styles.font;
 		text.split('\n').forEach(function(line){
-			if(rend.measure(line) > maxWidth){
-				var words = line.split(' '),
+			if(ctx.measureText(line).width <= blockWidth){
+				lines.push({
+					text: line,
+					y: lineHeight * lines.length
+				});
+			} else {
+				var words = Delta.strParse.partition(line, Text.wordSeparators),
 					curline = '',
 					testline;
-
 				for(var i = 0; i < words.length; i++){
-					testline = curline + words[i] + ' ';
-
-					if(rend.measure(testline) > maxWidth){
+					testline = curline + words[i];
+					if(ctx.measureText(testline).width <= blockWidth){
+						curline = testline;
+					} else {
 						lines.push({
 							text: curline,
-							y: height * lines.length
+							y: lineHeight * lines.length
 						});
-						curline = words[i] + ' ';
-					} else {
-						curline = testline;
+						curline = words[i];
 					}
 				}
 				lines.push({
 					text: curline,
-					y: height * lines.length
-				});
-			} else {
-				lines.push({
-					text: line,
-					y: height * lines.length
+					y: lineHeight * lines.length
 				});
 			}
-		}, this);
-		rend.postMeasure();
+		});
+		if(this.attrs.trimLines !== false){
+			lines.forEach(function(line){
+				line.text = line.text.trim();
+			});
+		}
+		ctx.restore();
 		return this;
 	},
 
 	draw : function(ctx){
-		/* if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
+		if(this.attrs.visible){
+			this.preDraw(ctx);
 
-			if(!this.attrs.breaklines){
-				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
-
-				if(this.styles.fillStyle){
-					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
-				}
-				if(this.styles.strokeStyle){
-					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
-				}
-			} else {
+			if(this.attrs.mode === 'block'){
 				if(!this.lines){
 					this.processLines(ctx);
 				}
@@ -226,11 +157,11 @@ Text = new Class(Drawable, {
 				var x = this.attrs.x,
 					y = this.attrs.y;
 
-				if(this.styles.fillStyle && !this.styles.strokeStyle){
+				if(this.attrs.fill && !this.attrs.stroke){
 					this.lines.forEach(function(line){
 						ctx.fillText(line.text, x, y + line.y);
 					});
-				} else if(this.styles.fillStyle){
+				} else if(this.attrs.fill){
 					this.lines.forEach(function(line){
 						ctx.fillText(line.text, x, y + line.y);
 						ctx.strokeText(line.text, x, y + line.y);
@@ -240,9 +171,19 @@ Text = new Class(Drawable, {
 						ctx.strokeText(line.text, x, y + line.y);
 					});
 				}
+			} else {
+				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
+
+				if(this.styles.fillStyle){
+					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
+				}
+				if(this.styles.strokeStyle){
+					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
+				}
 			}
+
 			ctx.restore();
-		} */
+		}
 	},
 
 	isPointIn : function(x, y, options){
@@ -254,48 +195,44 @@ Text = new Class(Drawable, {
 		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
 	},
 
-	measure: function(){
+	measure : function(){
+		var ctx = this.context ? this.context.context : getTemporaryCanvas(0, 0).getContext('2d');
 		var width;
-		// todo: if(this.context is 2d) measure through it else make new 2d context
-		if(this.attrs.breaklines){
+		ctx.save();
+		ctx.font = this.styles.font;
+		if(this.attrs.mode === 'block'){
 			if(!this.lines){
-				this.processLines(this.context.context);
+				this.processLines(ctx);
 			}
 
-			this.context.renderer.preMeasure(this.styles.font);
-			width = this.lines.reduce(function(prev, cur){
-				cur = this.context.renderer.measure(cur.text);
-				if(prev < cur){
-					return cur;
-				}
-				return prev;
-			}.bind(this), 0);
-			this.context.renderer.postMeasure();
+			width = this.lines.reduce(function(maxWidth, cur){
+				cur = ctx.measureText(cur.text).width;
+				return Math.max(cur, maxWidth);
+			}, 0);
 		} else {
-			this.context.renderer.preMeasure(this.styles.font);
-			width = this.context.renderer.measure(this.attrs.text);
-			this.context.renderer.postMeasure();
+			width = ctx.measureText(this.attrs.text).width;
 		}
+		ctx.restore();
 		return width;
 	},
 
-	bounds: function(transform, around){
+	preciseBounds : function(options){
 		var bounds,
 			blockX = this.attrs.x,
 			blockY = this.attrs.y,
 			width,
-			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight;
+			height = (this.attrs.lineHeight || 'auto') === 'auto' ? this.attrs.parsedFont.size : this.attrs.lineHeight;
 
 		// text processing
-		if(this.attrs.breaklines){
+		if(this.attrs.mode === 'block'){
 			width = this.attrs.blockWidth;
 
-			if(this.attrs.boundsMode === 'inline' || !isFinite(width)){
+			if(options.blockWidth === 'inline' || !isFinite(width)){
 				width = this.measure();
 			}
 
 			if(!this.lines){
-				this.processLines();
+				this.processLines(this.context ? this.context.context : getTemporaryCanvas(0, 0).getContext('2d'));
 			}
 			height *= this.lines.length;
 		} else {
@@ -310,11 +247,11 @@ Text = new Class(Drawable, {
 			align = this.styles.textAlign;
 
 		if(baseline === 'middle'){
-			blockY -= this.attrs.font.size / 2;
+			blockY -= this.attrs.parsedFont.size / 2;
 		} else if(baseline === 'bottom' || baseline === 'ideographic'){
-			blockY -= this.attrs.font.size;
+			blockY -= this.attrs.parsedFont.size;
 		} else if(baseline === 'alphabetic'){
-			blockY -= this.attrs.font.size * 0.8;
+			blockY -= this.attrs.parsedFont.size * 0.8;
 		}
 
 		if(align === 'center'){
@@ -323,13 +260,12 @@ Text = new Class(Drawable, {
 			blockX -= width;
 		}
 
-		return this.super('bounds', [
-			[blockX, blockY, width, height], transform, around
-		]);
+		return new Bounds(blockX, blockY, width, height);
 	}
 
 });
 
+Text.baseline = 'top';
 Text.font = '10px sans-serif';
 Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
@@ -366,8 +302,11 @@ Text.genFont = function(font){
 	if(font.bold){
 		string += 'bold ';
 	}
+	// todo: use values from Text.font
 	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 };
+
+Text.wordSeparators = [' ', '-'];
 
 Delta.text = function(){
 	return new Text(arguments);
