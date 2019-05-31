@@ -9,7 +9,7 @@ Context = function(canvas){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.cache     = {};
+	this.cache     = {}; // todo: is it neccessary? it was used only in transforms before TransformableMixin
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -104,7 +104,6 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
-		console.time('drawing');
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -127,7 +126,6 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
-		console.timeEnd('drawing');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -594,8 +592,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				this.canvas.width = value;
 				// if dpi != 1 && !canvas.style.width
 				// or simpler: if this.attrs.dpi !== undefined
-				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
-				// if (newWidth > width):
+				this.canvas.style.width = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
@@ -606,14 +603,14 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 			},
 			set : function(value){
 				this.canvas.height = value;
-				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
-				// if (newHeight > height):
+				this.canvas.style.height = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
 
 		// note: two things below may not work if we rewrite canvas' itself styles
 
+		// todo: dpi doesn't work
 		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
 		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
 		// http://www.html5gamedevs.com/topic/732-retina-support/

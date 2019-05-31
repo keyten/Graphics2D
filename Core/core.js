@@ -135,7 +135,7 @@ Delta.contexts = {
 // {{dont include Animation.Along.js}}
 // {{dont include Animation.Morph.js}}
 
-// {{dont include Context.WebGL.js}}
+// {{include Context.WebGL.js}}
 // {{dont include Rect.WebGL.js}}
 // {{dont include Path.WebGL.js}}
 

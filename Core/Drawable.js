@@ -90,7 +90,7 @@ Drawable.prototype = {
 				}
 				// todo: stroke
 			}
-			if(options.put !== false && this.context){
+			if(options.push !== false && this.context){
 				this.context.push(clone);
 			}
 			return clone;
@@ -117,187 +117,6 @@ Drawable.prototype = {
 		this.update();
 		this.context = null;
 		return this;
-	},
-
-	// Attributes
-/*	attr: Class.attr,
-
-	attrHooks: DrawableAttrHooks.prototype = {
-		z: {
-			get: function(){
-				return this.context.elements.indexOf(this);
-			},
-			set: function(value){
-				var elements = this.context.elements;
-				if(value === 'top'){
-					value = elements.length;
-				}
-
-				elements.splice(this.context.elements.indexOf(this), 1);
-				elements.splice(value, 0, this);
-				this.update();
-			}
-		},
-
-		visible: {
-			set: function(){
-				this.update();
-			}
-		},
-
-		fill: {
-			get: function(){
-				// а градиенты?
-				return this.styles.fillStyle;
-			},
-			set: function(value){
-				// if(oldValue is gradient) oldValue.unbind(this);
-				this.styles.fillStyle = value;
-				this.update();
-			}
-		},
-
-		// fillRule?
-
-		stroke: {
-			set: function(value){
-				Drawable.processStroke(value, this.styles);
-				this.update();
-			}
-		},
-
-// todo: запихнуть всё относящееся к stroke в stroke
-		strokeMode: {
-			get: function(){
-				return this.attrs.strokeMode || 'over';
-			},
-			set: function(value){
-				this.update();
-			}
-		},
-
-		shadow: {
-			set: function(value){
-				Drawable.processShadow(value, this.styles);
-				this.update();
-			}
-		},
-
-		opacity: {
-			get: function(){
-				return this.styles.globalAlpha !== undefined ? this.styles.globalAlpha : 1;
-			},
-			set: function(value){
-				this.styles.globalAlpha = +value;
-				this.update();
-			}
-		},
-
-		composite: {
-			get: function(){
-				return this.styles.globalCompositeOperation;
-			},
-			set: function(value){
-				this.styles.globalCompositeOperation = value;
-				this.update();
-			}
-		},
-
-		clip: {
-			set: function(value){
-				value.context = this.context;
-				this.attrs.clip = value; // is it neccessary?
-				this.update();
-			}
-		},
-
-		cursor: {
-			set: function(value){
-				// this._setCursorListener();
-				// this._teardownCursorListener();
-			}
-		},
-
-		transform: {
-			set: function(value){
-				this.cache.transform = null;
-				this.update();
-			}
-		},
-
-		translate: {
-			get: function(){
-				return this.attrs.translate || [0, 0];
-			},
-			set: function(value){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		rotate: {
-			get: function(){
-				return this.attrs.rotate || 0;
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		scale: {
-			get: function(){
-				return this.attrs.scale || [1, 1];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		}
-	}, */
-
-	// Transforms
-	getTransform : function(){
-		if(this.cache.transform){
-			return this.cache.transform;
-		}
-
-		var matrix = Delta.parseTransform(this.attrs, this);
-		this.cache.transform = matrix;
-		return matrix;
-	},
-
-// Object -> ArgumentObject?
-	processObject : function(object, arglist){
-		// todo: вынести в отдельный объект
-		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
-		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
-			if(object[prop] !== undefined){
-				this.attr(prop, object[prop]);
-			}
-		}, this);
-
-		return arglist.map(function(name){
-			return object[name];
-		});
 	},
 
 	// Before -> Pre
@@ -421,13 +240,8 @@ Drawable.prototype = {
 	},
 
 	corner : function(corner, bounds){
-		// todo: remove
-//		if(Array.isArray(corner)){
-//			return corner;
-//		}
-
 		// todo: transformed state
-		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
 		// todo: bounds.tight = true support (return bounds.lt if corner.lt)
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
@@ -982,144 +796,177 @@ Object.assign(Drawable.prototype,
 
 		stroke : {
 			set : function(value){
-				// todo: it must annihilate previous stroke params first
-				if(value.constructor === String){
-					// remove spaces between commas
-					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+				var style = {};
 
-					var opacity,
-						l = value.length,
+				if(value === null){}
+				else if(isString(value)){
+					// remove spaces between commas
+					value = value.replace(/\s*\,\s*/g, ',').split(' '); // without braces regexp
+
+					var opacity, color, l = value.length,
 						joinSet = false,
-						capSet = false,
-						color;
+						capSet = false;
 
 					while(l--){
 						if(reFloat.test(value[l])){
 							opacity = parseFloat(value[l]);
 						} else if(isNumberLike(value[l])){
-							this.styles.lineWidth = Delta.distance(value[l]);
+							style.lineWidth = Delta.distance(value[l]);
 						} else if(value[l] === 'round'){
 							if(!joinSet){
-								this.styles.lineJoin = 'round';
+								style.lineJoin = 'round';
 							}
 							if(!capSet){
-								this.styles.lineCap = 'round';
+								style.lineCap = 'round';
 							}
 						} else if(value[l] === 'miter' || value[l] === 'bevel'){
 							joinSet = true;
-							this.styles.lineJoin = value[l];
+							style.lineJoin = value[l];
 						} else if(value[l] === 'butt' || value[l] === 'square'){
 							capSet = true;
-							this.styles.lineCap = value[l];
+							style.lineCap = value[l];
 						} else if(value[l][0] === '['){
-							;
-				//style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-						} else if(Delta.dashes[value[l]]){
-							;
+							style.strokeDash = value[l].substr(1, value[l].length - 2).split(',');
+						} else if(value[l] in Delta.dashes){
+							style.strokeDash = Delta.dashes[value[l]];
 						} else if(value[l].lastIndexOf('ml') === value[l].length - 2){
-							;
-						} else if(value[l].lastIndexOf('do') === value[l].length - 2){
+							style.miterLimit = +value[l].slice(0, value[l].length - 2);
+						} else if(value[l].indexOf('do') === value[l].length - 2){
 							// todo: check about cross-browser support
 							// mozDashOffset
 							// webkitLineDashOffset
-							//style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-							this.styles.lineDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
+							// style.lineDashOffset = Delta.distance(value[l].slice(2));
+							style.strokeDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
 						} else {
 							color = value[l];
-							// this.style('strokeStyle', value[l]);
 						}
 					}
-
 					if(color){
 						if(opacity){
 							color = Delta.color(color);
 							color[3] = opacity;
 							color = 'rgba(' + color.join(',') + ')';
 						}
-						this.styles.strokeStyle = color;
+						style.strokeStyle = color;
 					}
 				} else {
-					;
+					if(value.color !== undefined){
+						style.strokeStyle = value.color;
+					}
+					if(value.opacity !== undefined && style.strokeStyle){
+						var parsed = Delta.color(style.strokeStyle);
+						parsed[3] = value.opacity;
+						style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+					}
+					if(value.width !== undefined){
+						style.lineWidth = Delta.distance(value.width);
+					}
+					if(value.join !== undefined){
+						style.lineJoin = value.join;
+					}
+					if(value.cap !== undefined){
+						style.lineCap = value.cap;
+					}
+					if(value.miterLimit !== undefined){
+						style.miterLimit = value.miterLimit;
+					}
+					if(value.dash !== undefined){
+						if(value.dash in Delta.dashes){
+							// style.lineDash = Delta.dashes[value.dash];
+							style.strokeDash = Delta.dashes[value.dash];
+						} else {
+							// style.lineDash = value.dash;
+							style.strokeDash = value.dash;
+						}
+					}
+					if(value.dashOffset !== undefined){
+						// style.lineDashOffset = Delta.distance(value.dashOffset);
+						style.strokeDashOffset = Delta.distance(value.dashOffset);
+					}
 				}
-				/*
-	if(stroke + '' === stroke){
-		// remove spaces between commas
-		stroke = stroke.replace(/(\s*\,\s*)/g, ',').split(' '); // without braces regexp
 
-		var opacity, l = stroke.length,
-			joinSet = false,
-			capSet = false;
+				[
+					'strokeStyle',
+					'lineWidth',
+					'lineJoin',
+					'lineCap',
+					'miterLimit'
+				].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
+				// на самом деле этот всё не нужно пихать в стили, нужно применять стили из параметров
+				if(style.strokeDash){
+					this.attrs.strokeDash = style.strokeDash;
+				} else {
+					delete this.attrs.strokeDash;
+				}
 
-		while(l--){
-			if(reFloat.test(stroke[l])){
-				opacity = parseFloat(stroke[l]);
-			} else if(isNumberLike(stroke[l])){
-				style.lineWidth = Delta.distance(stroke[l]);
-			} else if(stroke[l] === 'round'){
-				if(!joinSet){
-					style.lineJoin = 'round';
+				if(style.strokeDashOffset){
+					this.attrs.strokeDashOffset = style.strokeDashOffset;
+				} else {
+					delete this.attrs.strokeDashOffset;
 				}
-				if(!capSet){
-					style.lineCap = style.lineCap || 'round';
+			}
+		},
+
+		// todo: to plugin
+		/* strokeMode: {
+			get: function(){
+				return this.attrs.strokeMode || 'over';
+			},
+			set: function(value){
+				this.update();
+			}
+		}, */
+
+		/* cursor: {
+			set: function(value){
+				// this._setCursorListener();
+				// this._teardownCursorListener();
+			}
+		}, */
+
+		shadow : {
+			set : function(value){
+				var style = {};
+
+				if(value === null){}
+				else if(isString(value)){
+					var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+					for(var i = 0; i < value.length; i++){
+						if(isNaN(+value[i][0])){
+							style.shadowColor = value[i];
+						} else {
+							style[shadowProps.shift()] = Delta.distance(value[i]);
+						}
+					}
+				} else {
+					if(value.x !== undefined){
+						style.shadowOffsetX = Delta.distance(value.x);
+					}
+					if(value.y !== undefined){
+						style.shadowOffsetY = Delta.distance(value.y);
+					}
+					if(value.blur !== undefined){
+						style.shadowBlur = Delta.distance(value.blur);
+					}
+					if(value.color){
+						style.shadowColor = value.color;
+					}
 				}
-			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
-				joinSet = true;
-				style.lineJoin = stroke[l];
-			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
-				capSet = true;
-				style.lineCap = stroke[l];
-			} else if(stroke[l][0] === '['){
-				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-			} else if(stroke[l] in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke[l]];
-			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
-				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
-			} else if(stroke[l].indexOf('do') === 0){
-				// todo: check about cross-browser support
-				// mozDashOffset
-				// webkitLineDashOffset
-				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-			} else {
-				style.strokeStyle = stroke[l];
-			}
-		}
-		if(opacity){
-			stroke = Delta.color(style.strokeStyle);
-			stroke[3] = opacity;
-			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
-		}
-	} else {
-		if(stroke.color !== undefined){
-			style.strokeStyle = stroke.color;
-		}
-		if(stroke.opacity !== undefined && style.strokeStyle){
-			var parsed = Delta.color(style.strokeStyle);
-			parsed[3] = stroke.opacity;
-			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
-		}
-		if(stroke.width !== undefined){
-			style.lineWidth = Delta.distance(stroke.width);
-		}
-		if(stroke.join !== undefined){
-			style.lineJoin = stroke.join;
-		}
-		if(stroke.cap !== undefined){
-			style.lineCap = stroke.cap;
-		}
-		if(stroke.miterLimit !== undefined){
-			style.miterLimit = stroke.miterLimit;
-		}
-		if(stroke.dash !== undefined){
-			if(stroke.dash in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke.dash];
-			} else {
-				style.lineDash = stroke.dash;
-			}
-		}
-		if(stroke.dashOffset !== undefined){
-			style.lineDashOffset = Delta.distance(stroke.dashOffset);
-		}
-	} */
+
+				['shadowOffsetX', 'shadowOffsetY', 'shadowColor', 'shadowBlur'].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
 			}
 		},
 

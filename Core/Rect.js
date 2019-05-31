@@ -65,6 +65,7 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
+// doesnt work with negative width / height!
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];

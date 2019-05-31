@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 14.03.2019
+ *  Last edit: 17.05.2019
  *  License: MIT
  */
 
@@ -1595,7 +1595,7 @@ Context = function(canvas){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.cache     = {};
+	this.cache     = {}; // todo: is it neccessary? it was used only in transforms before TransformableMixin
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -1690,7 +1690,6 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
-		console.time('drawing');
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -1713,7 +1712,6 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
-		console.timeEnd('drawing');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -2180,8 +2178,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				this.canvas.width = value;
 				// if dpi != 1 && !canvas.style.width
 				// or simpler: if this.attrs.dpi !== undefined
-				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
-				// if (newWidth > width):
+				this.canvas.style.width = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
@@ -2192,14 +2189,14 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 			},
 			set : function(value){
 				this.canvas.height = value;
-				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
-				// if (newHeight > height):
+				this.canvas.style.height = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
 
 		// note: two things below may not work if we rewrite canvas' itself styles
 
+		// todo: dpi doesn't work
 		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
 		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
 		// http://www.html5gamedevs.com/topic/732-retina-support/
@@ -2325,7 +2322,7 @@ Drawable.prototype = {
 				}
 				// todo: stroke
 			}
-			if(options.put !== false && this.context){
+			if(options.push !== false && this.context){
 				this.context.push(clone);
 			}
 			return clone;
@@ -2352,187 +2349,6 @@ Drawable.prototype = {
 		this.update();
 		this.context = null;
 		return this;
-	},
-
-	// Attributes
-/*	attr: Class.attr,
-
-	attrHooks: DrawableAttrHooks.prototype = {
-		z: {
-			get: function(){
-				return this.context.elements.indexOf(this);
-			},
-			set: function(value){
-				var elements = this.context.elements;
-				if(value === 'top'){
-					value = elements.length;
-				}
-
-				elements.splice(this.context.elements.indexOf(this), 1);
-				elements.splice(value, 0, this);
-				this.update();
-			}
-		},
-
-		visible: {
-			set: function(){
-				this.update();
-			}
-		},
-
-		fill: {
-			get: function(){
-				// а градиенты?
-				return this.styles.fillStyle;
-			},
-			set: function(value){
-				// if(oldValue is gradient) oldValue.unbind(this);
-				this.styles.fillStyle = value;
-				this.update();
-			}
-		},
-
-		// fillRule?
-
-		stroke: {
-			set: function(value){
-				Drawable.processStroke(value, this.styles);
-				this.update();
-			}
-		},
-
-// todo: запихнуть всё относящееся к stroke в stroke
-		strokeMode: {
-			get: function(){
-				return this.attrs.strokeMode || 'over';
-			},
-			set: function(value){
-				this.update();
-			}
-		},
-
-		shadow: {
-			set: function(value){
-				Drawable.processShadow(value, this.styles);
-				this.update();
-			}
-		},
-
-		opacity: {
-			get: function(){
-				return this.styles.globalAlpha !== undefined ? this.styles.globalAlpha : 1;
-			},
-			set: function(value){
-				this.styles.globalAlpha = +value;
-				this.update();
-			}
-		},
-
-		composite: {
-			get: function(){
-				return this.styles.globalCompositeOperation;
-			},
-			set: function(value){
-				this.styles.globalCompositeOperation = value;
-				this.update();
-			}
-		},
-
-		clip: {
-			set: function(value){
-				value.context = this.context;
-				this.attrs.clip = value; // is it neccessary?
-				this.update();
-			}
-		},
-
-		cursor: {
-			set: function(value){
-				// this._setCursorListener();
-				// this._teardownCursorListener();
-			}
-		},
-
-		transform: {
-			set: function(value){
-				this.cache.transform = null;
-				this.update();
-			}
-		},
-
-		translate: {
-			get: function(){
-				return this.attrs.translate || [0, 0];
-			},
-			set: function(value){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		rotate: {
-			get: function(){
-				return this.attrs.rotate || 0;
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		scale: {
-			get: function(){
-				return this.attrs.scale || [1, 1];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		}
-	}, */
-
-	// Transforms
-	getTransform : function(){
-		if(this.cache.transform){
-			return this.cache.transform;
-		}
-
-		var matrix = Delta.parseTransform(this.attrs, this);
-		this.cache.transform = matrix;
-		return matrix;
-	},
-
-// Object -> ArgumentObject?
-	processObject : function(object, arglist){
-		// todo: вынести в отдельный объект
-		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
-		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
-			if(object[prop] !== undefined){
-				this.attr(prop, object[prop]);
-			}
-		}, this);
-
-		return arglist.map(function(name){
-			return object[name];
-		});
 	},
 
 	// Before -> Pre
@@ -2656,13 +2472,8 @@ Drawable.prototype = {
 	},
 
 	corner : function(corner, bounds){
-		// todo: remove
-//		if(Array.isArray(corner)){
-//			return corner;
-//		}
-
 		// todo: transformed state
-		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
 		// todo: bounds.tight = true support (return bounds.lt if corner.lt)
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
@@ -3217,144 +3028,177 @@ Object.assign(Drawable.prototype,
 
 		stroke : {
 			set : function(value){
-				// todo: it must annihilate previous stroke params first
-				if(value.constructor === String){
-					// remove spaces between commas
-					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+				var style = {};
 
-					var opacity,
-						l = value.length,
+				if(value === null){}
+				else if(isString(value)){
+					// remove spaces between commas
+					value = value.replace(/\s*\,\s*/g, ',').split(' '); // without braces regexp
+
+					var opacity, color, l = value.length,
 						joinSet = false,
-						capSet = false,
-						color;
+						capSet = false;
 
 					while(l--){
 						if(reFloat.test(value[l])){
 							opacity = parseFloat(value[l]);
 						} else if(isNumberLike(value[l])){
-							this.styles.lineWidth = Delta.distance(value[l]);
+							style.lineWidth = Delta.distance(value[l]);
 						} else if(value[l] === 'round'){
 							if(!joinSet){
-								this.styles.lineJoin = 'round';
+								style.lineJoin = 'round';
 							}
 							if(!capSet){
-								this.styles.lineCap = 'round';
+								style.lineCap = 'round';
 							}
 						} else if(value[l] === 'miter' || value[l] === 'bevel'){
 							joinSet = true;
-							this.styles.lineJoin = value[l];
+							style.lineJoin = value[l];
 						} else if(value[l] === 'butt' || value[l] === 'square'){
 							capSet = true;
-							this.styles.lineCap = value[l];
+							style.lineCap = value[l];
 						} else if(value[l][0] === '['){
-							;
-				//style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-						} else if(Delta.dashes[value[l]]){
-							;
+							style.strokeDash = value[l].substr(1, value[l].length - 2).split(',');
+						} else if(value[l] in Delta.dashes){
+							style.strokeDash = Delta.dashes[value[l]];
 						} else if(value[l].lastIndexOf('ml') === value[l].length - 2){
-							;
-						} else if(value[l].lastIndexOf('do') === value[l].length - 2){
+							style.miterLimit = +value[l].slice(0, value[l].length - 2);
+						} else if(value[l].indexOf('do') === value[l].length - 2){
 							// todo: check about cross-browser support
 							// mozDashOffset
 							// webkitLineDashOffset
-							//style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-							this.styles.lineDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
+							// style.lineDashOffset = Delta.distance(value[l].slice(2));
+							style.strokeDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
 						} else {
 							color = value[l];
-							// this.style('strokeStyle', value[l]);
 						}
 					}
-
 					if(color){
 						if(opacity){
 							color = Delta.color(color);
 							color[3] = opacity;
 							color = 'rgba(' + color.join(',') + ')';
 						}
-						this.styles.strokeStyle = color;
+						style.strokeStyle = color;
 					}
 				} else {
-					;
+					if(value.color !== undefined){
+						style.strokeStyle = value.color;
+					}
+					if(value.opacity !== undefined && style.strokeStyle){
+						var parsed = Delta.color(style.strokeStyle);
+						parsed[3] = value.opacity;
+						style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+					}
+					if(value.width !== undefined){
+						style.lineWidth = Delta.distance(value.width);
+					}
+					if(value.join !== undefined){
+						style.lineJoin = value.join;
+					}
+					if(value.cap !== undefined){
+						style.lineCap = value.cap;
+					}
+					if(value.miterLimit !== undefined){
+						style.miterLimit = value.miterLimit;
+					}
+					if(value.dash !== undefined){
+						if(value.dash in Delta.dashes){
+							// style.lineDash = Delta.dashes[value.dash];
+							style.strokeDash = Delta.dashes[value.dash];
+						} else {
+							// style.lineDash = value.dash;
+							style.strokeDash = value.dash;
+						}
+					}
+					if(value.dashOffset !== undefined){
+						// style.lineDashOffset = Delta.distance(value.dashOffset);
+						style.strokeDashOffset = Delta.distance(value.dashOffset);
+					}
 				}
-				/*
-	if(stroke + '' === stroke){
-		// remove spaces between commas
-		stroke = stroke.replace(/(\s*\,\s*)/g, ',').split(' '); // without braces regexp
 
-		var opacity, l = stroke.length,
-			joinSet = false,
-			capSet = false;
+				[
+					'strokeStyle',
+					'lineWidth',
+					'lineJoin',
+					'lineCap',
+					'miterLimit'
+				].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
+				// на самом деле этот всё не нужно пихать в стили, нужно применять стили из параметров
+				if(style.strokeDash){
+					this.attrs.strokeDash = style.strokeDash;
+				} else {
+					delete this.attrs.strokeDash;
+				}
 
-		while(l--){
-			if(reFloat.test(stroke[l])){
-				opacity = parseFloat(stroke[l]);
-			} else if(isNumberLike(stroke[l])){
-				style.lineWidth = Delta.distance(stroke[l]);
-			} else if(stroke[l] === 'round'){
-				if(!joinSet){
-					style.lineJoin = 'round';
+				if(style.strokeDashOffset){
+					this.attrs.strokeDashOffset = style.strokeDashOffset;
+				} else {
+					delete this.attrs.strokeDashOffset;
 				}
-				if(!capSet){
-					style.lineCap = style.lineCap || 'round';
+			}
+		},
+
+		// todo: to plugin
+		/* strokeMode: {
+			get: function(){
+				return this.attrs.strokeMode || 'over';
+			},
+			set: function(value){
+				this.update();
+			}
+		}, */
+
+		/* cursor: {
+			set: function(value){
+				// this._setCursorListener();
+				// this._teardownCursorListener();
+			}
+		}, */
+
+		shadow : {
+			set : function(value){
+				var style = {};
+
+				if(value === null){}
+				else if(isString(value)){
+					var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+					for(var i = 0; i < value.length; i++){
+						if(isNaN(+value[i][0])){
+							style.shadowColor = value[i];
+						} else {
+							style[shadowProps.shift()] = Delta.distance(value[i]);
+						}
+					}
+				} else {
+					if(value.x !== undefined){
+						style.shadowOffsetX = Delta.distance(value.x);
+					}
+					if(value.y !== undefined){
+						style.shadowOffsetY = Delta.distance(value.y);
+					}
+					if(value.blur !== undefined){
+						style.shadowBlur = Delta.distance(value.blur);
+					}
+					if(value.color){
+						style.shadowColor = value.color;
+					}
 				}
-			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
-				joinSet = true;
-				style.lineJoin = stroke[l];
-			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
-				capSet = true;
-				style.lineCap = stroke[l];
-			} else if(stroke[l][0] === '['){
-				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-			} else if(stroke[l] in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke[l]];
-			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
-				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
-			} else if(stroke[l].indexOf('do') === 0){
-				// todo: check about cross-browser support
-				// mozDashOffset
-				// webkitLineDashOffset
-				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-			} else {
-				style.strokeStyle = stroke[l];
-			}
-		}
-		if(opacity){
-			stroke = Delta.color(style.strokeStyle);
-			stroke[3] = opacity;
-			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
-		}
-	} else {
-		if(stroke.color !== undefined){
-			style.strokeStyle = stroke.color;
-		}
-		if(stroke.opacity !== undefined && style.strokeStyle){
-			var parsed = Delta.color(style.strokeStyle);
-			parsed[3] = stroke.opacity;
-			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
-		}
-		if(stroke.width !== undefined){
-			style.lineWidth = Delta.distance(stroke.width);
-		}
-		if(stroke.join !== undefined){
-			style.lineJoin = stroke.join;
-		}
-		if(stroke.cap !== undefined){
-			style.lineCap = stroke.cap;
-		}
-		if(stroke.miterLimit !== undefined){
-			style.miterLimit = stroke.miterLimit;
-		}
-		if(stroke.dash !== undefined){
-			if(stroke.dash in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke.dash];
-			} else {
-				style.lineDash = stroke.dash;
-			}
-		}
-		if(stroke.dashOffset !== undefined){
-			style.lineDashOffset = Delta.distance(stroke.dashOffset);
-		}
-	} */
+
+				['shadowOffsetX', 'shadowOffsetY', 'shadowColor', 'shadowBlur'].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
 			}
 		},
 
@@ -3485,6 +3329,7 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
+// doesnt work with negative width / height!
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
@@ -3655,8 +3500,8 @@ Curve = new Class({
 	// Path specific functions:
 
 	startAt: function(){
-		var index = this.path.attrs.d.indexOf(this);
-		return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
+		var index = this.path.attrs.curves.indexOf(this);
+		return index === 0 ? [0, 0] : this.path.attrs.curves[index - 1].endAt();
 	},
 
 	endAt: function(){
@@ -3961,6 +3806,7 @@ Path = new Class(Drawable, {
 
 	// todo: works a bit bad with translate & draggable
 	isPointIn : function(x, y, options){
+		// todo: doesnt work correct
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
@@ -3968,12 +3814,11 @@ Path = new Class(Drawable, {
 		var ctx = this.context.context;
 		ctx.save();
 		if(this.attrs.x || this.attrs.y){
+			// todo x -= this.attrs.x instead
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
 
-		this.attrs.curves.forEach(function(curve){
-			curve.process(ctx);
-		});
+		this.process(ctx);
 		var result = ctx.isPointInPath(x, y);
 
 		ctx.restore();
@@ -4858,7 +4703,360 @@ Delta.Pattern = Pattern;
 // {{dont include Animation.Along.js}}
 // {{dont include Animation.Morph.js}}
 
-// {{dont include Context.WebGL.js}}
+var GLContext;
+
+// всё, где комментарий "// {{debug}}", нужно убрать из прода (todo: встроить {{debug}} ... {{/debug}} в grunt модуль)
+/*
+Основные оптимизации:
+ - Рисовать объекты с одним буфером вместе.
+ - Рисовать более ближние объекты первыми.
+ */
+
+GLContext = new Class(Context, {
+	initialize: function(canvas){
+		// WebGL
+		this.gl = this._getAndPrepareGLContext(canvas);
+		if(!this.gl){
+			return new Delta.contexts['2d'](canvas);
+		}
+		this.shaders = {};
+		this.buffers = {};
+
+		// Context
+		this.canvas    = canvas;
+		this.elements  = [];
+		this.elementsByProgram = {};
+		this.listeners = {};
+		this.attrs     = {
+			transform: 'attributes',
+			pivot: 'center',
+			glBackgroundColor: [255, 255, 255, 1], // 0, 0, 0, 0?
+			glDrawOrder: ['program-rect']
+		};
+		// array for not yet drawn obs
+		this.glMissing  = [];
+
+		// todo: this.drawMissing = this.drawMissing.bind(this)
+		this.drawMissing = this.drawMissing.bind(this);
+		this.updateNow = this.updateNow.bind(this);
+	},
+
+	_getAndPrepareGLContext: function(canvas){
+		var gl;
+
+		if(gl = canvas.getContext('webgl'));
+		else if(gl = canvas.getContext('experimental-webgl'));
+		else if(gl = canvas.getContext('webkit-3d'));
+		else if(gl = canvas.getContext('moz-webgl'));
+		else {
+			// webgl is not supported
+			return null;
+		}
+
+		// проверить, нужно ли вообще эту функцию вызывать
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.clearColor(1, 1, 1, 1); // maybe 0,0,0,0?
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		return gl;
+	},
+
+	// Methods
+	push : function(element){
+		element.context = this;
+		this.elements.push(element);
+		(this.elementsByProgram[element.glProgramName] || (this.elementsByProgram[element.glProgramName] = []))
+			.push(element);
+
+		if(element.shadersRequired){
+			element.shadersRequired.forEach(function(shaderName){
+				this.initShader(shaderName);
+			}.bind(this));
+		}
+
+		if(element.drawGL){
+			this.glMissing.push(element);
+			if(!this._willDrawMissing){
+				requestAnimationFrame(this.drawMissing);
+				this._willDrawMissing = true;
+			}
+			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
+			// а в этом тике надо компилировать все нужные для запушенного объекта шейдеры
+			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
+			// и используется первым :P
+			// element.drawGL(this.gl);
+		}
+
+		return element;
+	},
+
+	initShader: function(name){
+		if(this.shaders[name]){
+			return;
+		}
+
+		if(!GLContext.shadersFactory[name]){
+			throw "The shader \"" + name + "\" is not exist.";
+		}
+
+		this.shaders[name] = GLContext.shadersFactory[name](this.gl, this);
+	},
+
+	drawMissing: function(){
+		this._willDrawMissing = false;
+
+		// Рисовать нужно с depth-буфером и в обратном порядке (чтобы gl-ю приходилось меньше рисовать).
+		// Кроме того, подключенный последним шейдер будет заюзан в таком порядке первым.
+		// Кроме того, нужно группировать объекты по шейдерам / буферам.
+		// Но пока не всё понятно в случае с depthtest с blending mode
+		var gl = this.gl;
+		this.glMissing.forEach(function(element){
+			element.drawGL(gl);
+		});
+	},
+
+	updateNow : function(){
+		var gl = this.gl;
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.attrs.glDrawOrder.forEach(function(programName){
+			var elements = this.elementsByProgram[programName],
+				l = elements.length;
+
+			while(l--){
+				// todo: оптимизировать
+				var zIndex = this.elements.indexOf(elements[l]) / this.elements.length;
+				elements[l]._glZIndex = 1; //zIndex;
+				elements[l].drawGL(gl);
+			}
+			// рисуем все objectKind
+		}, this);
+	}
+
+});
+
+GLContext.shadersFactory = {
+	'fragment-common': function(gl){
+		return Delta.createShader(gl, gl.FRAGMENT_SHADER, [
+			'#ifdef GL_ES',
+				'precision highp float;',
+			'#endif',
+
+			'varying vec4 vColor;', // а этот шейдер типа не умеет в униформы?
+			'void main(void){',
+				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
+			'}'
+		].join('\n'));;
+	}
+};
+
+// GL utilities
+Delta.createShader = function(gl, type, source){
+	var shader = gl.createShader(type);
+	gl.shaderSource(shader, source);
+	gl.compileShader(shader);
+	// {{debug}}
+	if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+		var log = gl.getShaderInfoLog(shader);
+		gl.deleteShader(shader);
+		throw "Shader compilation error: " + log;
+	}
+	// {{/debug}}
+	return shader;
+}
+
+Delta.contexts['gl'] = GLContext;
+
+// From Path.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-path' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					'aVertexPosition[0],',
+					'aVertexPosition[1],',
+					'1.0,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
+
+	'program-path' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-path']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
+
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
+
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
+	}
+});
+
+Object.assign(Path.prototype, {
+	shadersRequired : ['fragment-common', 'vertex-path', 'program-path'],
+
+	// todo: попробовать сделать sdf. Всего-то посчитать для каждой точки перпендикулярное расстояние до прямой (получится bevel = round вроде)
+	// и как-то картинкой передать внутрь данные
+	drawGL : function(gl){
+		var delta = this.context;
+
+		if(!delta.buffers['rect']){
+			var vertexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+				0.0, 0.0,
+				0.5, 0.5,
+				0.5, 0.0,
+				0.5, -0.5,
+				-1.0, 0.0
+			]), gl.STATIC_DRAW);
+
+			delta.buffers['rect'] = vertexBuffer;
+		}
+
+		var color = Delta.color(this.styles.fillStyle);
+		gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
+		gl.uniform4f(
+			delta.shaders['program-rect'].rectCoords,
+			10,
+			10,
+			200,
+			200
+		);
+
+		gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
+	}
+});
+
+// Rect.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-rect' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform float zIndex;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					// тут можно поделить на canvasWidth всё сразу
+					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
+					'zIndex,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
+
+	'program-rect' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-rect']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
+
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
+
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.zIndex = gl.getUniformLocation(program, 'zIndex');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
+	}
+});
+
+Object.assign(Rect.prototype, {
+	// todo: rename to glShadersRequired
+	shadersRequired : ['fragment-common', 'vertex-rect', 'program-rect'],
+
+	glProgramName : 'program-rect',
+
+	glCreateBuffer : function(gl){
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+			-1, -1,
+			1, 1,
+			1, -1,
+
+			-1, -1,
+			1, 1,
+			-1, 1
+		]), gl.STATIC_DRAW);
+
+		this.context.buffers['rect'] = vertexBuffer;
+	},
+
+	drawGL : function(gl){
+		var context = this.context;
+
+		// менять буфер невыгодно, лучше менять униформы
+		if(!context.buffers['rect']){
+			this.glCreateBuffer(gl);
+		}
+
+		var color = Delta.color(this.styles.fillStyle);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].uColor,
+			color[0],
+			color[1],
+			color[2],
+			color[3]
+		);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].rectCoords,
+			this.attrs.x,
+			this.attrs.y,
+			this.attrs.width,
+			this.attrs.height
+		);
+
+		if(this._glZIndex !== undefined){
+			gl.uniform1f(
+				context.shaders['program-rect'].zIndex,
+				this._glZIndex
+			);
+		}
+
+		// что эта функция делает?
+		gl.vertexAttribPointer(context.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLES, 0, 6);
+	}
+});
+
 // {{dont include Rect.WebGL.js}}
 // {{dont include Path.WebGL.js}}
 

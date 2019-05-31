@@ -20,13 +20,20 @@ GLContext = new Class(Context, {
 		// Context
 		this.canvas    = canvas;
 		this.elements  = [];
+		this.elementsByProgram = {};
 		this.listeners = {};
+		this.attrs     = {
+			transform: 'attributes',
+			pivot: 'center',
+			glBackgroundColor: [255, 255, 255, 1], // 0, 0, 0, 0?
+			glDrawOrder: ['program-rect']
+		};
 		// array for not yet drawn obs
-		this._missing  = [];
+		this.glMissing  = [];
 
 		// todo: this.drawMissing = this.drawMissing.bind(this)
-		this.drawMissingBound = this.drawMissing.bind(this);
-		this.updateNowBounded = this.updateNow.bind(this);
+		this.drawMissing = this.drawMissing.bind(this);
+		this.updateNow = this.updateNow.bind(this);
 	},
 
 	_getAndPrepareGLContext: function(canvas){
@@ -43,7 +50,7 @@ GLContext = new Class(Context, {
 
 		// проверить, нужно ли вообще эту функцию вызывать
 		gl.viewport(0, 0, canvas.width, canvas.height);
-		gl.clearColor(1, 0.8, 0.9, 1); // maybe 0,0,0,0?
+		gl.clearColor(1, 1, 1, 1); // maybe 0,0,0,0?
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		return gl;
 	},
@@ -52,6 +59,8 @@ GLContext = new Class(Context, {
 	push : function(element){
 		element.context = this;
 		this.elements.push(element);
+		(this.elementsByProgram[element.glProgramName] || (this.elementsByProgram[element.glProgramName] = []))
+			.push(element);
 
 		if(element.shadersRequired){
 			element.shadersRequired.forEach(function(shaderName){
@@ -60,9 +69,9 @@ GLContext = new Class(Context, {
 		}
 
 		if(element.drawGL){
-			this._missing.push(element);
+			this.glMissing.push(element);
 			if(!this._willDrawMissing){
-				requestAnimationFrame(this.drawMissingBound);
+				requestAnimationFrame(this.drawMissing);
 				this._willDrawMissing = true;
 			}
 			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
@@ -95,9 +104,27 @@ GLContext = new Class(Context, {
 		// Кроме того, нужно группировать объекты по шейдерам / буферам.
 		// Но пока не всё понятно в случае с depthtest с blending mode
 		var gl = this.gl;
-		this._missing.forEach(function(element){
+		this.glMissing.forEach(function(element){
 			element.drawGL(gl);
 		});
+	},
+
+	updateNow : function(){
+		var gl = this.gl;
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.attrs.glDrawOrder.forEach(function(programName){
+			var elements = this.elementsByProgram[programName],
+				l = elements.length;
+
+			while(l--){
+				// todo: оптимизировать
+				var zIndex = this.elements.indexOf(elements[l]) / this.elements.length;
+				elements[l]._glZIndex = 1; //zIndex;
+				elements[l].drawGL(gl);
+			}
+			// рисуем все objectKind
+		}, this);
 	}
 
 });
@@ -134,132 +161,143 @@ Delta.createShader = function(gl, type, source){
 
 Delta.contexts['gl'] = GLContext;
 
-/* From Path.WebGL */
-GLContext.shadersFactory['vertex-path'] = function(gl){
-	return Delta.createShader(gl, gl.VERTEX_SHADER, [
-		'attribute vec2 aVertexPosition;',
-		'uniform vec4 rectCoords;',
-		'uniform vec4 uColor;',
-		'varying vec4 vColor;',
-		'float canvasWidth = ' + gl.canvas.width + '.0;',
-		'float canvasHeight = ' + gl.canvas.height + '.0;',
+// From Path.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-path' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
 
-		'void main(void){',
-			'vColor = uColor;',
-			'gl_Position = vec4(',
-				'aVertexPosition[0],',
-				'aVertexPosition[1],',
-				'1.0,',
-				'1.0',
-			');',
-		'}'
-	].join('\n'));
-};
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					'aVertexPosition[0],',
+					'aVertexPosition[1],',
+					'1.0,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
 
-GLContext.shadersFactory['program-path'] = function(gl, delta){
-	var program = gl.createProgram();
-	gl.attachShader(program, delta.shaders['vertex-path']);
-	gl.attachShader(program, delta.shaders['fragment-common']);
-	gl.linkProgram(program);
+	'program-path' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-path']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
 
-	// {{debug}}
-	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
-		throw "Could not initialize shaders";
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
+
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
 	}
-	// {{/debug}}
+});
 
-	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
-	gl.useProgram(program);
-	program.uColor = gl.getUniformLocation(program, 'uColor');
-	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
-	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
-	gl.enableVertexAttribArray(program.v_aVertexPosition);
-	return program;
-}
+Object.assign(Path.prototype, {
+	shadersRequired : ['fragment-common', 'vertex-path', 'program-path'],
 
-Path.prototype.shadersRequired = ['fragment-common', 'vertex-path', 'program-path'];
+	// todo: попробовать сделать sdf. Всего-то посчитать для каждой точки перпендикулярное расстояние до прямой (получится bevel = round вроде)
+	// и как-то картинкой передать внутрь данные
+	drawGL : function(gl){
+		var delta = this.context;
 
-Path.prototype.drawGL = function(gl){
-	var delta = this.context;
+		if(!delta.buffers['rect']){
+			var vertexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+				0.0, 0.0,
+				0.5, 0.5,
+				0.5, 0.0,
+				0.5, -0.5,
+				-1.0, 0.0
+			]), gl.STATIC_DRAW);
 
-	if(!delta.buffers['rect']){
-		var vertexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-			0.0, 0.0,
-			0.5, 0.5,
-			0.5, 0.0,
-			0.5, -0.5,
-			-1.0, 0.0
-		]), gl.STATIC_DRAW);
+			delta.buffers['rect'] = vertexBuffer;
+		}
 
-		delta.buffers['rect'] = vertexBuffer;
+		var color = Delta.color(this.styles.fillStyle);
+		gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
+		gl.uniform4f(
+			delta.shaders['program-rect'].rectCoords,
+			10,
+			10,
+			200,
+			200
+		);
+
+		gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
 	}
+});
 
-	var color = Delta.color(this.styles.fillStyle);
-	gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
-	gl.uniform4f(
-		delta.shaders['program-rect'].rectCoords,
-		10,
-		10,
-		200,
-		200
-	);
+// Rect.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-rect' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform float zIndex;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
 
-	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
-	gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
-};
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					// тут можно поделить на canvasWidth всё сразу
+					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
+					'zIndex,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
 
-/* From Rect.WebGL */
-GLContext.shadersFactory['vertex-rect'] = function(gl){
-	return Delta.createShader(gl, gl.VERTEX_SHADER, [
-		'attribute vec2 aVertexPosition;',
-		'uniform vec4 rectCoords;',
-		'uniform vec4 uColor;',
-		'varying vec4 vColor;',
-		 'float canvasWidth = ' + gl.canvas.width + '.0;',
-		 'float canvasHeight = ' + gl.canvas.height + '.0;',
+	'program-rect' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-rect']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
 
-		'void main(void){',
-			'vColor = uColor;',
-			'gl_Position = vec4(',
-				// тут можно поделить на canvasWidth всё сразу
-				'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
-				'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
-				'1.0,',
-				'1.0',
-			');',
-		'}'
-	].join('\n'));
-};
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
 
-GLContext.shadersFactory['program-rect'] = function(gl, delta){
-	var program = gl.createProgram();
-	gl.attachShader(program, delta.shaders['vertex-rect']);
-	gl.attachShader(program, delta.shaders['fragment-common']);
-	gl.linkProgram(program);
-
-	// {{debug}}
-	if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
-		throw "Could not initialize shaders";
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.zIndex = gl.getUniformLocation(program, 'zIndex');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
 	}
-	// {{/debug}}
+});
 
-	// if(delta._lastProgram !== delta.shaders['program-rect']) ...
-	gl.useProgram(program);
-	program.uColor = gl.getUniformLocation(program, 'uColor');
-	program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
-	program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
-	gl.enableVertexAttribArray(program.v_aVertexPosition);
-	return program;
-}
+Object.assign(Rect.prototype, {
+	// todo: rename to glShadersRequired
+	shadersRequired : ['fragment-common', 'vertex-rect', 'program-rect'],
 
-Rect.prototype.shadersRequired = ['fragment-common', 'vertex-rect', 'program-rect'];
+	glProgramName : 'program-rect',
 
-Rect.prototype.drawGL = function(gl){
-	var delta = this.context;
-
-	if(!delta.buffers['rect']){
+	glCreateBuffer : function(gl){
 		var vertexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -272,27 +310,44 @@ Rect.prototype.drawGL = function(gl){
 			-1, 1
 		]), gl.STATIC_DRAW);
 
-		delta.buffers['rect'] = vertexBuffer;
+		this.context.buffers['rect'] = vertexBuffer;
+	},
+
+	drawGL : function(gl){
+		var context = this.context;
+
+		// менять буфер невыгодно, лучше менять униформы
+		if(!context.buffers['rect']){
+			this.glCreateBuffer(gl);
+		}
+
+		var color = Delta.color(this.styles.fillStyle);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].uColor,
+			color[0],
+			color[1],
+			color[2],
+			color[3]
+		);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].rectCoords,
+			this.attrs.x,
+			this.attrs.y,
+			this.attrs.width,
+			this.attrs.height
+		);
+
+		if(this._glZIndex !== undefined){
+			gl.uniform1f(
+				context.shaders['program-rect'].zIndex,
+				this._glZIndex
+			);
+		}
+
+		// что эта функция делает?
+		gl.vertexAttribPointer(context.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLES, 0, 6);
 	}
-
-	var color = Delta.color(this.styles.fillStyle);
-
-	gl.uniform4f(
-		delta.shaders['program-rect'].uColor,
-		color[0],
-		color[1],
-		color[2],
-		color[3]
-	);
-
-	gl.uniform4f(
-		delta.shaders['program-rect'].rectCoords,
-		this.attrs.x,
-		this.attrs.y,
-		this.attrs.width,
-		this.attrs.height
-	);
-
-	gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
-};
+});

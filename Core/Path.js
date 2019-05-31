@@ -123,6 +123,7 @@ Path = new Class(Drawable, {
 
 	// todo: works a bit bad with translate & draggable
 	isPointIn : function(x, y, options){
+		// todo: doesnt work correct
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
@@ -130,12 +131,11 @@ Path = new Class(Drawable, {
 		var ctx = this.context.context;
 		ctx.save();
 		if(this.attrs.x || this.attrs.y){
+			// todo x -= this.attrs.x instead
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
 
-		this.attrs.curves.forEach(function(curve){
-			curve.process(ctx);
-		});
+		this.process(ctx);
 		var result = ctx.isPointInPath(x, y);
 
 		ctx.restore();

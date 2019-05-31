@@ -1,5 +1,106 @@
 //# Colors
-/* 
+Delta.color.cmyToRgb = function(c, m, y){
+	return [
+		(100 - c) * 2.55 | 0,
+		(100 - m) * 2.55 | 0,
+		(100 - y) * 2.55 | 0
+	];
+};
+
+Delta.color.rgbToCmy = function(r, g, b){
+	return [
+		(255 - r) / 2.55 + 0.5 | 0,
+		(255 - g) / 2.55 + 0.5 | 0,
+		(255 - b) / 2.55 + 0.5 | 0
+	];
+};
+
+Delta.color.hslToRgb = function(h, s, l){
+	function hue2rgb(v1, v2, vh){
+		if(vh < 0){
+			vh += 1;
+		} else if(vh > 1){
+			vh -= 1;
+		}
+
+		if(6 * vh < 1){
+			return v1 + (v2 - v1) * 6 * vh;
+		}
+		if(2 * vh < 1){
+			return v2;
+		}
+		if(3 * vh < 2){
+			return v1 + (v2 - v1) * (2/3 - vh) * 6;
+		}
+		return v1;
+	}
+
+	var v1, v2;
+	if(s === 0){
+		return [l * 255, l * 255, l * 255];
+	} else {
+		if(l < 0.5){
+			v2 = l * (1 + s);
+		} else {
+			v2 = (l + s) - (s * l);
+		}
+
+		v1 = 2 * l - v2;
+
+		return [
+			255 * hue2rgb(v1, v2, h + 1/3),
+			255 * hue2rgb(v1, v2, h),
+			255 * hue2rgb(v1, v2, h - 1/3)
+		];
+	}
+
+};
+
+Delta.color.rgbToHsl = function(r, g, b){
+	r /= 255;
+	g /= 255;
+	b /= 255;
+
+	var min = Math.min(r, g, b),
+		max = Math.max(r, g, b),
+		delta = max - min,
+		l = (max + min) / 2,
+		h, s,
+		dr, dg, db;
+
+	if( delta === 0 ){
+		return [0, 0, l * 100];
+	}
+	else {
+		if(l < 0.5){
+			s = delta / (max + min);
+		} else {
+			s = delta / (2 - max - min);
+		}
+
+		dr = (((max - r) / 6) + (delta / 2)) / delta;
+		dg = (((max - g) / 6) + (delta / 2)) / delta;
+		db = (((max - b) / 6) + (delta / 2)) / delta;
+
+		if(r === max){
+			h = db - dg;
+		}
+		else if(g === max){
+			h = 1/3 + dr - db;
+		}
+		else if(b === max){
+			h = 2/3 + dg - dr;
+		}
+
+		if(h < 0){
+			h += 1;
+		} else if(h > 1){
+			h -= 1;
+		}
+	}
+	return [h * 360, s * 100, l * 100];
+};
+/*
 var _color = $.color;
 $.color = function(color, from, to){
 
