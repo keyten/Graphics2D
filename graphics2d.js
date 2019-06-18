@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 21.02.2019
+ *  Last edit: 18.06.2019
  *  License: MIT
  */
 
@@ -25,17 +25,6 @@ var Delta = {},
 	reFloat = /^\d*\.\d+$/,
 	reNumberLike = /^(\d+|(\d+)?\.\d+)(em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|px|pt|pc)?$/,
 	domurl = window.URL || window.webkitURL || window,
-	// todo: move to utils
-	extend = Object.assign ? Object.assign : function(dest, source){
-		var keys = Object.keys(source),
-			l = keys.length;
-		while(l--){
-			dest[keys[l]] = source[keys[l]];
-		}
-		return dest;
-	}, // Object.assign is not deep as well as the polyfill
-	// todo: remove polyfill
-	deepExtend = extend, // todo: check whether it is neccessary, maybe move to utils
 
 // DOM
 	browserEvents = {
@@ -68,7 +57,6 @@ var Delta = {},
 			'pointercancel',
 			'pointerout',
 			'pointerleave',
-			// check:
 			'gotpointercapture',
 			'lostpointercapture'
 		],
@@ -111,6 +99,18 @@ function isBoolean(v){ return v.constructor === Boolean; }
 function isObject(v){ return v.constructor === Object; }
 function isArray(v){ return Array.isArray(v); }
 // /Macroses
+
+Delta.xtypes = {
+	rect : Delta.Rect,
+	circle : Delta.Circle,
+	path : Delta.Path,
+	curve : Delta.Curve,
+	image : Delta.Image,
+	text : Delta.Text,
+
+	gradient : Delta.Gradient,
+	pattern : Delta.Pattern
+};
 
 // Bounds class
 function Bounds(x, y, w, h){
@@ -234,7 +234,6 @@ function parsePoint(point){
 
 Delta.Class = Class;
 Delta.Bounds = Bounds;
-Delta.extend = extend;
 Delta.argument = argument;
 Delta.wrap = wrap;
 Delta.isObject = isObject;
@@ -483,6 +482,27 @@ Delta.strParse = {
 				method: part.match(/[a-z]+/)[0]
 			});
 		});
+		return result;
+	},
+
+	// partition('a b c-d', [' ', '-']) -> ['a', ' ', 'b', ' ', 'c',  '-', 'd']
+	partition : function(str, separators){
+		var result = [],
+			curline = '';
+		for(var i = 0; i < str.length; i++){
+			if(separators.indexOf(str[i]) === -1){
+				curline += str[i];
+			} else {
+				if(curline !== ''){
+					result.push(curline);
+					curline = '';
+				}
+				result.push(str[i]);
+			}
+		}
+		if(curline !== ''){
+			result.push(curline);
+		}
 		return result;
 	}
 };
@@ -802,11 +822,11 @@ function Class(parent, properties){
 
 	if(properties.mixins){
 		properties.mixins.forEach(function(mixinName){
-			extend(init.prototype, Class.mixins[mixinName]);
+			Object.assign(init.prototype, Class.mixins[mixinName]);
 		});
 	}
 
-	extend(init.prototype, properties);
+	Object.assign(init.prototype, properties);
 
 	return init;
 }
@@ -846,6 +866,20 @@ Class.mixins = {
 				this.attrHooks[name].set.call(this, value);
 			}
 			return this;
+		},
+
+		processArguments: function(args, arglist){
+			if(args[0].constructor === Object){
+				this.attr(args[0]);
+			} else {
+				var object = {};
+				arglist.forEach(function(argName, i){
+					if (args[i] !== undefined) {
+						object[argName] = args[i];
+					}
+				}, this);
+				this.attr(object);
+			}
 		}
 	},
 
@@ -1190,28 +1224,35 @@ Class.attr = function(name, value){
 
 	return this;
 };
-// var anim = Delta.animation(300, 500, options);
-// anim.start(value => dosmth(value));
-
-// https://mootools.net/core/docs/1.6.0/Fx/Fx
-// сделать функцией, а не классом
 Animation = new Class({
-	initialize: function(duration, easing, callback){
-		this.duration = duration || Animation.default.duration;
-		if(easing && easing.constructor === String){
-			var index = easing.indexOf('(');
-			if(index !== -1){
-				this.easingParam = easing.substring(index + 1, easing.length - 1);
-				easing = easing.substring(0, index);
-			}
-			this.easing = Animation.easing[easing];
-		} else {
-			this.easing = easing || Animation.default.easing;
-		}
-		this.callback = callback;
+	initialize : function(duration, easing, callback){
+		this.setParams(duration || Animation.default.duration, easing || Animation.default.easing, callback);
 	},
 
-	play: function(tick, context){
+	paused : false,
+
+	setParams : function(duration, easing, callback){
+		if(duration){
+			this.duration = duration;
+		}
+		if(easing){
+			if(easing.constructor === String){
+				var index = easing.indexOf('(');
+				if(index !== -1){
+					this.easingParam = easing.substring(index + 1, easing.length - 1);
+					easing = easing.substring(0, index);
+				}
+				this.easing = Animation.easing[easing];
+			} else {
+				this.easing = easing;
+			}
+		}
+		if(callback){
+			this.callback = callback;
+		}
+	},
+
+	play : function(tick, context){
 		if(this.prePlay){
 			this.prePlay();
 		}
@@ -1230,12 +1271,17 @@ Animation = new Class({
 		Animation.queue.push(this);
 	},
 
-	pause: function(){
+	pause : function(){
+		this.paused = true;
 		this.pauseTime = Date.now();
-		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+		// Animation.queue.splice(Animation.queue.indexOf(this), 1);
 	},
 
-	continue: function(){
+	continue : function(){
+		if(!this.paused){
+			return;
+		}
+
 		var delta = this.pauseTime - this.startTime;
 		this.startTime = Date.now() - delta;
 		this.endTime = this.startTime + this.duration;
@@ -1243,9 +1289,16 @@ Animation = new Class({
 		if(!Animation.queue.length){
 			requestAnimationFrame(Animation.do);
 		}
-		Animation.queue.push(this);
-	}
+		this.paused = false;
+		// Animation.queue.push(this);
+	},
 
+	cancel : function(){
+		var index = Animation.queue.indexOf(this);
+		if(index > -1){
+			Animation.queue.splice(index, 1);
+		}
+	}
 });
 
 Animation.queue = [];
@@ -1256,6 +1309,10 @@ Animation.do = function(){
 
 	for(var i = 0; i < Animation.queue.length; i++){
 		fx = Animation.queue[i];
+		if(fx.paused){
+			continue;
+		}
+
 		t = (now - fx.startTime) / fx.duration;
 
 		if(t < 0){
@@ -1272,18 +1329,17 @@ Animation.do = function(){
 
 		if(t === 1){
 			if(fx.callback){
-				// call him in requestAnimFrame?
-				// it must be called after the last update, i think
-				fx.callback.call(fx.tickContext, fx);
+				// it must be called after the last update
+				requestAnimationFrame(function(){
+					fx.callback.call(fx.tickContext, fx);
+				});
 			}
 
-			/*if(fx.queue){
+			if(fx.queue){
 				fx.queue.shift();
-				if(fx.queue.length){
-					// init the next anim in the que
-					fx.queue[0].play();
-				}
-			} */
+				fx.queue[0] && fx.queue[0].play();
+			}
+
 			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
 		}
 	}
@@ -1293,8 +1349,29 @@ Animation.do = function(){
 	}
 };
 
+Animation.animationsOfElem = function(elem){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].elem === elem){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
+Animation.animationByName = function(name){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].name === name){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
 // extends AttrMixin
 Class.mixins.AnimatableMixin = {
+	animQueue : [],
 	animate : function(attr, value, options, easing, callback){
 		// attr, value, duration, easing, callback
 		// attrs, duration, easing, callback
@@ -1323,8 +1400,7 @@ Class.mixins.AnimatableMixin = {
 		var fx;
 		if(attr instanceof Animation){
 			fx = attr;
-			// not sure if this works
-			Object.assign(fx, options);
+			fx.setParams(options.duration, options.easing, options.callback);
 		} else {
 			fx = new Animation(
 				options.duration,
@@ -1332,9 +1408,6 @@ Class.mixins.AnimatableMixin = {
 				options.callback
 			);
 
-			/* if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-				throw 'Animation for "' + attr + '" is not supported';
-			} */
 			if(attr.constructor === String){
 				// attr, value
 				fx.prop = attr;
@@ -1343,6 +1416,10 @@ Class.mixins.AnimatableMixin = {
 					this.attrHooks[attr].preAnim.call(this, fx, value);
 					this.attrs.animation = fx;
 				}.bind(this);
+
+				if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+					throw 'Animation for "' + attr + '" is not supported';
+				}
 			} else {
 				// attrs
 				fx.prop = Object.keys(attr).map(function(prop){
@@ -1376,59 +1453,47 @@ Class.mixins.AnimatableMixin = {
 			fx.name = options.name;
 		}
 
-		fx.play();
-
-		// var queue = options.queue;
-		/* if(queue !== false){
-			if(queue === true || queue === undefined){
-				if(!this._queue){
-					this._queue = [];
-				}
-				queue = this._queue;
-			} else if(queue instanceof Drawable){
-				queue = queue._queue;
+		if(!options.ignoreQueue){
+			fx.queue = this.animQueue;
+			fx.queue.push(fx);
+			if(fx.queue.length === 1){
+				fx.play();
 			}
-			fx.queue = queue;
-			queue.push(fx);
-			if(queue.length > 1){
-				return this;
-			}
-		} */
-		// todo: fx.onFinish = this.attrs.animation = null;
+		} else {
+			fx.play();
+		}
 
 		return this;
 	},
 
 	// stop(clearQueue, jumpToEnd)
-	pause : function(name){
-		if(!this._paused){
-			this._paused = [];
+	pause : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.pause();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].pause();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.pause();
+			});
 		}
-		// this.attrs.animation = null;
-
-		// pause changes the original array
-		// so we need slice
-		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (anim.name === name || !name)){
-				anim.pause();
-				this._paused.push(anim);
-			}
-		}, this);
 		return this;
 	},
 
-	continue : function(name){
-		if(!this._paused){
-			return;
+	continue : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.continue();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].continue();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.continue();
+			});
 		}
-
-		this._paused.slice().forEach(function(anim, index){
-			if(!name || anim.name === name){
-				anim.continue();
-				this._paused.splice(index, 1);
-			}
-		}, this);
-
 		return this;
 	}
 };
@@ -1525,8 +1590,6 @@ Animation.easing = {
 
 };
 
-// Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
-
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
 		return Math.pow(t, i + 2);
@@ -1569,7 +1632,7 @@ Context = function(canvas){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.cache     = {};
+	this.cache     = {}; // todo: is it neccessary? it was used only in transforms before TransformableMixin
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -1580,7 +1643,7 @@ Context.prototype = {
 		if(object.constructor === Function){
 			object = {draw: object};
 		}
-		return this.push(extend(new Drawable(), object));
+		return this.push(Object.assign(new Drawable(), object));
 	},
 
 	rect : function(){
@@ -1655,7 +1718,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate/* || this.elements.length === 0*/){ // doesnt work with Drawable::remove
+		if(this._willUpdate){ // doesnt work with Drawable::remove
 			return;
 		}
 
@@ -1664,7 +1727,8 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
-		console.time('drawing');
+		this.fire('beforeUpdate');
+
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -1687,7 +1751,8 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
-		console.timeEnd('drawing');
+
+		this.fire('afterUpdate');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -2151,11 +2216,11 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.width;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.width = value;
 				// if dpi != 1 && !canvas.style.width
 				// or simpler: if this.attrs.dpi !== undefined
-				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
-				// if (newWidth > width):
+				this.canvas.style.width = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
@@ -2165,13 +2230,16 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.height;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.height = value;
-				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
-				// if (newHeight > height):
+				this.canvas.style.height = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
 			}
 		},
 
+		// note: two things below may not work if we rewrite canvas' itself styles
+
+		// todo: dpi doesn't work
 		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
 		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
 		// http://www.html5gamedevs.com/topic/732-retina-support/
@@ -2187,6 +2255,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 		},
 
 		smooth : {
+			// todo: use crisp-edges instead? ff doesn't know pixelated
 			get : function(value){
 				var ir = this.canvas.style.imageRendering;
 				return ir !== 'pixelated' && ir !== 'crisp-edges';
@@ -2230,8 +2299,7 @@ function getSVGFilter(){
 }
 
 function DrawableAttrHooks(attrs){
-	// it seems deepExtend is not neccessary
-	extend(this, attrs);
+	Object.assign(this, attrs);
 }
 
 function updateSetter(){
@@ -2252,6 +2320,7 @@ function Drawable(args){
 		transform: 'attributes',
 		pivot: 'center'
 	};
+	this.animQueue = [];
 
 	if(this.argsOrder){
 		this.processArguments(args, this.argsOrder);
@@ -2260,16 +2329,12 @@ function Drawable(args){
 
 Drawable.prototype = {
 	initialize: Drawable,
-	// mixin: [Class.AttrMixin, Class.EventMixin]
-	// to gradients & patterns: [Class.LinkMixin]
 
 	// actual update function
 	updateFunction : function(){
 		if(this.context){
 			this.context.update();
 		}
-		// if this.onUpdate then this.fire('update')
-		// neccessary for clips and so on
 		return this;
 	},
 
@@ -2278,67 +2343,48 @@ Drawable.prototype = {
 		return this;
 	},
 
-	/*
-		default: {
-			attrs: true, styles: true, // note they re same
-			clip: true,
-			transform: true,
-			fills: true // clone gradients, patterns?
-		}
-	  */
 	cloneReducers : {
 		order : 'clone',
-		clone : function(){}
+		clone : function(value, nothing, options){
+			var clone = new this.constructor([this.attrs]);
+			if(options.attrs === false){
+				clone.attrs = this.attrs;
+			}
+			if(options.events !== 'no-copy'){
+				if(options.events === false){
+					clone.listeners = this.listeners;
+				} else {
+					clone.listeners = {};
+					Object.keys(this.listeners).forEach(function(event){
+						clone.listeners[event] = this.listeners[event].slice();
+					}, this);
+				}
+			}
+			if(options.fills){
+				if(this.attrs.fill && this.attrs.fill.clone){
+					clone.attr('fill', this.attrs.fill.clone(options.fillOptions));
+				}
+				// todo: stroke
+			}
+			if(options.push !== false && this.context){
+				this.context.push(clone);
+			}
+			return clone;
+		},
 	},
 
 	clone : function(options){
 		options = Object.assign({
-			clone : true,
-			attrs : true,
-
+			clone : true
 		}, options);
 
-		return this.boundsReducers.order.split(' ').reduce(function(result, caller){
+		return this.cloneReducers.order.split(' ').reduce(function(result, caller){
 			if(options[caller] === undefined){
 				return result;
 			}
 
 			return this.cloneReducers[caller].call(this, options[caller], result, options);
 		}.bind(this), null);
-
-		/*
-		// todo: replace arguments to one config {styles: false, matrix: true}
-		// todo: test on all obs
-		var clone = new this.constructor([], this.context);
-		// можно заюзать this.argsOrder
-		// todo: необходим deepClone везде
-
-		if(attrs === false){
-			clone.attrs = this.attrs;
-		} else {
-			clone.attrs = extend({}, this.attrs);
-		}
-
-		if(styles === false){
-			clone.styles = this.styles;
-			clone.matrix = this.matrix;
-		} else {
-			clone.styles = extend({}, this.styles);
-			// must gradients be cloned?
-			// yep, they should
-			if(this.matrix){
-				clone.matrix = this.matrix.slice();
-			}
-		}
-
-		if(events === false){
-			clone.listeners = this.listeners;
-		} else {
-			clone.listeners = extend({}, this.listeners);
-		}
-
-		// if this.context:
-		return this.context.push(clone); */
 	},
 
 	remove : function(){
@@ -2349,210 +2395,14 @@ Drawable.prototype = {
 		return this;
 	},
 
-	// Attributes
-/*	attr: Class.attr,
-
-	attrHooks: DrawableAttrHooks.prototype = {
-		z: {
-			get: function(){
-				return this.context.elements.indexOf(this);
-			},
-			set: function(value){
-				var elements = this.context.elements;
-				if(value === 'top'){
-					value = elements.length;
-				}
-
-				elements.splice(this.context.elements.indexOf(this), 1);
-				elements.splice(value, 0, this);
-				this.update();
-			}
-		},
-
-		visible: {
-			set: function(){
-				this.update();
-			}
-		},
-
-		fill: {
-			get: function(){
-				// а градиенты?
-				return this.styles.fillStyle;
-			},
-			set: function(value){
-				// if(oldValue is gradient) oldValue.unbind(this);
-				this.styles.fillStyle = value;
-				this.update();
-			}
-		},
-
-		// fillRule?
-
-		stroke: {
-			set: function(value){
-				Drawable.processStroke(value, this.styles);
-				this.update();
-			}
-		},
-
-// todo: запихнуть всё относящееся к stroke в stroke
-		strokeMode: {
-			get: function(){
-				return this.attrs.strokeMode || 'over';
-			},
-			set: function(value){
-				this.update();
-			}
-		},
-
-		shadow: {
-			set: function(value){
-				Drawable.processShadow(value, this.styles);
-				this.update();
-			}
-		},
-
-		opacity: {
-			get: function(){
-				return this.styles.globalAlpha !== undefined ? this.styles.globalAlpha : 1;
-			},
-			set: function(value){
-				this.styles.globalAlpha = +value;
-				this.update();
-			}
-		},
-
-		composite: {
-			get: function(){
-				return this.styles.globalCompositeOperation;
-			},
-			set: function(value){
-				this.styles.globalCompositeOperation = value;
-				this.update();
-			}
-		},
-
-		clip: {
-			set: function(value){
-				value.context = this.context;
-				this.attrs.clip = value; // is it neccessary?
-				this.update();
-			}
-		},
-
-		cursor: {
-			set: function(value){
-				// this._setCursorListener();
-				// this._teardownCursorListener();
-			}
-		},
-
-		transform: {
-			set: function(value){
-				this.cache.transform = null;
-				this.update();
-			}
-		},
-
-		translate: {
-			get: function(){
-				return this.attrs.translate || [0, 0];
-			},
-			set: function(value){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		rotate: {
-			get: function(){
-				return this.attrs.rotate || 0;
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		scale: {
-			get: function(){
-				return this.attrs.scale || [1, 1];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		}
-	}, */
-
-	// Transforms
-	getTransform : function(){
-		if(this.cache.transform){
-			return this.cache.transform;
-		}
-
-		var matrix = Delta.parseTransform(this.attrs, this);
-		this.cache.transform = matrix;
-		return matrix;
-	},
-
-// Object -> ArgumentObject?
-	processObject : function(object, arglist){
-		// todo: вынести в отдельный объект
-		['opacity', 'composite', 'clip', 'visible', 'interaction', 'shadow',
-		'z', 'transform', 'transformOrder', 'rotate', 'skew', 'scale'].forEach(function(prop){
-			if(object[prop] !== undefined){
-				this.attr(prop, object[prop]);
-			}
-		}, this);
-
-		return arglist.map(function(name){
-			return object[name];
-		});
-	},
-
-	processArguments : function(args, arglist){
-		if(args[0].constructor === Object){
-			this.attr(args[0]);
-		} else {
-			var object = {};
-			arglist.forEach(function(argName, i){
-				if (args[i] !== undefined) {
-					object[argName] = args[i];
-				}
-			}, this);
-			this.attr(object);
-		}
-	},
-
 	// Before -> Pre
 	isPointInBefore : function(x, y, options){
-		if(options){
-			if(options.transform !== false){
-				var transform = this.getTransform();
-				if(!Delta.isIdentityTransform(transform)){
-					var inverse = Delta.inverseTransform(transform);
-					return Delta.transformPoint(inverse, [x, y]);
-				}
+		options = options === 'mouse' ? this.attrs.interactionProps : options;
+		if(options && options.transform !== false){
+			var transform = this.getTransform();
+			if(!Delta.isIdentityTransform(transform)){
+				var inverse = Delta.inverseTransform(transform);
+				return Delta.transformPoint(inverse, [x, y]);
 			}
 		}
 
@@ -2562,13 +2412,12 @@ Drawable.prototype = {
 	// Bounds
 	boundsReducers : {
 		order : 'accuracy transform stroke tight',
-		accuracy : function(value){
-			// todo: fix
+		accuracy : function(value, result, options){
 			if(value === 'precise'){
-				return (this.preciseBounds || this.roughBounds).call(this);
+				return (this.preciseBounds || this.roughBounds).call(this, options);
 			}
 			if(value === 'rough'){
-				return (this.roughBounds || this.preciseBounds).call(this);
+				return (this.roughBounds || this.preciseBounds).call(this, options);
 			}
 		},
 
@@ -2650,7 +2499,7 @@ Drawable.prototype = {
 
 	bounds : function(options){
 		options = Object.assign({
-			accuracy : 'precise', // precise, rough, available (precise if it is)
+			accuracy : 'precise', // precise, rough
 			transform : 'full', // full, context, self, none
 			stroke : 'ignore', // +, -, ignore
 			tight: false // if true returns tight box from transform, if false then modifies it to non-tight
@@ -2667,13 +2516,8 @@ Drawable.prototype = {
 	},
 
 	corner : function(corner, bounds){
-		// todo: remove
-//		if(Array.isArray(corner)){
-//			return corner;
-//		}
-
 		// todo: transformed state
-		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds); // зачем?
+		bounds = bounds instanceof Bounds ? bounds : this.bounds(bounds);
 		// todo: bounds.tight = true support (return bounds.lt if corner.lt)
 		return [
 			bounds.x + bounds.w * Delta.corners[corner][0],
@@ -2885,118 +2729,7 @@ Drawable.prototype = {
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
-	},
-/*
-	// Animation
-	animate : function(attr, value, options){
-		// attr, value, duration, easing, callback
-		// attrs, duration, easing, callback
-		// attr, value, options
-		// attrs, options
-		if(attr + '' !== attr){
-			// todo:
-			// the fx ob wiil not represent others
-			// object.fx.stop() will stop only one anim
-			if(+value === value || !value){
-				options = {duration: value, easing: options, callback: arguments[3]};
-			} else if(typeof value === 'function'){
-				options = {callback: value};
-			} else {
-				options = value;
-			}
-
-			Object.keys(attr).forEach(function(key, i){
-				this.animate(key, attr[key], options);
-				if(i === 0){
-					options.queue = false;
-					options.callback = null;
-				}
-			}, this);
-			return this;
-		}
-
-		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-			throw 'Animation for "' + attr + '" is not supported';
-		}
-
-		if(+options === options || !options){
-			options = {duration: options, callback: arguments[4], easing: arguments[3]};
-		} else if(typeof options === 'function'){
-			options = {callback: options};
-		}
-
-		var fx = new Animation(
-			options.duration,
-			options.easing,
-			options.callback
-		);
-
-		fx.prop = attr;
-		fx.tick = this.attrHooks[attr].anim;
-		fx.tickContext = this;
-		fx.prePlay = function(){
-			this.fx = fx;
-			this.attrHooks[attr].preAnim.call(this, fx, value);
-		}.bind(this);
-
-		// is used to pause / cancel anims
-		fx.elem = this;
-		if(options.name){
-			fx.name = options.name;
-		}
-
-		var queue = options.queue;
-		if(queue !== false){
-			if(queue === true || queue === undefined){
-				if(!this._queue){
-					this._queue = [];
-				}
-				queue = this._queue;
-			} else if(queue instanceof Drawable){
-				queue = queue._queue;
-			}
-			fx.queue = queue;
-			queue.push(fx);
-			if(queue.length > 1){
-				return this;
-			}
-		}
-
-		fx.play();
-
-		return this;
-	},
-
-	pause : function(name){
-		if(!this._paused){
-			this._paused = [];
-		}
-
-		// pause changes the original array
-		// so we need slice
-		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (anim.name === name || !name)){
-				anim.pause();
-				this._paused.push(anim);
-			}
-		}, this);
-		return this;
-	},
-
-	continue : function(name){
-		if(!this._paused){
-			return;
-		}
-
-		this._paused.slice().forEach(function(anim, index){
-			if(!name || anim.name === name){
-				anim.continue();
-				this._paused.splice(index, 1);
-			}
-		}, this);
-
-		return this;
-	} */
+	}
 };
 
 Drawable.AttrHooks = DrawableAttrHooks;
@@ -3202,12 +2935,47 @@ Object.assign(Drawable.prototype,
 		// note: value = null is an official way to remove styles
 		fill : {
 			set : function(value){
-				// todo: if value.changeable then value.on('change', this.update)
+				if(this.attrs.fillLink && this.attrs.fillLink !== value){
+					var index = this.attrs.fillLink.updateList.indexOf(this);
+					if(index !== -1){
+						this.attrs.fillLink.updateList.splice(index, 1);
+					}
+				}
+
 				if (value.toCanvasStyle) {
+					if(value.updateList){
+						this.attrs.fillLink = value;
+						value.updateList.push(this);
+					}
 					delete this.styles.fillStyle;
 				} else {
 					this.styles.fillStyle = value;
 				}
+				this.update();
+			},
+
+			preAnim: function(fx, endValue){
+				if(this.attrs.fill.constructor !== String){
+					fx.cancel();
+					throw "Can't animate non-color fill";
+				}
+				fx.startValue = Delta.color(this.attrs.fill);
+				fx.endValue = Delta.color(endValue);
+				fx.delta = [
+					fx.endValue[0] - fx.startValue[0],
+					fx.endValue[1] - fx.startValue[1],
+					fx.endValue[2] - fx.startValue[2],
+					fx.endValue[3] - fx.startValue[3]
+				];
+			},
+
+			anim: function(fx){
+				this.attrs.fill = this.styles.fillStyle = 'rgba(' + [
+					fx.startValue[0] + fx.delta[0] * fx.pos | 0,
+					fx.startValue[1] + fx.delta[1] * fx.pos | 0,
+					fx.startValue[2] + fx.delta[2] * fx.pos | 0,
+					fx.startValue[3] + fx.delta[3] * fx.pos
+				].join(',') + ')';
 				this.update();
 			}
 		},
@@ -3218,144 +2986,177 @@ Object.assign(Drawable.prototype,
 
 		stroke : {
 			set : function(value){
-				// todo: it must annihilate previous stroke params first
-				if(value.constructor === String){
-					// remove spaces between commas
-					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+				var style = {};
 
-					var opacity,
-						l = value.length,
+				if(value === null){}
+				else if(isString(value)){
+					// remove spaces between commas
+					value = value.replace(/\s*\,\s*/g, ',').split(' '); // without braces regexp
+
+					var opacity, color, l = value.length,
 						joinSet = false,
-						capSet = false,
-						color;
+						capSet = false;
 
 					while(l--){
 						if(reFloat.test(value[l])){
 							opacity = parseFloat(value[l]);
 						} else if(isNumberLike(value[l])){
-							this.styles.lineWidth = Delta.distance(value[l]);
+							style.lineWidth = Delta.distance(value[l]);
 						} else if(value[l] === 'round'){
 							if(!joinSet){
-								this.styles.lineJoin = 'round';
+								style.lineJoin = 'round';
 							}
 							if(!capSet){
-								this.styles.lineCap = 'round';
+								style.lineCap = 'round';
 							}
 						} else if(value[l] === 'miter' || value[l] === 'bevel'){
 							joinSet = true;
-							this.styles.lineJoin = value[l];
+							style.lineJoin = value[l];
 						} else if(value[l] === 'butt' || value[l] === 'square'){
 							capSet = true;
-							this.styles.lineCap = value[l];
+							style.lineCap = value[l];
 						} else if(value[l][0] === '['){
-							;
-				//style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-						} else if(Delta.dashes[value[l]]){
-							;
+							style.strokeDash = value[l].substr(1, value[l].length - 2).split(',');
+						} else if(value[l] in Delta.dashes){
+							style.strokeDash = Delta.dashes[value[l]];
 						} else if(value[l].lastIndexOf('ml') === value[l].length - 2){
-							;
-						} else if(value[l].lastIndexOf('do') === value[l].length - 2){
+							style.miterLimit = +value[l].slice(0, value[l].length - 2);
+						} else if(value[l].indexOf('do') === value[l].length - 2){
 							// todo: check about cross-browser support
 							// mozDashOffset
 							// webkitLineDashOffset
-							//style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-							this.styles.lineDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
+							// style.lineDashOffset = Delta.distance(value[l].slice(2));
+							style.strokeDashOffset = Delta.distance(value[l].slice(0, value[l].length - 2));
 						} else {
 							color = value[l];
-							// this.style('strokeStyle', value[l]);
 						}
 					}
-
 					if(color){
 						if(opacity){
 							color = Delta.color(color);
 							color[3] = opacity;
 							color = 'rgba(' + color.join(',') + ')';
 						}
-						this.styles.strokeStyle = color;
+						style.strokeStyle = color;
 					}
 				} else {
-					;
+					if(value.color !== undefined){
+						style.strokeStyle = value.color;
+					}
+					if(value.opacity !== undefined && style.strokeStyle){
+						var parsed = Delta.color(style.strokeStyle);
+						parsed[3] = value.opacity;
+						style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
+					}
+					if(value.width !== undefined){
+						style.lineWidth = Delta.distance(value.width);
+					}
+					if(value.join !== undefined){
+						style.lineJoin = value.join;
+					}
+					if(value.cap !== undefined){
+						style.lineCap = value.cap;
+					}
+					if(value.miterLimit !== undefined){
+						style.miterLimit = value.miterLimit;
+					}
+					if(value.dash !== undefined){
+						if(value.dash in Delta.dashes){
+							// style.lineDash = Delta.dashes[value.dash];
+							style.strokeDash = Delta.dashes[value.dash];
+						} else {
+							// style.lineDash = value.dash;
+							style.strokeDash = value.dash;
+						}
+					}
+					if(value.dashOffset !== undefined){
+						// style.lineDashOffset = Delta.distance(value.dashOffset);
+						style.strokeDashOffset = Delta.distance(value.dashOffset);
+					}
 				}
-				/*
-	if(stroke + '' === stroke){
-		// remove spaces between commas
-		stroke = stroke.replace(/(\s*\,\s*)/g, ',').split(' '); // without braces regexp
 
-		var opacity, l = stroke.length,
-			joinSet = false,
-			capSet = false;
+				[
+					'strokeStyle',
+					'lineWidth',
+					'lineJoin',
+					'lineCap',
+					'miterLimit'
+				].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
+				// на самом деле этот всё не нужно пихать в стили, нужно применять стили из параметров
+				if(style.strokeDash){
+					this.attrs.strokeDash = style.strokeDash;
+				} else {
+					delete this.attrs.strokeDash;
+				}
 
-		while(l--){
-			if(reFloat.test(stroke[l])){
-				opacity = parseFloat(stroke[l]);
-			} else if(isNumberLike(stroke[l])){
-				style.lineWidth = Delta.distance(stroke[l]);
-			} else if(stroke[l] === 'round'){
-				if(!joinSet){
-					style.lineJoin = 'round';
+				if(style.strokeDashOffset){
+					this.attrs.strokeDashOffset = style.strokeDashOffset;
+				} else {
+					delete this.attrs.strokeDashOffset;
 				}
-				if(!capSet){
-					style.lineCap = style.lineCap || 'round';
+			}
+		},
+
+		// todo: to plugin
+		/* strokeMode: {
+			get: function(){
+				return this.attrs.strokeMode || 'over';
+			},
+			set: function(value){
+				this.update();
+			}
+		}, */
+
+		/* cursor: {
+			set: function(value){
+				// this._setCursorListener();
+				// this._teardownCursorListener();
+			}
+		}, */
+
+		shadow : {
+			set : function(value){
+				var style = {};
+
+				if(value === null){}
+				else if(isString(value)){
+					var shadowProps = ['shadowOffsetX', 'shadowOffsetY', 'shadowBlur'];
+					value = value.replace(/\s*\,\s*/g, ',').split(' ');
+					for(var i = 0; i < value.length; i++){
+						if(isNaN(+value[i][0])){
+							style.shadowColor = value[i];
+						} else {
+							style[shadowProps.shift()] = Delta.distance(value[i]);
+						}
+					}
+				} else {
+					if(value.x !== undefined){
+						style.shadowOffsetX = Delta.distance(value.x);
+					}
+					if(value.y !== undefined){
+						style.shadowOffsetY = Delta.distance(value.y);
+					}
+					if(value.blur !== undefined){
+						style.shadowBlur = Delta.distance(value.blur);
+					}
+					if(value.color){
+						style.shadowColor = value.color;
+					}
 				}
-			} else if(stroke[l] === 'miter' || stroke[l] === 'bevel'){
-				joinSet = true;
-				style.lineJoin = stroke[l];
-			} else if(stroke[l] === 'butt' || stroke[l] === 'square'){
-				capSet = true;
-				style.lineCap = stroke[l];
-			} else if(stroke[l][0] === '['){
-				style.lineDash = stroke[l].substr(1, stroke[l].length - 2).split(',');
-			} else if(stroke[l] in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke[l]];
-			} else if(stroke[l].lastIndexOf('ml') === stroke[l].length - 2){
-				style.miterLimit = +stroke[l].slice(0, stroke[l].length - 2);
-			} else if(stroke[l].indexOf('do') === 0){
-				// todo: check about cross-browser support
-				// mozDashOffset
-				// webkitLineDashOffset
-				style.lineDashOffset = Delta.distance(stroke[l].slice(2));
-			} else {
-				style.strokeStyle = stroke[l];
-			}
-		}
-		if(opacity){
-			stroke = Delta.color(style.strokeStyle);
-			stroke[3] = opacity;
-			style.strokeStyle = 'rgba(' + stroke.join(',') + ')';
-		}
-	} else {
-		if(stroke.color !== undefined){
-			style.strokeStyle = stroke.color;
-		}
-		if(stroke.opacity !== undefined && style.strokeStyle){
-			var parsed = Delta.color(style.strokeStyle);
-			parsed[3] = stroke.opacity;
-			style.strokeStyle = 'rgba(' + parsed.join(',') + ')';
-		}
-		if(stroke.width !== undefined){
-			style.lineWidth = Delta.distance(stroke.width);
-		}
-		if(stroke.join !== undefined){
-			style.lineJoin = stroke.join;
-		}
-		if(stroke.cap !== undefined){
-			style.lineCap = stroke.cap;
-		}
-		if(stroke.miterLimit !== undefined){
-			style.miterLimit = stroke.miterLimit;
-		}
-		if(stroke.dash !== undefined){
-			if(stroke.dash in Delta.dashes){
-				style.lineDash = Delta.dashes[stroke.dash];
-			} else {
-				style.lineDash = stroke.dash;
-			}
-		}
-		if(stroke.dashOffset !== undefined){
-			style.lineDashOffset = Delta.distance(stroke.dashOffset);
-		}
-	} */
+
+				['shadowOffsetX', 'shadowOffsetY', 'shadowColor', 'shadowBlur'].forEach(function(prop){
+					if(style[prop]){
+						this.styles[prop] = style[prop];
+					} else {
+						delete this.styles[prop];
+					}
+				}, this);
 			}
 		},
 
@@ -3366,7 +3167,9 @@ Object.assign(Drawable.prototype,
 			set : function(value){
 				this.styles.globalAlpha = +value;
 				this.update();
-			}
+			},
+			preAnim : Animation.tick.numAttr.preAnim,
+			anim : Animation.tick.numAttr.anim
 		},
 
 		composite : {
@@ -3423,20 +3226,41 @@ Rect = new Class(Drawable, {
 	argsOrder: ['x', 'y', 'width', 'height', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		x: {set: updateSetter},
-		y: {set: updateSetter},
-		width: {set: updateSetter},
-		height: {set: updateSetter},
+		x : {
+			set : function(value){
+				this.attrs.x = distance(value);
+				this.update();
+			}
+		},
+		y : {
+			set : function(value){
+				this.attrs.y = distance(value);
+				this.update();
+			}
+		},
+		width : {
+			set : function(value){
+				this.attrs.width = distance(value);
+				this.update();
+			}
+		},
+		height : {
+			set : function(value){
+				this.attrs.height = distance(value);
+				this.update();
+			}
+		},
 
 		x1: {
 			get: function(){
 				return this.attrs.x;
 			},
 			set: function(value){
-				this.attrs.width += (this.attrs.x - value);
+				value = distance(value);
 				this.attrs.x = value;
+				this.attrs.width += (this.attrs.x - value);
 				this.update();
-				return null;
+				delete this.attrs.x1;
 			}
 		},
 		y1: {
@@ -3444,10 +3268,11 @@ Rect = new Class(Drawable, {
 				return this.attrs.y;
 			},
 			set: function(value){
+				value = distance(value);
 				this.attrs.height += (this.attrs.y - value);
 				this.attrs.y = value;
 				this.update();
-				return null;
+				delete this.attrs.y1;
 			}
 		},
 		x2: {
@@ -3455,9 +3280,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.x + this.attrs.width;
 			},
 			set: function(value){
+				value = distance(value);
 				this.attrs.width = value - this.attrs.x;
 				this.update();
-				return null;
+				delete this.attrs.x2;
 			}
 		},
 		y2: {
@@ -3465,9 +3291,10 @@ Rect = new Class(Drawable, {
 				return this.attrs.y + this.attrs.height;
 			},
 			set: function(value){
+				value = distance(value);
 				this.attrs.height = value - this.attrs.y;
 				this.update();
-				return null;
+				delete this.attrs.y2;
 			}
 		}
 	}),
@@ -3486,6 +3313,7 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
+// doesnt work with negative width / height!
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
@@ -3501,13 +3329,6 @@ Rect = new Class(Drawable, {
 			this.attrs.height
 		);
 	},
-/*
-	bounds: function(transform, around){
-		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height],
-			transform, around
-		]);
-	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -3558,13 +3379,27 @@ Circle = new Class(Drawable, {
 	argsOrder: ['cx', 'cy', 'radius', 'fill', 'stroke'],
 
 	attrHooks: new DrawableAttrHooks({
-		cx: {set: updateSetter},
-		cy: {set: updateSetter},
-		radius: {set: updateSetter}
+		cx : {
+			set : function(value){
+				this.attrs.cx = distance(value);
+				this.update();
+			}
+		},
+		cy : {
+			set : function(value){
+				this.attrs.cy = distance(value);
+				this.update();
+			}
+		},
+		radius : {
+			set : function(value){
+				this.attrs.radius = distance(value);
+				this.update();
+			}
+		}
 	}),
 
 	isPointIn : function(x, y, options){
-		options = (options === 'mouse' ? this.attrs.interactionProps : options) || {};
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
@@ -3616,12 +3451,10 @@ Circle = new Class(Drawable, {
 
 Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
-Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
-/*
 ['cx', 'cy', 'radius'].forEach(function(propName){
-	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
-	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
-}); */
+	Circle.prototype.attrHooks[propName].preAnim = Animation.tick.numAttr.preAnim;
+	Circle.prototype.attrHooks[propName].anim = Animation.tick.numAttr.anim;
+});
 
 Delta.circle = function(){
 	return new Circle(arguments);
@@ -3630,7 +3463,7 @@ Delta.circle = function(){
 Delta.Circle = Circle;
 
 function CurveAttrHooks(attrs){
-	extend(this, attrs); // todo: deepExtend neccessary?
+	Object.assign(this, attrs);
 }
 
 Curve = new Class({
@@ -3657,15 +3490,15 @@ Curve = new Class({
 
 	clone: function(){
 		var clone = Delta.curve(this.method, this.attrs.args);
-		extend(clone.attrs, this.attrs); // todo: deepExtend
+		Object.assign(clone.attrs, this.attrs); // todo: deepExtend
 		return clone;
 	},
 
 	// Path specific functions:
 
 	startAt: function(){
-		var index = this.path.attrs.d.indexOf(this);
-		return index === 0 ? [0, 0] : this.path.attrs.d[index - 1].endAt();
+		var index = this.path.attrs.curves.indexOf(this);
+		return index === 0 ? [0, 0] : this.path.attrs.curves[index - 1].endAt();
 	},
 
 	endAt: function(){
@@ -3868,8 +3701,8 @@ Path = new Class(Drawable, {
 				this.update();
 			}
 		},
-		x : {set : updateSetter},
-		y : {set : updateSetter}
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y
 	}),
 
 	// Curves
@@ -3970,6 +3803,7 @@ Path = new Class(Drawable, {
 
 	// todo: works a bit bad with translate & draggable
 	isPointIn : function(x, y, options){
+		// todo: doesnt work correct
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
@@ -3977,12 +3811,11 @@ Path = new Class(Drawable, {
 		var ctx = this.context.context;
 		ctx.save();
 		if(this.attrs.x || this.attrs.y){
+			// todo x -= this.attrs.x instead
 			ctx.translate(this.attrs.x || 0, this.attrs.y || 0);
 		}
 
-		this.attrs.curves.forEach(function(curve){
-			curve.process(ctx);
-		});
+		this.process(ctx);
 		var result = ctx.isPointInPath(x, y);
 
 		ctx.restore();
@@ -4090,94 +3923,49 @@ Delta.Path = Path;
 // {{dont include Path.SVG.js}}
 
 Picture = new Class(Drawable, {
-
 	// todo: image format libcanvas-like:
 	// '/files/img/hexes.png [150:100]{0:0}'
-	initialize : function(args){
-		this.super('initialize', arguments);
+	argsOrder : ['image', 'x', 'y', 'width', 'height', 'crop'],
 
-		if(isObject(args[0])){
-			args = this.processObject(args[0], Picture.args);
-		}
-
-		this.attrs.image = Picture.parse(args[0]);
-		this.attrs.x = args[1];
-		this.attrs.y = args[2];
-		this.attrs.width = args[3] === undefined ? 'auto' : args[3];
-		this.attrs.height = args[4] === undefined ? 'auto' : args[4];
-		if(args[5]){
-			this.attrs.crop = args[5];
-		}
-
-		this.attrs.image.addEventListener('load', function(event){
-			this.update();
-			this.fire('load', event);
-		}.bind(this));
-
-		this.attrs.image.addEventListener('error', function(e){
-			this.fire('error', event);
-		}.bind(this));
-	},
-
-	attrHooks: new DrawableAttrHooks({
-		image: {
-			set: function(value){
-				value = Picture.parse(value);
+	attrHooks : new DrawableAttrHooks({
+		image : {
+			set : function(value){
+				value = this.attrs.image = Picture.parse(value);
 
 				if(value.complete){
 					this.update();
 				}
 
-				value.addEventListener('load', function(event){
-					this.update();
-					this.fire('load', event);
-				}.bind(this));
+				value.addEventListener('load', Picture.onImageLoadedCallback.bind(this));
+				value.addEventListener('error', Picture.onImageErrorCallback.bind(this));
 
 				return value;
 			}
 		},
 
-		x: {
-			set: function(value){
-				this.attrs.x = value;
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
+		width : Rect.prototype.attrHooks.width,
+		height : Rect.prototype.attrHooks.height,
+		x1 : Rect.prototype.attrHooks.x1,
+		y1 : Rect.prototype.attrHooks.y1,
+		x2 : Rect.prototype.attrHooks.x2,
+		y2 : Rect.prototype.attrHooks.y2,
+
+		crop : {
+			set : function(value){
+				this.attrs.crop = value.map(distance);
 				this.update();
 			}
 		},
 
-		y: {
-			set: function(value){
-				this.attrs.y = value;
-				this.update();
-			}
-		},
-
-		width: {
-			set: function(value){
-				this.attrs.width = value;
-				this.update();
-			}
-		},
-
-		height: {
-			set: function(value){
-				this.attrs.height = value;
-				this.update();
-			}
-		},
-
-		crop: {
-			set: function(value){
-				this.attrs.crop = value;
-				this.update();
-			}
-		},
-
-		smooth: {
-			get: function(){
-				return this.styles[smoothPrefix(this.context.context)] || this.context.context[smoothPrefix(this.context.context)];
+		smooth : {
+			get : function(){
+				return this.attrs.smooth || true;
 			},
-			set: function(value){
-				this.styles[smoothPrefix(this.context.context)] = !!value;
+			set : function(value){
+				// this.styles[smoothPrefix(this.context.context)] = !!value;
+				this.styles.imageSmoothingEnabled = !!value;
 				this.update();
 			}
 		}
@@ -4195,8 +3983,8 @@ Picture = new Class(Drawable, {
 	},
 
 	getRealSize: function(){
-		var w = this.attrs.width,
-			h = this.attrs.height;
+		var w = this.attrs.width === undefined ? 'auto' : this.attrs.width,
+			h = this.attrs.height === undefined ? 'auto' : this.attrs.height;
 
 		// they both are auto by default because saving proportions is by default true
 		if(w === 'auto' && h === 'auto'){
@@ -4218,12 +4006,9 @@ Picture = new Class(Drawable, {
 		return [w, h];
 	},
 
-	bounds: function(transform, around){
+	preciseBounds : function(){
 		var size = this.getRealSize();
-		return this.super('bounds', [
-			[this.attrs.x, this.attrs.y, size[0], size[1]],
-			transform, around
-		]);
+		return new Bounds(this.attrs.x, this.attrs.y, size[0], size[1]);
 	},
 
 	isPointIn : function(x, y){
@@ -4236,10 +4021,9 @@ Picture = new Class(Drawable, {
 	},
 
 	draw : function(ctx){
-		if(this.attrs.visible && this.attrs.image.complete){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-
-			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
+		if(this.attrs.visible){
+			this.preDraw(ctx);
+/*			var params = [this.attrs.image, this.attrs.x, this.attrs.y];
 			var width = this.attrs.width,
 				height = this.attrs.height,
 				crop = this.attrs.crop;
@@ -4249,7 +4033,9 @@ Picture = new Class(Drawable, {
 				var size = this.getRealSize();
 				width  = size[0];
 				height = size[1];
-			}
+			} */
+			var size = this.getRealSize();
+			var crop = this.attrs.crop;
 
 			if(crop){
 				ctx.drawImage(
@@ -4258,28 +4044,30 @@ Picture = new Class(Drawable, {
 					crop[2], crop[3],
 
 					this.attrs.x, this.attrs.y,
-					width, height
+					size[0], size[1]
 				);
-			} else if(
+			} else {
+				ctx.drawImage(
+					this.attrs.image,
+
+					this.attrs.x, this.attrs.y,
+					size[0], size[1]
+				);
+			}/* else if(
 				(this.attrs.width === 'auto' || this.attrs.width === 'native') &&
 				(this.attrs.height === 'auto' || this.attrs.height === 'native')) {
 				ctx.drawImage(
 					this.attrs.image,
 					this.attrs.x, this.attrs.y
 				);
-			} else {
-				ctx.drawImage(
-					this.attrs.image,
-					this.attrs.x, this.attrs.y,
-					width, height
-				);
-			}
+			}  */
+
 			ctx.restore();
 		}
 	}
 
 });
-
+/*
 var smoothWithPrefix;
 function smoothPrefix(ctx){
 	[
@@ -4293,16 +4081,17 @@ function smoothPrefix(ctx){
 		}
 	});
 
-	smoothPrefix = function(){
-		return smoothWithPrefix;
-	};
+	smoothPrefix = smoothPrefix2;
 	return smoothWithPrefix;
 }
+function smoothPrefix2(){
+	return smoothWithPrefix;
+} */
 
 Picture.args = ['image', 'x', 'y', 'width', 'height', 'crop'];
 
 Picture.parse = function(image){
-	if(image + '' === image){
+	if(isString(image)){
 		if(image[0] === '#'){
 			return document.getElementById(image.substr(1));
 		} else if(image[0] === '<svg'){
@@ -4319,6 +4108,15 @@ Picture.parse = function(image){
 	return image;
 };
 
+Picture.onImageLoadedCallback = function(event){
+	this.update();
+	this.fire('load', event);
+};
+
+Picture.onImageErrorCallback = function(event){
+	this.fire('error', event);
+};
+
 Delta.image = function(){
 	return new Picture(arguments);
 };
@@ -4333,89 +4131,6 @@ Text = new Class(Drawable, {
 			this.styles.textBaseline = this.attrs.baseline = Text.baseline;
 		}
 	},
-/*	initialize : function(args){
-		this.super('initialize', arguments);
-
-		if(isObject(args[0])){
-			// надо просто расширять в прототипе какой-то объект со свойствами,
-			// к которому обращается processObject
-			// чтобы это всё шло в attr
-			if(args[0].align){
-				this.attrs.align = args[0].align;
-				this.styles.textAlign = args[0].align;
-			}
-
-			if(args[0].baseline){
-				this.attrs.baseline = args[0].baseline;
-			} else {
-				this.attrs.baseline = defaultBaseline;
-			}
-
-			if(args[0].breaklines !== undefined){
-				this.attrs.breaklines = args[0].breaklines;
-			} else {
-				this.attrs.breaklines = true;
-			}
-
-			if(args[0].lineHeight !== undefined){
-				this.attrs.lineHeight = args[0].lineHeight;
-			} else {
-				this.attrs.lineHeight = 'auto';
-			}
-
-			if(args[0].maxStringWidth !== undefined){
-				this.attrs.maxStringWidth = args[0].maxStringWidth;
-			} else {
-				this.attrs.maxStringWidth = Infinity;
-			}
-
-			if(args[0].blockWidth !== undefined){
-				this.attrs.blockWidth = args[0].blockWidth;
-			} else {
-				this.attrs.blockWidth = Infinity;
-			}
-
-			if(args[0].boundsMode){
-				this.attrs.boundsMode = args[0].boundsMode;
-			} else {
-				this.attrs.boundsMode = 'inline';
-			}
-
-			if(args[0].text){
-				args[0].text = args[0].text;
-			}
-
-			// todo
-			// change to: this.attrs.boundsMode = args[0].boundsMode || 'inline';
-			// and so on
-
-			args = this.processObject(args[0], Text.args);
-		} else {
-			this.attrs.baseline = defaultBaseline;
-			this.attrs.breaklines = true;
-			this.attrs.lineHeight = 'auto';
-			this.attrs.maxStringWidth = Infinity; // in the draw: if this.attrs.maxStringWidth < Infinity then ...
-			this.attrs.blockWidth = Infinity;
-			this.attrs.boundsMode = 'inline';
-		}
-
-		this.styles.textBaseline = this.attrs.baseline;
-
-		this.attrs.text = args[0] + '';
-		this.attrs.x = args[1];
-		this.attrs.y = args[2];
-		this.attrs.font = Text.parseFont(args[3] || Text.font);
-		this.styles.font = Text.genFont(this.attrs.font);
-		if(args[4]){
-			this.styles.fillStyle = args[4];
-		}
-		if(args[5]){
-			this.attr('stroke', args[5]);
-			// this.styles.stroke = args[5];
-			// Drawable.processStroke(args[5], this.styles);
-		}
-
-	}, */
 	argsOrder : ['text', 'x', 'y', 'font', 'fill', 'stroke'],
 
 	// Context2D specific stuff:
@@ -4429,8 +4144,8 @@ Text = new Class(Drawable, {
 			}
 		},
 
-		x : {set : updateSetter},
-		y : {set : updateSetter},
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
 
 		font : {
 			set: function(value){
@@ -4461,21 +4176,26 @@ Text = new Class(Drawable, {
 		},
 
 		// 'string' or 'block'
-		// before: breaklines
 		mode : {
 			get : function(){
 				return this.attrs.mode || 'string';
 			},
-			set : function(){
-				this.update();
-			}
+			set : updateSetter
 		},
 
 		maxStringWidth : {
 			get : function(){
 				return this.attrs.maxStringWidth || Infinity;
 			},
+			set : updateSetter
+		},
+
+		trimLines : {
+			get : function(){
+				return this.attrs.trimLines !== false;
+			},
 			set : function(){
+				this.lines = null;
 				this.update();
 			}
 		},
@@ -4507,44 +4227,46 @@ Text = new Class(Drawable, {
 		var text = this.attrs.text,
 			lines = this.lines = [],
 
-			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight,
-			maxWidth = this.attrs.blockWidth,
-			x = maxWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0),
+			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : this.attrs.parsedFont.size,
+			blockWidth = this.attrs.blockWidth || Infinity,
+			x = blockWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0);
 
-			rend = this.context.renderer;
-
-		rend.preMeasure(this.styles.font);
+		ctx.save();
+		ctx.font = this.styles.font;
 		text.split('\n').forEach(function(line){
-			if(rend.measure(line) > maxWidth){
-				var words = line.split(' '),
+			if(ctx.measureText(line).width <= blockWidth){
+				lines.push({
+					text: line,
+					y: lineHeight * lines.length
+				});
+			} else {
+				var words = Delta.strParse.partition(line, Text.wordSeparators),
 					curline = '',
 					testline;
-
 				for(var i = 0; i < words.length; i++){
-					testline = curline + words[i] + ' ';
-
-					if(rend.measure(testline) > maxWidth){
+					testline = curline + words[i];
+					if(ctx.measureText(testline).width <= blockWidth){
+						curline = testline;
+					} else {
 						lines.push({
 							text: curline,
-							y: height * lines.length
+							y: lineHeight * lines.length
 						});
-						curline = words[i] + ' ';
-					} else {
-						curline = testline;
+						curline = words[i];
 					}
 				}
 				lines.push({
 					text: curline,
-					y: height * lines.length
-				});
-			} else {
-				lines.push({
-					text: line,
-					y: height * lines.length
+					y: lineHeight * lines.length
 				});
 			}
-		}, this);
-		rend.postMeasure();
+		});
+		if(this.attrs.trimLines !== false){
+			lines.forEach(function(line){
+				line.text = line.text.trim();
+			});
+		}
+		ctx.restore();
 		return this;
 	},
 
@@ -4553,7 +4275,27 @@ Text = new Class(Drawable, {
 			this.preDraw(ctx);
 
 			if(this.attrs.mode === 'block'){
+				if(!this.lines){
+					this.processLines(ctx);
+				}
 
+				var x = this.attrs.x,
+					y = this.attrs.y;
+
+				if(this.attrs.fill && !this.attrs.stroke){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+					});
+				} else if(this.attrs.fill){
+					this.lines.forEach(function(line){
+						ctx.fillText(line.text, x, y + line.y);
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				} else {
+					this.lines.forEach(function(line){
+						ctx.strokeText(line.text, x, y + line.y);
+					});
+				}
 			} else {
 				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
 
@@ -4567,43 +4309,6 @@ Text = new Class(Drawable, {
 
 			ctx.restore();
 		}
-		/* if(this.attrs.visible){
-			this.context.renderer.pre(ctx, this.styles, this.matrix, this);
-
-			if(!this.attrs.breaklines){
-				var width = this.attrs.maxStringWidth < Infinity ? this.attrs.maxStringWidth : undefined;
-
-				if(this.styles.fillStyle){
-					ctx.fillText(this.attrs.text, this.attrs.x, this.attrs.y, width);
-				}
-				if(this.styles.strokeStyle){
-					ctx.strokeText(this.attrs.text, this.attrs.x, this.attrs.y, width);
-				}
-			} else {
-				if(!this.lines){
-					this.processLines(ctx);
-				}
-
-				var x = this.attrs.x,
-					y = this.attrs.y;
-
-				if(this.styles.fillStyle && !this.styles.strokeStyle){
-					this.lines.forEach(function(line){
-						ctx.fillText(line.text, x, y + line.y);
-					});
-				} else if(this.styles.fillStyle){
-					this.lines.forEach(function(line){
-						ctx.fillText(line.text, x, y + line.y);
-						ctx.strokeText(line.text, x, y + line.y);
-					});
-				} else {
-					this.lines.forEach(function(line){
-						ctx.strokeText(line.text, x, y + line.y);
-					});
-				}
-			}
-			ctx.restore();
-		} */
 	},
 
 	isPointIn : function(x, y, options){
@@ -4622,7 +4327,7 @@ Text = new Class(Drawable, {
 		ctx.font = this.styles.font;
 		if(this.attrs.mode === 'block'){
 			if(!this.lines){
-				this.processLines();
+				this.processLines(ctx);
 			}
 
 			width = this.lines.reduce(function(maxWidth, cur){
@@ -4636,23 +4341,23 @@ Text = new Class(Drawable, {
 		return width;
 	},
 
-	bounds : function(transform, around){
+	preciseBounds : function(options){
 		var bounds,
 			blockX = this.attrs.x,
 			blockY = this.attrs.y,
 			width,
-			height = this.attrs.lineHeight === 'auto' ? this.attrs.font.size : this.attrs.lineHeight;
+			height = (this.attrs.lineHeight || 'auto') === 'auto' ? this.attrs.parsedFont.size : this.attrs.lineHeight;
 
 		// text processing
-		if(this.attrs.breaklines){
+		if(this.attrs.mode === 'block'){
 			width = this.attrs.blockWidth;
 
-			if(this.attrs.boundsMode === 'inline' || !isFinite(width)){
+			if(options.blockWidth === 'inline' || !isFinite(width)){
 				width = this.measure();
 			}
 
 			if(!this.lines){
-				this.processLines();
+				this.processLines(this.context ? this.context.context : getTemporaryCanvas(0, 0).getContext('2d'));
 			}
 			height *= this.lines.length;
 		} else {
@@ -4667,11 +4372,11 @@ Text = new Class(Drawable, {
 			align = this.styles.textAlign;
 
 		if(baseline === 'middle'){
-			blockY -= this.attrs.font.size / 2;
+			blockY -= this.attrs.parsedFont.size / 2;
 		} else if(baseline === 'bottom' || baseline === 'ideographic'){
-			blockY -= this.attrs.font.size;
+			blockY -= this.attrs.parsedFont.size;
 		} else if(baseline === 'alphabetic'){
-			blockY -= this.attrs.font.size * 0.8;
+			blockY -= this.attrs.parsedFont.size * 0.8;
 		}
 
 		if(align === 'center'){
@@ -4680,9 +4385,7 @@ Text = new Class(Drawable, {
 			blockX -= width;
 		}
 
-		return this.super('bounds', [
-			[blockX, blockY, width, height], transform, around
-		]);
+		return new Bounds(blockX, blockY, width, height);
 	}
 
 });
@@ -4703,7 +4406,7 @@ Text.parseFont = function(font){
 			} else if(part === 'italic'){
 				object.italic = true;
 			} else if(reNumberLike.test(part)){
-				object.size = Delta.distance(part);
+				object.size = distance(part);
 			} else {
 				object.family += ' ' + part;
 			}
@@ -4728,111 +4431,121 @@ Text.genFont = function(font){
 	return string + (font.size || 10) + 'px ' + (font.family || 'sans-serif');
 };
 
+Text.wordSeparators = [' ', '-'];
+
 Delta.text = function(){
 	return new Text(arguments);
 };
 
 Delta.Text = Text;
 
-function Gradient(type, colors, from, to, context){
-	if(!isString(type)){
+function Gradient(type, colors, from, to){
+	if(!isString(type) && colors){
 		to = from;
 		from = colors
 		colors = type;
-		type = 'linear';
+		type = Gradient.types.default;
 	}
 
-	if(!Gradient.types[type]){
-		throw 'Unknown gradient type "' + type + '"';
-	}
-
-	this.attrs = {
-		type: type,
-		from: from,
-		to: to,
-		colors: Gradient.parseColors(colors)
-	};
+	this.attrs = {};
 	this.updateList = [];
-	this.context = context;
-
-	if(Gradient.types[type]){
-		extend(this, Gradient.types[type]);
-		if(this.init){
-			this.init();
-		}
+	this.processArguments([type, colors, from, to], this.argsOrder);
+	if(Gradient.types[this.attrs.type]){
+		Object.assign(this, Gradient.types[this.attrs.type]);
 	}
+	if(this.initialize){
+		this.initialize();
+	}
+
+	this.update = this.updateFunction;
 }
 
-function GradientAttrHooks(attrs){
-	// it seems deepExtend is not neccessary
-	extend(this, attrs);
+Gradient.AttrHooks = function(attrs){
+	Object.assign(this, attrs);
 }
 
-extend(Gradient.prototype, Class.mixins['AttrMixin'], {
-	attrHooks : GradientAttrHooks.prototype = {
-		type : {set : updateSetter},
+Object.assign(Gradient.prototype, Class.mixins['AttrMixin'], {
+	argsOrder : ['type', 'colors', 'from', 'to'],
 
+	cached : null,
+
+	attrHooks : Gradient.AttrHooks.prototype = {
 		colors : {
 			set : function(value){
-				if(this.cached){
-					this.cached = null;
-				}
-				this.attrs.colors = Gradient.parseColors(colors);
+				this.cached = null;
+				this.attrs.colors = Gradient.parseColors(value);
 				this.update();
 			}
 		}
 	},
 
 	update : function(){
+		return this;
+	},
+
+	updateFunction : function(){
 		this.updateList.forEach(function(elem){
 			elem.update();
 		});
 		return this;
 	},
 
+	clone : function(){
+		return new Gradient(this.attrs);
+	},
+
 	// t, mixColors
 	// t, value
 	color : function(t, value){
-		// if !mix then do not mix them
+		var i = 0,
+			colors = this.attrs.colors = this.attrs.colors.sort(function(pair1, pair2){
+				return pair1[0] > pair2[0] ? 1 : -1;
+			});
+
+		while(colors[i][0] < t && ++i < colors.length);
+
 		if(value !== undefined && !isBoolean(value)){
-			this.attrs.colors.push([t, value]);
+			this.cached = null;
+			if(colors[i] && colors[i][0] === t){
+				colors[i][1] = value;
+			} else {
+				colors.push([t, value]);
+			}
 			return this.update();
 		}
 
-		var colors = this.attrs.colors = this.attrs.colors.sort(function(pair1, pair2){
-			return pair1[0] > pair2[0] ? 1 : -1;
-		});
-		// todo: support mixColor argument
-
-		if(t < colors[0][0]){
-			return Delta.color(colors[0][1]);
-		} else if(t > colors[colors.length - 1][0]){
-			return Delta.color(colors[colors.length - 1][1]);
+		if(colors[i] && colors[i][0] === t){
+			return Delta.color(colors[i][1]);
 		}
 
-		for(var i = 0; i < colors.length; i++){
-			if(colors[i][0] === t){
-				return Delta.color(colors[i][1]);
+		if(value === false){
+			// do not mix colors
+			return null;
+		} else {
+			if(t < colors[0][0]){
+				return Delta.color(colors[0][1]);
+			} else if(t > colors[colors.length - 1][0]){
+				return Delta.color(colors[colors.length - 1][1]);
 			}
 
-			if(keys[i] > t){
-				var c1 = Delta.color(colors[i - 1][1]),
-					c2 = Delta.color(colors[i][1]);
-				t = (t - colors[i - 1][0]) / (colors[i][0] - colors[i - 1][0]);
-				return [
-					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
-					c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
-					c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
-					+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
-				];
-			}
+			var c1 = Delta.color(colors[i - 1][1]),
+				c2 = Delta.color(colors[i][1]);
+			t = (t - colors[i - 1][0]) / (colors[i][0] - colors[i - 1][0]);
+			return [
+				c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
+				c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
+				c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
+				+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
+			];
 		}
 	}
 });
 
 Gradient.types = {
+	default: 'linear',
+
 	linear : {
-		attrHooks : new GradientAttrHooks({
+		attrHooks : new Gradient.AttrHooks({
 			from : {set : updateSetter},
 			to : {set : updateSetter}
 		}),
@@ -4844,7 +4557,7 @@ Gradient.types = {
 				element.corner(this.attrs.to, this.attrs.boundsOptions) : this.attrs.to;
 			var colors = this.attrs.colors;
 
-			var key = [from, to].join(' ');
+			var key = from + ' ' + to;
 			if(this.cached && this.cached.key === key){
 				return this.cached.grad;
 			}
@@ -4856,26 +4569,86 @@ Gradient.types = {
 
 			this.cached = {
 				grad : grad,
-				key : [from, to].join(' ')
+				key : key
 			};
 
 			return grad;
 		}
 	},
+
 	radial : {
-		attrHooks : new GradientAttrHooks({
-			from : {},
-			to : {},
-			radius : {},
-			startRadius : {}
+		attrHooks : new Gradient.AttrHooks({
+			from : {
+				set : function(value){
+					if(isArray(value) && value.length > 2){
+						this.attrs.startRadius = value[2];
+						this.attrs.from = value.slice(0, 2);
+					}
+					this.update();
+				}
+			},
+			to : {
+				set : function(value){
+					if(isArray(value) && value.length > 2){
+						this.attrs.radius = value[2];
+						this.attrs.to = value.slice(0, 2);
+					}
+					this.update();
+				}
+			},
+			radius : {
+				get : function(){
+					return this.attrs.radius === undefined ? 'auto' : this.attrs.radius;
+				},
+				set : updateSetter
+			},
+			startRadius : {
+				get : function(){
+					return this.attrs.startRadius || 0;
+				},
+				set : updateSetter
+			}
 		}),
 
-		toCanvasStyle : function(ctx, element){}
+		toCanvasStyle : function(ctx, element){
+			var bounds = this.attrs.boundsOptions instanceof Bounds ?
+				this.attrs.boundsOptions : element.bounds(this.attrs.boundsOptions);
+			var from = isString(this.attrs.from) ?
+				element.corner(this.attrs.from, bounds) : this.attrs.from;
+			var to = isString(this.attrs.to) ?
+				element.corner(this.attrs.to, bounds) : this.attrs.to;
+			var startRadius = this.attrs.startRadius || 0;
+			var radius = isNaN(this.attrs.radius) ?
+				Math.max(bounds.width, bounds.height) : this.attrs.radius;
+			var colors = this.attrs.colors;
+
+			var key = from + ' ' + to + ' ' + startRadius + ' ' + radius;
+			if(this.cached && this.cached.key === key){
+				return this.cached.grad;
+			}
+
+			var grad = ctx.createRadialGradient(from[0], from[1], startRadius, to[0], to[1], radius);
+			colors.forEach(function(pair){
+				grad.addColorStop(pair[0], pair[1]);
+			});
+
+			this.cached = {
+				grad : grad,
+				key : key
+			};
+
+			return grad;
+		}
 	}
 };
 
-// todo: array is faster
 Gradient.parseColors = function(colors){
+	if(isArray(colors[0])){
+		return colors.map(function(color){
+			return color.slice();
+		});
+	}
+
 	var result = [];
 	if(isArray(colors)){
 		var step = 1 / (colors.length - 1);
@@ -4884,225 +4657,13 @@ Gradient.parseColors = function(colors){
 		});
 	} else {
 		Object.keys(colors).forEach(function(pos){
-			result.push([pos, colors[pos]]);
+			result.push([+pos, colors[pos]]);
 		});
 	}
 	return result;
 };
 
-
-/* Gradient = new Class({
-	initialize: function(type, colors, from, to, context){
-		this.context = context;
-
-		if(type + '' !== type){
-			to = from;
-			from = colors;
-			colors = type;
-			type = 'linear';
-		}
-
-		if(!Gradient.types[type]){
-			throw 'Unknown gradient type "' + type + '"';
-		}
-
-		this.type = type;
-		this.attrs = {
-			from: from,
-			to: to,
-			colors: Gradient.parseColors(colors)
-		};
-		this.binds = [];
-
-		if(Gradient.types[this.type]){
-			this.attrHooks = extend( //  тут надо наследовать через прототипы, а не так
-				extend({}, this.attrHooks),
-				Gradient.types[this.type].attrHooks
-			);
-
-			if(Gradient.types[this.type].initialize){
-				Gradient.types[this.type].initialize.call(this);
-			}
-		}
-	},
-
-	attr: Class.attr,
-
-	attrHooks: {
-		colors: {
-			set: function(value){
-				this.update();
-				return Gradient.parseColors(value);
-			}
-		}
-	},
-
-	color: function(t, value){
-		if(value !== undefined){
-			this.attrs.colors[t] = value;
-			return this.update();
-		}
-		if(this.attrs.colors[t]){
-			return Delta.color(this.attrs.colors[t]);
-		}
-
-		var colors = this.attrs.colors,
-			keys = Object.keys(colors).sort(); // is this sort sorting them right? as numbera or as strings?
-
-		if(t < keys[0]){
-			return Delta.color(colors[keys[0]]);
-		} else if(t > keys[keys.length - 1]){
-			return Delta.color(colors[keys[keys.length - 1]]);
-		}
-
-		for(var i = 0; i < keys.length; i++){
-			if(+keys[i] > t){
-				var c1 = Delta.color(colors[keys[i - 1]]),
-					c2 = Delta.color(colors[keys[i]]);
-				t = (t - +keys[i - 1]) / (+keys[i] - +keys[i - 1]);
-				return [
-					c1[0] + (c2[0] - c1[0]) * t + 0.5 | 0,
-					c1[1] + (c2[1] - c1[1]) * t + 0.5 | 0,
-					c1[2] + (c2[2] - c1[2]) * t + 0.5 | 0,
-					+(c1[3] + (c2[3] - c1[3]) * t).toFixed(2)
-				];
-			}
-		}
-	},
-
-	update: function(){
-		// this.binds.forEach(elem => elem.update());
-		this.context.update();
-		return this;
-	},
-
-	toCanvasStyle: function(ctx, element){
-		return Gradient.types[this.type].toCanvasStyle.call(this, ctx, element);
-	}
-});
-
-Gradient.parseColors = function(colors){
-	if(!Array.isArray(colors)){
-		return colors;
-	}
-
-	var stops = {},
-		step = 1 / (colors.length - 1);
-	colors.forEach(function(color, i){
-		stops[step * i] = color;
-	});
-	return stops;
-};
-
-// Linear and radial gradient species
-Gradient.types = {
-	// todo: allow to pass promises (add light promises fallback into Delta)
-	linear: {
-		attrHooks: {
-			from: {
-				set: function(value){
-					this.update();
-					return value;
-				}
-			},
-			to: {
-				set: function(value){
-					this.update();
-					return value;
-				}
-			}
-		},
-
-		toCanvasStyle: function(ctx, element){
-			return this.context.renderer.makeGradient(
-				this.context,
-				'linear',
-				element.corner(this.attrs.from),
-				element.corner(this.attrs.to),
-				this.attrs.colors
-			);
-		}
-	},
-
-	radial: {
-		initialize: function(){
-			// from-to -> radius, center, etc
-			if(this.attrs.from && Array.isArray(this.attrs.from)){
-				this.attrs.startRadius = this.attrs.from[2] || 0;
-				this.attrs.from = this.attrs.from.slice(0, 2);
-			} else {
-				if(!this.attrs.from){
-					this.attrs.from = 'center';
-				}
-				this.attrs.startRadius = 0;
-			}
-
-			if(this.attrs.to && Array.isArray(this.attrs.to)){
-				this.attrs.radius = this.attrs.to[2] || 'auto';
-				this.attrs.to = this.attrs.to.slice(0, 2);
-			} else {
-				if(!this.attrs.to){
-					this.attrs.to = this.attrs.from;
-				}
-				this.attrs.radius = 'auto';
-			}
-		},
-
-		attrHooks: {
-			from: {
-				set: function(value){
-					if(Array.isArray(value) && value.length > 2){
-						this.attrs.startRadius = value[2];
-						value = value.slice(0, 2);
-					}
-					this.update();
-					return value;
-				}
-			},
-
-			to: {
-				set: function(value){
-					if(Array.isArray(value) && value.length > 2){
-						this.attrs.radius = value[2];
-						value = value.slice(0, 2);
-					}
-					this.update();
-					return value;
-					// returns do not work!
-				}
-			},
-
-			radius: {
-				set: function(value){
-					this.update();
-					return value;
-				}
-			},
-
-			startRadius: {
-				set: function(value){
-					this.update();
-					return value;
-				}
-			}
-		},
-
-		toCanvasStyle: function(ctx, element){
-			var from = element.corner(this.attrs.from),
-				to = element.corner(this.attrs.to);
-
-			return this.context.renderer.makeGradient(
-				this.context,
-				'radial',
-				[from[0], from[1], this.attrs.startRadius],
-				[to[0], to[1], this.attrs.radius === 'auto' ? element.bounds().height : this.attrs.radius],
-				this.attrs.colors
-			);
-		}
-	}
-};
-
-Delta.Gradient = Gradient; */
+Delta.Gradient = Gradient;
 // {{dont include GradientDiamond.js}}
 
 Pattern = new Class({
@@ -5144,7 +4705,360 @@ Delta.Pattern = Pattern;
 // {{dont include Animation.Along.js}}
 // {{dont include Animation.Morph.js}}
 
-// {{dont include Context.WebGL.js}}
+var GLContext;
+
+// всё, где комментарий "// {{debug}}", нужно убрать из прода (todo: встроить {{debug}} ... {{/debug}} в grunt модуль)
+/*
+Основные оптимизации:
+ - Рисовать объекты с одним буфером вместе.
+ - Рисовать более ближние объекты первыми.
+ */
+
+GLContext = new Class(Context, {
+	initialize: function(canvas){
+		// WebGL
+		this.gl = this._getAndPrepareGLContext(canvas);
+		if(!this.gl){
+			return new Delta.contexts['2d'](canvas);
+		}
+		this.shaders = {};
+		this.buffers = {};
+
+		// Context
+		this.canvas    = canvas;
+		this.elements  = [];
+		this.elementsByProgram = {};
+		this.listeners = {};
+		this.attrs     = {
+			transform: 'attributes',
+			pivot: 'center',
+			glBackgroundColor: [255, 255, 255, 1], // 0, 0, 0, 0?
+			glDrawOrder: ['program-rect']
+		};
+		// array for not yet drawn obs
+		this.glMissing  = [];
+
+		// todo: this.drawMissing = this.drawMissing.bind(this)
+		this.drawMissing = this.drawMissing.bind(this);
+		this.updateNow = this.updateNow.bind(this);
+	},
+
+	_getAndPrepareGLContext: function(canvas){
+		var gl;
+
+		if(gl = canvas.getContext('webgl'));
+		else if(gl = canvas.getContext('experimental-webgl'));
+		else if(gl = canvas.getContext('webkit-3d'));
+		else if(gl = canvas.getContext('moz-webgl'));
+		else {
+			// webgl is not supported
+			return null;
+		}
+
+		// проверить, нужно ли вообще эту функцию вызывать
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.clearColor(1, 1, 1, 1); // maybe 0,0,0,0?
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		return gl;
+	},
+
+	// Methods
+	push : function(element){
+		element.context = this;
+		this.elements.push(element);
+		(this.elementsByProgram[element.glProgramName] || (this.elementsByProgram[element.glProgramName] = []))
+			.push(element);
+
+		if(element.shadersRequired){
+			element.shadersRequired.forEach(function(shaderName){
+				this.initShader(shaderName);
+			}.bind(this));
+		}
+
+		if(element.drawGL){
+			this.glMissing.push(element);
+			if(!this._willDrawMissing){
+				requestAnimationFrame(this.drawMissing);
+				this._willDrawMissing = true;
+			}
+			// надо исполнять в следующем тике, чтобы сгруппировать объекты с одним буфером вместе
+			// а в этом тике надо компилировать все нужные для запушенного объекта шейдеры
+			// причём там рисуем в обратном порядке => последний скомпиленный шейдер, уже подключенный в gl
+			// и используется первым :P
+			// element.drawGL(this.gl);
+		}
+
+		return element;
+	},
+
+	initShader: function(name){
+		if(this.shaders[name]){
+			return;
+		}
+
+		if(!GLContext.shadersFactory[name]){
+			throw "The shader \"" + name + "\" is not exist.";
+		}
+
+		this.shaders[name] = GLContext.shadersFactory[name](this.gl, this);
+	},
+
+	drawMissing: function(){
+		this._willDrawMissing = false;
+
+		// Рисовать нужно с depth-буфером и в обратном порядке (чтобы gl-ю приходилось меньше рисовать).
+		// Кроме того, подключенный последним шейдер будет заюзан в таком порядке первым.
+		// Кроме того, нужно группировать объекты по шейдерам / буферам.
+		// Но пока не всё понятно в случае с depthtest с blending mode
+		var gl = this.gl;
+		this.glMissing.forEach(function(element){
+			element.drawGL(gl);
+		});
+	},
+
+	updateNow : function(){
+		var gl = this.gl;
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.attrs.glDrawOrder.forEach(function(programName){
+			var elements = this.elementsByProgram[programName],
+				l = elements.length;
+
+			while(l--){
+				// todo: оптимизировать
+				var zIndex = this.elements.indexOf(elements[l]) / this.elements.length;
+				elements[l]._glZIndex = 1; //zIndex;
+				elements[l].drawGL(gl);
+			}
+			// рисуем все objectKind
+		}, this);
+	}
+
+});
+
+GLContext.shadersFactory = {
+	'fragment-common': function(gl){
+		return Delta.createShader(gl, gl.FRAGMENT_SHADER, [
+			'#ifdef GL_ES',
+				'precision highp float;',
+			'#endif',
+
+			'varying vec4 vColor;', // а этот шейдер типа не умеет в униформы?
+			'void main(void){',
+				'gl_FragColor = vec4(vColor[0] / 255.0, vColor[1] / 255.0, vColor[2] / 255.0, vColor[3]);',
+			'}'
+		].join('\n'));;
+	}
+};
+
+// GL utilities
+Delta.createShader = function(gl, type, source){
+	var shader = gl.createShader(type);
+	gl.shaderSource(shader, source);
+	gl.compileShader(shader);
+	// {{debug}}
+	if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+		var log = gl.getShaderInfoLog(shader);
+		gl.deleteShader(shader);
+		throw "Shader compilation error: " + log;
+	}
+	// {{/debug}}
+	return shader;
+}
+
+Delta.contexts['gl'] = GLContext;
+
+// From Path.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-path' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					'aVertexPosition[0],',
+					'aVertexPosition[1],',
+					'1.0,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
+
+	'program-path' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-path']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
+
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
+
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
+	}
+});
+
+Object.assign(Path.prototype, {
+	shadersRequired : ['fragment-common', 'vertex-path', 'program-path'],
+
+	// todo: попробовать сделать sdf. Всего-то посчитать для каждой точки перпендикулярное расстояние до прямой (получится bevel = round вроде)
+	// и как-то картинкой передать внутрь данные
+	drawGL : function(gl){
+		var delta = this.context;
+
+		if(!delta.buffers['rect']){
+			var vertexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+				0.0, 0.0,
+				0.5, 0.5,
+				0.5, 0.0,
+				0.5, -0.5,
+				-1.0, 0.0
+			]), gl.STATIC_DRAW);
+
+			delta.buffers['rect'] = vertexBuffer;
+		}
+
+		var color = Delta.color(this.styles.fillStyle);
+		gl.uniform4f(delta.shaders['program-rect'].uColor, color[0], color[1], color[2], color[3]);
+		gl.uniform4f(
+			delta.shaders['program-rect'].rectCoords,
+			10,
+			10,
+			200,
+			200
+		);
+
+		gl.vertexAttribPointer(delta.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLE_FAN, 0, 5);
+	}
+});
+
+// Rect.WebGL
+Object.assign(GLContext.shadersFactory, {
+	'vertex-rect' : function(gl){
+		return Delta.createShader(gl, gl.VERTEX_SHADER, [
+			'attribute vec2 aVertexPosition;',
+			'uniform float zIndex;',
+			'uniform vec4 rectCoords;',
+			'uniform vec4 uColor;',
+			'varying vec4 vColor;',
+			'float canvasWidth = ' + gl.canvas.width + '.0;',
+			'float canvasHeight = ' + gl.canvas.height + '.0;',
+
+			'void main(void){',
+				'vColor = uColor;',
+				'gl_Position = vec4(',
+					// тут можно поделить на canvasWidth всё сразу
+					'(aVertexPosition[0] * rectCoords[2] / canvasWidth) - 1.0 + rectCoords[2] / canvasWidth + (rectCoords[0] * 2.0 / canvasWidth),',
+					'(aVertexPosition[1] * rectCoords[3] / canvasHeight) + 1.0 - rectCoords[3] / canvasHeight - (rectCoords[1] * 2.0 / canvasHeight),',
+					'zIndex,',
+					'1.0',
+				');',
+			'}'
+		].join('\n'));
+	},
+
+	'program-rect' : function(gl, delta){
+		var program = gl.createProgram();
+		gl.attachShader(program, delta.shaders['vertex-rect']);
+		gl.attachShader(program, delta.shaders['fragment-common']);
+		gl.linkProgram(program);
+
+		// {{debug}}
+		if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+			throw "Could not initialize shaders";
+		}
+		// {{/debug}}
+
+		// if(delta._lastProgram !== delta.shaders['program-rect']) ...
+		gl.useProgram(program);
+		program.uColor = gl.getUniformLocation(program, 'uColor');
+		program.rectCoords = gl.getUniformLocation(program, 'rectCoords');
+		program.zIndex = gl.getUniformLocation(program, 'zIndex');
+		program.v_aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+		gl.enableVertexAttribArray(program.v_aVertexPosition);
+		return program;
+	}
+});
+
+Object.assign(Rect.prototype, {
+	// todo: rename to glShadersRequired
+	shadersRequired : ['fragment-common', 'vertex-rect', 'program-rect'],
+
+	glProgramName : 'program-rect',
+
+	glCreateBuffer : function(gl){
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+			-1, -1,
+			1, 1,
+			1, -1,
+
+			-1, -1,
+			1, 1,
+			-1, 1
+		]), gl.STATIC_DRAW);
+
+		this.context.buffers['rect'] = vertexBuffer;
+	},
+
+	drawGL : function(gl){
+		var context = this.context;
+
+		// менять буфер невыгодно, лучше менять униформы
+		if(!context.buffers['rect']){
+			this.glCreateBuffer(gl);
+		}
+
+		var color = Delta.color(this.styles.fillStyle);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].uColor,
+			color[0],
+			color[1],
+			color[2],
+			color[3]
+		);
+
+		gl.uniform4f(
+			context.shaders['program-rect'].rectCoords,
+			this.attrs.x,
+			this.attrs.y,
+			this.attrs.width,
+			this.attrs.height
+		);
+
+		if(this._glZIndex !== undefined){
+			gl.uniform1f(
+				context.shaders['program-rect'].zIndex,
+				this._glZIndex
+			);
+		}
+
+		// что эта функция делает?
+		gl.vertexAttribPointer(context.shaders['program-rect'].v_aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.TRIANGLES, 0, 6);
+	}
+});
+
 // {{dont include Rect.WebGL.js}}
 // {{dont include Path.WebGL.js}}
 
@@ -5161,101 +5075,7 @@ Delta.Pattern = Pattern;
 
 // {{dont include MouseEvents.js}}
 
-/* Context.prototype.push = function(element){
-	element.context = this;
-	this.elements.push(element);
-
-	if(element.draw){
-		// может, this.draw(element) ?
-		var ctx = this.context;
-		ctx.save();
-		if(this.matrix){
-			ctx.setTransform(
-				this.matrix[0],
-				this.matrix[1],
-				this.matrix[2],
-				this.matrix[3],
-				this.matrix[4],
-				this.matrix[5]
-			);
-		} else {
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
-		}
-		element.draw(ctx);
-		ctx.restore();
-	}
-
-	element.update = element.updateFunction;
-
-	return element;
-};
-
-// clip inside:
-
-/* ctx.fillStyle = 'red';
-ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-ctx.lineWidth = 50;
-
-ctx.beginPath();
-ctx.moveTo(280, 200);
-ctx.arc(200, 200, 80, 0, 6.29);
-ctx.fill();
-
-if(1){
-ctx.beginPath();
-ctx.moveTo(280, 200);
-ctx.arc(200, 200, 80, 0, 6.29);
-ctx.lineTo(500, 200);
-ctx.lineTo(500, 0);
-ctx.lineTo(0, 0);
-ctx.lineTo(0, 500);
-ctx.lineTo(0, 500);
-ctx.lineTo(500, 500);
-ctx.lineTo(500, 200);
-	ctx.clip();
-}
-ctx.beginPath();
-ctx.moveTo(280, 200);
-ctx.arc(200, 200, 80, 0, 6.29);
-ctx.stroke();
- */
-
-// shadow inside (works only with paths):
-
-/* ctx.fillStyle = 'blue';
-ctx.fillRect(10, 10, 200, 200);
-
-ctx.fillStyle = 'red';
-ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-ctx.lineWidth = 50;
-
-ctx.beginPath();
-ctx.moveTo(280, 200);
-ctx.arc(200, 200, 80, 0, 6.29);
-ctx.fill();
-ctx.clip();
-
-if(1){
-var coef = 1000;
-ctx.translate(0, -coef);
-ctx.shadowOffsetX = 0;
-ctx.shadowOffsetY = 5 + coef;
-ctx.shadowBlur = 10;
-ctx.shadowColor = 'black';
-ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-ctx.beginPath();
-ctx.moveTo(280, 200);
-ctx.arc(200, 200, 80, 0, 6.29);
-ctx.lineTo(500, 200);
-ctx.lineTo(500, 0);
-ctx.lineTo(0, 0);
-ctx.lineTo(0, 500);
-ctx.lineTo(0, 500);
-ctx.lineTo(500, 500);
-ctx.lineTo(500, 200);
-ctx.fill();
-} */
-
+// {{dont include Adapter.Canvas.js}}
 
 Delta.version = "1.9.0";
 

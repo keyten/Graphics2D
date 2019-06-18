@@ -106,6 +106,7 @@ var second = ctx.circle(300, 80, 70, '#a0f');
 
 // adding a stroke to the 1st circle
 first.attr('stroke', '2px black');</code></pre>
+<p>Yes, it's that easy!</p>
 
 <h3>Transforms</h3>
 <p>Add and rotate rect</p>
@@ -142,19 +143,24 @@ triangle.on('mouseover', function(){
     this.attr('fill', 'blue');
 }).on('mouseout', function(){
     this.attr('fill', 'red');
-});</code></pre>
+});
+
+ctx.text('Mouseover me!', 50, 100, 'Arial 14px', 'black');</code></pre>
 
 <h3>Animation</h3>
 <p>Add and animate rect</p>
-<pre><code>// making a rect
-var rect = ctx.rect(10, 100, 80, 50, 'red');
+<canvas id="anim-example"></canvas>
+<pre data-canvas="anim-example"><code>// making a rect
+var rect = ctx.rect(10, 10, 50, 50, 'red');
 
 // animate
 rect.animate({
-    x: 100,
-    width: 40,
+    x: 300,
+    width: 80,
+    height: 80,
     fill: 'blue'
-}, 1000);</code></pre>
+}, 10000);
+</code></pre>
 
 	</div>
 </div>
@@ -168,7 +174,8 @@ var codes = [
 	new CanvasCode('example1', true),
 	new CanvasCode('rotate-example'),
 	new CanvasCode('rotate-anim-example'),
-	new CanvasCode('mouse-example')
+	new CanvasCode('mouse-example'),
+	new CanvasCode('anim-example')
 ];
 
 function CanvasCode(id, noInit){
@@ -186,6 +193,10 @@ function CanvasCode(id, noInit){
 			this.delta = ctx;
 		}
 	}
+/*
+	if(window.devicePixelRatio !== 1){
+		this.delta.attr('dpi', window.devicePixelRatio);
+	} */
 }
 
 CanvasCode.prototype.resize = function(){
