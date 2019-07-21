@@ -9,7 +9,6 @@ Context = function(canvas){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.cache     = {}; // todo: is it neccessary? it was used only in transforms before TransformableMixin
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -19,6 +18,8 @@ Context.prototype = {
 	object : function(object){
 		if(object.constructor === Function){
 			object = {draw: object};
+		} else if(object.xtype){
+			;
 		}
 		return this.push(Object.assign(new Drawable(), object));
 	},
@@ -95,7 +96,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate/* || this.elements.length === 0*/){ // doesnt work with Drawable::remove
+		if(this._willUpdate){ // doesnt work with Drawable::remove
 			return;
 		}
 
@@ -104,6 +105,8 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
+		this.fire('beforeUpdate');
+
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -126,6 +129,8 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
+
+		this.fire('afterUpdate');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -342,126 +347,6 @@ Context.prototype = {
 		return [x - coords.x, y - coords.y];
 	},
 
-	// Attrs
-/*	attr: Class.attr,
-	attrHooks: {
-		width: {
-			get: function(){
-				return this.canvas.width;
-			},
-			set: function(value){
-				this.canvas.width = value;
-				// if dpi != 1 && !canvas.style.width
-				// or simpler: if this.attrs.dpi !== undefined
-				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
-				// if (newWidth > width):
-				this.update();
-			}
-		},
-
-		height: {
-			get: function(){
-				return this.canvas.height;
-			},
-			set: function(value){
-				this.canvas.height = value;
-				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
-				// if (newHeight > height):
-				this.update();
-			}
-		},
-
-		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
-		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
-		// http://www.html5gamedevs.com/topic/732-retina-support/
-		dpi: {
-			get: function(){
-				return this.attrs.dpi || 1;
-			},
-			set: function(value){
-				this.canvas.style.width = this.canvas.width / value + 'px';
-				this.canvas.style.height = this.canvas.height / value + 'px';
-				this.update();
-			}
-		},
-
-		smooth: {
-			get: function(value){
-				var ir = this.canvas.style.imageRendering;
-				return ir !== 'pixelated' && ir !== 'crisp-edges';
-			},
-			set: function(value){
-				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
-			}
-		},
-
-		transform: {
-			set: function(value){
-				this.cache.transform = null;
-				this.update();
-			}
-		},
-
-		translate: {
-			get: function(){
-				return this.attrs.translate || [0, 0];
-			},
-			set: function(value){ // todo: not duplicate at all attrs
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		rotate: {
-			get: function(){
-				return this.attrs.rotate || 0;
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		scale: {
-			get: function(){
-				return this.attrs.scale || [1, 1];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		}
-	}, */
-
-	// Transforms
-	getTransform: function(){
-		if(this.cache.transform){
-			return this.cache.transform;
-		}
-
-		var matrix = Delta.parseTransform(this.attrs, this);
-		this.cache.transform = matrix;
-		return matrix;
-	},
-
 	corner: function(corner){
 		return [
 			this.canvas.width * Delta.corners[corner][0],
@@ -499,7 +384,9 @@ Delta.browserCommonEvent = {
 };
 
 // todo: check if there's event.touches at phones in mouse events (click and etc)
-Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
+Delta.browserMouseEvent = {
+	init : Delta.browserCommonEvent.init,
+	teardown : Delta.browserCommonEvent.teardown,
 	canvas : function(e){
 		var propagation = true;
 
@@ -524,9 +411,11 @@ Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 			this.fire(e.type, e);
 		}
 	}
-});
+};
 
-Delta.browserTouchEvent = Object.assign({}, Delta.browserCommonEvent, {
+Delta.browserTouchEvent = {
+	init : Delta.browserCommonEvent.init,
+	teardown : Delta.browserCommonEvent.teardown,
 	canvas : function(e){
 		var propagation = true;
 
@@ -558,7 +447,7 @@ Delta.browserTouchEvent = Object.assign({}, Delta.browserCommonEvent, {
 			this.fire(e.type, e);
 		}
 	}
-});
+};
 
 var eventKindsListeners = window.document ? {
 	mouse : Delta.browserMouseEvent,
@@ -589,6 +478,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.width;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.width = value;
 				// if dpi != 1 && !canvas.style.width
 				// or simpler: if this.attrs.dpi !== undefined
@@ -602,6 +492,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.height;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.height = value;
 				this.canvas.style.height = value / (this.attrs.dpi || 1) + 'px';
 				this.update();

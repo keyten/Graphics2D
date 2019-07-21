@@ -17,6 +17,7 @@
     "grunt-contrib-watch": "^1.1.0"
   },
   "dependencies": {
-    "benchmark": "^2.1.4"
+    "benchmark": "^2.1.4",
+    "stats.js": "^0.17.0"
   }
 }

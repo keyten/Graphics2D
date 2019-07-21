@@ -7,7 +7,15 @@ function isArray(v){ return Array.isArray(v); }
 // /Macroses
 
 Delta.xtypes = {
-	gradient: Delta.Gradient
+	rect : Delta.Rect,
+	circle : Delta.Circle,
+	path : Delta.Path,
+	curve : Delta.Curve,
+	image : Delta.Image,
+	text : Delta.Text,
+
+	gradient : Delta.Gradient,
+	pattern : Delta.Pattern
 };
 
 // Bounds class
@@ -37,6 +45,18 @@ Delta.bounds = function(x, y, width, height){
 	return new Bounds(x, y, width, height);
 };
 
+Delta.isPointInRect = function(px, py, x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
+	return px > x && py > y && px < x + w && py < y + h;
+}
+
 // Thenable is like Promise but faster 4x at Firefox and >100x at Chrome
 function Thenable(func){
 	func(this.resolve.bind(this), this.reject.bind(this));
@@ -62,11 +82,11 @@ Thenable.prototype = {
 };
 
 // utils
-function argument(index){
+/* function argument(index){
 	return function(value){
 		return this.argument( index, value );
 	};
-} // не нужно
+} */// не нужно
 
 // wrapper for quick calls
 function wrap(args, index){
@@ -132,7 +152,7 @@ function parsePoint(point){
 
 Delta.Class = Class;
 Delta.Bounds = Bounds;
-Delta.argument = argument;
+// Delta.argument = argument;
 Delta.wrap = wrap;
 Delta.isObject = isObject;
 Delta.isNumberLike = isNumberLike;

@@ -21,8 +21,8 @@ Path = new Class(Drawable, {
 				this.update();
 			}
 		},
-		x : {set : updateSetter},
-		y : {set : updateSetter}
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y
 	}),
 
 	// Curves

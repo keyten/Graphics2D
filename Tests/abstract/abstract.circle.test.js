@@ -31,8 +31,15 @@ QUnit.test('attribute create', function(assert){
 	circle = Delta.circle(1, 2, 3, null, 'blue 3px');
 	assert.deepEqual(
 		circle.attr(['fill', 'stroke']),
-		[undefined, 'blue 3px'],
+		[null, 'blue 3px'],
 		"Check if Delta.circle sets [fill = null, stroke] right"
+	);
+
+	circle = Delta.circle('2pt', '3em', '4in');
+	assert.deepEqual(
+		circle.attr(['cx', 'cy', 'radius']),
+		[3, 48, 384],
+		"Check if Delta.circle supports css values in [cx, cy, radius]"
 	);
 });
 
@@ -70,23 +77,33 @@ QUnit.test('hash create', function(assert){
 		['red', 'blue 3px', 0.4, '2px 2px black', 45],
 		"Check if Delta.circle sets extra properties (fill, stroke, opacity, shadow, rotate)"
 	);
+
+	circle = Delta.circle({
+		cx: '2pt',
+		cy: '3em',
+		radius: '4in'
+	});
+	assert.deepEqual(
+		circle.attr(['cx', 'cy', 'radius']),
+		[3, 48, 384],
+		"Check if Delta.circle supports css values in [cx, cy, radius]"
+	);
 });
 
 QUnit.test('methods', function(assert){
-	var circle = Delta.circle(100, 100, 30);
+	var circle;
 
+	circle = Delta.circle(100, 100, 30);
 	assert.equal(
 		circle.isPointIn(0, 0),
 		false,
 		"Check if isPointIn works right"
 	);
-
 	assert.equal(
 		circle.isPointIn(100, 100),
 		true,
 		"Check if isPointIn works right"
 	);
-
 	assert.deepEqual(
 		Object.assign({}, circle.bounds()),
 		{
@@ -104,5 +121,29 @@ QUnit.test('methods', function(assert){
 			y2: 130
 		},
 		"Check if bounds works right"
+	);
+
+	circle = Delta.circle(100, 100, -30);
+	assert.equal(
+		circle.isPointIn(0, 0),
+		false,
+		"Check if isPointIn works right with negative radius"
+	);
+	assert.equal(
+		circle.isPointIn(100, 100),
+		true,
+		"Check if isPointIn works right with negative radius"
+	);
+
+	circle = Delta.circle(1, 2, 3);
+	var clone = circle.clone();
+	assert.ok(
+		clone instanceof Delta.Circle,
+		"Check if clone is valid Delta.Circle"
+	);
+	assert.deepEqual(
+		clone.attr(['cx', 'cy', 'radius']),
+		circle.attr(['cx', 'cy', 'radius']),
+		"Check if clone has the same geometry attrs"
 	);
 });

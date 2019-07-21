@@ -45,7 +45,6 @@ function Drawable(args){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.animQueue = [];
 
 	if(this.argsOrder){
 		this.processArguments(args, this.argsOrder);
@@ -122,7 +121,6 @@ Drawable.prototype = {
 
 	// Before -> Pre
 	isPointInBefore : function(x, y, options){
-		// [x, y] = [distance(x), distance(y)]
 		options = options === 'mouse' ? this.attrs.interactionProps : options;
 		if(options && options.transform !== false){
 			var transform = this.getTransform();
@@ -455,7 +453,118 @@ Drawable.prototype = {
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
-	}
+	},
+/*
+	// Animation
+	animate : function(attr, value, options){
+		// attr, value, duration, easing, callback
+		// attrs, duration, easing, callback
+		// attr, value, options
+		// attrs, options
+		if(attr + '' !== attr){
+			// todo:
+			// the fx ob wiil not represent others
+			// object.fx.stop() will stop only one anim
+			if(+value === value || !value){
+				options = {duration: value, easing: options, callback: arguments[3]};
+			} else if(typeof value === 'function'){
+				options = {callback: value};
+			} else {
+				options = value;
+			}
+
+			Object.keys(attr).forEach(function(key, i){
+				this.animate(key, attr[key], options);
+				if(i === 0){
+					options.queue = false;
+					options.callback = null;
+				}
+			}, this);
+			return this;
+		}
+
+		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+			throw 'Animation for "' + attr + '" is not supported';
+		}
+
+		if(+options === options || !options){
+			options = {duration: options, callback: arguments[4], easing: arguments[3]};
+		} else if(typeof options === 'function'){
+			options = {callback: options};
+		}
+
+		var fx = new Animation(
+			options.duration,
+			options.easing,
+			options.callback
+		);
+
+		fx.prop = attr;
+		fx.tick = this.attrHooks[attr].anim;
+		fx.tickContext = this;
+		fx.prePlay = function(){
+			this.fx = fx;
+			this.attrHooks[attr].preAnim.call(this, fx, value);
+		}.bind(this);
+
+		// is used to pause / cancel anims
+		fx.elem = this;
+		if(options.name){
+			fx.name = options.name;
+		}
+
+		var queue = options.queue;
+		if(queue !== false){
+			if(queue === true || queue === undefined){
+				if(!this._queue){
+					this._queue = [];
+				}
+				queue = this._queue;
+			} else if(queue instanceof Drawable){
+				queue = queue._queue;
+			}
+			fx.queue = queue;
+			queue.push(fx);
+			if(queue.length > 1){
+				return this;
+			}
+		}
+
+		fx.play();
+
+		return this;
+	},
+
+	pause : function(name){
+		if(!this._paused){
+			this._paused = [];
+		}
+
+		// pause changes the original array
+		// so we need slice
+		Animation.queue.slice().forEach(function(anim){
+			if(anim.elem === this && (anim.name === name || !name)){
+				anim.pause();
+				this._paused.push(anim);
+			}
+		}, this);
+		return this;
+	},
+
+	continue : function(name){
+		if(!this._paused){
+			return;
+		}
+
+		this._paused.slice().forEach(function(anim, index){
+			if(!name || anim.name === name){
+				anim.continue();
+				this._paused.splice(index, 1);
+			}
+		}, this);
+
+		return this;
+	} */
 };
 
 Drawable.AttrHooks = DrawableAttrHooks;
@@ -668,9 +777,7 @@ Object.assign(Drawable.prototype,
 					}
 				}
 
-				if(!value){
-					delete this.styles.fillStyle;
-				} else if(value.toCanvasStyle){
+				if (value.toCanvasStyle) {
 					if(value.updateList){
 						this.attrs.fillLink = value;
 						value.updateList.push(this);
@@ -679,31 +786,6 @@ Object.assign(Drawable.prototype,
 				} else {
 					this.styles.fillStyle = value;
 				}
-				this.update();
-			},
-
-			preAnim : function(fx, endValue){
-				if(this.attrs.fill.constructor !== String){
-					fx.cancel();
-					throw "Can't animate non-color fill";
-				}
-				fx.startValue = Delta.color(this.attrs.fill);
-				fx.endValue = Delta.color(endValue);
-				fx.delta = [
-					fx.endValue[0] - fx.startValue[0],
-					fx.endValue[1] - fx.startValue[1],
-					fx.endValue[2] - fx.startValue[2],
-					fx.endValue[3] - fx.startValue[3]
-				];
-			},
-
-			anim : function(fx){
-				this.attrs.fill = this.styles.fillStyle = 'rgba(' + [
-					fx.startValue[0] + fx.delta[0] * fx.pos | 0,
-					fx.startValue[1] + fx.delta[1] * fx.pos | 0,
-					fx.startValue[2] + fx.delta[2] * fx.pos | 0,
-					fx.startValue[3] + fx.delta[3] * fx.pos
-				].join(',') + ')';
 				this.update();
 			}
 		},
@@ -895,9 +977,7 @@ Object.assign(Drawable.prototype,
 			set : function(value){
 				this.styles.globalAlpha = +value;
 				this.update();
-			},
-			preAnim : Animation.tick.numAttr.preAnim,
-			anim : Animation.tick.numAttr.anim
+			}
 		},
 
 		composite : {

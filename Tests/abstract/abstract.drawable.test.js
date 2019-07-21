@@ -1,7 +1,7 @@
 // TODO: css values
 QUnit.module('Core.Drawable');
 
-QUnit.only('attribute stroke', function(assert){
+QUnit.test('attribute stroke', function(assert){
 	var drawable;
 
 	drawable = new Delta.Drawable()
@@ -12,7 +12,6 @@ QUnit.only('attribute stroke', function(assert){
 		"Check if attr stroke sets and returns simple string value."
 	);
 	assert.deepEqual(
-		// styles чисто внутренняя структура, не должно быть извне информации о ней
 		[
 			drawable.styles,
 			drawable.attrs.strokeDash,
@@ -97,7 +96,7 @@ QUnit.only('attribute stroke', function(assert){
 			dash: 'dot',
 			dashOffset: 3
 		});
-	assert.equal(
+	assert.deepEqual(
 		drawable.attr('stroke'),
 		{
 			color: 'green',
@@ -218,6 +217,78 @@ QUnit.test('attribute shadow', function(assert){
 			shadowColor: 'blue'
 		},
 		"Check if object replaces string value"
+	);
+});
+
+QUnit.test('attribute opacity', function(assert){
+	var drawable;
+
+	drawable = new Delta.Drawable()
+		.attr('opacity', 0);
+	assert.equal(
+		drawable.attr('opacity'),
+		0,
+		"Check if returns its value"
+	);
+	assert.deepEqual(
+		drawable.styles,
+		{
+			globalAlpha: 0
+		},
+		"Check if sets styles right"
+	);
+
+	drawable = new Delta.Drawable()
+		.attr('opacity', '.9');
+	assert.equal(
+		drawable.attr('opacity'),
+		0.9,
+		"Check if converses its value to number"
+	);
+	assert.deepEqual(
+		drawable.styles,
+		{
+			globalAlpha: 0.9
+		},
+		"Check if sets styles right with string passed"
+	);
+});
+
+QUnit.test('attribute composite', function(assert){
+	var drawable;
+
+	drawable = new Delta.Drawable()
+		.attr('composite', 'xor');
+	assert.equal(
+		drawable.attr('composite'),
+		'xor',
+		"Check if returns its value"
+	);
+	assert.deepEqual(
+		drawable.styles,
+		{
+			globalCompositeOperation: 'xor'
+		},
+		"Check if sets styles right"
+	);
+});
+
+QUnit.test('attribute filter', function(assert){
+	var drawable;
+
+	drawable = new Delta.Drawable()
+		.attr('filter', 'blur(5px)');
+	assert.equal(
+		drawable.attr('filter'),
+		'blur(5px)',
+		"Check if returns its simple value"
+	);
+	assert.deepEqual(
+		drawable.styles,
+		{
+			filter: 'blur(5px)'
+		},
+		"Check if sets styles right with simple value"
 	);
 });
 

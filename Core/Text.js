@@ -14,18 +14,26 @@ Text = new Class(Drawable, {
 		text : {
 			set : function(value){
 				this.lines = null;
+				this.attrs.text = value + '';
 				this.update();
-				return value + '';
 			}
 		},
 
-		x : {set : updateSetter},
-		y : {set : updateSetter},
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
 
 		font : {
+			get : function(){
+				return this.attrs.font || Text.font;
+			},
 			set: function(value){
-				this.attrs.parsedFont = Text.parseFont(value);
-				this.styles.font = Text.genFont(this.attrs.parsedFont);
+				if(value){
+					this.attrs.parsedFont = Text.parseFont(value);
+					this.styles.font = Text.genFont(this.attrs.parsedFont);
+				} else {
+					delete this.attrs.parsedFont;
+					delete this.styles.font;
+				}
 				this.update();
 			}
 		},
@@ -50,8 +58,8 @@ Text = new Class(Drawable, {
 			}
 		},
 
-		// 'string' or 'block'
 		mode : {
+			// 'string' or 'block'
 			get : function(){
 				return this.attrs.mode || 'string';
 			},
@@ -62,7 +70,12 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.maxStringWidth || Infinity;
 			},
-			set : updateSetter
+			set : function(value){
+				if(value){
+					this.attrs.maxStringWidth = distance(value);
+				}
+				this.update();
+			}
 		},
 
 		trimLines : {
@@ -79,7 +92,10 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.lineHeight || 'auto';
 			},
-			set : function(){
+			set : function(value){
+				if(value){
+					this.attrs.lineHeight = distance(value);
+				}
 				this.lines = null;
 				this.update();
 			}
@@ -89,7 +105,10 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.blockWidth || Infinity;
 			},
-			set : function(){
+			set : function(value){
+				if(value){
+					this.attrs.blockWidth = distance(value);
+				}
 				this.lines = null;
 				this.update();
 			}
@@ -102,7 +121,9 @@ Text = new Class(Drawable, {
 		var text = this.attrs.text,
 			lines = this.lines = [],
 
-			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : this.attrs.parsedFont.size,
+			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : (
+				this.attrs.parsedFont ? this.attrs.parsedFont.size : Text.parseFont(Text.font).size
+			),
 			blockWidth = this.attrs.blockWidth || Infinity,
 			x = blockWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0);
 
@@ -188,11 +209,8 @@ Text = new Class(Drawable, {
 
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
-		x = point[0];
-		y = point[1];
-
-		var bounds = this.bounds(false);
-		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
+		var bounds = this.preciseBounds(options);
+		return Delta.isPointInRect(point[0], point[1], bounds.x, bounds.y, bounds.w, bounds.h);
 	},
 
 	measure : function(){
@@ -221,7 +239,8 @@ Text = new Class(Drawable, {
 			blockX = this.attrs.x,
 			blockY = this.attrs.y,
 			width,
-			height = (this.attrs.lineHeight || 'auto') === 'auto' ? this.attrs.parsedFont.size : this.attrs.lineHeight;
+			fontSize = this.attrs.parsedFont ? this.attrs.parsedFont.size : Text.parseFont(Text.font).size,
+			height = (this.attrs.lineHeight || 'auto') === 'auto' ? fontSize : this.attrs.lineHeight;
 
 		// text processing
 		if(this.attrs.mode === 'block'){
@@ -247,11 +266,11 @@ Text = new Class(Drawable, {
 			align = this.styles.textAlign;
 
 		if(baseline === 'middle'){
-			blockY -= this.attrs.parsedFont.size / 2;
+			blockY -= fontSize / 2;
 		} else if(baseline === 'bottom' || baseline === 'ideographic'){
-			blockY -= this.attrs.parsedFont.size;
+			blockY -= fontSize;
 		} else if(baseline === 'alphabetic'){
-			blockY -= this.attrs.parsedFont.size * 0.8;
+			blockY -= fontSize * 0.8;
 		}
 
 		if(align === 'center'){
@@ -267,7 +286,6 @@ Text = new Class(Drawable, {
 
 Text.baseline = 'top';
 Text.font = '10px sans-serif';
-Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
 // 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
 Text.parseFont = function(font){
@@ -281,7 +299,7 @@ Text.parseFont = function(font){
 			} else if(part === 'italic'){
 				object.italic = true;
 			} else if(reNumberLike.test(part)){
-				object.size = Delta.distance(part);
+				object.size = distance(part);
 			} else {
 				object.family += ' ' + part;
 			}

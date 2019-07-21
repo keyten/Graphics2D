@@ -1,25 +1,32 @@
-// var anim = Delta.animation(300, 500, options);
-// anim.start(value => dosmth(value));
-
-// https://mootools.net/core/docs/1.6.0/Fx/Fx
-// сделать функцией, а не классом
 Animation = new Class({
-	initialize: function(duration, easing, callback){
-		this.duration = duration || Animation.default.duration;
-		if(easing && easing.constructor === String){
-			var index = easing.indexOf('(');
-			if(index !== -1){
-				this.easingParam = easing.substring(index + 1, easing.length - 1);
-				easing = easing.substring(0, index);
-			}
-			this.easing = Animation.easing[easing];
-		} else {
-			this.easing = easing || Animation.default.easing;
-		}
-		this.callback = callback;
+	initialize : function(duration, easing, callback){
+		this.setParams(duration || Animation.default.duration, easing || Animation.default.easing, callback);
 	},
 
-	play: function(tick, context){
+	paused : false,
+
+	setParams : function(duration, easing, callback){
+		if(duration){
+			this.duration = duration;
+		}
+		if(easing){
+			if(easing.constructor === String){
+				var index = easing.indexOf('(');
+				if(index !== -1){
+					this.easingParam = easing.substring(index + 1, easing.length - 1);
+					easing = easing.substring(0, index);
+				}
+				this.easing = Animation.easing[easing];
+			} else {
+				this.easing = easing;
+			}
+		}
+		if(callback){
+			this.callback = callback;
+		}
+	},
+
+	play : function(tick, context){
 		if(this.prePlay){
 			this.prePlay();
 		}
@@ -38,12 +45,17 @@ Animation = new Class({
 		Animation.queue.push(this);
 	},
 
-	pause: function(){
+	pause : function(){
+		this.paused = true;
 		this.pauseTime = Date.now();
-		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+		// Animation.queue.splice(Animation.queue.indexOf(this), 1);
 	},
 
-	continue: function(){
+	continue : function(){
+		if(!this.paused){
+			return;
+		}
+
 		var delta = this.pauseTime - this.startTime;
 		this.startTime = Date.now() - delta;
 		this.endTime = this.startTime + this.duration;
@@ -51,9 +63,16 @@ Animation = new Class({
 		if(!Animation.queue.length){
 			requestAnimationFrame(Animation.do);
 		}
-		Animation.queue.push(this);
-	}
+		this.paused = false;
+		// Animation.queue.push(this);
+	},
 
+	cancel : function(){
+		var index = Animation.queue.indexOf(this);
+		if(index > -1){
+			Animation.queue.splice(index, 1);
+		}
+	}
 });
 
 Animation.queue = [];
@@ -64,6 +83,10 @@ Animation.do = function(){
 
 	for(var i = 0; i < Animation.queue.length; i++){
 		fx = Animation.queue[i];
+		if(fx.paused){
+			continue;
+		}
+
 		t = (now - fx.startTime) / fx.duration;
 
 		if(t < 0){
@@ -80,18 +103,17 @@ Animation.do = function(){
 
 		if(t === 1){
 			if(fx.callback){
-				// call him in requestAnimFrame?
-				// it must be called after the last update, i think
-				fx.callback.call(fx.tickContext, fx);
+				// it must be called after the last update
+				requestAnimationFrame(function(){
+					fx.callback.call(fx.tickContext, fx);
+				});
 			}
 
-			/*if(fx.queue){
+			if(fx.queue){
 				fx.queue.shift();
-				if(fx.queue.length){
-					// init the next anim in the que
-					fx.queue[0].play();
-				}
-			} */
+				fx.queue[0] && fx.queue[0].play();
+			}
+
 			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
 		}
 	}
@@ -101,8 +123,29 @@ Animation.do = function(){
 	}
 };
 
+Animation.animationsOfElem = function(elem){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].elem === elem){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
+Animation.animationByName = function(name){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].name === name){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
 // extends AttrMixin
 Class.mixins.AnimatableMixin = {
+	animQueue : [],
 	animate : function(attr, value, options, easing, callback){
 		// attr, value, duration, easing, callback
 		// attrs, duration, easing, callback
@@ -131,8 +174,7 @@ Class.mixins.AnimatableMixin = {
 		var fx;
 		if(attr instanceof Animation){
 			fx = attr;
-			// not sure if this works
-			Object.assign(fx, options);
+			fx.setParams(options.duration, options.easing, options.callback);
 		} else {
 			fx = new Animation(
 				options.duration,
@@ -140,9 +182,6 @@ Class.mixins.AnimatableMixin = {
 				options.callback
 			);
 
-			/* if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-				throw 'Animation for "' + attr + '" is not supported';
-			} */
 			if(attr.constructor === String){
 				// attr, value
 				fx.prop = attr;
@@ -151,6 +190,10 @@ Class.mixins.AnimatableMixin = {
 					this.attrHooks[attr].preAnim.call(this, fx, value);
 					this.attrs.animation = fx;
 				}.bind(this);
+
+				if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+					throw 'Animation for "' + attr + '" is not supported';
+				}
 			} else {
 				// attrs
 				fx.prop = Object.keys(attr).map(function(prop){
@@ -184,59 +227,47 @@ Class.mixins.AnimatableMixin = {
 			fx.name = options.name;
 		}
 
-		fx.play();
-
-		// var queue = options.queue;
-		/* if(queue !== false){
-			if(queue === true || queue === undefined){
-				if(!this._queue){
-					this._queue = [];
-				}
-				queue = this._queue;
-			} else if(queue instanceof Drawable){
-				queue = queue._queue;
+		if(!options.ignoreQueue){
+			fx.queue = this.animQueue;
+			fx.queue.push(fx);
+			if(fx.queue.length === 1){
+				fx.play();
 			}
-			fx.queue = queue;
-			queue.push(fx);
-			if(queue.length > 1){
-				return this;
-			}
-		} */
-		// todo: fx.onFinish = this.attrs.animation = null;
+		} else {
+			fx.play();
+		}
 
 		return this;
 	},
 
 	// stop(clearQueue, jumpToEnd)
-	pause : function(name){
-		if(!this._paused){
-			this._paused = [];
+	pause : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.pause();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].pause();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.pause();
+			});
 		}
-		// this.attrs.animation = null;
-
-		// pause changes the original array
-		// so we need slice
-		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (anim.name === name || !name)){
-				anim.pause();
-				this._paused.push(anim);
-			}
-		}, this);
 		return this;
 	},
 
-	continue : function(name){
-		if(!this._paused){
-			return;
+	continue : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.continue();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].continue();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.continue();
+			});
 		}
-
-		this._paused.slice().forEach(function(anim, index){
-			if(!name || anim.name === name){
-				anim.continue();
-				this._paused.splice(index, 1);
-			}
-		}, this);
-
 		return this;
 	}
 };
@@ -332,8 +363,6 @@ Animation.easing = {
 	// [tension, elastic]
 
 };
-
-// Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
 
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){

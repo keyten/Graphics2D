@@ -1,21 +1,32 @@
 Circle = new Class(Drawable, {
-	argsOrder: ['cx', 'cy', 'radius', 'fill', 'stroke'],
+	argsOrder : ['cx', 'cy', 'radius', 'fill', 'stroke'],
 
-	attrHooks: new DrawableAttrHooks({
-		cx: {set: updateSetter},
-		cy: {set: updateSetter},
-		radius: {set: updateSetter}
+	attrHooks : new DrawableAttrHooks({
+		cx : {
+			set : function(value){
+				this.attrs.cx = distance(value);
+				this.update();
+			}
+		},
+		cy : {
+			set : function(value){
+				this.attrs.cy = distance(value);
+				this.update();
+			}
+		},
+		radius : {
+			set : function(value){
+				this.attrs.radius = distance(value);
+				this.update();
+			}
+		}
 	}),
 
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
-		var stroke = options.stroke ? (this.styles.lineWidth || 0) / 2 : 0;
-//		if(options.fill === false && Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2) <= Math.pow(this.attrs.radius - stroke, 2)){
-//			return false;
-//		}
-		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius + stroke, 2);
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	},
 
 	preciseBounds : function(){
@@ -26,13 +37,6 @@ Circle = new Class(Drawable, {
 			this.attrs.radius * 2
 		);
 	},
-/*
-	bounds: function(transform, around){
-		return this.super('bounds', [
-			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
-			transform, around
-		]);
-	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -59,12 +63,10 @@ Circle = new Class(Drawable, {
 
 Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
-Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
-/*
 ['cx', 'cy', 'radius'].forEach(function(propName){
-	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
-	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
-}); */
+	Circle.prototype.attrHooks[propName].preAnim = Animation.tick.numAttr.preAnim;
+	Circle.prototype.attrHooks[propName].anim = Animation.tick.numAttr.anim;
+});
 
 Delta.circle = function(){
 	return new Circle(arguments);

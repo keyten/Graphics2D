@@ -46,7 +46,7 @@ Polygon = new Class(Shape, {
 			angle = sides * i;
 			ctx.lineTo(this._cx + this._radius * Math.cos(angle), this._cy + this._radius * Math.sin(angle));
 		}
-			
+
 		ctx.closePath();
 	}
 

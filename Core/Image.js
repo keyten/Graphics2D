@@ -19,16 +19,21 @@ Picture = new Class(Drawable, {
 			}
 		},
 
-		x : {set : updateSetter},
-		y : {set : updateSetter},
-		width : {set : updateSetter},
-		height : {set : updateSetter},
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
+		width : Rect.prototype.attrHooks.width,
+		height : Rect.prototype.attrHooks.height,
 		x1 : Rect.prototype.attrHooks.x1,
 		y1 : Rect.prototype.attrHooks.y1,
 		x2 : Rect.prototype.attrHooks.x2,
 		y2 : Rect.prototype.attrHooks.y2,
 
-		crop: {set : updateSetter},
+		crop : {
+			set : function(value){
+				this.attrs.crop = value.map(distance);
+				this.update();
+			}
+		},
 
 		smooth : {
 			get : function(){

@@ -1,4 +1,3 @@
-// TODO: css values
 QUnit.module('Core.Rect');
 QUnit.test('attribute create', function(assert){
 	var rect;
@@ -31,8 +30,15 @@ QUnit.test('attribute create', function(assert){
 	rect = Delta.rect(1, 2, 3, 4, null, 'blue 3px');
 	assert.deepEqual(
 		rect.attr(['fill', 'stroke']),
-		[undefined, 'blue 3px'],
+		[null, 'blue 3px'],
 		"Check if Delta.rect sets [fill = null, stroke] right"
+	);
+
+	rect = Delta.rect('1px', '2pt', '3em', '4in', 'red', 'blue 3px');
+	assert.deepEqual(
+		rect.attr(['x', 'y', 'width', 'height']),
+		[1, 3, 48, 384],
+		"Check if Delta.rect supports css values in [x, y, width, height]"
 	);
 });
 
@@ -72,6 +78,18 @@ QUnit.test('hash create', function(assert){
 		['red', 'blue 3px', 0.4, '2px 2px black', 45],
 		"Check if Delta.rect sets extra properties (fill, stroke, opacity, shadow, rotate)"
 	);
+
+	rect = Delta.rect({
+		x: '1px',
+		y: '2pt',
+		width: '3em',
+		height: '4in'
+	});
+	assert.deepEqual(
+		rect.attr(['x', 'y', 'width', 'height']),
+		[1, 3, 48, 384],
+		"Check if Delta.rect supports css values in [x, y, width, height]"
+	);
 });
 
 QUnit.test('attrs x1, y1, x2, y2', function(assert){
@@ -80,7 +98,7 @@ QUnit.test('attrs x1, y1, x2, y2', function(assert){
 	assert.deepEqual(
 		rect.attr(['x1', 'y1', 'x2', 'y2']),
 		[10, 20, 110, 130],
-		"Check if rect gets x1, y1, x2, y2 right"
+		"Check if rect gets [x1, y1, x2, y2] right"
 	);
 
 	rect.attr('x1', 0);
@@ -97,23 +115,34 @@ QUnit.test('attrs x1, y1, x2, y2', function(assert){
 		[50, 20, 250, 110],
 		"Check if rect changes x2 right"
 	);
+
+	rect.attr({
+		x1: '1px',
+		y1: '2pt',
+		x2: '3em',
+		y2: '4in'
+	});
+	assert.deepEqual(
+		rect.attr(['x1', 'y1', 'x2', 'y2']),
+		[1, 3, 48, 384],
+		"Check if [x1, y1, x2, y2] support css values"
+	);
 });
 
 QUnit.test('methods', function(assert){
-	var rect = Delta.rect(10, 20, 30, 40);
+	var rect;
 
+	rect = Delta.rect(10, 20, 30, 40);
 	assert.equal(
 		rect.isPointIn(0, 0),
 		false,
 		"Check if isPointIn works right"
 	);
-
 	assert.equal(
 		rect.isPointIn(30, 30),
 		true,
 		"Check if isPointIn works right"
 	);
-
 	assert.deepEqual(
 		Object.assign({}, rect.bounds()),
 		{
@@ -131,5 +160,34 @@ QUnit.test('methods', function(assert){
 			cy: 40
 		},
 		"Check if bounds works right"
+	);
+
+	rect = Delta.rect(100, 100, -50, -50);
+	assert.equal(
+		rect.isPointIn(70, 70),
+		true,
+		"Check if isPointIn works right with negative size"
+	);
+	assert.equal(
+		rect.isPointIn(120, 120),
+		false,
+		"Check if isPointIn works right with negative size"
+	);
+	assert.equal(
+		rect.isPointIn(40, 40),
+		false,
+		"Check if isPointIn works right with negative size"
+	);
+
+	rect = Delta.rect(1, 2, 3, 4);
+	var clone = rect.clone();
+	assert.ok(
+		clone instanceof Delta.Rect,
+		"Check if clone is valid Delta.Rect"
+	);
+	assert.deepEqual(
+		clone.attr(['x', 'y', 'width', 'height']),
+		rect.attr(['x', 'y', 'width', 'height']),
+		"Check if clone has the same geometry attrs"
 	);
 });

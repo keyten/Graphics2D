@@ -1,7 +1,7 @@
 /*  DeltaJS Core 1.9.0
  *
  *  Author: Dmitriy Miroshnichenko aka Keyten <ikeyten@gmail.com>
- *  Last edit: 17.05.2019
+ *  Last edit: 21.07.2019
  *  License: MIT
  */
 
@@ -101,7 +101,15 @@ function isArray(v){ return Array.isArray(v); }
 // /Macroses
 
 Delta.xtypes = {
-	gradient: Delta.Gradient
+	rect : Delta.Rect,
+	circle : Delta.Circle,
+	path : Delta.Path,
+	curve : Delta.Curve,
+	image : Delta.Image,
+	text : Delta.Text,
+
+	gradient : Delta.Gradient,
+	pattern : Delta.Pattern
 };
 
 // Bounds class
@@ -131,6 +139,18 @@ Delta.bounds = function(x, y, width, height){
 	return new Bounds(x, y, width, height);
 };
 
+Delta.isPointInRect = function(px, py, x, y, w, h){
+	if(w < 0){
+		w = -w;
+		x -= w;
+	}
+	if(h < 0){
+		h = -h;
+		y -= h;
+	}
+	return px > x && py > y && px < x + w && py < y + h;
+}
+
 // Thenable is like Promise but faster 4x at Firefox and >100x at Chrome
 function Thenable(func){
 	func(this.resolve.bind(this), this.reject.bind(this));
@@ -156,11 +176,11 @@ Thenable.prototype = {
 };
 
 // utils
-function argument(index){
+/* function argument(index){
 	return function(value){
 		return this.argument( index, value );
 	};
-} // не нужно
+} */// не нужно
 
 // wrapper for quick calls
 function wrap(args, index){
@@ -226,7 +246,7 @@ function parsePoint(point){
 
 Delta.Class = Class;
 Delta.Bounds = Bounds;
-Delta.argument = argument;
+// Delta.argument = argument;
 Delta.wrap = wrap;
 Delta.isObject = isObject;
 Delta.isNumberLike = isNumberLike;
@@ -1216,28 +1236,35 @@ Class.attr = function(name, value){
 
 	return this;
 };
-// var anim = Delta.animation(300, 500, options);
-// anim.start(value => dosmth(value));
-
-// https://mootools.net/core/docs/1.6.0/Fx/Fx
-// сделать функцией, а не классом
 Animation = new Class({
-	initialize: function(duration, easing, callback){
-		this.duration = duration || Animation.default.duration;
-		if(easing && easing.constructor === String){
-			var index = easing.indexOf('(');
-			if(index !== -1){
-				this.easingParam = easing.substring(index + 1, easing.length - 1);
-				easing = easing.substring(0, index);
-			}
-			this.easing = Animation.easing[easing];
-		} else {
-			this.easing = easing || Animation.default.easing;
-		}
-		this.callback = callback;
+	initialize : function(duration, easing, callback){
+		this.setParams(duration || Animation.default.duration, easing || Animation.default.easing, callback);
 	},
 
-	play: function(tick, context){
+	paused : false,
+
+	setParams : function(duration, easing, callback){
+		if(duration){
+			this.duration = duration;
+		}
+		if(easing){
+			if(easing.constructor === String){
+				var index = easing.indexOf('(');
+				if(index !== -1){
+					this.easingParam = easing.substring(index + 1, easing.length - 1);
+					easing = easing.substring(0, index);
+				}
+				this.easing = Animation.easing[easing];
+			} else {
+				this.easing = easing;
+			}
+		}
+		if(callback){
+			this.callback = callback;
+		}
+	},
+
+	play : function(tick, context){
 		if(this.prePlay){
 			this.prePlay();
 		}
@@ -1256,12 +1283,17 @@ Animation = new Class({
 		Animation.queue.push(this);
 	},
 
-	pause: function(){
+	pause : function(){
+		this.paused = true;
 		this.pauseTime = Date.now();
-		Animation.queue.splice(Animation.queue.indexOf(this), 1);
+		// Animation.queue.splice(Animation.queue.indexOf(this), 1);
 	},
 
-	continue: function(){
+	continue : function(){
+		if(!this.paused){
+			return;
+		}
+
 		var delta = this.pauseTime - this.startTime;
 		this.startTime = Date.now() - delta;
 		this.endTime = this.startTime + this.duration;
@@ -1269,9 +1301,16 @@ Animation = new Class({
 		if(!Animation.queue.length){
 			requestAnimationFrame(Animation.do);
 		}
-		Animation.queue.push(this);
-	}
+		this.paused = false;
+		// Animation.queue.push(this);
+	},
 
+	cancel : function(){
+		var index = Animation.queue.indexOf(this);
+		if(index > -1){
+			Animation.queue.splice(index, 1);
+		}
+	}
 });
 
 Animation.queue = [];
@@ -1282,6 +1321,10 @@ Animation.do = function(){
 
 	for(var i = 0; i < Animation.queue.length; i++){
 		fx = Animation.queue[i];
+		if(fx.paused){
+			continue;
+		}
+
 		t = (now - fx.startTime) / fx.duration;
 
 		if(t < 0){
@@ -1298,18 +1341,17 @@ Animation.do = function(){
 
 		if(t === 1){
 			if(fx.callback){
-				// call him in requestAnimFrame?
-				// it must be called after the last update, i think
-				fx.callback.call(fx.tickContext, fx);
+				// it must be called after the last update
+				requestAnimationFrame(function(){
+					fx.callback.call(fx.tickContext, fx);
+				});
 			}
 
-			/*if(fx.queue){
+			if(fx.queue){
 				fx.queue.shift();
-				if(fx.queue.length){
-					// init the next anim in the que
-					fx.queue[0].play();
-				}
-			} */
+				fx.queue[0] && fx.queue[0].play();
+			}
+
 			Animation.queue.splice(Animation.queue.indexOf(fx), 1);
 		}
 	}
@@ -1319,8 +1361,29 @@ Animation.do = function(){
 	}
 };
 
+Animation.animationsOfElem = function(elem){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].elem === elem){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
+Animation.animationByName = function(name){
+	var fxs = [];
+	for(var i = 0; i < Animation.queue.length; i++){
+		if(Animation.queue[i].name === name){
+			fxs.push(Animation.queue[i]);
+		}
+	}
+	return fxs;
+};
+
 // extends AttrMixin
 Class.mixins.AnimatableMixin = {
+	animQueue : [],
 	animate : function(attr, value, options, easing, callback){
 		// attr, value, duration, easing, callback
 		// attrs, duration, easing, callback
@@ -1349,8 +1412,7 @@ Class.mixins.AnimatableMixin = {
 		var fx;
 		if(attr instanceof Animation){
 			fx = attr;
-			// not sure if this works
-			Object.assign(fx, options);
+			fx.setParams(options.duration, options.easing, options.callback);
 		} else {
 			fx = new Animation(
 				options.duration,
@@ -1358,9 +1420,6 @@ Class.mixins.AnimatableMixin = {
 				options.callback
 			);
 
-			/* if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-				throw 'Animation for "' + attr + '" is not supported';
-			} */
 			if(attr.constructor === String){
 				// attr, value
 				fx.prop = attr;
@@ -1369,6 +1428,10 @@ Class.mixins.AnimatableMixin = {
 					this.attrHooks[attr].preAnim.call(this, fx, value);
 					this.attrs.animation = fx;
 				}.bind(this);
+
+				if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
+					throw 'Animation for "' + attr + '" is not supported';
+				}
 			} else {
 				// attrs
 				fx.prop = Object.keys(attr).map(function(prop){
@@ -1402,59 +1465,47 @@ Class.mixins.AnimatableMixin = {
 			fx.name = options.name;
 		}
 
-		fx.play();
-
-		// var queue = options.queue;
-		/* if(queue !== false){
-			if(queue === true || queue === undefined){
-				if(!this._queue){
-					this._queue = [];
-				}
-				queue = this._queue;
-			} else if(queue instanceof Drawable){
-				queue = queue._queue;
+		if(!options.ignoreQueue){
+			fx.queue = this.animQueue;
+			fx.queue.push(fx);
+			if(fx.queue.length === 1){
+				fx.play();
 			}
-			fx.queue = queue;
-			queue.push(fx);
-			if(queue.length > 1){
-				return this;
-			}
-		} */
-		// todo: fx.onFinish = this.attrs.animation = null;
+		} else {
+			fx.play();
+		}
 
 		return this;
 	},
 
 	// stop(clearQueue, jumpToEnd)
-	pause : function(name){
-		if(!this._paused){
-			this._paused = [];
+	pause : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.pause();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].pause();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.pause();
+			});
 		}
-		// this.attrs.animation = null;
-
-		// pause changes the original array
-		// so we need slice
-		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (anim.name === name || !name)){
-				anim.pause();
-				this._paused.push(anim);
-			}
-		}, this);
 		return this;
 	},
 
-	continue : function(name){
-		if(!this._paused){
-			return;
+	continue : function(name, ignoreGlobalQueue){
+		if(name){
+			Animation.animationByName(name).forEach(function(fx){
+				fx.continue();
+			});
+		} else if(ignoreGlobalQueue){
+			this.animQueue[0].continue();
+		} else {
+			Animation.animationsOfElem(this).forEach(function(fx){
+				fx.continue();
+			});
 		}
-
-		this._paused.slice().forEach(function(anim, index){
-			if(!name || anim.name === name){
-				anim.continue();
-				this._paused.splice(index, 1);
-			}
-		}, this);
-
 		return this;
 	}
 };
@@ -1551,8 +1602,6 @@ Animation.easing = {
 
 };
 
-// Animation.easing.default = Animation.easing.swing; // todo: move to Animation.default
-
 ['quad', 'cubic', 'quart', 'quint'].forEach(function(name, i){
 	Animation.easing[name] = function(t){
 		return Math.pow(t, i + 2);
@@ -1595,7 +1644,6 @@ Context = function(canvas){
 		transform: 'attributes',
 		pivot: 'center'
 	};
-	this.cache     = {}; // todo: is it neccessary? it was used only in transforms before TransformableMixin
 
 	this.updateNow = this.updateNow.bind(this);
 };
@@ -1605,6 +1653,8 @@ Context.prototype = {
 	object : function(object){
 		if(object.constructor === Function){
 			object = {draw: object};
+		} else if(object.xtype){
+			;
 		}
 		return this.push(Object.assign(new Drawable(), object));
 	},
@@ -1681,7 +1731,7 @@ Context.prototype = {
 	},
 
 	update : function(){
-		if(this._willUpdate/* || this.elements.length === 0*/){ // doesnt work with Drawable::remove
+		if(this._willUpdate){ // doesnt work with Drawable::remove
 			return;
 		}
 
@@ -1690,6 +1740,8 @@ Context.prototype = {
 	},
 
 	updateNow : function(){
+		this.fire('beforeUpdate');
+
 		var ctx = this.context;
 		ctx.save();
 		// todo: check out what way to clear canvas is faster
@@ -1712,6 +1764,8 @@ Context.prototype = {
 
 		ctx.restore();
 		this._willUpdate = false;
+
+		this.fire('afterUpdate');
 	},
 
 	getObjectInPoint : function(x, y, mouse){
@@ -1928,126 +1982,6 @@ Context.prototype = {
 		return [x - coords.x, y - coords.y];
 	},
 
-	// Attrs
-/*	attr: Class.attr,
-	attrHooks: {
-		width: {
-			get: function(){
-				return this.canvas.width;
-			},
-			set: function(value){
-				this.canvas.width = value;
-				// if dpi != 1 && !canvas.style.width
-				// or simpler: if this.attrs.dpi !== undefined
-				this.canvas.style.width = this.canvas.width / (this.attrs.dpi || 1) + 'px';
-				// if (newWidth > width):
-				this.update();
-			}
-		},
-
-		height: {
-			get: function(){
-				return this.canvas.height;
-			},
-			set: function(value){
-				this.canvas.height = value;
-				this.canvas.style.height = this.canvas.height / (this.attrs.dpi || 1) + 'px';
-				// if (newHeight > height):
-				this.update();
-			}
-		},
-
-		// https://www.html5rocks.com/en/tutorials/canvas/hidpi/
-		// https://stackoverflow.com/questions/19142993/how-draw-in-high-resolution-to-canvas-on-chrome-and-why-if-devicepixelratio
-		// http://www.html5gamedevs.com/topic/732-retina-support/
-		dpi: {
-			get: function(){
-				return this.attrs.dpi || 1;
-			},
-			set: function(value){
-				this.canvas.style.width = this.canvas.width / value + 'px';
-				this.canvas.style.height = this.canvas.height / value + 'px';
-				this.update();
-			}
-		},
-
-		smooth: {
-			get: function(value){
-				var ir = this.canvas.style.imageRendering;
-				return ir !== 'pixelated' && ir !== 'crisp-edges';
-			},
-			set: function(value){
-				this.canvas.style.imageRendering = value ? 'initial' : 'pixelated';
-			}
-		},
-
-		transform: {
-			set: function(value){
-				this.cache.transform = null;
-				this.update();
-			}
-		},
-
-		translate: {
-			get: function(){
-				return this.attrs.translate || [0, 0];
-			},
-			set: function(value){ // todo: not duplicate at all attrs
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		rotate: {
-			get: function(){
-				return this.attrs.rotate || 0;
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		scale: {
-			get: function(){
-				return this.attrs.scale || [1, 1];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		},
-
-		skew: {
-			get: function(){
-				return this.attrs.skew || [0, 0];
-			},
-			set: function(){
-				if(this.attrs.transform === 'attributes'){
-					this.cache.transform = null;
-					this.update();
-				}
-			}
-		}
-	}, */
-
-	// Transforms
-	getTransform: function(){
-		if(this.cache.transform){
-			return this.cache.transform;
-		}
-
-		var matrix = Delta.parseTransform(this.attrs, this);
-		this.cache.transform = matrix;
-		return matrix;
-	},
-
 	corner: function(corner){
 		return [
 			this.canvas.width * Delta.corners[corner][0],
@@ -2085,7 +2019,9 @@ Delta.browserCommonEvent = {
 };
 
 // todo: check if there's event.touches at phones in mouse events (click and etc)
-Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
+Delta.browserMouseEvent = {
+	init : Delta.browserCommonEvent.init,
+	teardown : Delta.browserCommonEvent.teardown,
 	canvas : function(e){
 		var propagation = true;
 
@@ -2110,9 +2046,11 @@ Delta.browserMouseEvent = Object.assign({}, Delta.browserCommonEvent, {
 			this.fire(e.type, e);
 		}
 	}
-});
+};
 
-Delta.browserTouchEvent = Object.assign({}, Delta.browserCommonEvent, {
+Delta.browserTouchEvent = {
+	init : Delta.browserCommonEvent.init,
+	teardown : Delta.browserCommonEvent.teardown,
 	canvas : function(e){
 		var propagation = true;
 
@@ -2144,7 +2082,7 @@ Delta.browserTouchEvent = Object.assign({}, Delta.browserCommonEvent, {
 			this.fire(e.type, e);
 		}
 	}
-});
+};
 
 var eventKindsListeners = window.document ? {
 	mouse : Delta.browserMouseEvent,
@@ -2175,6 +2113,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.width;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.width = value;
 				// if dpi != 1 && !canvas.style.width
 				// or simpler: if this.attrs.dpi !== undefined
@@ -2188,6 +2127,7 @@ Object.assign(Context.prototype, Class.mixins['AttrMixin'], Class.mixins['Transf
 				return this.canvas.height;
 			},
 			set : function(value){
+				value = distance(value);
 				this.canvas.height = value;
 				this.canvas.style.height = value / (this.attrs.dpi || 1) + 'px';
 				this.update();
@@ -2277,6 +2217,7 @@ function Drawable(args){
 		transform: 'attributes',
 		pivot: 'center'
 	};
+	this.animQueue = [];
 
 	if(this.argsOrder){
 		this.processArguments(args, this.argsOrder);
@@ -2353,6 +2294,7 @@ Drawable.prototype = {
 
 	// Before -> Pre
 	isPointInBefore : function(x, y, options){
+		// [x, y] = [distance(x), distance(y)]
 		options = options === 'mouse' ? this.attrs.interactionProps : options;
 		if(options && options.transform !== false){
 			var transform = this.getTransform();
@@ -2685,118 +2627,7 @@ Drawable.prototype = {
 		context.setTransform(1, 0, 0, 1, -bounds.x, -bounds.y);
 		this.draw(context);
 		return context.getImageData(0, 0, bounds.width, bounds.height);
-	},
-/*
-	// Animation
-	animate : function(attr, value, options){
-		// attr, value, duration, easing, callback
-		// attrs, duration, easing, callback
-		// attr, value, options
-		// attrs, options
-		if(attr + '' !== attr){
-			// todo:
-			// the fx ob wiil not represent others
-			// object.fx.stop() will stop only one anim
-			if(+value === value || !value){
-				options = {duration: value, easing: options, callback: arguments[3]};
-			} else if(typeof value === 'function'){
-				options = {callback: value};
-			} else {
-				options = value;
-			}
-
-			Object.keys(attr).forEach(function(key, i){
-				this.animate(key, attr[key], options);
-				if(i === 0){
-					options.queue = false;
-					options.callback = null;
-				}
-			}, this);
-			return this;
-		}
-
-		if(!this.attrHooks[attr] || !this.attrHooks[attr].anim){
-			throw 'Animation for "' + attr + '" is not supported';
-		}
-
-		if(+options === options || !options){
-			options = {duration: options, callback: arguments[4], easing: arguments[3]};
-		} else if(typeof options === 'function'){
-			options = {callback: options};
-		}
-
-		var fx = new Animation(
-			options.duration,
-			options.easing,
-			options.callback
-		);
-
-		fx.prop = attr;
-		fx.tick = this.attrHooks[attr].anim;
-		fx.tickContext = this;
-		fx.prePlay = function(){
-			this.fx = fx;
-			this.attrHooks[attr].preAnim.call(this, fx, value);
-		}.bind(this);
-
-		// is used to pause / cancel anims
-		fx.elem = this;
-		if(options.name){
-			fx.name = options.name;
-		}
-
-		var queue = options.queue;
-		if(queue !== false){
-			if(queue === true || queue === undefined){
-				if(!this._queue){
-					this._queue = [];
-				}
-				queue = this._queue;
-			} else if(queue instanceof Drawable){
-				queue = queue._queue;
-			}
-			fx.queue = queue;
-			queue.push(fx);
-			if(queue.length > 1){
-				return this;
-			}
-		}
-
-		fx.play();
-
-		return this;
-	},
-
-	pause : function(name){
-		if(!this._paused){
-			this._paused = [];
-		}
-
-		// pause changes the original array
-		// so we need slice
-		Animation.queue.slice().forEach(function(anim){
-			if(anim.elem === this && (anim.name === name || !name)){
-				anim.pause();
-				this._paused.push(anim);
-			}
-		}, this);
-		return this;
-	},
-
-	continue : function(name){
-		if(!this._paused){
-			return;
-		}
-
-		this._paused.slice().forEach(function(anim, index){
-			if(!name || anim.name === name){
-				anim.continue();
-				this._paused.splice(index, 1);
-			}
-		}, this);
-
-		return this;
-	} */
+	}
 };
 
 Drawable.AttrHooks = DrawableAttrHooks;
@@ -3009,7 +2840,9 @@ Object.assign(Drawable.prototype,
 					}
 				}
 
-				if (value.toCanvasStyle) {
+				if(!value){
+					delete this.styles.fillStyle;
+				} else if(value.toCanvasStyle){
 					if(value.updateList){
 						this.attrs.fillLink = value;
 						value.updateList.push(this);
@@ -3018,6 +2851,31 @@ Object.assign(Drawable.prototype,
 				} else {
 					this.styles.fillStyle = value;
 				}
+				this.update();
+			},
+
+			preAnim : function(fx, endValue){
+				if(this.attrs.fill.constructor !== String){
+					fx.cancel();
+					throw "Can't animate non-color fill";
+				}
+				fx.startValue = Delta.color(this.attrs.fill);
+				fx.endValue = Delta.color(endValue);
+				fx.delta = [
+					fx.endValue[0] - fx.startValue[0],
+					fx.endValue[1] - fx.startValue[1],
+					fx.endValue[2] - fx.startValue[2],
+					fx.endValue[3] - fx.startValue[3]
+				];
+			},
+
+			anim : function(fx){
+				this.attrs.fill = this.styles.fillStyle = 'rgba(' + [
+					fx.startValue[0] + fx.delta[0] * fx.pos | 0,
+					fx.startValue[1] + fx.delta[1] * fx.pos | 0,
+					fx.startValue[2] + fx.delta[2] * fx.pos | 0,
+					fx.startValue[3] + fx.delta[3] * fx.pos
+				].join(',') + ')';
 				this.update();
 			}
 		},
@@ -3209,7 +3067,9 @@ Object.assign(Drawable.prototype,
 			set : function(value){
 				this.styles.globalAlpha = +value;
 				this.update();
-			}
+			},
+			preAnim : Animation.tick.numAttr.preAnim,
+			anim : Animation.tick.numAttr.anim
 		},
 
 		composite : {
@@ -3263,54 +3123,72 @@ Object.assign(Drawable.prototype,
 Delta.Drawable = Drawable;
 
 Rect = new Class(Drawable, {
-	argsOrder: ['x', 'y', 'width', 'height', 'fill', 'stroke'],
+	argsOrder : ['x', 'y', 'width', 'height', 'fill', 'stroke'],
 
-	attrHooks: new DrawableAttrHooks({
-		x: {set: updateSetter},
-		y: {set: updateSetter},
-		width: {set: updateSetter},
-		height: {set: updateSetter},
+	attrHooks : new DrawableAttrHooks({
+		x : {
+			set : function(value){
+				this.attrs.x = distance(value);
+				this.update();
+			}
+		},
+		y : {
+			set : function(value){
+				this.attrs.y = distance(value);
+				this.update();
+			}
+		},
+		width : {
+			set : function(value){
+				this.attrs.width = distance(value);
+				this.update();
+			}
+		},
+		height : {
+			set : function(value){
+				this.attrs.height = distance(value);
+				this.update();
+			}
+		},
 
-		x1: {
-			get: function(){
+		x1 : {
+			get : function(){
 				return this.attrs.x;
 			},
-			set: function(value){
+			set : function(value){
+				value = distance(value);
 				this.attrs.width += (this.attrs.x - value);
 				this.attrs.x = value;
 				this.update();
-				delete this.attrs.x1;
 			}
 		},
-		y1: {
-			get: function(){
+		y1 : {
+			get : function(){
 				return this.attrs.y;
 			},
-			set: function(value){
+			set : function(value){
+				value = distance(value);
 				this.attrs.height += (this.attrs.y - value);
 				this.attrs.y = value;
 				this.update();
-				delete this.attrs.y1;
 			}
 		},
-		x2: {
-			get: function(){
+		x2 : {
+			get : function(){
 				return this.attrs.x + this.attrs.width;
 			},
-			set: function(value){
-				this.attrs.width = value - this.attrs.x;
+			set : function(value){
+				this.attrs.width = distance(value) - this.attrs.x;
 				this.update();
-				delete this.attrs.x2;
 			}
 		},
-		y2: {
-			get: function(){
+		y2 : {
+			get : function(){
 				return this.attrs.y + this.attrs.height;
 			},
-			set: function(value){
-				this.attrs.height = value - this.attrs.y;
+			set : function(value){
+				this.attrs.height = distance(value) - this.attrs.y;
 				this.update();
-				delete this.attrs.y2;
 			}
 		}
 	}),
@@ -3329,12 +3207,9 @@ Rect = new Class(Drawable, {
 		return this.update();
 	}, */
 
-// doesnt work with negative width / height!
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
-		x = point[0];
-		y = point[1];
-		return x > this.attrs.x && y > this.attrs.y && x < this.attrs.x + this.attrs.width && y < this.attrs.y + this.attrs.height;
+		return Delta.isPointInRect(point[0], point[1], this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height);
 	},
 
 	preciseBounds : function(){
@@ -3375,9 +3250,9 @@ Rect = new Class(Drawable, {
 		ctx.beginPath();
 		ctx.rect(this.attrs.x, this.attrs.y, this.attrs.width, this.attrs.height);
 	}
-
 });
 
+Rect.prototype.roughBounds = Rect.prototype.preciseBounds;
 
 ['x', 'y', 'width', 'height', 'x1', 'x2', 'y1', 'y2'].forEach(function(propName, i){
 	var tick = i > 3 ? Animation.tick.numAttr : Animation.tick.num;
@@ -3392,23 +3267,34 @@ Delta.rect = function(){
 Delta.Rect = Rect;
 
 Circle = new Class(Drawable, {
-	argsOrder: ['cx', 'cy', 'radius', 'fill', 'stroke'],
+	argsOrder : ['cx', 'cy', 'radius', 'fill', 'stroke'],
 
-	attrHooks: new DrawableAttrHooks({
-		cx: {set: updateSetter},
-		cy: {set: updateSetter},
-		radius: {set: updateSetter}
+	attrHooks : new DrawableAttrHooks({
+		cx : {
+			set : function(value){
+				this.attrs.cx = distance(value);
+				this.update();
+			}
+		},
+		cy : {
+			set : function(value){
+				this.attrs.cy = distance(value);
+				this.update();
+			}
+		},
+		radius : {
+			set : function(value){
+				this.attrs.radius = distance(value);
+				this.update();
+			}
+		}
 	}),
 
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
 		x = point[0];
 		y = point[1];
-		var stroke = options.stroke ? (this.styles.lineWidth || 0) / 2 : 0;
-//		if(options.fill === false && Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2) <= Math.pow(this.attrs.radius - stroke, 2)){
-//			return false;
-//		}
-		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius + stroke, 2);
+		return (Math.pow(x - this.attrs.cx, 2) + Math.pow(y - this.attrs.cy, 2)) <= Math.pow(this.attrs.radius, 2);
 	},
 
 	preciseBounds : function(){
@@ -3419,13 +3305,6 @@ Circle = new Class(Drawable, {
 			this.attrs.radius * 2
 		);
 	},
-/*
-	bounds: function(transform, around){
-		return this.super('bounds', [
-			[this.attrs.cx - this.attrs.radius, this.attrs.cy - this.attrs.radius, this.attrs.radius * 2, this.attrs.radius * 2],
-			transform, around
-		]);
-	}, */
 
 	draw : function(ctx){
 		if(this.attrs.visible){
@@ -3452,12 +3331,10 @@ Circle = new Class(Drawable, {
 
 Circle.prototype.roughBounds = Circle.prototype.preciseBounds;
 
-Circle.args = ['cx', 'cy', 'radius', 'fill', 'stroke'];
-/*
 ['cx', 'cy', 'radius'].forEach(function(propName){
-	Circle.prototype.attrHooks[propName].preAnim = Drawable.prototype.attrHooks._num.preAnim;
-	Circle.prototype.attrHooks[propName].anim = Drawable.prototype.attrHooks._num.anim;
-}); */
+	Circle.prototype.attrHooks[propName].preAnim = Animation.tick.numAttr.preAnim;
+	Circle.prototype.attrHooks[propName].anim = Animation.tick.numAttr.anim;
+});
 
 Delta.circle = function(){
 	return new Circle(arguments);
@@ -3704,8 +3581,8 @@ Path = new Class(Drawable, {
 				this.update();
 			}
 		},
-		x : {set : updateSetter},
-		y : {set : updateSetter}
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y
 	}),
 
 	// Curves
@@ -3946,16 +3823,21 @@ Picture = new Class(Drawable, {
 			}
 		},
 
-		x : {set : updateSetter},
-		y : {set : updateSetter},
-		width : {set : updateSetter},
-		height : {set : updateSetter},
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
+		width : Rect.prototype.attrHooks.width,
+		height : Rect.prototype.attrHooks.height,
 		x1 : Rect.prototype.attrHooks.x1,
 		y1 : Rect.prototype.attrHooks.y1,
 		x2 : Rect.prototype.attrHooks.x2,
 		y2 : Rect.prototype.attrHooks.y2,
 
-		crop: {set : updateSetter},
+		crop : {
+			set : function(value){
+				this.attrs.crop = value.map(distance);
+				this.update();
+			}
+		},
 
 		smooth : {
 			get : function(){
@@ -4137,18 +4019,26 @@ Text = new Class(Drawable, {
 		text : {
 			set : function(value){
 				this.lines = null;
+				this.attrs.text = value + '';
 				this.update();
-				return value + '';
 			}
 		},
 
-		x : {set : updateSetter},
-		y : {set : updateSetter},
+		x : Rect.prototype.attrHooks.x,
+		y : Rect.prototype.attrHooks.y,
 
 		font : {
+			get : function(){
+				return this.attrs.font || Text.font;
+			},
 			set: function(value){
-				this.attrs.parsedFont = Text.parseFont(value);
-				this.styles.font = Text.genFont(this.attrs.parsedFont);
+				if(value){
+					this.attrs.parsedFont = Text.parseFont(value);
+					this.styles.font = Text.genFont(this.attrs.parsedFont);
+				} else {
+					delete this.attrs.parsedFont;
+					delete this.styles.font;
+				}
 				this.update();
 			}
 		},
@@ -4173,8 +4063,8 @@ Text = new Class(Drawable, {
 			}
 		},
 
-		// 'string' or 'block'
 		mode : {
+			// 'string' or 'block'
 			get : function(){
 				return this.attrs.mode || 'string';
 			},
@@ -4185,7 +4075,12 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.maxStringWidth || Infinity;
 			},
-			set : updateSetter
+			set : function(value){
+				if(value){
+					this.attrs.maxStringWidth = distance(value);
+				}
+				this.update();
+			}
 		},
 
 		trimLines : {
@@ -4202,7 +4097,10 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.lineHeight || 'auto';
 			},
-			set : function(){
+			set : function(value){
+				if(value){
+					this.attrs.lineHeight = distance(value);
+				}
 				this.lines = null;
 				this.update();
 			}
@@ -4212,7 +4110,10 @@ Text = new Class(Drawable, {
 			get : function(){
 				return this.attrs.blockWidth || Infinity;
 			},
-			set : function(){
+			set : function(value){
+				if(value){
+					this.attrs.blockWidth = distance(value);
+				}
 				this.lines = null;
 				this.update();
 			}
@@ -4225,7 +4126,9 @@ Text = new Class(Drawable, {
 		var text = this.attrs.text,
 			lines = this.lines = [],
 
-			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : this.attrs.parsedFont.size,
+			lineHeight = (this.attrs.lineHeight || 'auto') !== 'auto' ? this.attrs.lineHeight : (
+				this.attrs.parsedFont ? this.attrs.parsedFont.size : Text.parseFont(Text.font).size
+			),
 			blockWidth = this.attrs.blockWidth || Infinity,
 			x = blockWidth * (this.styles.textAlign === 'center' ? 1/2 : this.styles.textAlign === 'right' ? 1 : 0);
 
@@ -4311,11 +4214,8 @@ Text = new Class(Drawable, {
 
 	isPointIn : function(x, y, options){
 		var point = this.isPointInBefore(x, y, options);
-		x = point[0];
-		y = point[1];
-
-		var bounds = this.bounds(false);
-		return x > bounds.x1 && y > bounds.y1 && x < bounds.x2 && y < bounds.y2;
+		var bounds = this.preciseBounds(options);
+		return Delta.isPointInRect(point[0], point[1], bounds.x, bounds.y, bounds.w, bounds.h);
 	},
 
 	measure : function(){
@@ -4344,7 +4244,8 @@ Text = new Class(Drawable, {
 			blockX = this.attrs.x,
 			blockY = this.attrs.y,
 			width,
-			height = (this.attrs.lineHeight || 'auto') === 'auto' ? this.attrs.parsedFont.size : this.attrs.lineHeight;
+			fontSize = this.attrs.parsedFont ? this.attrs.parsedFont.size : Text.parseFont(Text.font).size,
+			height = (this.attrs.lineHeight || 'auto') === 'auto' ? fontSize : this.attrs.lineHeight;
 
 		// text processing
 		if(this.attrs.mode === 'block'){
@@ -4370,11 +4271,11 @@ Text = new Class(Drawable, {
 			align = this.styles.textAlign;
 
 		if(baseline === 'middle'){
-			blockY -= this.attrs.parsedFont.size / 2;
+			blockY -= fontSize / 2;
 		} else if(baseline === 'bottom' || baseline === 'ideographic'){
-			blockY -= this.attrs.parsedFont.size;
+			blockY -= fontSize;
 		} else if(baseline === 'alphabetic'){
-			blockY -= this.attrs.parsedFont.size * 0.8;
+			blockY -= fontSize * 0.8;
 		}
 
 		if(align === 'center'){
@@ -4390,7 +4291,6 @@ Text = new Class(Drawable, {
 
 Text.baseline = 'top';
 Text.font = '10px sans-serif';
-Text.args = ['text', 'x', 'y', 'font', 'fill', 'stroke'];
 
 // 'Arial bold 10px' -> {family: 'Arial', size: 10, bold: true}
 Text.parseFont = function(font){
@@ -4404,7 +4304,7 @@ Text.parseFont = function(font){
 			} else if(part === 'italic'){
 				object.italic = true;
 			} else if(reNumberLike.test(part)){
-				object.size = Delta.distance(part);
+				object.size = distance(part);
 			} else {
 				object.family += ' ' + part;
 			}
